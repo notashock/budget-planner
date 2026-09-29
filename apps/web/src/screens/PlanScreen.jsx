@@ -12,7 +12,9 @@ export function PlanScreen({
   whatIfOverrides,
   onWhatIfChange,
   onResetWhatIf,
-  onOpenAddItem
+  onOpenAddItem,
+  onOpenQuickLog,
+  onOpenReview
 }) {
   if (!month) {
     return (
@@ -30,7 +32,11 @@ export function PlanScreen({
     endingBalance = 0,
     lowestBalance = 0,
     lowestDate = '',
-    floorBreached = false
+    floorBreached = false,
+    unplannedAllowance = 0,
+    allowanceLeft = 0,
+    daysLeft = 1,
+    safeToSpendPerDay = 0
   } = simulation || {};
 
   return (
@@ -44,7 +50,7 @@ export function PlanScreen({
         currencySymbol={month.currencySymbol}
       />
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Cards including Safe to Spend per Day */}
       <SummaryCards
         incomeAmount={month.incomeAmount}
         incomeCreditDay={month.incomeCreditDay}
@@ -54,8 +60,31 @@ export function PlanScreen({
         lowestBalance={lowestBalance}
         lowestDate={lowestDate}
         safetyFloor={month.safetyFloor}
+        unplannedAllowance={month.unplannedAllowance || unplannedAllowance}
+        allowanceLeft={allowanceLeft}
+        daysLeft={daysLeft}
+        safeToSpendPerDay={safeToSpendPerDay}
         currencySymbol={month.currencySymbol}
       />
+
+      {/* Quick Action Bar: 3-Tap Log, Add Item, Review */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+        <button
+          type="button"
+          className="btn-primary"
+          style={{ padding: '10px 14px', fontSize: '13px' }}
+          onClick={onOpenQuickLog}
+        >
+          ⚡ Log spending (3-tap)
+        </button>
+        <button
+          type="button"
+          onClick={onOpenReview}
+          style={{ padding: '10px 8px', fontSize: '12px' }}
+        >
+          Month review
+        </button>
+      </div>
 
       {/* Step Line SVG Chart */}
       <StepLineChart
@@ -82,14 +111,14 @@ export function PlanScreen({
         currencySymbol={month.currencySymbol}
       />
 
-      {/* Quick Add Button */}
+      {/* Add Planned Item Button */}
       <button
         type="button"
-        className="btn-primary"
-        style={{ padding: '12px', fontSize: '14px', width: '100%' }}
+        className="btn-subtle"
+        style={{ padding: '12px', fontSize: '13px', width: '100%', border: '1px dashed var(--border)' }}
         onClick={onOpenAddItem}
       >
-        + Add budget item
+        + Add planned budget item
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from '@budget/engine';
+import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 /**
  * Pure SVG Step Line Balance Chart.
@@ -170,17 +170,20 @@ export function StepLineChart({
           })}
 
           {/* X Axis ticks */}
-          {xTicks.map((day) => (
-            <text
-              key={day}
-              x={getX(day)}
-              y={height - 10}
-              textAnchor="middle"
-              className="chart-axis-text"
-            >
-              Day {day}
-            </text>
-          ))}
+          {xTicks.map((day) => {
+            const point = dailyBalances.find((p) => p.day === day);
+            return (
+              <text
+                key={day}
+                x={getX(day)}
+                y={height - 10}
+                textAnchor="middle"
+                className="chart-axis-text"
+              >
+                {point ? formatDisplayDate(point.date, false) : `Day ${day}`}
+              </text>
+            );
+          })}
         </svg>
       </div>
     </div>

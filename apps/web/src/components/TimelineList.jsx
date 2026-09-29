@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from '@budget/engine';
+import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 export function TimelineList({ events = [], safetyFloor = 0, currencySymbol = '$' }) {
   if (!events || events.length === 0) {
@@ -26,13 +26,15 @@ export function TimelineList({ events = [], safetyFloor = 0, currencySymbol = '$
 
           return (
             <div key={`${evt.date}-${idx}`} className="timeline-event-row">
-              <div className="timeline-event-date">
-                Day {evt.day}
+              <div className="timeline-event-date" style={{ minWidth: '75px', fontWeight: 500 }}>
+                {formatDisplayDate(evt.date, true)}
               </div>
 
               <div className="timeline-event-info">
                 <span className="timeline-event-label">{evt.label}</span>
-                <span className="timeline-event-type">{evt.itemType}</span>
+                <span className="timeline-event-type">
+                  {evt.itemType} {evt.isActual ? '• actual' : ''}
+                </span>
               </div>
 
               <div className="timeline-event-numbers">

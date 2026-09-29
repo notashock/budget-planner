@@ -8,6 +8,8 @@ import { ItemsScreen } from './screens/ItemsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
 import { ItemModal } from './components/ItemModal.jsx';
+import { QuickLogModal } from './components/QuickLogModal.jsx';
+import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
 
@@ -30,6 +32,7 @@ export default function App() {
   const [months, setMonths] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(null);
   const [items, setItems] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
   // What-If in-memory overrides: { [itemId]: { amount: number } }
@@ -38,6 +41,8 @@ export default function App() {
   // Modals state
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [createMonthOpen, setCreateMonthOpen] = useState(false);
   const [rolloverOpen, setRolloverOpen] = useState(false);
 
@@ -67,9 +72,9 @@ export default function App() {
         }
         loadMonthDetails(target.year, target.month);
       } else {
-        // No months yet: open create month modal
         setCurrentMonth(null);
         setItems([]);
+        setTransactions([]);
         setCreateMonthOpen(true);
       }
     } catch (err) {
@@ -82,7 +87,8 @@ export default function App() {
       const res = await api.getMonthDetail(year, monthNum);
       setCurrentMonth(res.month);
       setItems(res.items);
-      setWhatIfOverrides({}); // Discard previous what-if changes on month change
+      setTransactions(res.transactions || []);
+      setWhatIfOverrides({});
     } catch (err) {
       console.error('Failed to load month details:', err);
     }
@@ -94,7 +100,7 @@ export default function App() {
     }
   }, [user]);
 
-  // Pure in-browser simulation calculation with What-If support
+  // Pure in-browser simulation calculation with What-If and actual transactions support
   const activeSimulation = useMemo(() => {
     if (!currentMonth) return null;
 
@@ -107,18 +113,23 @@ export default function App() {
       return item;
     });
 
+    const currentDay = new Date().getDate();
+
     return simulate(
       {
         openingBalance: currentMonth.openingBalance,
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDay: currentMonth.incomeCreditDay,
         safetyFloor: currentMonth.safetyFloor,
+        unplannedAllowance: currentMonth.unplannedAllowance || 0,
+        currentDay,
         scale: 100
       },
       effectiveItems,
-      { year: currentMonth.year, month: currentMonth.month }
+      { year: currentMonth.year, month: currentMonth.month },
+      transactions
     );
-  }, [currentMonth, items, whatIfOverrides]);
+  }, [currentMonth, items, whatIfOverrides, transactions]);
 
   // Auth actions
   const handleLogin = async (email, password) => {
@@ -141,6 +152,7 @@ export default function App() {
     setCurrentMonth(null);
     setMonths([]);
     setItems([]);
+    setTransactions([]);
   };
 
   // What-If actions
@@ -158,6 +170,27 @@ export default function App() {
 
   const handleResetWhatIf = () => {
     setWhatIfOverrides({});
+  };
+
+  // Transaction quick-log actions
+  const handleLogTransaction = async (txData) => {
+    try {
+      const created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
+      setTransactions((prev) => [...prev, created]);
+      setQuickLogOpen(false);
+    } catch (err) {
+      alert(err.message || 'Failed to log transaction');
+    }
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm('Delete this transaction?')) return;
+    try {
+      await api.deleteTransaction(id);
+      setTransactions((prev) => prev.filter((t) => t._id !== id));
+    } catch (err) {
+      alert(err.message || 'Failed to delete transaction');
+    }
   };
 
   // Item actions
@@ -275,22 +308,27 @@ export default function App() {
               setEditingItem(null);
               setItemModalOpen(true);
             }}
+            onOpenQuickLog={() => setQuickLogOpen(true)}
+            onOpenReview={() => setReviewOpen(true)}
           />
         )}
 
         {activeTab === 'items' && (
           <ItemsScreen
             items={items}
+            transactions={transactions}
             currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '$'}
             onOpenAddItem={() => {
               setEditingItem(null);
               setItemModalOpen(true);
             }}
+            onOpenQuickLog={() => setQuickLogOpen(true)}
             onEditItem={(item) => {
               setEditingItem(item);
               setItemModalOpen(true);
             }}
             onDeleteItem={handleDeleteItem}
+            onDeleteTransaction={handleDeleteTransaction}
           />
         )}
 
@@ -322,11 +360,39 @@ export default function App() {
         isOpen={itemModalOpen}
         initialItem={editingItem}
         currencySymbol={currentMonth?.currencySymbol || '$'}
+        month={currentMonth}
+        monthSettings={{
+          openingBalance: currentMonth?.openingBalance || 0,
+          incomeAmount: currentMonth?.incomeAmount || 0,
+          incomeCreditDay: currentMonth?.incomeCreditDay || 1,
+          safetyFloor: currentMonth?.safetyFloor || 0,
+          unplannedAllowance: currentMonth?.unplannedAllowance || 0
+        }}
+        existingItems={items}
+        existingTransactions={transactions}
         onClose={() => {
           setItemModalOpen(false);
           setEditingItem(null);
         }}
         onSave={handleSaveItem}
+      />
+
+      {/* 3-Tap Quick-Log Spending Modal */}
+      <QuickLogModal
+        isOpen={quickLogOpen}
+        month={currentMonth}
+        plannedItems={items}
+        currencySymbol={currentMonth?.currencySymbol || '$'}
+        onClose={() => setQuickLogOpen(false)}
+        onLogTransaction={handleLogTransaction}
+      />
+
+      {/* Month-End Review Modal */}
+      <MonthEndReviewModal
+        isOpen={reviewOpen}
+        month={currentMonth}
+        currencySymbol={currentMonth?.currencySymbol || '$'}
+        onClose={() => setReviewOpen(false)}
       />
 
       {/* Create Month Modal */}

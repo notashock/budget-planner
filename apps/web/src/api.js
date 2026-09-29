@@ -39,6 +39,13 @@ export const api = {
   updateItem: (id, updates) => request(`/api/items/${id}`, { method: 'PUT', body: JSON.stringify(updates) }),
   deleteItem: (id) => request(`/api/items/${id}`, { method: 'DELETE' }),
 
+  // Transactions (Actuals, Unplanned, Quick-Log)
+  getTransactions: (year, month) => request(`/api/months/${year}/${month}/transactions`),
+  createTransaction: (year, month, tx) => request(`/api/months/${year}/${month}/transactions`, { method: 'POST', body: JSON.stringify(tx) }),
+  deleteTransaction: (id) => request(`/api/transactions/${id}`, { method: 'DELETE' }),
+  getMonthEndReview: (year, month) => request(`/api/months/${year}/${month}/month-end-review`),
+  recommendPurchaseDate: (year, month, amount) => request(`/api/months/${year}/${month}/recommend-purchase-date`, { method: 'POST', body: JSON.stringify({ amount }) }),
+
   // AI Assistant (Gated by settings toggle)
   parseText: (text) => request('/api/ai/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
   explainTimeline: (timelineSummary, safetyFloor) => request('/api/ai/explain-timeline', { method: 'POST', body: JSON.stringify({ timelineSummary, safetyFloor }) })

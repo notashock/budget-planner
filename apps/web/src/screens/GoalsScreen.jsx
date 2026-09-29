@@ -10,12 +10,14 @@ export function GoalsScreen({
   const [incomeAmount, setIncomeAmount] = useState('');
   const [incomeCreditDay, setIncomeCreditDay] = useState(1);
   const [safetyFloor, setSafetyFloor] = useState('');
+  const [unplannedAllowance, setUnplannedAllowance] = useState('');
   const [currencySymbol, setCurrencySymbol] = useState('$');
 
   // Global default settings
   const [defaultIncome, setDefaultIncome] = useState('');
   const [defaultCreditDay, setDefaultCreditDay] = useState(1);
   const [defaultFloor, setDefaultFloor] = useState('');
+  const [defaultAllowance, setDefaultAllowance] = useState('');
 
   const [monthSaved, setMonthSaved] = useState(false);
   const [defaultsSaved, setDefaultsSaved] = useState(false);
@@ -25,6 +27,7 @@ export function GoalsScreen({
       setIncomeAmount((month.incomeAmount / 100).toString());
       setIncomeCreditDay(month.incomeCreditDay || 1);
       setSafetyFloor((month.safetyFloor / 100).toString());
+      setUnplannedAllowance(month.unplannedAllowance ? (month.unplannedAllowance / 100).toString() : '');
       setCurrencySymbol(month.currencySymbol || '$');
     }
   }, [month]);
@@ -34,6 +37,7 @@ export function GoalsScreen({
       setDefaultIncome((settings.defaultIncomeAmount / 100).toString());
       setDefaultCreditDay(settings.defaultIncomeCreditDay || 1);
       setDefaultFloor((settings.defaultSafetyFloor / 100).toString());
+      setDefaultAllowance(settings.defaultUnplannedAllowance ? (settings.defaultUnplannedAllowance / 100).toString() : '');
     }
   }, [settings]);
 
@@ -43,6 +47,7 @@ export function GoalsScreen({
       incomeAmount: Math.round(Number(incomeAmount || 0) * 100),
       incomeCreditDay: Number(incomeCreditDay) || 1,
       safetyFloor: Math.round(Number(safetyFloor || 0) * 100),
+      unplannedAllowance: Math.round(Number(unplannedAllowance || 0) * 100),
       currencySymbol: currencySymbol.trim() || '$'
     });
     setMonthSaved(true);
@@ -55,6 +60,7 @@ export function GoalsScreen({
       defaultIncomeAmount: Math.round(Number(defaultIncome || 0) * 100),
       defaultIncomeCreditDay: Number(defaultCreditDay) || 1,
       defaultSafetyFloor: Math.round(Number(defaultFloor || 0) * 100),
+      defaultUnplannedAllowance: Math.round(Number(defaultAllowance || 0) * 100),
       currencySymbol: currencySymbol.trim() || '$'
     });
     setDefaultsSaved(true);
@@ -111,14 +117,25 @@ export function GoalsScreen({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Currency symbol</label>
+                <label className="form-label">Monthly unplanned allowance ({currencySymbol})</label>
                 <input
-                  type="text"
-                  maxLength="5"
-                  value={currencySymbol}
-                  onChange={(e) => setCurrencySymbol(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 1000"
+                  value={unplannedAllowance}
+                  onChange={(e) => setUnplannedAllowance(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Currency symbol</label>
+              <input
+                type="text"
+                maxLength="5"
+                value={currencySymbol}
+                onChange={(e) => setCurrencySymbol(e.target.value)}
+              />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
@@ -165,14 +182,25 @@ export function GoalsScreen({
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Default safety floor</label>
-            <input
-              type="number"
-              step="0.01"
-              value={defaultFloor}
-              onChange={(e) => setDefaultFloor(e.target.value)}
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Default safety floor</label>
+              <input
+                type="number"
+                step="0.01"
+                value={defaultFloor}
+                onChange={(e) => setDefaultFloor(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Default unplanned allowance</label>
+              <input
+                type="number"
+                step="0.01"
+                value={defaultAllowance}
+                onChange={(e) => setDefaultAllowance(e.target.value)}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>

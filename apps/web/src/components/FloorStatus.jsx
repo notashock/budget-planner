@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from '@budget/engine';
+import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 export function FloorStatus({
   floorBreached = false,
@@ -8,6 +8,8 @@ export function FloorStatus({
   safetyFloor = 0,
   currencySymbol = '$'
 }) {
+  const formattedLowestDate = lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A';
+
   if (floorBreached) {
     const deficit = safetyFloor - lowestBalance;
     return (
@@ -17,7 +19,7 @@ export function FloorStatus({
             Safety floor breached
           </div>
           <div className="floor-banner-desc">
-            Balance drops to {formatCurrency(lowestBalance, currencySymbol)} on {lowestDate}, breaching your {formatCurrency(safetyFloor, currencySymbol)} safety floor by {formatCurrency(deficit, currencySymbol)}.
+            Balance drops to {formatCurrency(lowestBalance, currencySymbol)} on {formattedLowestDate}, breaching your {formatCurrency(safetyFloor, currencySymbol)} safety floor by {formatCurrency(deficit, currencySymbol)}.
           </div>
         </div>
       </div>
@@ -32,7 +34,7 @@ export function FloorStatus({
           Safety floor maintained
         </div>
         <div className="floor-banner-desc">
-          Lowest balance is {formatCurrency(lowestBalance, currencySymbol)} on {lowestDate}, safely {formatCurrency(margin, currencySymbol)} above your safety floor.
+          Lowest balance is {formatCurrency(lowestBalance, currencySymbol)} on {formattedLowestDate}, safely {formatCurrency(margin, currencySymbol)} above your safety floor.
         </div>
       </div>
     </div>

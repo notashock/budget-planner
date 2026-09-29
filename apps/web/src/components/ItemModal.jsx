@@ -1,19 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { calculateFormulaCost, formatCurrency } from '@budget/engine';
+import {
+  calculateFormulaCost,
+  calculateFuelEfficiency,
+  recommendPurchaseDate,
+  formatCurrency,
+  formatDisplayDate,
+  formatDate
+} from '@budget/engine';
 
 export function ItemModal({
   isOpen,
   onClose,
   onSave,
   initialItem = null,
-  currencySymbol = '$'
+  currencySymbol = '$',
+  month,
+  monthSettings,
+  existingItems = [],
+  existingTransactions = []
 }) {
   const [type, setType] = useState('one-time');
   const [name, setName] = useState('');
   const [priority, setPriority] = useState(0);
   const [amount, setAmount] = useState('');
-  const [day, setDay] = useState(1);
+  const [date, setDate] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
+
+  // Recommendation state
+  const [recommendation, setRecommendation] = useState(null);
 
   // Formula fields
   const [distance, setDistance] = useState('');
@@ -22,17 +36,37 @@ export function ItemModal({
   const [extraCost, setExtraCost] = useState('');
   const [datesStr, setDatesStr] = useState('');
 
+  // Fuel log fields: list of fuel stops
+  const [fuelStops, setFuelStops] = useState([
+    { date: '', odometer: '', fuelVolume: '', fuelCost: '' },
+    { date: '', odometer: '', fuelVolume: '', fuelCost: '' }
+  ]);
+
   useEffect(() => {
+    setRecommendation(null);
+    const year = month?.year || 2026;
+    const monthNum = month?.month || 1;
+    const defaultDate = formatDate(year, monthNum, 1);
+
     if (initialItem) {
       setType(initialItem.type);
       setName(initialItem.name);
       setPriority(initialItem.priority ?? 0);
       if (initialItem.type === 'one-time') {
         setAmount((initialItem.amount / 100).toString());
-        setDay(initialItem.day || 1);
+        setDate(formatDate(year, monthNum, initialItem.day || 1));
       } else if (initialItem.type === 'recurring') {
         setAmount((initialItem.amount / 100).toString());
         setDayOfMonth(initialItem.dayOfMonth || 1);
+      } else if (initialItem.type === 'fuel-log') {
+        setFuelStops(
+          initialItem.fuelStops?.map((s) => ({
+            date: s.date || defaultDate,
+            odometer: s.odometer?.toString() || '',
+            fuelVolume: s.fuelVolume?.toString() || '',
+            fuelCost: s.fuelCost ? (s.fuelCost / 100).toString() : ''
+          })) || []
+        );
       } else if (initialItem.type === 'formula') {
         const cfg = initialItem.formulaConfig || {};
         setDistance(cfg.distance?.toString() || '');
@@ -46,19 +80,57 @@ export function ItemModal({
       setName('');
       setPriority(0);
       setAmount('');
-      setDay(1);
+      setDate(defaultDate);
       setDayOfMonth(1);
       setDistance('');
       setEfficiency('');
       setFuelPrice('');
       setExtraCost('');
       setDatesStr('');
+      setFuelStops([
+        { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' },
+        { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' }
+      ]);
     }
-  }, [initialItem, isOpen]);
+  }, [initialItem, isOpen, month]);
 
   if (!isOpen) return null;
 
-  // Calculate formula cost live for preview
+  // Handle Recommendation calculation for One-Time Purchase
+  const handleRecommendDate = () => {
+    if (!amount || isNaN(Number(amount)) || !month) return;
+    const minorAmount = Math.round(Number(amount) * 100);
+
+    const rec = recommendPurchaseDate(
+      monthSettings || {
+        openingBalance: month.openingBalance,
+        incomeAmount: month.incomeAmount,
+        incomeCreditDay: month.incomeCreditDay,
+        safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0
+      },
+      existingItems.filter((i) => !initialItem || i._id !== initialItem._id),
+      { year: month.year, month: month.month },
+      minorAmount,
+      existingTransactions
+    );
+
+    setRecommendation(rec);
+  };
+
+  // Live Fuel Efficiency Calculation
+  const parsedFuelStops = fuelStops
+    .filter((s) => s.odometer !== '' && s.fuelVolume !== '')
+    .map((s) => ({
+      date: s.date,
+      odometer: Number(s.odometer) || 0,
+      fuelVolume: Number(s.fuelVolume) || 0,
+      fuelCost: Math.round(Number(s.fuelCost || 0) * 100)
+    }));
+
+  const fuelEfficiencyResult = calculateFuelEfficiency(parsedFuelStops);
+
+  // Live Formula Calculation
   let formulaPerCost = 0;
   let parsedDates = [];
   if (type === 'formula') {
@@ -95,10 +167,13 @@ export function ItemModal({
 
     if (type === 'one-time') {
       payload.amount = Math.round(Number(amount || 0) * 100);
-      payload.day = Number(day) || 1;
+      const parsedDay = date ? parseInt(date.split('-')[2], 10) : 1;
+      payload.day = parsedDay || 1;
     } else if (type === 'recurring') {
       payload.amount = Math.round(Number(amount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
+    } else if (type === 'fuel-log') {
+      payload.fuelStops = parsedFuelStops;
     } else if (type === 'formula') {
       payload.formulaConfig = {
         distance: Number(distance) || 0,
@@ -116,22 +191,20 @@ export function ItemModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3>{initialItem ? 'Edit item' : 'Add new item'}</h3>
-          <button type="button" className="btn-subtle" onClick={onClose} style={{ padding: '4px 8px' }}>
-            Close
-          </button>
+          <h3>{initialItem ? 'Edit budget item' : 'Add budget item'}</h3>
+          <button type="button" className="btn-subtle" onClick={onClose}>Close</button>
         </div>
 
-        {/* Item Type Selector */}
+        {/* Tab Selector */}
         {!initialItem && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-            {['one-time', 'recurring', 'formula'].map((t) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+            {['one-time', 'recurring', 'fuel-log', 'formula'].map((t) => (
               <button
                 key={t}
                 type="button"
                 className={type === t ? 'btn-primary' : ''}
                 onClick={() => setType(t)}
-                style={{ padding: '6px 8px', fontSize: '12px' }}
+                style={{ padding: '6px 4px', fontSize: '11px' }}
               >
                 {t}
               </button>
@@ -145,7 +218,7 @@ export function ItemModal({
             <input
               type="text"
               required
-              placeholder="e.g. Rent, Grocery run, Work trip"
+              placeholder="e.g. Rent, Groceries, Bike fuel log"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -161,7 +234,7 @@ export function ItemModal({
               />
             </div>
 
-            {type !== 'formula' && (
+            {type !== 'formula' && type !== 'fuel-log' && (
               <div className="form-group">
                 <label className="form-label">Amount ({currencySymbol})</label>
                 <input
@@ -170,26 +243,75 @@ export function ItemModal({
                   required
                   placeholder="0.00"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setRecommendation(null);
+                  }}
                 />
               </div>
             )}
           </div>
 
+          {/* One-Time Date Picker & Recommender */}
           {type === 'one-time' && (
             <div className="form-group">
-              <label className="form-label">Day of month (1 - 31)</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label className="form-label">Purchase date</label>
+                <button
+                  type="button"
+                  className="btn-subtle"
+                  style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--accent)' }}
+                  onClick={handleRecommendDate}
+                  disabled={!amount}
+                >
+                  ⚡ Recommend best date
+                </button>
+              </div>
               <input
-                type="number"
-                min="1"
-                max="31"
+                type="date"
                 required
-                value={day}
-                onChange={(e) => setDay(e.target.value)}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
               />
+
+              {recommendation && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '10px',
+                    borderRadius: 'var(--radius)',
+                    background: recommendation.feasible ? 'var(--success-subtle)' : 'var(--danger-subtle)',
+                    border: `1px solid ${recommendation.feasible ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                    fontSize: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div>
+                    <strong>Recommended:</strong> {formatDisplayDate(recommendation.recommendedDate)}
+                  </div>
+                  <div>
+                    {recommendation.feasible
+                      ? `Holding cash until this date maximizes savings with a safety buffer of ${formatCurrency(recommendation.savingsBuffer, currencySymbol)}.`
+                      : `Floor breached on all dates. Scheduling on ${formatDisplayDate(recommendation.recommendedDate)} minimizes deficit.`}
+                  </div>
+                  {recommendation.recommendedDate && recommendation.recommendedDate !== date && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ marginTop: '4px', alignSelf: 'flex-start', padding: '4px 10px', fontSize: '11px' }}
+                      onClick={() => setDate(recommendation.recommendedDate)}
+                    >
+                      Use {formatDisplayDate(recommendation.recommendedDate)}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
+          {/* Recurring Day */}
           {type === 'recurring' && (
             <div className="form-group">
               <label className="form-label">Day of month to bill (1 - 31)</label>
@@ -207,6 +329,116 @@ export function ItemModal({
             </div>
           )}
 
+          {/* Bike Fuel Log */}
+          {type === 'fuel-log' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="form-label">Fuel stops & odometer log</span>
+                <button
+                  type="button"
+                  className="btn-subtle"
+                  style={{ padding: '2px 8px', fontSize: '11px' }}
+                  onClick={() =>
+                    setFuelStops([
+                      ...fuelStops,
+                      { date: date || '2026-09-01', odometer: '', fuelVolume: '', fuelCost: '' }
+                    ])
+                  }
+                >
+                  + Add fuel stop
+                </button>
+              </div>
+
+              {fuelStops.map((stop, sIdx) => (
+                <div
+                  key={sIdx}
+                  style={{
+                    padding: '8px',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600 }}>
+                    <span>Stop #{sIdx + 1} {sIdx === 0 ? '(Baseline odometer)' : ''}</span>
+                    {fuelStops.length > 2 && (
+                      <button
+                        type="button"
+                        className="btn-subtle"
+                        style={{ padding: '0 4px', color: 'var(--danger)' }}
+                        onClick={() => setFuelStops(fuelStops.filter((_, i) => i !== sIdx))}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="form-row">
+                    <input
+                      type="date"
+                      required
+                      value={stop.date}
+                      onChange={(e) => {
+                        const next = [...fuelStops];
+                        next[sIdx].date = e.target.value;
+                        setFuelStops(next);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Odometer (km)"
+                      required
+                      value={stop.odometer}
+                      onChange={(e) => {
+                        const next = [...fuelStops];
+                        next[sIdx].odometer = e.target.value;
+                        setFuelStops(next);
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Fuel volume (L)"
+                      required
+                      value={stop.fuelVolume}
+                      onChange={(e) => {
+                        const next = [...fuelStops];
+                        next[sIdx].fuelVolume = e.target.value;
+                        setFuelStops(next);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder={`Total cost (${currencySymbol})`}
+                      required
+                      value={stop.fuelCost}
+                      onChange={(e) => {
+                        const next = [...fuelStops];
+                        next[sIdx].fuelCost = e.target.value;
+                        setFuelStops(next);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {fuelEfficiencyResult.averageEfficiency && (
+                <div className="assumptions-box" style={{ background: 'var(--success-subtle)', borderColor: 'var(--success-border)' }}>
+                  <strong>Bike efficiency:</strong> {fuelEfficiencyResult.averageEfficiency} km/L across {fuelEfficiencyResult.totalDistance} km.
+                  <br />
+                  <strong>Total fuel cost:</strong> {formatCurrency(fuelEfficiencyResult.totalFuelCost, currencySymbol)} ({fuelEfficiencyResult.totalFuelVolume} L total).
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Formula item */}
           {type === 'formula' && (
             <>
               <div className="form-row">
@@ -222,7 +454,7 @@ export function ItemModal({
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Fuel efficiency (km/L or MPG)</label>
+                  <label className="form-label">Fuel efficiency (km/L)</label>
                   <input
                     type="number"
                     step="0.1"
