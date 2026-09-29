@@ -1,0 +1,3 @@
+# Hybrid Actuals and Planned Items Engine Projection
+
+When users record real-world spending during a month in progress, projecting future cash flow requires reconciling historical actual transactions with scheduled budget items. We decided that the pure simulation engine combines all recorded transactions (actuals) on their exact dates, fulfills and removes matched planned items to prevent double-counting, and retains only remaining unfulfilled planned items in the future timeline. This ensures a single unified running balance timeline that reflects real spending up to today while projecting remaining obligations through month end.

@@ -28,9 +28,10 @@ _Avoid_: Ad-hoc expense, sporadic cost.
 An expense scheduled on a specific day of the month that recurs monthly, clamped to the last day of shorter months.
 _Avoid_: Subscription, standing order, bill.
 
-**Formula Item**:
-A transportation or usage-based expense calculated per occurrence from distance, efficiency, fuel price, and extra cost across specified dates.
-_Avoid_: Dynamic item, mileage expense.
+**Fuel Log**:
+A vehicle fuel expense entry recording odometer readings, fuel volume, and total cost across refueling stops, automatically calculating bike fuel efficiency (distance per volume unit) between consecutive stops.
+_Avoid_: Formula item, mileage expense, dynamic bill.
+
 
 **Month Rollover**:
 The process of creating the next calendar month, copying recurring items and optionally carrying forward the ending balance as the new opening balance.
@@ -39,3 +40,21 @@ _Avoid_: Month close, archive, reset.
 **What-If**:
 An ephemeral in-memory recalculation of the timeline with modified item amounts or frequencies without saving to the database.
 _Avoid_: Scenario, simulation draft, sandbox.
+
+**Recommended Purchase Date**:
+The latest calendar date in a month on which a one-time purchase can occur without causing the running balance on that or any subsequent date to breach the safety floor.
+_Avoid_: Optimal purchase time, suggested spend day.
+
+**Transaction**:
+A recorded financial actual (expense or negative refund) on an exact date, either linked to a planned item or logged as an unexpected expense.
+_Avoid_: Purchase entry, ledger entry, receipt.
+
+**Unplanned Allowance**:
+A monthly pool allocated for unexpected spending not captured by planned items, monitored through a daily rate.
+_Avoid_: Buffer, slush fund, petty cash.
+
+**Safe to Spend per Day**:
+The remaining unplanned allowance divided by the remaining calendar days in the month.
+_Avoid_: Daily budget, burn rate.
+
+

@@ -3,29 +3,30 @@ import { calculateFormulaCost } from './formula.js';
 
 /**
  * Pure simulation engine.
- * Computes deterministic running balance timeline and safety floor breaches.
- * 
- * Rules:
- * - Operates strictly on integer minor units (or integers) to eliminate floating point drift.
- * - Events on the same date keep stable ordering: income first, then items by priority, then source order.
- * - Zero I/O and zero reliance on system clock.
+ * Computes deterministic running balance timeline, safety floor breaches,
+ * and incorporates real-world transactions and fuel logs.
  * 
  * @param {object} settings
  * @param {number} [settings.openingBalance=0] - Starting balance in minor units
  * @param {number} [settings.incomeAmount=0] - Monthly income in minor units
  * @param {number} [settings.incomeCreditDay=1] - Day of month income is credited (1 - 31)
  * @param {number} [settings.safetyFloor=0] - Safety floor threshold in minor units
+ * @param {number} [settings.unplannedAllowance=0] - Monthly unplanned allowance in minor units
+ * @param {number} [settings.currentDay=1] - Current day of month for safe-to-spend calculation
  * @param {number} [settings.scale=100] - Scale factor (100 for cents, 1 for whole units)
  * 
- * @param {Array<object>} items - List of items for the month
- * 
- * @param {object} month
- * @param {number} month.year - Calendar year (e.g. 2026)
- * @param {number} month.month - Month number 1 - 12 (1 = Jan, 12 = Dec)
+ * @param {Array<object>} items - List of planned items for the month
+ * @param {object} month - { year, month } (month 1 - 12)
+ * @param {Array<object>} [transactions=[]] - Logged real-world transactions
  * 
  * @returns {object} SimulationResult
  */
-export function simulate(settings = {}, items = [], month = { year: 2026, month: 1 }) {
+export function simulate(
+  settings = {},
+  items = [],
+  month = { year: 2026, month: 1 },
+  transactions = []
+) {
   const { year, month: monthNum } = month;
   const daysInMonth = getDaysInMonth(year, monthNum);
   const scale = settings.scale ?? 100;
@@ -33,11 +34,13 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
   const incomeAmount = Math.round(settings.incomeAmount ?? 0);
   const incomeCreditDay = settings.incomeCreditDay ?? 1;
   const safetyFloor = Math.round(settings.safetyFloor ?? 0);
+  const unplannedAllowance = Math.round(settings.unplannedAllowance ?? 0);
+  const currentDay = Math.min(daysInMonth, Math.max(1, settings.currentDay ?? 1));
 
   /** @type {Array<object>} */
   const rawEvents = [];
 
-  // 1. Generate Income Event if incomeAmount is provided (> 0)
+  // 1. Generate Income Event
   if (incomeAmount > 0) {
     const clampedIncomeDay = clampDayToMonth(incomeCreditDay, daysInMonth);
     rawEvents.push({
@@ -48,12 +51,28 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
       priority: -Infinity, // Income always executes first on its credited day
       sourceIndex: -1,
       itemType: 'income',
+      isActual: false,
       itemId: null
     });
   }
 
-  // 2. Generate Expense Events from Items
+  // 2. Identify planned items that have been fulfilled by logged transactions
+  // to avoid double-counting
+  const fulfilledItemIds = new Set();
+  (transactions || []).forEach((tx) => {
+    if (tx.plannedItemId) {
+      fulfilledItemIds.add(String(tx.plannedItemId));
+    }
+  });
+
+  // 3. Generate Expense Events from Unfulfilled Planned Items
   items.forEach((item, index) => {
+    const itemIdStr = String(item.id || item._id || '');
+    if (fulfilledItemIds.has(itemIdStr)) {
+      // Replaced by the actual transaction
+      return;
+    }
+
     const priority = typeof item.priority === 'number' ? item.priority : 0;
 
     if (item.type === 'one-time') {
@@ -67,10 +86,10 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
         priority,
         sourceIndex: index,
         itemType: 'one-time',
+        isActual: false,
         itemId: item.id || item._id || null
       });
     } else if (item.type === 'recurring') {
-      // Clamps day to month end for short months
       const targetDay = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
       const amount = Math.round(item.amount ?? 0);
       rawEvents.push({
@@ -81,6 +100,7 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
         priority,
         sourceIndex: index,
         itemType: 'recurring',
+        isActual: false,
         itemId: item.id || item._id || null
       });
     } else if (item.type === 'formula') {
@@ -105,24 +125,80 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
             priority,
             sourceIndex: index,
             itemType: 'formula',
+            isActual: false,
             itemId: item.id || item._id || null
           });
         });
       }
+    } else if (item.type === 'fuel-log') {
+      // Fuel log items with recorded fuel stops
+      const stops = Array.isArray(item.fuelStops) ? item.fuelStops : [];
+      stops.forEach((stop, sIdx) => {
+        if (stop.fuelCost && stop.fuelCost > 0) {
+          let stopDay = 1;
+          if (stop.date) {
+            const parsedDay = parseInt(stop.date.split('-')[2], 10);
+            if (!isNaN(parsedDay)) stopDay = clampDayToMonth(parsedDay, daysInMonth);
+          }
+          rawEvents.push({
+            day: stopDay,
+            date: stop.date || formatDate(year, monthNum, stopDay),
+            label: `${item.name} (${stop.fuelVolume || 0}L)`,
+            amount: -Math.abs(Math.round(stop.fuelCost)),
+            priority,
+            sourceIndex: index * 100 + sIdx,
+            itemType: 'fuel-log',
+            isActual: true,
+            itemId: item.id || item._id || null
+          });
+        }
+      });
     }
   });
 
-  // 3. Stable Sort:
-  // Primary: Day of month ascending
-  // Secondary: Priority ascending (-Infinity for income)
-  // Tertiary: Original item/source index ascending
+  // 4. Generate Events from Logged Transactions (Actuals)
+  let totalUnplannedSpent = 0;
+  (transactions || []).forEach((tx, txIndex) => {
+    let txDay = 1;
+    if (tx.date) {
+      const parts = tx.date.split('-');
+      const parsedDay = parseInt(parts[2], 10);
+      if (!isNaN(parsedDay)) txDay = clampDayToMonth(parsedDay, daysInMonth);
+    }
+
+    const txAmount = Math.round(Number(tx.amount) || 0);
+
+    // If amount > 0, it is an expense (-txAmount). If amount < 0, it is a refund (+|txAmount|)
+    const eventAmount = txAmount > 0 ? -txAmount : Math.abs(txAmount);
+
+    if (!tx.plannedItemId) {
+      // Draws down unplanned allowance
+      totalUnplannedSpent += txAmount;
+    }
+
+    rawEvents.push({
+      day: txDay,
+      date: tx.date || formatDate(year, monthNum, txDay),
+      label: tx.note ? `${tx.note} (${tx.tag || 'Expense'})` : (tx.tag || 'Unplanned expense'),
+      amount: eventAmount,
+      priority: 0,
+      sourceIndex: 1000 + txIndex,
+      itemType: tx.plannedItemId ? 'actual-matched' : 'unplanned-transaction',
+      isActual: true,
+      transactionId: tx.id || tx._id || null,
+      plannedItemId: tx.plannedItemId || null
+    });
+  });
+
+  // 5. Stable Sort:
+  // Day ascending -> Priority ascending -> Source index ascending
   rawEvents.sort((a, b) => {
     if (a.day !== b.day) return a.day - b.day;
     if (a.priority !== b.priority) return a.priority - b.priority;
     return a.sourceIndex - b.sourceIndex;
   });
 
-  // 4. Calculate Running Balances and Detect Lowest Point
+  // 6. Calculate Running Balances
   let currentBalance = openingBalance;
   let lowestBalance = rawEvents.length > 0 ? Infinity : openingBalance;
   let lowestDate = formatDate(year, monthNum, 1);
@@ -143,7 +219,10 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
       amount: evt.amount,
       balanceAfter,
       itemType: evt.itemType,
-      itemId: evt.itemId
+      isActual: evt.isActual,
+      itemId: evt.itemId || null,
+      transactionId: evt.transactionId || null,
+      plannedItemId: evt.plannedItemId || null
     };
   });
 
@@ -156,14 +235,13 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
 
   const floorBreached = lowestBalance < safetyFloor;
 
-  // 5. Generate daily step balances for smooth visualization (day 1 to daysInMonth)
+  // 7. Daily balance points (day 1 to daysInMonth)
   const dailyBalances = [];
   let dayBalance = openingBalance;
   let eventIdx = 0;
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = formatDate(year, monthNum, d);
-    // Apply all events on day d
     while (eventIdx < events.length && events[eventIdx].day === d) {
       dayBalance = events[eventIdx].balanceAfter;
       eventIdx++;
@@ -175,6 +253,11 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
     });
   }
 
+  // 8. Unplanned Allowance and "Safe to Spend per Day"
+  const allowanceLeft = unplannedAllowance - totalUnplannedSpent;
+  const daysLeft = Math.max(1, daysInMonth - currentDay + 1);
+  const safeToSpendPerDay = Math.max(0, Math.round(allowanceLeft / daysLeft));
+
   return {
     events,
     dailyBalances,
@@ -182,6 +265,11 @@ export function simulate(settings = {}, items = [], month = { year: 2026, month:
     lowestBalance,
     lowestDate,
     floorBreached,
-    daysInMonth
+    daysInMonth,
+    unplannedAllowance,
+    totalUnplannedSpent,
+    allowanceLeft,
+    daysLeft,
+    safeToSpendPerDay
   };
 }
