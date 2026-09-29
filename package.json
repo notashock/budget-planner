@@ -1,0 +1,19 @@
+{
+  "name": "budget-planner-root",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace=@budget/engine",
+    "test:engine": "npm run test --workspace=@budget/engine",
+    "dev:server": "npm run dev --workspace=@budget/server",
+    "dev:web": "npm run dev --workspace=@budget/web",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

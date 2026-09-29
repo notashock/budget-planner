@@ -3,6 +3,7 @@ dist/
 build/
 .env
 .env.local
-coverage/
-*.log
 .DS_Store
+*.log
+coverage/
+.turbo/
