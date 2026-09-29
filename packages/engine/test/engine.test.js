@@ -210,4 +210,55 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
       expect(result.allowanceLeft).toBe(65000);
     });
   });
+
+  describe('Sprint 3: Today Balance & Net Refunds', () => {
+    it('calculates todayBalance up to currentDay, leaving future events for endingBalance', () => {
+      // Income 10,000 on day 1. Bill 2,000 on day 5. Future bill 3,000 on day 20.
+      const settings = {
+        openingBalance: 0,
+        incomeAmount: 1000000,
+        incomeCreditDay: 1,
+        currentDay: 10, // Today is day 10
+        scale: 100
+      };
+
+      const items = [
+        { id: '1', type: 'one-time', name: 'Past Bill', amount: 200000, day: 5 },
+        { id: '2', type: 'one-time', name: 'Future Bill', amount: 300000, day: 20 }
+      ];
+
+      const result = simulate(settings, items, { year: 2026, month: 9 });
+
+      // On day 10: balance is 10,000 - 2,000 = 8,000 (800,000 minor units)
+      expect(result.todayBalance).toBe(800000);
+
+      // On day 30: ending balance is 8,000 - 3,000 = 5,000 (500,000 minor units)
+      expect(result.endingBalance).toBe(500000);
+    });
+
+    it('computes net amount for items with mapped refunds (e.g. 319 - 300 = 19)', () => {
+      const items = [
+        { id: 'tg-sub', type: 'recurring', name: 'Telegram Premium', amount: 31900, dayOfMonth: 5 }
+      ];
+
+      const transactions = [
+        {
+          id: 'tx-refund',
+          date: '2026-09-08',
+          amount: -30000, // Refund of 300.00
+          tag: 'Other',
+          note: 'Refund for Telegram Premium',
+          plannedItemId: 'tg-sub'
+        }
+      ];
+
+      const result = simulate({}, items, { year: 2026, month: 9 }, transactions);
+
+      expect(result.itemNetMap['tg-sub']).toBeDefined();
+      expect(result.itemNetMap['tg-sub'].originalAmount).toBe(31900);
+      expect(result.itemNetMap['tg-sub'].refundTotal).toBe(30000);
+      expect(result.itemNetMap['tg-sub'].netAmount).toBe(1900); // 19.00 net!
+      expect(result.itemNetMap['tg-sub'].hasRefund).toBe(true);
+    });
+  });
 });

@@ -305,8 +305,8 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
       await nextMonth.save();
     }
 
-    // Copy recurring items to next month if they are not already copied
-    const recurringItems = currentItems.filter((i) => i.type === 'recurring');
+    // Copy only FIXED recurring items to next month if they are not already copied
+    const recurringItems = currentItems.filter((i) => i.type === 'recurring' && i.isFixed === true);
     const existingNextItems = await Item.find({
       userId: req.session.userId,
       monthId: nextMonth._id,
@@ -325,7 +325,8 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
           name: item.name,
           priority: item.priority,
           amount: item.amount,
-          dayOfMonth: item.dayOfMonth
+          dayOfMonth: item.dayOfMonth,
+          isFixed: true
         });
       }
     }

@@ -9,6 +9,7 @@ import { monthsRouter } from './routes/months.js';
 import { itemsRouter } from './routes/items.js';
 import { aiRouter } from './routes/ai.js';
 import { transactionsRouter } from './routes/transactions.js';
+import { goalsRouter } from './routes/goals.js';
 
 export function createApp(options = {}) {
   const app = express();
@@ -56,6 +57,7 @@ export function createApp(options = {}) {
   app.use('/api/ai', aiRouter);
   app.use('/api', itemsRouter);
   app.use('/api', transactionsRouter);
+  app.use('/api', goalsRouter);
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {

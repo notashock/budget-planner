@@ -1,0 +1,3 @@
+# Selective Fixed Recurring Rollover and Chronological Refund Accounting
+
+During month rollover, duplicating every recurring expense leads to clutter when bills change or expire. We decided that only recurring items explicitly flagged as `isFixed: true` are automatically cloned into the subsequent month. Additionally, when a refund transaction is linked to a planned item, the item card reflects the net cost (original minus refund), but the simulation timeline records the refund on its actual credit date rather than modifying the original debit date. This ensures intraday cash dips and safety floor breaches between the initial payment and the subsequent refund are preserved with mathematical honesty.

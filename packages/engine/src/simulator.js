@@ -4,7 +4,7 @@ import { calculateFormulaCost } from './formula.js';
 /**
  * Pure simulation engine.
  * Computes deterministic running balance timeline, safety floor breaches,
- * and incorporates real-world transactions and fuel logs.
+ * real-world transactions, today's balance, and net item refunds.
  * 
  * @param {object} settings
  * @param {number} [settings.openingBalance=0] - Starting balance in minor units
@@ -12,7 +12,7 @@ import { calculateFormulaCost } from './formula.js';
  * @param {number} [settings.incomeCreditDay=1] - Day of month income is credited (1 - 31)
  * @param {number} [settings.safetyFloor=0] - Safety floor threshold in minor units
  * @param {number} [settings.unplannedAllowance=0] - Monthly unplanned allowance in minor units
- * @param {number} [settings.currentDay=1] - Current day of month for safe-to-spend calculation
+ * @param {number} [settings.currentDay] - Current day of month for today's balance (1 - 31)
  * @param {number} [settings.scale=100] - Scale factor (100 for cents, 1 for whole units)
  * 
  * @param {Array<object>} items - List of planned items for the month
@@ -35,7 +35,11 @@ export function simulate(
   const incomeCreditDay = settings.incomeCreditDay ?? 1;
   const safetyFloor = Math.round(settings.safetyFloor ?? 0);
   const unplannedAllowance = Math.round(settings.unplannedAllowance ?? 0);
-  const currentDay = Math.min(daysInMonth, Math.max(1, settings.currentDay ?? 1));
+
+  // Determine current day for today's balance calculation
+  const currentDay = typeof settings.currentDay === 'number'
+    ? Math.max(1, Math.min(daysInMonth, Math.floor(settings.currentDay)))
+    : null;
 
   /** @type {Array<object>} */
   const rawEvents = [];
@@ -48,7 +52,7 @@ export function simulate(
       date: formatDate(year, monthNum, clampedIncomeDay),
       label: 'Income',
       amount: incomeAmount,
-      priority: -Infinity, // Income always executes first on its credited day
+      priority: -Infinity,
       sourceIndex: -1,
       itemType: 'income',
       isActual: false,
@@ -57,11 +61,25 @@ export function simulate(
   }
 
   // 2. Identify planned items that have been fulfilled by logged transactions
-  // to avoid double-counting
+  // to avoid double-counting.
+  // Note: Refund transactions (amount < 0) do NOT replace the planned item,
+  // they only apply credits to it! Only expense transactions (amount > 0) fulfill the item.
   const fulfilledItemIds = new Set();
+  const itemRefundMap = {}; // itemId -> total refund amount in minor units
+
   (transactions || []).forEach((tx) => {
     if (tx.plannedItemId) {
-      fulfilledItemIds.add(String(tx.plannedItemId));
+      const pIdStr = String(tx.plannedItemId);
+      const txAmount = Math.round(Number(tx.amount) || 0);
+
+      if (txAmount > 0) {
+        // Outflow expense fulfills the planned item
+        fulfilledItemIds.add(pIdStr);
+      } else if (txAmount < 0) {
+        // Inflow refund reduces net item cost
+        const refundAmt = Math.abs(txAmount);
+        itemRefundMap[pIdStr] = (itemRefundMap[pIdStr] || 0) + refundAmt;
+      }
     }
   });
 
@@ -100,6 +118,7 @@ export function simulate(
         priority,
         sourceIndex: index,
         itemType: 'recurring',
+        isFixed: Boolean(item.isFixed),
         isActual: false,
         itemId: item.id || item._id || null
       });
@@ -131,7 +150,6 @@ export function simulate(
         });
       }
     } else if (item.type === 'fuel-log') {
-      // Fuel log items with recorded fuel stops
       const stops = Array.isArray(item.fuelStops) ? item.fuelStops : [];
       stops.forEach((stop, sIdx) => {
         if (stop.fuelCost && stop.fuelCost > 0) {
@@ -168,22 +186,29 @@ export function simulate(
 
     const txAmount = Math.round(Number(tx.amount) || 0);
 
-    // If amount > 0, it is an expense (-txAmount). If amount < 0, it is a refund (+|txAmount|)
+    // If txAmount > 0: outflow expense event (-txAmount).
+    // If txAmount < 0: inflow refund event (+|txAmount|).
     const eventAmount = txAmount > 0 ? -txAmount : Math.abs(txAmount);
 
     if (!tx.plannedItemId) {
-      // Draws down unplanned allowance
       totalUnplannedSpent += txAmount;
     }
+
+    const labelPrefix = txAmount < 0 ? 'Refund: ' : '';
+    const eventLabel = tx.note
+      ? `${labelPrefix}${tx.note} (${tx.tag || 'Expense'})`
+      : `${labelPrefix}${tx.tag || (txAmount < 0 ? 'Refund' : 'Unplanned expense')}`;
 
     rawEvents.push({
       day: txDay,
       date: tx.date || formatDate(year, monthNum, txDay),
-      label: tx.note ? `${tx.note} (${tx.tag || 'Expense'})` : (tx.tag || 'Unplanned expense'),
+      label: eventLabel,
       amount: eventAmount,
       priority: 0,
       sourceIndex: 1000 + txIndex,
-      itemType: tx.plannedItemId ? 'actual-matched' : 'unplanned-transaction',
+      itemType: tx.plannedItemId
+        ? (txAmount < 0 ? 'actual-refund' : 'actual-matched')
+        : 'unplanned-transaction',
       isActual: true,
       transactionId: tx.id || tx._id || null,
       plannedItemId: tx.plannedItemId || null
@@ -219,6 +244,7 @@ export function simulate(
       amount: evt.amount,
       balanceAfter,
       itemType: evt.itemType,
+      isFixed: evt.isFixed,
       isActual: evt.isActual,
       itemId: evt.itemId || null,
       transactionId: evt.transactionId || null,
@@ -253,19 +279,45 @@ export function simulate(
     });
   }
 
-  // 8. Unplanned Allowance and "Safe to Spend per Day"
+  // 8. Calculate Today's Balance
+  let todayBalance = endingBalance;
+  if (currentDay !== null) {
+    const todayPoint = dailyBalances.find((p) => p.day === currentDay);
+    todayBalance = todayPoint ? todayPoint.balance : endingBalance;
+  }
+
+  // 9. Net item summaries for items with refunds
+  const itemNetMap = {};
+  items.forEach((item) => {
+    const idStr = String(item.id || item._id || '');
+    const originalAmount = Math.round(item.amount || 0);
+    const refundTotal = itemRefundMap[idStr] || 0;
+    const netAmount = Math.max(0, originalAmount - refundTotal);
+
+    itemNetMap[idStr] = {
+      originalAmount,
+      refundTotal,
+      netAmount,
+      hasRefund: refundTotal > 0
+    };
+  });
+
+  // 10. Unplanned Allowance and "Safe to Spend per Day"
   const allowanceLeft = unplannedAllowance - totalUnplannedSpent;
-  const daysLeft = Math.max(1, daysInMonth - currentDay + 1);
+  const effectiveDay = currentDay || 1;
+  const daysLeft = Math.max(1, daysInMonth - effectiveDay + 1);
   const safeToSpendPerDay = Math.max(0, Math.round(allowanceLeft / daysLeft));
 
   return {
     events,
     dailyBalances,
     endingBalance,
+    todayBalance,
     lowestBalance,
     lowestDate,
     floorBreached,
     daysInMonth,
+    itemNetMap,
     unplannedAllowance,
     totalUnplannedSpent,
     allowanceLeft,

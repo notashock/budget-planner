@@ -28,6 +28,11 @@ const itemSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // If true, automatically carries forward to the next month on rollover
+    isFixed: {
+      type: Boolean,
+      default: false
+    },
     // Used for one-time and recurring
     amount: {
       type: Number,

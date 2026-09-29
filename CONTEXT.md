@@ -25,8 +25,13 @@ An expense occurring on a single calendar date.
 _Avoid_: Ad-hoc expense, sporadic cost.
 
 **Recurring Item**:
-An expense scheduled on a specific day of the month that recurs monthly, clamped to the last day of shorter months.
+An expense scheduled on a specific day of the month that repeats monthly, clamped to the last day of shorter months.
 _Avoid_: Subscription, standing order, bill.
+
+**Fixed Recurring Item**:
+A recurring item marked with a fixed flag that is automatically carried over to the next month on the identical calendar day and amount during month rollover.
+_Avoid_: Permanent bill, locked expense, hard subscription.
+
 
 **Fuel Log**:
 A vehicle fuel expense entry recording odometer readings, fuel volume, and total cost across refueling stops, automatically calculating bike fuel efficiency (distance per volume unit) between consecutive stops.
@@ -56,5 +61,15 @@ _Avoid_: Buffer, slush fund, petty cash.
 **Safe to Spend per Day**:
 The remaining unplanned allowance divided by the remaining calendar days in the month.
 _Avoid_: Daily budget, burn rate.
+
+**Purchase Goal**:
+A target one-time purchase evaluated against the monthly cash flow to recommend a feasible purchase date or advise waiting for the following month.
+_Avoid_: Wishlist, savings target, impulse budget.
+
+**Net Item Amount**:
+The effective monetary cost of a budget item computed by subtracting all mapped refund transactions from its original amount.
+_Avoid_: Adjusted cost, discounted price, revised expense.
+
+
 
 

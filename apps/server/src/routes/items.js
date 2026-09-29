@@ -41,6 +41,9 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
     } else if (type === 'recurring') {
       itemData.amount = Math.round(Number(amount) || 0);
       itemData.dayOfMonth = Math.max(1, Math.min(31, Math.floor(Number(dayOfMonth) || 1)));
+      if (typeof req.body.isFixed === 'boolean') {
+        itemData.isFixed = req.body.isFixed;
+      }
     } else if (type === 'formula') {
       const cfg = formulaConfig || {};
       const dates = Array.isArray(cfg.dates)
@@ -74,7 +77,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 // Update item
 itemsRouter.put('/items/:id', async (req, res) => {
   try {
-    const { name, priority, amount, day, dayOfMonth, formulaConfig } = req.body;
+    const { name, priority, amount, day, dayOfMonth, formulaConfig, isFixed } = req.body;
 
     const item = await Item.findOne({
       _id: req.params.id,
@@ -94,6 +97,7 @@ itemsRouter.put('/items/:id', async (req, res) => {
     } else if (item.type === 'recurring') {
       if (typeof amount === 'number') item.amount = Math.round(amount);
       if (typeof dayOfMonth === 'number') item.dayOfMonth = Math.max(1, Math.min(31, Math.floor(dayOfMonth)));
+      if (typeof isFixed === 'boolean') item.isFixed = isFixed;
     } else if (item.type === 'formula') {
       if (formulaConfig) {
         if (typeof formulaConfig.distance === 'number') item.formulaConfig.distance = formulaConfig.distance;

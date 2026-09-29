@@ -86,7 +86,8 @@ describe('Server API Endpoints', () => {
       type: 'recurring',
       name: 'Rent',
       amount: 850000,
-      dayOfMonth: 1
+      dayOfMonth: 1,
+      isFixed: true
     });
 
     // 3. Add one-time items: 3,000 on day 2; 2,000 on day 3
@@ -137,14 +138,16 @@ describe('Server API Endpoints', () => {
       type: 'recurring',
       name: 'Sub 1',
       amount: 8900,
-      dayOfMonth: 24
+      dayOfMonth: 24,
+      isFixed: true
     });
 
     await agent.post('/api/months/2026/9/items').send({
       type: 'recurring',
       name: 'Sub 2',
       amount: 31900,
-      dayOfMonth: 27
+      dayOfMonth: 27,
+      isFixed: true
     });
 
     // 7. Fetch Month details and computed simulation
