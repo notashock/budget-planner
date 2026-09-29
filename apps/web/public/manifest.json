@@ -1,0 +1,16 @@
+{
+  "short_name": "Budget",
+  "name": "Monthly budget planner",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#18181b",
+  "theme_color": "#18181b",
+  "display": "standalone",
+  "orientation": "portrait"
+}

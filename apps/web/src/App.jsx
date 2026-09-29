@@ -1,0 +1,351 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { api } from './api.js';
+import { simulate } from '@budget/engine';
+import { Header } from './components/Header.jsx';
+import { BottomNav } from './components/BottomNav.jsx';
+import { PlanScreen } from './screens/PlanScreen.jsx';
+import { ItemsScreen } from './screens/ItemsScreen.jsx';
+import { GoalsScreen } from './screens/GoalsScreen.jsx';
+import { AssistantScreen } from './screens/AssistantScreen.jsx';
+import { ItemModal } from './components/ItemModal.jsx';
+import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
+import { AuthScreen } from './components/AuthScreen.jsx';
+
+export default function App() {
+  // Theme state
+  const [theme, setTheme] = useState(() => localStorage.getItem('budget_theme') || 'dark');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('budget_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
+  // Auth & Settings state
+  const [user, setUser] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Month & Items state
+  const [months, setMonths] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(null);
+  const [items, setItems] = useState([]);
+  const [activeTab, setActiveTab] = useState('plan');
+
+  // What-If in-memory overrides: { [itemId]: { amount: number } }
+  const [whatIfOverrides, setWhatIfOverrides] = useState({});
+
+  // Modals state
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [createMonthOpen, setCreateMonthOpen] = useState(false);
+  const [rolloverOpen, setRolloverOpen] = useState(false);
+
+  // Initial user session fetch
+  useEffect(() => {
+    api.getMe()
+      .then((res) => {
+        if (res.user) {
+          setUser(res.user);
+          setSettings(res.settings);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  // Fetch months when user logs in
+  const loadMonths = async (selectYear = null, selectMonth = null) => {
+    try {
+      const list = await api.getMonths();
+      setMonths(list);
+      if (list.length > 0) {
+        let target = list[0];
+        if (selectYear && selectMonth) {
+          const match = list.find((m) => m.year === selectYear && m.month === selectMonth);
+          if (match) target = match;
+        }
+        loadMonthDetails(target.year, target.month);
+      } else {
+        // No months yet: open create month modal
+        setCurrentMonth(null);
+        setItems([]);
+        setCreateMonthOpen(true);
+      }
+    } catch (err) {
+      console.error('Failed to load months:', err);
+    }
+  };
+
+  const loadMonthDetails = async (year, monthNum) => {
+    try {
+      const res = await api.getMonthDetail(year, monthNum);
+      setCurrentMonth(res.month);
+      setItems(res.items);
+      setWhatIfOverrides({}); // Discard previous what-if changes on month change
+    } catch (err) {
+      console.error('Failed to load month details:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadMonths();
+    }
+  }, [user]);
+
+  // Pure in-browser simulation calculation with What-If support
+  const activeSimulation = useMemo(() => {
+    if (!currentMonth) return null;
+
+    // Apply any in-memory what-if overrides
+    const effectiveItems = items.map((item) => {
+      const override = whatIfOverrides[item._id];
+      if (override && typeof override.amount === 'number') {
+        return { ...item, amount: override.amount };
+      }
+      return item;
+    });
+
+    return simulate(
+      {
+        openingBalance: currentMonth.openingBalance,
+        incomeAmount: currentMonth.incomeAmount,
+        incomeCreditDay: currentMonth.incomeCreditDay,
+        safetyFloor: currentMonth.safetyFloor,
+        scale: 100
+      },
+      effectiveItems,
+      { year: currentMonth.year, month: currentMonth.month }
+    );
+  }, [currentMonth, items, whatIfOverrides]);
+
+  // Auth actions
+  const handleLogin = async (email, password) => {
+    const res = await api.login(email, password);
+    setUser(res.user);
+    const s = await api.getSettings();
+    setSettings(s);
+  };
+
+  const handleRegister = async (email, password) => {
+    const res = await api.register(email, password);
+    setUser(res.user);
+    const s = await api.getSettings();
+    setSettings(s);
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setUser(null);
+    setCurrentMonth(null);
+    setMonths([]);
+    setItems([]);
+  };
+
+  // What-If actions
+  const handleWhatIfChange = (itemId, newAmount) => {
+    setWhatIfOverrides((prev) => {
+      const next = { ...prev };
+      if (newAmount === null) {
+        delete next[itemId];
+      } else {
+        next[itemId] = { amount: newAmount };
+      }
+      return next;
+    });
+  };
+
+  const handleResetWhatIf = () => {
+    setWhatIfOverrides({});
+  };
+
+  // Item actions
+  const handleSaveItem = async (itemData) => {
+    try {
+      if (editingItem) {
+        const updated = await api.updateItem(editingItem._id, itemData);
+        setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
+      } else {
+        const created = await api.createItem(currentMonth.year, currentMonth.month, itemData);
+        setItems((prev) => [...prev, created]);
+      }
+      setItemModalOpen(false);
+      setEditingItem(null);
+    } catch (err) {
+      alert(err.message || 'Failed to save item');
+    }
+  };
+
+  const handleDeleteItem = async (id) => {
+    if (!window.confirm('Delete this item from the month?')) return;
+    try {
+      await api.deleteItem(id);
+      setItems((prev) => prev.filter((i) => i._id !== id));
+      handleWhatIfChange(id, null);
+    } catch (err) {
+      alert(err.message || 'Failed to delete item');
+    }
+  };
+
+  // Month actions
+  const handleCreateMonth = async (monthData) => {
+    try {
+      const created = await api.createMonth(monthData);
+      setCreateMonthOpen(false);
+      await loadMonths(created.year, created.month);
+    } catch (err) {
+      alert(err.message || 'Failed to create month');
+    }
+  };
+
+  const handleRollover = async (carryBalance) => {
+    try {
+      const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance);
+      setRolloverOpen(false);
+      await loadMonths(res.month.year, res.month.month);
+    } catch (err) {
+      alert(err.message || 'Failed to perform month rollover');
+    }
+  };
+
+  const handleSaveMonthSettings = async (updates) => {
+    try {
+      const res = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
+      setCurrentMonth(res.month);
+    } catch (err) {
+      alert(err.message || 'Failed to update month settings');
+    }
+  };
+
+  const handleSaveDefaults = async (updates) => {
+    try {
+      const updated = await api.updateSettings(updates);
+      setSettings(updated);
+    } catch (err) {
+      alert(err.message || 'Failed to update defaults');
+    }
+  };
+
+  const handleToggleAi = async (enabled) => {
+    try {
+      const updated = await api.updateSettings({ aiAssistantEnabled: enabled });
+      setSettings(updated);
+    } catch (err) {
+      alert(err.message || 'Failed to toggle AI assistant');
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-secondary)' }}>
+        Loading budget planner...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} />;
+  }
+
+  return (
+    <div className="app-container">
+      <Header
+        user={user}
+        months={months}
+        currentMonth={currentMonth}
+        onSelectMonth={(y, m) => loadMonthDetails(y, m)}
+        onOpenCreateMonth={() => setCreateMonthOpen(true)}
+        onOpenRollover={() => setRolloverOpen(true)}
+        onLogout={handleLogout}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+
+      <main style={{ flex: 1 }}>
+        {activeTab === 'plan' && (
+          <PlanScreen
+            month={currentMonth}
+            items={items}
+            simulation={activeSimulation}
+            whatIfOverrides={whatIfOverrides}
+            onWhatIfChange={handleWhatIfChange}
+            onResetWhatIf={handleResetWhatIf}
+            onOpenAddItem={() => {
+              setEditingItem(null);
+              setItemModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'items' && (
+          <ItemsScreen
+            items={items}
+            currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '$'}
+            onOpenAddItem={() => {
+              setEditingItem(null);
+              setItemModalOpen(true);
+            }}
+            onEditItem={(item) => {
+              setEditingItem(item);
+              setItemModalOpen(true);
+            }}
+            onDeleteItem={handleDeleteItem}
+          />
+        )}
+
+        {activeTab === 'goals' && (
+          <GoalsScreen
+            month={currentMonth}
+            settings={settings}
+            onSaveMonthSettings={handleSaveMonthSettings}
+            onSaveDefaults={handleSaveDefaults}
+          />
+        )}
+
+        {activeTab === 'assistant' && (
+          <AssistantScreen
+            settings={settings}
+            onToggleAi={handleToggleAi}
+            simulation={activeSimulation}
+            month={currentMonth}
+            onSaveParsedItem={handleSaveItem}
+            currencySymbol={currentMonth?.currencySymbol || '$'}
+          />
+        )}
+      </main>
+
+      <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
+
+      {/* Item Modal (Add/Edit) */}
+      <ItemModal
+        isOpen={itemModalOpen}
+        initialItem={editingItem}
+        currencySymbol={currentMonth?.currencySymbol || '$'}
+        onClose={() => {
+          setItemModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSave={handleSaveItem}
+      />
+
+      {/* Create Month Modal */}
+      <CreateMonthModal
+        isOpen={createMonthOpen}
+        settings={settings}
+        onClose={() => setCreateMonthOpen(false)}
+        onCreate={handleCreateMonth}
+      />
+
+      {/* Rollover Modal */}
+      <RolloverModal
+        isOpen={rolloverOpen}
+        currentMonth={currentMonth}
+        endingBalance={activeSimulation?.endingBalance || 0}
+        currencySymbol={currentMonth?.currencySymbol || '$'}
+        onClose={() => setRolloverOpen(false)}
+        onConfirm={handleRollover}
+      />
+    </div>
+  );
+}
