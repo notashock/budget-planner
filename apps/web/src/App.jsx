@@ -33,6 +33,7 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(null);
   const [items, setItems] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [goals, setGoals] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
   // What-If in-memory overrides: { [itemId]: { amount: number } }
@@ -75,10 +76,20 @@ export default function App() {
         setCurrentMonth(null);
         setItems([]);
         setTransactions([]);
+        setGoals([]);
         setCreateMonthOpen(true);
       }
     } catch (err) {
       console.error('Failed to load months:', err);
+    }
+  };
+
+  const loadGoals = async (year, monthNum) => {
+    try {
+      const list = await api.getGoals(year, monthNum);
+      setGoals(list);
+    } catch (err) {
+      console.error('Failed to load goals:', err);
     }
   };
 
@@ -89,6 +100,7 @@ export default function App() {
       setItems(res.items);
       setTransactions(res.transactions || []);
       setWhatIfOverrides({});
+      loadGoals(year, monthNum);
     } catch (err) {
       console.error('Failed to load month details:', err);
     }
@@ -260,6 +272,42 @@ export default function App() {
     }
   };
 
+  const handleCreateGoal = async (data) => {
+    try {
+      await api.createGoal(currentMonth.year, currentMonth.month, data);
+      await loadGoals(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      alert(err.message || 'Failed to create goal');
+    }
+  };
+
+  const handleConvertGoalToItem = async (goalId) => {
+    try {
+      await api.convertGoalToItem(goalId);
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      alert(err.message || 'Failed to schedule goal purchase');
+    }
+  };
+
+  const handleDeferGoal = async (goalId) => {
+    try {
+      await api.deferGoal(goalId);
+      await loadGoals(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      alert(err.message || 'Failed to defer goal');
+    }
+  };
+
+  const handleDeleteGoal = async (goalId) => {
+    try {
+      await api.deleteGoal(goalId);
+      await loadGoals(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      alert(err.message || 'Failed to delete goal');
+    }
+  };
+
   const handleToggleAi = async (enabled) => {
     try {
       const updated = await api.updateSettings({ aiAssistantEnabled: enabled });
@@ -317,6 +365,7 @@ export default function App() {
           <ItemsScreen
             items={items}
             transactions={transactions}
+            simulation={activeSimulation}
             currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '$'}
             onOpenAddItem={() => {
               setEditingItem(null);
@@ -336,6 +385,11 @@ export default function App() {
           <GoalsScreen
             month={currentMonth}
             settings={settings}
+            goals={goals}
+            onCreateGoal={handleCreateGoal}
+            onConvertGoalToItem={handleConvertGoalToItem}
+            onDeferGoal={handleDeferGoal}
+            onDeleteGoal={handleDeleteGoal}
             onSaveMonthSettings={handleSaveMonthSettings}
             onSaveDefaults={handleSaveDefaults}
           />

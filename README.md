@@ -91,29 +91,37 @@ npm run test --workspace=@budget/server
 ## Key Features
 
 1. **Item Types (Planned Expenses)**:
-   - One-time: name, amount, date, with optimal purchase date recommender that maximizes cash buffer while preserving safety floor.
-   - Recurring: name, amount, day of month (automatically clamped to month end on shorter months).
+   - One-time: name, amount, scheduled date.
+   - Recurring: name, amount, day of month (automatically clamped to month end on shorter months), with an optional `isFixed` flag to carry forward the exact amount on the same day to the next month during rollover.
    - Fuel Log: records fuel stops with odometer readings, liters, and cost; automatically calculates bike fuel efficiency (km/L) once 2 stops are logged.
    - Formula: name, distance, efficiency, fuel price, extra cost per occurrence, list of dates.
 2. **Actual Calendar Dates**:
    - Dates displayed across the UI as readable dates (e.g. `Fri, Sep 18`) replacing raw day numbers.
-3. **Unplanned Expense Logging & Actuals Tracking**:
+3. **Today's Balance & Timeline**:
+   - Summary cards prominently display your running balance as of today's date (`todayBalance`), with month-end projected balance in subtext.
+4. **Purchase Goals & Safe Date Recommendation**:
+   - Dedicated "Purchase goals" section in the Goals screen.
+   - Add purchase goals with target prices within the month.
+   - Engine evaluates cash flows: recommends safe date maximizing savings buffer, provides 1-tap scheduling, or warns "Wait for next month" with projected floor deficit and 1-tap deferral.
+5. **Net Item Amount on Mapped Refunds**:
+   - When a refund/credit transaction is mapped to a planned item, the UI displays the net of the item (e.g. $319 original minus $300 refund displays $19 net) while accurately preserving cash timing in timeline simulations.
+6. **Unplanned Expense Logging & Actuals Tracking**:
    - `transactions` collection with 3-tap quick-log (amount, optional tag from Food/Travel/Health/Other, optional note, date defaults to today).
    - Monthly unplanned allowance monitored as "Safe to spend per day" (`allowance left ÷ days left`).
    - Match logged entries to planned items to avoid double-counting.
    - Re-runs simulation with actuals and remaining planned items, updating timeline and floor alerts.
    - Supports refunds as negative amounts and backdated entries.
    - Month-end review: allowance vs actual spend by tag with suggested next-month allowance computed by plain arithmetic.
-4. **Floor Check & Alert**:
+7. **Floor Check & Alert**:
    - Computes lowest balance and date of lowest balance.
    - Shows clear visual indicator if the safety floor is breached or safely maintained.
-5. **SVG Balance Step-Line Chart**:
+8. **SVG Balance Step-Line Chart**:
    - Step line across calendar dates with a dashed safety floor line and marker on the lowest point.
-6. **What-If Exploration**:
+9. **What-If Exploration**:
    - In-browser slider/input adjustments that re-run the pure engine instantly without saving to the database.
-7. **Month Rollover**:
-   - Creates the next calendar month, copies recurring items, and optionally carries forward the ending balance as the opening balance.
-8. **Optional AI Assistant (Off by default)**:
+10. **Month Rollover**:
+   - Creates the next calendar month, copies fixed recurring items (`isFixed === true`), and optionally carries forward the ending balance as the opening balance.
+11. **Optional AI Assistant (Off by default)**:
    - Off by default; no data leaves the server when disabled.
    - Converts natural language ("3 outings, 50 km each, 300 per ticket") into a draft item that must be reviewed and confirmed before saving.
    - Summarizes timeline and suggests remediation for safety floor breaches.

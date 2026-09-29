@@ -30,6 +30,7 @@ export function PlanScreen({
     events = [],
     dailyBalances = [],
     endingBalance = 0,
+    todayBalance,
     lowestBalance = 0,
     lowestDate = '',
     floorBreached = false,
@@ -57,6 +58,7 @@ export function PlanScreen({
         openingBalance={month.openingBalance}
         events={events}
         endingBalance={endingBalance}
+        todayBalance={todayBalance}
         lowestBalance={lowestBalance}
         lowestDate={lowestDate}
         safetyFloor={month.safetyFloor}

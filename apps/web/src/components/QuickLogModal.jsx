@@ -138,7 +138,11 @@ export function QuickLogModal({
             </select>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               {plannedItemId
-                ? 'Matches and fulfills the planned item, replacing it to prevent double-counting.'
+                ? isRefund
+                  ? 'Applies this refund as a credit to the item, calculating its net cost.'
+                  : 'Matches and fulfills the planned item, replacing it to prevent double-counting.'
+                : isRefund
+                ? 'Adds this credit/refund directly to your balance.'
                 : 'Logs as unexpected spending, reducing your safe-to-spend daily allowance.'}
             </span>
           </div>

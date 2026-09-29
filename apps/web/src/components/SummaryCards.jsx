@@ -7,6 +7,7 @@ export function SummaryCards({
   openingBalance = 0,
   events = [],
   endingBalance = 0,
+  todayBalance,
   lowestBalance = 0,
   lowestDate = '',
   safetyFloor = 0,
@@ -67,12 +68,12 @@ export function SummaryCards({
       </div>
 
       <div className="summary-card">
-        <span className="summary-label">Ending balance</span>
+        <span className="summary-label">Today's balance</span>
         <span className="summary-value">
-          {formatCurrency(endingBalance, currencySymbol)}
+          {formatCurrency(todayBalance !== undefined ? todayBalance : endingBalance, currencySymbol)}
         </span>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          Starting: {formatCurrency(openingBalance, currencySymbol)}
+          Month-end projected: {formatCurrency(endingBalance, currencySymbol)}
         </span>
       </div>
 

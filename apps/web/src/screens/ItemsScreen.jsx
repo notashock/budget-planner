@@ -4,6 +4,7 @@ import { calculateFormulaCost, calculateFuelEfficiency, formatCurrency, formatDi
 export function ItemsScreen({
   items = [],
   transactions = [],
+  simulation = null,
   currencySymbol = '$',
   onOpenAddItem,
   onOpenQuickLog,
@@ -94,14 +95,21 @@ export function ItemsScreen({
             </div>
           ) : (
             filteredItems.map((item) => {
+              const netInfo = simulation?.itemNetMap?.[item._id];
+              const hasRefund = Boolean(netInfo?.hasRefund);
+
               let amountDisplay = '';
               let details = '';
 
               if (item.type === 'one-time') {
-                amountDisplay = formatCurrency(item.amount, currencySymbol);
+                amountDisplay = hasRefund
+                  ? formatCurrency(netInfo.netAmount, currencySymbol)
+                  : formatCurrency(item.amount, currencySymbol);
                 details = `Scheduled: Day ${item.day}`;
               } else if (item.type === 'recurring') {
-                amountDisplay = formatCurrency(item.amount, currencySymbol);
+                amountDisplay = hasRefund
+                  ? formatCurrency(netInfo.netAmount, currencySymbol)
+                  : formatCurrency(item.amount, currencySymbol);
                 details = `Recurring: Day ${item.dayOfMonth} each month`;
               } else if (item.type === 'fuel-log') {
                 const fuelRes = calculateFuelEfficiency(item.fuelStops || []);
@@ -138,10 +146,40 @@ export function ItemsScreen({
                         >
                           {item.type}
                         </span>
+                        {item.type === 'recurring' && item.isFixed && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--accent)',
+                              background: 'var(--accent-subtle)',
+                              border: '1px solid var(--accent)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 500
+                            }}
+                          >
+                            Fixed
+                          </span>
+                        )}
+                        {hasRefund && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--success)',
+                              background: 'var(--success-subtle)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 500
+                            }}
+                          >
+                            Net after refund
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {details}
                         {item.priority !== 0 && ` • Priority ${item.priority}`}
+                        {hasRefund && ` • Original: ${formatCurrency(netInfo.originalAmount, currencySymbol)}`}
                       </div>
                     </div>
 
@@ -149,6 +187,11 @@ export function ItemsScreen({
                       <div style={{ fontWeight: 600, fontSize: '15px' }}>
                         {amountDisplay}
                       </div>
+                      {hasRefund && (
+                        <div style={{ fontSize: '11px', color: 'var(--success)' }}>
+                          -{formatCurrency(netInfo.refundTotal, currencySymbol)} refund
+                        </div>
+                      )}
                     </div>
                   </div>
 

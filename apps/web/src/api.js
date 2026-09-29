@@ -46,6 +46,13 @@ export const api = {
   getMonthEndReview: (year, month) => request(`/api/months/${year}/${month}/month-end-review`),
   recommendPurchaseDate: (year, month, amount) => request(`/api/months/${year}/${month}/recommend-purchase-date`, { method: 'POST', body: JSON.stringify({ amount }) }),
 
+  // Goals (Purchase Goals & Safe Date Recommendation)
+  getGoals: (year, month) => request(`/api/months/${year}/${month}/goals`),
+  createGoal: (year, month, goal) => request(`/api/months/${year}/${month}/goals`, { method: 'POST', body: JSON.stringify(goal) }),
+  convertGoalToItem: (id) => request(`/api/goals/${id}/convert-to-item`, { method: 'POST' }),
+  deferGoal: (id) => request(`/api/goals/${id}/defer`, { method: 'POST' }),
+  deleteGoal: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
+
   // AI Assistant (Gated by settings toggle)
   parseText: (text) => request('/api/ai/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
   explainTimeline: (timelineSummary, safetyFloor) => request('/api/ai/explain-timeline', { method: 'POST', body: JSON.stringify({ timelineSummary, safetyFloor }) })

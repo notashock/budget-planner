@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   calculateFormulaCost,
   calculateFuelEfficiency,
-  recommendPurchaseDate,
   formatCurrency,
-  formatDisplayDate,
   formatDate
 } from '@budget/engine';
 
@@ -15,7 +13,6 @@ export function ItemModal({
   initialItem = null,
   currencySymbol = '$',
   month,
-  monthSettings,
   existingItems = [],
   existingTransactions = []
 }) {
@@ -25,9 +22,7 @@ export function ItemModal({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
-
-  // Recommendation state
-  const [recommendation, setRecommendation] = useState(null);
+  const [isFixed, setIsFixed] = useState(false);
 
   // Formula fields
   const [distance, setDistance] = useState('');
@@ -43,7 +38,6 @@ export function ItemModal({
   ]);
 
   useEffect(() => {
-    setRecommendation(null);
     const year = month?.year || 2026;
     const monthNum = month?.month || 1;
     const defaultDate = formatDate(year, monthNum, 1);
@@ -52,6 +46,7 @@ export function ItemModal({
       setType(initialItem.type);
       setName(initialItem.name);
       setPriority(initialItem.priority ?? 0);
+      setIsFixed(Boolean(initialItem.isFixed));
       if (initialItem.type === 'one-time') {
         setAmount((initialItem.amount / 100).toString());
         setDate(formatDate(year, monthNum, initialItem.day || 1));
@@ -79,6 +74,7 @@ export function ItemModal({
       setType('one-time');
       setName('');
       setPriority(0);
+      setIsFixed(false);
       setAmount('');
       setDate(defaultDate);
       setDayOfMonth(1);
@@ -95,28 +91,6 @@ export function ItemModal({
   }, [initialItem, isOpen, month]);
 
   if (!isOpen) return null;
-
-  // Handle Recommendation calculation for One-Time Purchase
-  const handleRecommendDate = () => {
-    if (!amount || isNaN(Number(amount)) || !month) return;
-    const minorAmount = Math.round(Number(amount) * 100);
-
-    const rec = recommendPurchaseDate(
-      monthSettings || {
-        openingBalance: month.openingBalance,
-        incomeAmount: month.incomeAmount,
-        incomeCreditDay: month.incomeCreditDay,
-        safetyFloor: month.safetyFloor,
-        unplannedAllowance: month.unplannedAllowance || 0
-      },
-      existingItems.filter((i) => !initialItem || i._id !== initialItem._id),
-      { year: month.year, month: month.month },
-      minorAmount,
-      existingTransactions
-    );
-
-    setRecommendation(rec);
-  };
 
   // Live Fuel Efficiency Calculation
   const parsedFuelStops = fuelStops
@@ -172,6 +146,7 @@ export function ItemModal({
     } else if (type === 'recurring') {
       payload.amount = Math.round(Number(amount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
+      payload.isFixed = isFixed;
     } else if (type === 'fuel-log') {
       payload.fuelStops = parsedFuelStops;
     } else if (type === 'formula') {
@@ -243,89 +218,54 @@ export function ItemModal({
                   required
                   placeholder="0.00"
                   value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value);
-                    setRecommendation(null);
-                  }}
+                  onChange={(e) => setAmount(e.target.value)}
                 />
               </div>
             )}
           </div>
 
-          {/* One-Time Date Picker & Recommender */}
+          {/* One-Time Date Picker */}
           {type === 'one-time' && (
             <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label className="form-label">Purchase date</label>
-                <button
-                  type="button"
-                  className="btn-subtle"
-                  style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--accent)' }}
-                  onClick={handleRecommendDate}
-                  disabled={!amount}
-                >
-                  ⚡ Recommend best date
-                </button>
-              </div>
+              <label className="form-label">Purchase date</label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-
-              {recommendation && (
-                <div
-                  style={{
-                    marginTop: '8px',
-                    padding: '10px',
-                    borderRadius: 'var(--radius)',
-                    background: recommendation.feasible ? 'var(--success-subtle)' : 'var(--danger-subtle)',
-                    border: `1px solid ${recommendation.feasible ? 'var(--success-border)' : 'var(--danger-border)'}`,
-                    fontSize: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
-                >
-                  <div>
-                    <strong>Recommended:</strong> {formatDisplayDate(recommendation.recommendedDate)}
-                  </div>
-                  <div>
-                    {recommendation.feasible
-                      ? `Holding cash until this date maximizes savings with a safety buffer of ${formatCurrency(recommendation.savingsBuffer, currencySymbol)}.`
-                      : `Floor breached on all dates. Scheduling on ${formatDisplayDate(recommendation.recommendedDate)} minimizes deficit.`}
-                  </div>
-                  {recommendation.recommendedDate && recommendation.recommendedDate !== date && (
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      style={{ marginTop: '4px', alignSelf: 'flex-start', padding: '4px 10px', fontSize: '11px' }}
-                      onClick={() => setDate(recommendation.recommendedDate)}
-                    >
-                      Use {formatDisplayDate(recommendation.recommendedDate)}
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
-          {/* Recurring Day */}
+          {/* Recurring Day and Fixed Carryover Toggle */}
           {type === 'recurring' && (
-            <div className="form-group">
-              <label className="form-label">Day of month to bill (1 - 31)</label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                required
-                value={dayOfMonth}
-                onChange={(e) => setDayOfMonth(e.target.value)}
-              />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Automatically clamped to the last calendar day in shorter months.
-              </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Day of month to bill (1 - 31)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  required
+                  value={dayOfMonth}
+                  onChange={(e) => setDayOfMonth(e.target.value)}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Automatically clamped to the last calendar day in shorter months.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
+                <input
+                  type="checkbox"
+                  id="isFixedCheckbox"
+                  checked={isFixed}
+                  onChange={(e) => setIsFixed(e.target.checked)}
+                />
+                <label htmlFor="isFixedCheckbox" style={{ fontSize: '13px', cursor: 'pointer' }}>
+                  Fixed recurring item (carries same amount and date forward to next month)
+                </label>
+              </div>
             </div>
           )}
 
