@@ -2,8 +2,9 @@ import express from 'express';
 import { Month } from '../models/Month.js';
 import { Item } from '../models/Item.js';
 import { Setting } from '../models/Setting.js';
+import { Transaction } from '../models/Transaction.js';
 import { requireAuth } from '../middleware/auth.js';
-import { simulate } from '@budget/engine';
+import { simulate, recommendPurchaseDate } from '@budget/engine';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
@@ -22,7 +23,16 @@ monthsRouter.get('/', async (req, res) => {
 // Create month (or initialize from settings)
 monthsRouter.post('/', async (req, res) => {
   try {
-    const { year, month, openingBalance, incomeAmount, incomeCreditDay, safetyFloor, currencySymbol } = req.body;
+    const {
+      year,
+      month,
+      openingBalance,
+      incomeAmount,
+      incomeCreditDay,
+      safetyFloor,
+      unplannedAllowance,
+      currencySymbol
+    } = req.body;
 
     if (!year || !month || month < 1 || month > 12) {
       return res.status(400).json({ error: 'Valid year and month (1-12) required' });
@@ -37,7 +47,6 @@ monthsRouter.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Month already exists', month: existing });
     }
 
-    // Default from user settings if not provided
     const userSettings = await Setting.findOne({ userId: req.session.userId });
 
     const newMonth = await Month.create({
@@ -54,6 +63,9 @@ monthsRouter.post('/', async (req, res) => {
       safetyFloor: typeof safetyFloor === 'number'
         ? Math.round(safetyFloor)
         : (userSettings?.defaultSafetyFloor ?? 0),
+      unplannedAllowance: typeof unplannedAllowance === 'number'
+        ? Math.round(unplannedAllowance)
+        : (userSettings?.defaultUnplannedAllowance ?? 0),
       currencySymbol: currencySymbol || userSettings?.currencySymbol || '$'
     });
 
@@ -63,7 +75,7 @@ monthsRouter.post('/', async (req, res) => {
   }
 });
 
-// Get single month with items and computed simulation
+// Get single month with items, transactions, and computed simulation
 monthsRouter.get('/:year/:month', async (req, res) => {
   try {
     const year = Number(req.params.year);
@@ -79,10 +91,18 @@ monthsRouter.get('/:year/:month', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const items = await Item.find({
-      userId: req.session.userId,
-      monthId: month._id
-    }).sort({ priority: 1, createdAt: 1 });
+    const [items, transactions] = await Promise.all([
+      Item.find({
+        userId: req.session.userId,
+        monthId: month._id
+      }).sort({ priority: 1, createdAt: 1 }),
+      Transaction.find({
+        userId: req.session.userId,
+        monthId: month._id
+      }).sort({ date: 1, createdAt: 1 })
+    ]);
+
+    const currentDay = new Date().getDate();
 
     const simulation = simulate(
       {
@@ -90,15 +110,19 @@ monthsRouter.get('/:year/:month', async (req, res) => {
         incomeAmount: month.incomeAmount,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay,
         scale: 100
       },
       items,
-      { year, month: monthNum }
+      { year, month: monthNum },
+      transactions
     );
 
     return res.json({
       month,
       items,
+      transactions,
       simulation
     });
   } catch (err) {
@@ -111,7 +135,14 @@ monthsRouter.put('/:year/:month', async (req, res) => {
   try {
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { openingBalance, incomeAmount, incomeCreditDay, safetyFloor, currencySymbol } = req.body;
+    const {
+      openingBalance,
+      incomeAmount,
+      incomeCreditDay,
+      safetyFloor,
+      unplannedAllowance,
+      currencySymbol
+    } = req.body;
 
     const update = {};
     if (typeof openingBalance === 'number') update.openingBalance = Math.round(openingBalance);
@@ -120,6 +151,7 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       update.incomeCreditDay = Math.max(1, Math.min(31, Math.floor(incomeCreditDay)));
     }
     if (typeof safetyFloor === 'number') update.safetyFloor = Math.round(safetyFloor);
+    if (typeof unplannedAllowance === 'number') update.unplannedAllowance = Math.round(unplannedAllowance);
     if (typeof currencySymbol === 'string' && currencySymbol.trim()) update.currencySymbol = currencySymbol.trim();
 
     const month = await Month.findOneAndUpdate(
@@ -132,31 +164,85 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const items = await Item.find({ userId: req.session.userId, monthId: month._id });
+    const [items, transactions] = await Promise.all([
+      Item.find({ userId: req.session.userId, monthId: month._id }),
+      Transaction.find({ userId: req.session.userId, monthId: month._id })
+    ]);
+
     const simulation = simulate(
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay: new Date().getDate(),
         scale: 100
       },
       items,
-      { year, month: monthNum }
+      { year, month: monthNum },
+      transactions
     );
 
-    return res.json({ month, items, simulation });
+    return res.json({ month, items, transactions, simulation });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update month' });
   }
 });
 
-// Month Rollover: copy recurring items to next month and optionally carry forward ending balance
+// Recommend optimal purchase date for a one-time purchase
+monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
+  try {
+    const year = Number(req.params.year);
+    const monthNum = Number(req.params.month);
+    const { amount } = req.body;
+
+    if (!amount || typeof Number(amount) !== 'number') {
+      return res.status(400).json({ error: 'Valid amount is required' });
+    }
+
+    const month = await Month.findOne({
+      userId: req.session.userId,
+      year,
+      month: monthNum
+    });
+
+    if (!month) {
+      return res.status(404).json({ error: 'Month not found' });
+    }
+
+    const [items, transactions] = await Promise.all([
+      Item.find({ userId: req.session.userId, monthId: month._id }),
+      Transaction.find({ userId: req.session.userId, monthId: month._id })
+    ]);
+
+    const recommendation = recommendPurchaseDate(
+      {
+        openingBalance: month.openingBalance,
+        incomeAmount: month.incomeAmount,
+        incomeCreditDay: month.incomeCreditDay,
+        safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0,
+        scale: 100
+      },
+      items,
+      { year, month: monthNum },
+      Math.round(Number(amount)),
+      transactions
+    );
+
+    return res.json(recommendation);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to compute purchase date recommendation' });
+  }
+});
+
+// Month Rollover
 monthsRouter.post('/:year/:month/rollover', async (req, res) => {
   try {
     const currentYear = Number(req.params.year);
     const currentMonthNum = Number(req.params.month);
-    const carryBalance = req.body.carryBalance !== false; // Default true
+    const carryBalance = req.body.carryBalance !== false;
 
     const currentMonth = await Month.findOne({
       userId: req.session.userId,
@@ -168,25 +254,25 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
       return res.status(404).json({ error: 'Source month not found' });
     }
 
-    const currentItems = await Item.find({
-      userId: req.session.userId,
-      monthId: currentMonth._id
-    });
+    const [currentItems, currentTransactions] = await Promise.all([
+      Item.find({ userId: req.session.userId, monthId: currentMonth._id }),
+      Transaction.find({ userId: req.session.userId, monthId: currentMonth._id })
+    ]);
 
-    // Run simulation to get ending balance
     const currentSimulation = simulate(
       {
         openingBalance: currentMonth.openingBalance,
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDay: currentMonth.incomeCreditDay,
         safetyFloor: currentMonth.safetyFloor,
+        unplannedAllowance: currentMonth.unplannedAllowance || 0,
         scale: 100
       },
       currentItems,
-      { year: currentYear, month: currentMonthNum }
+      { year: currentYear, month: currentMonthNum },
+      currentTransactions
     );
 
-    // Compute next month calendar coordinates
     let nextYear = currentYear;
     let nextMonthNum = currentMonthNum + 1;
     if (nextMonthNum > 12) {
@@ -211,6 +297,7 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDay: currentMonth.incomeCreditDay,
         safetyFloor: currentMonth.safetyFloor,
+        unplannedAllowance: currentMonth.unplannedAllowance || 0,
         currencySymbol: currentMonth.currencySymbol
       });
     } else if (carryBalance) {
@@ -258,10 +345,12 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         incomeAmount: nextMonth.incomeAmount,
         incomeCreditDay: nextMonth.incomeCreditDay,
         safetyFloor: nextMonth.safetyFloor,
+        unplannedAllowance: nextMonth.unplannedAllowance || 0,
         scale: 100
       },
       allNextItems,
-      { year: nextYear, month: nextMonthNum }
+      { year: nextYear, month: nextMonthNum },
+      []
     );
 
     return res.status(201).json({
@@ -274,7 +363,7 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
   }
 });
 
-// Delete month and items
+// Delete month and items and transactions
 monthsRouter.delete('/:year/:month', async (req, res) => {
   try {
     const year = Number(req.params.year);
@@ -290,7 +379,11 @@ monthsRouter.delete('/:year/:month', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    await Item.deleteMany({ userId: req.session.userId, monthId: month._id });
+    await Promise.all([
+      Item.deleteMany({ userId: req.session.userId, monthId: month._id }),
+      Transaction.deleteMany({ userId: req.session.userId, monthId: month._id })
+    ]);
+
     return res.json({ message: 'Month deleted successfully' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete month' });

@@ -36,6 +36,10 @@ const monthSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    unplannedAllowance: {
+      type: Number,
+      default: 0
+    },
     currencySymbol: {
       type: String,
       default: '$'

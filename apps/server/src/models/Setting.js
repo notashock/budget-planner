@@ -22,6 +22,10 @@ const settingSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    defaultUnplannedAllowance: {
+      type: Number,
+      default: 0
+    },
     currencySymbol: {
       type: String,
       default: '$',

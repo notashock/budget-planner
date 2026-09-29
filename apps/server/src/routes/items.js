@@ -13,7 +13,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
     const monthNum = Number(req.params.month);
     const { type, name, priority, amount, day, dayOfMonth, formulaConfig } = req.body;
 
-    if (!type || !name || !['one-time', 'recurring', 'formula'].includes(type)) {
+    if (!type || !name || !['one-time', 'recurring', 'formula', 'fuel-log'].includes(type)) {
       return res.status(400).json({ error: 'Valid item type and name required' });
     }
 
@@ -54,6 +54,14 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
         extraCost: Math.round(Number(cfg.extraCost) || 0),
         dates
       };
+    } else if (type === 'fuel-log') {
+      const stops = Array.isArray(req.body.fuelStops) ? req.body.fuelStops : [];
+      itemData.fuelStops = stops.map((s) => ({
+        date: s.date || `${year}-${String(monthNum).padStart(2, '0')}-01`,
+        odometer: Number(s.odometer) || 0,
+        fuelVolume: Number(s.fuelVolume) || 0,
+        fuelCost: Math.round(Number(s.fuelCost) || 0)
+      }));
     }
 
     const item = await Item.create(itemData);
@@ -103,6 +111,15 @@ itemsRouter.put('/items/:id', async (req, res) => {
             Math.max(1, Math.min(31, Math.floor(Number(d) || 1)))
           );
         }
+      }
+    } else if (item.type === 'fuel-log') {
+      if (Array.isArray(req.body.fuelStops)) {
+        item.fuelStops = req.body.fuelStops.map((s) => ({
+          date: s.date || item.fuelStops?.[0]?.date || '2026-09-01',
+          odometer: Number(s.odometer) || 0,
+          fuelVolume: Number(s.fuelVolume) || 0,
+          fuelCost: Math.round(Number(s.fuelCost) || 0)
+        }));
       }
     }
 
