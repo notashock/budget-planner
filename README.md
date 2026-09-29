@@ -90,20 +90,30 @@ npm run test --workspace=@budget/server
 
 ## Key Features
 
-1. **Three Item Types**:
-   - One-time: name, amount, date.
+1. **Item Types (Planned Expenses)**:
+   - One-time: name, amount, date, with optimal purchase date recommender that maximizes cash buffer while preserving safety floor.
    - Recurring: name, amount, day of month (automatically clamped to month end on shorter months).
-   - Formula: name, distance, efficiency, fuel price, extra cost per occurrence, list of dates. Cost per occurrence is rounded to a whole unit as specified.
-2. **Floor Check & Alert**:
+   - Fuel Log: records fuel stops with odometer readings, liters, and cost; automatically calculates bike fuel efficiency (km/L) once 2 stops are logged.
+   - Formula: name, distance, efficiency, fuel price, extra cost per occurrence, list of dates.
+2. **Actual Calendar Dates**:
+   - Dates displayed across the UI as readable dates (e.g. `Fri, Sep 18`) replacing raw day numbers.
+3. **Unplanned Expense Logging & Actuals Tracking**:
+   - `transactions` collection with 3-tap quick-log (amount, optional tag from Food/Travel/Health/Other, optional note, date defaults to today).
+   - Monthly unplanned allowance monitored as "Safe to spend per day" (`allowance left ÷ days left`).
+   - Match logged entries to planned items to avoid double-counting.
+   - Re-runs simulation with actuals and remaining planned items, updating timeline and floor alerts.
+   - Supports refunds as negative amounts and backdated entries.
+   - Month-end review: allowance vs actual spend by tag with suggested next-month allowance computed by plain arithmetic.
+4. **Floor Check & Alert**:
    - Computes lowest balance and date of lowest balance.
    - Shows clear visual indicator if the safety floor is breached or safely maintained.
-3. **SVG Balance Step-Line Chart**:
-   - Step line across calendar days with a dashed safety floor line and marker on the lowest point.
-4. **What-If Exploration**:
+5. **SVG Balance Step-Line Chart**:
+   - Step line across calendar dates with a dashed safety floor line and marker on the lowest point.
+6. **What-If Exploration**:
    - In-browser slider/input adjustments that re-run the pure engine instantly without saving to the database.
-5. **Month Rollover**:
+7. **Month Rollover**:
    - Creates the next calendar month, copies recurring items, and optionally carries forward the ending balance as the opening balance.
-6. **Optional AI Assistant (Off by default)**:
+8. **Optional AI Assistant (Off by default)**:
    - Off by default; no data leaves the server when disabled.
    - Converts natural language ("3 outings, 50 km each, 300 per ticket") into a draft item that must be reviewed and confirmed before saving.
    - Summarizes timeline and suggests remediation for safety floor breaches.
