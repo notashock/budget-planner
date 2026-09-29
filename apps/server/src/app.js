@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
 import { itemsRouter } from './routes/items.js';
+import { aiRouter } from './routes/ai.js';
 
 export function createApp(options = {}) {
   const app = express();
@@ -51,6 +52,7 @@ export function createApp(options = {}) {
   app.use('/api/auth', authRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/months', monthsRouter);
+  app.use('/api/ai', aiRouter);
   app.use('/api', itemsRouter);
 
   // Health check endpoint
