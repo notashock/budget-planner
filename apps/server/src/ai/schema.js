@@ -13,8 +13,8 @@ export function validateDraftItemSchema(data) {
     throw new Error("Model output must contain a non-empty string 'name'");
   }
 
-  if (!['one-time', 'recurring', 'formula'].includes(type)) {
-    throw new Error(`Invalid item type '${type}'. Must be 'one-time', 'recurring', or 'formula'`);
+  if (!['one-time', 'recurring', 'fuel-log'].includes(type)) {
+    throw new Error(`Invalid item type '${type}'. Must be 'one-time', 'recurring', or 'fuel-log'`);
   }
 
   const sanitized = {
@@ -35,20 +35,8 @@ export function validateDraftItemSchema(data) {
     }
     sanitized.amount = Math.round(data.amount);
     sanitized.dayOfMonth = typeof data.dayOfMonth === 'number' ? Math.max(1, Math.min(31, Math.floor(data.dayOfMonth))) : 1;
-  } else if (type === 'formula') {
-    const cfg = data.formulaConfig;
-    if (!cfg || typeof cfg !== 'object') {
-      throw new Error("Formula item must contain 'formulaConfig' object");
-    }
-    sanitized.formulaConfig = {
-      distance: typeof cfg.distance === 'number' ? cfg.distance : 0,
-      efficiency: typeof cfg.efficiency === 'number' && cfg.efficiency > 0 ? cfg.efficiency : 1,
-      fuelPrice: typeof cfg.fuelPrice === 'number' ? Math.round(cfg.fuelPrice) : 0,
-      extraCost: typeof cfg.extraCost === 'number' ? Math.round(cfg.extraCost) : 0,
-      dates: Array.isArray(cfg.dates)
-        ? cfg.dates.map((d) => Math.max(1, Math.min(31, Math.floor(Number(d) || 1))))
-        : []
-    };
+  } else if (type === 'fuel-log') {
+    sanitized.fuelStops = Array.isArray(data.fuelStops) ? data.fuelStops : [];
   }
 
   return sanitized;

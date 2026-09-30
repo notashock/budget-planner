@@ -59,7 +59,7 @@ describe('Server API Endpoints', () => {
     // Should now access /api/settings seamlessly with session
     const settingsRes = await agent.get('/api/settings');
     expect(settingsRes.status).toBe(200);
-    expect(settingsRes.body.currencySymbol).toBe('$');
+    expect(settingsRes.body.currencySymbol).toBe('₹');
     expect(settingsRes.body.aiAssistantEnabled).toBe(false);
   });
 
@@ -105,17 +105,24 @@ describe('Server API Endpoints', () => {
       day: 3
     });
 
-    // 4. Add Formula Trip: 50 km, 42.5 km/L, fuel 117/L (11700), extra 300 (30000) on days [10, 17, 25]
+    // 4. Add trips: 438 on days 10, 17, 25 (total 1,314.00)
     await agent.post('/api/months/2026/9/items').send({
-      type: 'formula',
-      name: 'Work Trip',
-      formulaConfig: {
-        distance: 50,
-        efficiency: 42.5,
-        fuelPrice: 11700,
-        extraCost: 30000,
-        dates: [10, 17, 25]
-      }
+      type: 'one-time',
+      name: 'Work Trip 1',
+      amount: 43800,
+      day: 10
+    });
+    await agent.post('/api/months/2026/9/items').send({
+      type: 'one-time',
+      name: 'Work Trip 2',
+      amount: 43800,
+      day: 17
+    });
+    await agent.post('/api/months/2026/9/items').send({
+      type: 'one-time',
+      name: 'Work Trip 3',
+      amount: 43800,
+      day: 25
     });
 
     // 5. Add one-time 282 on day 12; one-time 2,803 on day 18
@@ -155,11 +162,11 @@ describe('Server API Endpoints', () => {
     expect(detailRes.status).toBe(200);
 
     const { simulation, items } = detailRes.body;
-    expect(items).toHaveLength(8);
+    expect(items).toHaveLength(10);
 
     // Verify engine calculation:
-    // Ending balance: 149200 ($1,492.00)
-    // Lowest balance: 149200 ($1,492.00)
+    // Ending balance: 149200
+    // Lowest balance: 149200
     // Floor breached: false
     expect(simulation.endingBalance).toBe(149200);
     expect(simulation.lowestBalance).toBe(149200);

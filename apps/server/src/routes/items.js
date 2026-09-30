@@ -13,7 +13,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
     const monthNum = Number(req.params.month);
     const { type, name, priority, amount, day, dayOfMonth, formulaConfig } = req.body;
 
-    if (!type || !name || !['one-time', 'recurring', 'formula', 'fuel-log'].includes(type)) {
+    if (!type || !name || !['one-time', 'recurring', 'fuel-log'].includes(type)) {
       return res.status(400).json({ error: 'Valid item type and name required' });
     }
 
@@ -44,19 +44,6 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
       if (typeof req.body.isFixed === 'boolean') {
         itemData.isFixed = req.body.isFixed;
       }
-    } else if (type === 'formula') {
-      const cfg = formulaConfig || {};
-      const dates = Array.isArray(cfg.dates)
-        ? cfg.dates.map((d) => Math.max(1, Math.min(31, Math.floor(Number(d) || 1))))
-        : [];
-
-      itemData.formulaConfig = {
-        distance: Number(cfg.distance) || 0,
-        efficiency: Number(cfg.efficiency) > 0 ? Number(cfg.efficiency) : 1,
-        fuelPrice: Math.round(Number(cfg.fuelPrice) || 0),
-        extraCost: Math.round(Number(cfg.extraCost) || 0),
-        dates
-      };
     } else if (type === 'fuel-log') {
       const stops = Array.isArray(req.body.fuelStops) ? req.body.fuelStops : [];
       itemData.fuelStops = stops.map((s) => ({
@@ -77,7 +64,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 // Update item
 itemsRouter.put('/items/:id', async (req, res) => {
   try {
-    const { name, priority, amount, day, dayOfMonth, formulaConfig, isFixed } = req.body;
+    const { name, priority, amount, day, dayOfMonth, isFixed } = req.body;
 
     const item = await Item.findOne({
       _id: req.params.id,
@@ -98,24 +85,6 @@ itemsRouter.put('/items/:id', async (req, res) => {
       if (typeof amount === 'number') item.amount = Math.round(amount);
       if (typeof dayOfMonth === 'number') item.dayOfMonth = Math.max(1, Math.min(31, Math.floor(dayOfMonth)));
       if (typeof isFixed === 'boolean') item.isFixed = isFixed;
-    } else if (item.type === 'formula') {
-      if (formulaConfig) {
-        if (typeof formulaConfig.distance === 'number') item.formulaConfig.distance = formulaConfig.distance;
-        if (typeof formulaConfig.efficiency === 'number' && formulaConfig.efficiency > 0) {
-          item.formulaConfig.efficiency = formulaConfig.efficiency;
-        }
-        if (typeof formulaConfig.fuelPrice === 'number') {
-          item.formulaConfig.fuelPrice = Math.round(formulaConfig.fuelPrice);
-        }
-        if (typeof formulaConfig.extraCost === 'number') {
-          item.formulaConfig.extraCost = Math.round(formulaConfig.extraCost);
-        }
-        if (Array.isArray(formulaConfig.dates)) {
-          item.formulaConfig.dates = formulaConfig.dates.map((d) =>
-            Math.max(1, Math.min(31, Math.floor(Number(d) || 1)))
-          );
-        }
-      }
     } else if (item.type === 'fuel-log') {
       if (Array.isArray(req.body.fuelStops)) {
         item.fuelStops = req.body.fuelStops.map((s) => ({

@@ -17,8 +17,12 @@ A chronological sequence of dated events and running balances resulting from the
 _Avoid_: Ledger, transaction history, statement.
 
 **Event**:
-A single dated occurrence (income receipt, recurring item debit, one-time item debit, or formula item occurrence) that updates the running balance.
+A single dated occurrence (income receipt, recurring item debit, one-time item debit, or fuel log stop) that updates the running balance.
 _Avoid_: Transaction, entry, record.
+
+**Salary Credit Date**:
+The exact calendar date on which salary is deposited. When credited on or before the 1st of the budget month (such as the 30th of the preceding month), the funds become available cash from Day 1 of the planned month.
+_Avoid_: Payday number, salary cycle day.
 
 **One-Time Item**:
 An expense occurring on a single calendar date.
@@ -32,23 +36,21 @@ _Avoid_: Subscription, standing order, bill.
 A recurring item marked with a fixed flag that is automatically carried over to the next month on the identical calendar day and amount during month rollover.
 _Avoid_: Permanent bill, locked expense, hard subscription.
 
-
 **Fuel Log**:
 A vehicle fuel expense entry recording odometer readings, fuel volume, and total cost across refueling stops, automatically calculating bike fuel efficiency (distance per volume unit) between consecutive stops.
 _Avoid_: Formula item, mileage expense, dynamic bill.
 
-
 **Month Rollover**:
-The process of creating the next calendar month, copying recurring items and optionally carrying forward the ending balance as the new opening balance.
+The process of creating the next calendar month, copying fixed recurring items and optionally carrying forward the ending balance as the new opening balance.
 _Avoid_: Month close, archive, reset.
 
 **What-If**:
 An ephemeral in-memory recalculation of the timeline with modified item amounts or frequencies without saving to the database.
 _Avoid_: Scenario, simulation draft, sandbox.
 
-**Recommended Purchase Date**:
-The latest calendar date in a month on which a one-time purchase can occur without causing the running balance on that or any subsequent date to breach the safety floor.
-_Avoid_: Optimal purchase time, suggested spend day.
+**Goal Date Estimation Pipeline**:
+An algorithm that determines whether a target purchase goal is feasible within the remainder of the month by evaluating upcoming heavy fixed bills, projecting remaining spend from the user's actual daily burn rate, and picking the safest upcoming date that maximizes savings buffer. If no safe date exists, it returns no date (`null`) with an explicit floor deficit and wait-for-next-month guidance.
+_Avoid_: Spend date picker, price estimator.
 
 **Transaction**:
 A recorded financial actual (expense or negative refund) on an exact date, either linked to a planned item or logged as an unexpected expense.
@@ -69,7 +71,3 @@ _Avoid_: Wishlist, savings target, impulse budget.
 **Net Item Amount**:
 The effective monetary cost of a budget item computed by subtracting all mapped refund transactions from its original amount.
 _Avoid_: Adjusted cost, discounted price, revised expense.
-
-
-
-

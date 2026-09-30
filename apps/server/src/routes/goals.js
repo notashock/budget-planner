@@ -36,9 +36,11 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
         {
           openingBalance: month.openingBalance,
           incomeAmount: month.incomeAmount,
+          incomeCreditDate: month.incomeCreditDate,
           incomeCreditDay: month.incomeCreditDay,
           safetyFloor: month.safetyFloor,
           unplannedAllowance: month.unplannedAllowance || 0,
+          currentDay: new Date().getDate(),
           scale: 100
         },
         items,
@@ -98,9 +100,11 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay: new Date().getDate(),
         scale: 100
       },
       items,
@@ -144,9 +148,11 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay: new Date().getDate(),
         scale: 100
       },
       items,

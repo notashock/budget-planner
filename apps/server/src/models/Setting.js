@@ -28,7 +28,7 @@ const settingSchema = new mongoose.Schema(
     },
     currencySymbol: {
       type: String,
-      default: '$',
+      default: '₹',
       trim: true
     },
     aiAssistantEnabled: {

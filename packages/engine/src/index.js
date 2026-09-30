@@ -1,5 +1,4 @@
 export { simulate } from './simulator.js';
-export { calculateFormulaCost } from './formula.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate } from './calendar.js';
@@ -16,9 +15,9 @@ export function toMajorUnits(minor, scale = 100) {
   return Number(minor || 0) / scale;
 }
 
-export function formatCurrency(minor, symbol = '$', scale = 100) {
+export function formatCurrency(minor, symbol = '₹', scale = 100) {
   const major = toMajorUnits(minor, scale);
-  const formatted = Math.abs(major).toLocaleString('en-US', {
+  const formatted = Math.abs(major).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });

@@ -1,5 +1,4 @@
 import { getDaysInMonth, clampDayToMonth, formatDate } from './calendar.js';
-import { calculateFormulaCost } from './formula.js';
 
 /**
  * Pure simulation engine.
@@ -9,6 +8,7 @@ import { calculateFormulaCost } from './formula.js';
  * @param {object} settings
  * @param {number} [settings.openingBalance=0] - Starting balance in minor units
  * @param {number} [settings.incomeAmount=0] - Monthly income in minor units
+ * @param {string} [settings.incomeCreditDate] - Specific date salary is credited (YYYY-MM-DD)
  * @param {number} [settings.incomeCreditDay=1] - Day of month income is credited (1 - 31)
  * @param {number} [settings.safetyFloor=0] - Safety floor threshold in minor units
  * @param {number} [settings.unplannedAllowance=0] - Monthly unplanned allowance in minor units
@@ -46,11 +46,36 @@ export function simulate(
 
   // 1. Generate Income Event
   if (incomeAmount > 0) {
-    const clampedIncomeDay = clampDayToMonth(incomeCreditDay, daysInMonth);
+    let incomeDay = 1;
+    let incomeDate = formatDate(year, monthNum, 1);
+    let incomeLabel = 'Income';
+
+    if (settings.incomeCreditDate && typeof settings.incomeCreditDate === 'string' && settings.incomeCreditDate.trim()) {
+      const parsedDate = settings.incomeCreditDate.trim();
+      const firstOfMonth = formatDate(year, monthNum, 1);
+      if (parsedDate <= firstOfMonth) {
+        // Credited on or before Day 1 (e.g. Sep 30 for October) -> available from Day 1
+        incomeDay = 1;
+        incomeDate = firstOfMonth;
+        incomeLabel = parsedDate < firstOfMonth
+          ? `Salary (credited ${parsedDate})`
+          : 'Income';
+      } else {
+        const parts = parsedDate.split('-');
+        const parsedD = parseInt(parts[2], 10);
+        incomeDay = clampDayToMonth(isNaN(parsedD) ? 1 : parsedD, daysInMonth);
+        incomeDate = formatDate(year, monthNum, incomeDay);
+        incomeLabel = 'Income';
+      }
+    } else {
+      incomeDay = clampDayToMonth(incomeCreditDay, daysInMonth);
+      incomeDate = formatDate(year, monthNum, incomeDay);
+    }
+
     rawEvents.push({
-      day: clampedIncomeDay,
-      date: formatDate(year, monthNum, clampedIncomeDay),
-      label: 'Income',
+      day: incomeDay,
+      date: incomeDate,
+      label: incomeLabel,
       amount: incomeAmount,
       priority: -Infinity,
       sourceIndex: -1,
@@ -122,33 +147,6 @@ export function simulate(
         isActual: false,
         itemId: item.id || item._id || null
       });
-    } else if (item.type === 'formula') {
-      const config = item.formulaConfig || {};
-      const dates = Array.isArray(config.dates) ? config.dates : [];
-      if (dates.length > 0) {
-        const perOccurrenceCost = calculateFormulaCost({
-          distance: config.distance ?? 0,
-          efficiency: config.efficiency ?? 1,
-          fuelPrice: config.fuelPrice ?? 0,
-          extraCost: config.extraCost ?? 0,
-          scale
-        });
-
-        dates.forEach((d) => {
-          const targetDay = clampDayToMonth(d, daysInMonth);
-          rawEvents.push({
-            day: targetDay,
-            date: formatDate(year, monthNum, targetDay),
-            label: item.name,
-            amount: -Math.abs(perOccurrenceCost),
-            priority,
-            sourceIndex: index,
-            itemType: 'formula',
-            isActual: false,
-            itemId: item.id || item._id || null
-          });
-        });
-      }
     } else if (item.type === 'fuel-log') {
       const stops = Array.isArray(item.fuelStops) ? item.fuelStops : [];
       stops.forEach((stop, sIdx) => {

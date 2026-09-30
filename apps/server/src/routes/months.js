@@ -28,6 +28,7 @@ monthsRouter.post('/', async (req, res) => {
       month,
       openingBalance,
       incomeAmount,
+      incomeCreditDate,
       incomeCreditDay,
       safetyFloor,
       unplannedAllowance,
@@ -57,6 +58,9 @@ monthsRouter.post('/', async (req, res) => {
       incomeAmount: typeof incomeAmount === 'number'
         ? Math.round(incomeAmount)
         : (userSettings?.defaultIncomeAmount ?? 0),
+      incomeCreditDate: typeof incomeCreditDate === 'string' && incomeCreditDate.trim()
+        ? incomeCreditDate.trim()
+        : null,
       incomeCreditDay: typeof incomeCreditDay === 'number'
         ? Math.max(1, Math.min(31, Math.floor(incomeCreditDay)))
         : (userSettings?.defaultIncomeCreditDay ?? 1),
@@ -66,7 +70,7 @@ monthsRouter.post('/', async (req, res) => {
       unplannedAllowance: typeof unplannedAllowance === 'number'
         ? Math.round(unplannedAllowance)
         : (userSettings?.defaultUnplannedAllowance ?? 0),
-      currencySymbol: currencySymbol || userSettings?.currencySymbol || '$'
+      currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹'
     });
 
     return res.status(201).json(newMonth);
@@ -108,6 +112,7 @@ monthsRouter.get('/:year/:month', async (req, res) => {
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
@@ -138,6 +143,7 @@ monthsRouter.put('/:year/:month', async (req, res) => {
     const {
       openingBalance,
       incomeAmount,
+      incomeCreditDate,
       incomeCreditDay,
       safetyFloor,
       unplannedAllowance,
@@ -147,6 +153,9 @@ monthsRouter.put('/:year/:month', async (req, res) => {
     const update = {};
     if (typeof openingBalance === 'number') update.openingBalance = Math.round(openingBalance);
     if (typeof incomeAmount === 'number') update.incomeAmount = Math.round(incomeAmount);
+    if (typeof incomeCreditDate === 'string') {
+      update.incomeCreditDate = incomeCreditDate.trim() || null;
+    }
     if (typeof incomeCreditDay === 'number') {
       update.incomeCreditDay = Math.max(1, Math.min(31, Math.floor(incomeCreditDay)));
     }
@@ -220,9 +229,11 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay: new Date().getDate(),
         scale: 100
       },
       items,
@@ -263,6 +274,7 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
       {
         openingBalance: currentMonth.openingBalance,
         incomeAmount: currentMonth.incomeAmount,
+        incomeCreditDate: currentMonth.incomeCreditDate,
         incomeCreditDay: currentMonth.incomeCreditDay,
         safetyFloor: currentMonth.safetyFloor,
         unplannedAllowance: currentMonth.unplannedAllowance || 0,
@@ -295,6 +307,7 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         month: nextMonthNum,
         openingBalance: newOpeningBalance,
         incomeAmount: currentMonth.incomeAmount,
+        incomeCreditDate: currentMonth.incomeCreditDate,
         incomeCreditDay: currentMonth.incomeCreditDay,
         safetyFloor: currentMonth.safetyFloor,
         unplannedAllowance: currentMonth.unplannedAllowance || 0,

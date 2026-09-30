@@ -26,23 +26,15 @@ export class GeminiAssistantAdapter extends AIAssistantProvider {
 You are a budget assistant. Convert the following user description of an expense into a single JSON budget item.
 Amounts and prices must be in integer minor units (1 major currency unit = 100 minor units, e.g. 300 becomes 30000).
 Rules:
-- Type must be one of: 'one-time', 'recurring', or 'formula'.
-- If travel/usage with distance, efficiency, or tickets is described, use 'formula'.
+- Type must be one of: 'one-time' or 'recurring'.
 - Return ONLY valid JSON conforming to this schema without markdown or code fences:
 {
   "name": "string",
-  "type": "one-time" | "recurring" | "formula",
+  "type": "one-time" | "recurring",
   "priority": 0,
-  "amount": number (required for one-time/recurring in minor units),
+  "amount": number (in minor units),
   "day": number (1-31, for one-time),
-  "dayOfMonth": number (1-31, for recurring),
-  "formulaConfig": {
-    "distance": number,
-    "efficiency": number,
-    "fuelPrice": number (in minor units),
-    "extraCost": number (in minor units),
-    "dates": [number]
-  }
+  "dayOfMonth": number (1-31, for recurring)
 }
 
 Description to parse: "${text}"
@@ -146,37 +138,6 @@ Return ONLY valid JSON:
    */
   fallbackParse(text) {
     const lower = text.toLowerCase();
-
-    // Check if it describes formula travel/outings
-    const distanceMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:km|miles|mi)/);
-    const extraMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:per ticket|extra|ticket)/);
-    const outingsMatch = lower.match(/(\d+)\s*(?:outings|trips|events|rides)/);
-
-    if (distanceMatch || outingsMatch) {
-      const distance = distanceMatch ? parseFloat(distanceMatch[1]) : 50;
-      const count = outingsMatch ? parseInt(outingsMatch[1], 10) : 3;
-      const extra = extraMatch ? Math.round(parseFloat(extraMatch[1]) * 100) : 30000;
-
-      // Dates distributed across month
-      const dates = [];
-      const interval = Math.floor(25 / (count + 1));
-      for (let i = 1; i <= count; i++) {
-        dates.push(Math.min(28, i * interval + 5));
-      }
-
-      return validateDraftItemSchema({
-        name: 'Travel outings',
-        type: 'formula',
-        priority: 0,
-        formulaConfig: {
-          distance,
-          efficiency: 42.5,
-          fuelPrice: 11700,
-          extraCost: extra,
-          dates
-        }
-      });
-    }
 
     // Check for one-time or recurring amount and day
     const amountMatch = lower.match(/(?:\$|usd|inr|₹)?\s*(\d+(?:\.\d+)?)/);

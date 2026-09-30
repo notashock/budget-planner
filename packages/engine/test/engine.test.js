@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   simulate,
-  calculateFormulaCost,
   calculateFuelEfficiency,
   recommendPurchaseDate,
   formatDisplayDate,
   formatCurrency
 } from '../src/index.js';
 
-describe('Engine Suite - Core & Sprint 2 Features', () => {
+describe('Engine Suite - Core & Sprint Features', () => {
   it('passes the exact user-specified acceptance fixture', () => {
     const settingsWhole = {
       openingBalance: 0,
@@ -22,18 +21,9 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
       { id: '1', type: 'recurring', name: 'Rent', amount: 8500, dayOfMonth: 1 },
       { id: '2', type: 'one-time', name: 'Bill 1', amount: 3000, day: 2 },
       { id: '3', type: 'one-time', name: 'Bill 2', amount: 2000, day: 3 },
-      {
-        id: '4',
-        type: 'formula',
-        name: 'Trip',
-        formulaConfig: {
-          distance: 50,
-          efficiency: 42.5,
-          fuelPrice: 117,
-          extraCost: 300,
-          dates: [10, 17, 25]
-        }
-      },
+      { id: '4a', type: 'one-time', name: 'Trip 1', amount: 438, day: 10 },
+      { id: '4b', type: 'one-time', name: 'Trip 2', amount: 438, day: 17 },
+      { id: '4c', type: 'one-time', name: 'Trip 3', amount: 438, day: 25 },
       { id: '5', type: 'one-time', name: 'Bill 3', amount: 282, day: 12 },
       { id: '6', type: 'one-time', name: 'Bill 4', amount: 2803, day: 18 },
       { id: '7', type: 'recurring', name: 'Sub 1', amount: 89, dayOfMonth: 24 },
@@ -48,61 +38,7 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
     expect(resultWhole.floorBreached).toBe(false);
   });
 
-  describe('Requirement 1: Purchase Date Recommender', () => {
-    it('recommends the latest date in the month preserving safety floor', () => {
-      // Income 10,000 on day 1. Bill 5,000 on day 15. Floor 2,000.
-      // Purchase amount: 2,500.
-      // If purchase made on day 20, balance after bill on day 15 is 5,000.
-      // On day 20 balance becomes 5,000 - 2,500 = 2,500 (which is >= 2,000 floor).
-      // Day 30 is latest safe date.
-      const settings = {
-        openingBalance: 0,
-        incomeAmount: 1000000,
-        incomeCreditDay: 1,
-        safetyFloor: 200000,
-        scale: 100
-      };
-
-      const items = [
-        { id: 'rent', type: 'recurring', name: 'Mid Month Bill', amount: 500000, dayOfMonth: 15 }
-      ];
-
-      const recommendation = recommendPurchaseDate(
-        settings,
-        items,
-        { year: 2026, month: 9 }, // 30 days
-        250000 // 2,500.00
-      );
-
-      expect(recommendation.feasible).toBe(true);
-      expect(recommendation.recommendedDay).toBe(30);
-      expect(recommendation.recommendedDate).toBe('2026-09-30');
-      expect(recommendation.savingsBuffer).toBe(50000); // 250,000 - 200,000
-    });
-
-    it('identifies unfeasible purchases that breach floor on all days', () => {
-      const settings = {
-        openingBalance: 0,
-        incomeAmount: 500000,
-        incomeCreditDay: 1,
-        safetyFloor: 200000,
-        scale: 100
-      };
-
-      // Trying to buy something for 4,000 when income is 5,000 and floor is 2,000 (leaves 1,000, breaching 2,000 floor)
-      const recommendation = recommendPurchaseDate(
-        settings,
-        [],
-        { year: 2026, month: 9 },
-        400000
-      );
-
-      expect(recommendation.feasible).toBe(false);
-      expect(recommendation.savingsBuffer).toBeLessThan(0);
-    });
-  });
-
-  describe('Requirement 2: Bike Fuel Log & Efficiency', () => {
+  describe('Sprint 2: Bike Fuel Log & Efficiency', () => {
     it('sets first fuel stop as baseline and calculates efficiency on 2nd stop', () => {
       const stops = [
         { date: '2026-09-02', odometer: 12450, fuelVolume: 3.5, fuelCost: 40950 },
@@ -122,22 +58,27 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
     });
   });
 
-  describe('Requirement 3: Date formatting', () => {
+  describe('Sprint 2: Date and Currency formatting', () => {
     it('formats ISO dates to localized readable dates', () => {
       expect(formatDisplayDate('2026-09-18', true)).toBe('Fri, Sep 18');
       expect(formatDisplayDate('2026-09-18', false)).toBe('Sep 18');
     });
+
+    it('formats currency in Indian Rupees by default', () => {
+      expect(formatCurrency(150000)).toContain('₹');
+      expect(formatCurrency(150000)).toContain('1,500.00');
+    });
   });
 
-  describe('Requirement 4: Unplanned Expense Logging & Actuals vs Planned', () => {
+  describe('Sprint 2: Unplanned Expense Logging & Actuals vs Planned', () => {
     it('replaces matched planned items with transactions and computes safe to spend per day', () => {
       const settings = {
         openingBalance: 0,
-        incomeAmount: 500000, // 5,000.00
+        incomeAmount: 500000,
         incomeCreditDay: 1,
         safetyFloor: 100000,
-        unplannedAllowance: 100000, // 1,000.00 unplanned allowance
-        currentDay: 11, // Day 11 of 30 days -> 20 days left
+        unplannedAllowance: 100000,
+        currentDay: 11,
         scale: 100
       };
 
@@ -145,8 +86,6 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
         { id: 'item-electric', type: 'one-time', name: 'Electric Bill', amount: 80000, day: 10 }
       ];
 
-      // 1 matched transaction (actual electric bill came to 85,000)
-      // 1 unplanned transaction (Food: 20,000)
       const transactions = [
         {
           id: 'tx-1',
@@ -168,19 +107,13 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
 
       const result = simulate(settings, items, { year: 2026, month: 9 }, transactions);
 
-      // Verify no double-counting: total events should be Income + Tx1 + Tx2 = 3 events
       expect(result.events).toHaveLength(3);
       const labels = result.events.map((e) => e.label);
       expect(labels).toContain('Income');
       expect(labels).toContain('Electric bill actual (Other)');
       expect(labels).toContain('Groceries (Food)');
-      expect(labels).not.toContain('Electric Bill'); // Replaced!
+      expect(labels).not.toContain('Electric Bill');
 
-      // Unplanned allowance calculation:
-      // Allowance: 100,000. Unplanned spent: 20,000 (only tx-2, since tx-1 was planned).
-      // Allowance left: 80,000.
-      // Days left: 30 - 11 + 1 = 20 days.
-      // Safe to spend per day: 80,000 / 20 = 4,000 ($40.00/day).
       expect(result.unplannedAllowance).toBe(100000);
       expect(result.totalUnplannedSpent).toBe(20000);
       expect(result.allowanceLeft).toBe(80000);
@@ -203,9 +136,7 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
 
       const result = simulate(settings, [], { year: 2026, month: 9 }, transactions);
 
-      // Ending balance should increase by 15,000
       expect(result.endingBalance).toBe(115000);
-      // Negative amount spent means unplanned spent is -15,000, so allowance left is 65,000
       expect(result.totalUnplannedSpent).toBe(-15000);
       expect(result.allowanceLeft).toBe(65000);
     });
@@ -213,12 +144,11 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
 
   describe('Sprint 3: Today Balance & Net Refunds', () => {
     it('calculates todayBalance up to currentDay, leaving future events for endingBalance', () => {
-      // Income 10,000 on day 1. Bill 2,000 on day 5. Future bill 3,000 on day 20.
       const settings = {
         openingBalance: 0,
         incomeAmount: 1000000,
         incomeCreditDay: 1,
-        currentDay: 10, // Today is day 10
+        currentDay: 10,
         scale: 100
       };
 
@@ -229,10 +159,7 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
 
       const result = simulate(settings, items, { year: 2026, month: 9 });
 
-      // On day 10: balance is 10,000 - 2,000 = 8,000 (800,000 minor units)
       expect(result.todayBalance).toBe(800000);
-
-      // On day 30: ending balance is 8,000 - 3,000 = 5,000 (500,000 minor units)
       expect(result.endingBalance).toBe(500000);
     });
 
@@ -245,7 +172,7 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
         {
           id: 'tx-refund',
           date: '2026-09-08',
-          amount: -30000, // Refund of 300.00
+          amount: -30000,
           tag: 'Other',
           note: 'Refund for Telegram Premium',
           plannedItemId: 'tg-sub'
@@ -257,8 +184,93 @@ describe('Engine Suite - Core & Sprint 2 Features', () => {
       expect(result.itemNetMap['tg-sub']).toBeDefined();
       expect(result.itemNetMap['tg-sub'].originalAmount).toBe(31900);
       expect(result.itemNetMap['tg-sub'].refundTotal).toBe(30000);
-      expect(result.itemNetMap['tg-sub'].netAmount).toBe(1900); // 19.00 net!
+      expect(result.itemNetMap['tg-sub'].netAmount).toBe(1900);
       expect(result.itemNetMap['tg-sub'].hasRefund).toBe(true);
+    });
+  });
+
+  describe('Sprint 4: Salary Credit Date & Dynamic Goal Estimation Pipeline', () => {
+    it('handles salary credited on Sept 30th as available cash from Day 1 of October', () => {
+      const octoberSettings = {
+        openingBalance: 0,
+        incomeAmount: 8000000, // ₹80,000.00
+        incomeCreditDate: '2026-09-30', // Credited Sep 30th for October budget
+        safetyFloor: 1000000,
+        scale: 100
+      };
+
+      const items = [
+        { id: 'rent-oct', type: 'recurring', name: 'October Rent', amount: 2500000, dayOfMonth: 1, isFixed: true }
+      ];
+
+      const result = simulate(octoberSettings, items, { year: 2026, month: 10 });
+
+      // Salary should be credited on Day 1 (Oct 1)
+      const incomeEvent = result.events.find((e) => e.amount > 0);
+      expect(incomeEvent).toBeDefined();
+      expect(incomeEvent.date).toBe('2026-10-01');
+      expect(incomeEvent.label).toContain('Salary (credited 2026-09-30)');
+
+      // On Oct 1, balance = 80,000 - 25,000 = 55,000
+      expect(result.dailyBalances[0].date).toBe('2026-10-01');
+      expect(result.dailyBalances[0].balance).toBe(5500000);
+      expect(result.endingBalance).toBe(5500000);
+    });
+
+    it('estimates goal date dynamically: ignores past dates and schedules after heavy bills', () => {
+      const settings = {
+        openingBalance: 1000000,
+        incomeAmount: 10000000, // 100,000
+        incomeCreditDay: 1,
+        safetyFloor: 2000000, // 20,000 floor
+        unplannedAllowance: 1500000,
+        currentDay: 10 // Today is the 10th
+      };
+
+      // Heavy bill (Rent: 40,000) on the 15th
+      const items = [
+        { id: 'rent', type: 'recurring', name: 'Rent', amount: 4000000, dayOfMonth: 15, isFixed: true }
+      ];
+
+      // User wants to buy a goal for ₹30,000 (3,000,000 minor units)
+      const recommendation = recommendPurchaseDate(
+        settings,
+        items,
+        { year: 2026, month: 10 },
+        3000000
+      );
+
+      expect(recommendation.feasible).toBe(true);
+      // Must not recommend any day before today (day 10)
+      expect(recommendation.recommendedDay).toBeGreaterThanOrEqual(10);
+      // Prefers scheduling after the heavy rent bill clears on the 15th
+      expect(recommendation.recommendedDay).toBeGreaterThanOrEqual(15);
+      expect(recommendation.savingsBuffer).toBeGreaterThanOrEqual(0);
+    });
+
+    it('returns recommendedDate: null and never displays an arbitrary date when goal is infeasible', () => {
+      const settings = {
+        openingBalance: 0,
+        incomeAmount: 5000000, // 50,000
+        incomeCreditDay: 1,
+        safetyFloor: 2000000, // 20,000 floor
+        currentDay: 5
+      };
+
+      // Goal price 45,000 would leave only 5,000, severely breaching the 20,000 floor
+      const recommendation = recommendPurchaseDate(
+        settings,
+        [],
+        { year: 2026, month: 10 },
+        4500000
+      );
+
+      expect(recommendation.feasible).toBe(false);
+      // Strictly null — must not return an arbitrary date
+      expect(recommendation.recommendedDate).toBeNull();
+      expect(recommendation.recommendedDay).toBeNull();
+      expect(recommendation.projectedFloorDeficit).toBeGreaterThan(0);
+      expect(recommendation.explanation).toContain('Price is too high for this month');
     });
   });
 });

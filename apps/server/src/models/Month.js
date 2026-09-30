@@ -26,6 +26,11 @@ const monthSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    incomeCreditDate: {
+      type: String,
+      default: null,
+      trim: true
+    },
     incomeCreditDay: {
       type: Number,
       default: 1,
@@ -42,7 +47,7 @@ const monthSchema = new mongoose.Schema(
     },
     currencySymbol: {
       type: String,
-      default: '$'
+      default: '₹'
     }
   },
   { timestamps: true }

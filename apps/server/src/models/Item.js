@@ -17,7 +17,7 @@ const itemSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['one-time', 'recurring', 'formula', 'fuel-log']
+      enum: ['one-time', 'recurring', 'fuel-log']
     },
     name: {
       type: String,
@@ -49,14 +49,6 @@ const itemSchema = new mongoose.Schema(
       type: Number,
       min: 1,
       max: 31
-    },
-    // For formula items
-    formulaConfig: {
-      distance: { type: Number, default: 0 },
-      efficiency: { type: Number, default: 1 },
-      fuelPrice: { type: Number, default: 0 },
-      extraCost: { type: Number, default: 0 },
-      dates: [{ type: Number, min: 1, max: 31 }]
     },
     // For fuel-log items
     fuelStops: [

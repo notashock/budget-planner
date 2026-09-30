@@ -32,7 +32,7 @@ authRouter.post('/register', async (req, res) => {
       defaultIncomeAmount: 0,
       defaultIncomeCreditDay: 1,
       defaultSafetyFloor: 0,
-      currencySymbol: '$',
+      currencySymbol: '₹',
       aiAssistantEnabled: false
     });
 

@@ -52,12 +52,13 @@ describe('AI Assistant & Toggle Suite', () => {
     // 2. Now call parse-text
     const parseRes = await agent
       .post('/api/ai/parse-text')
-      .send({ text: '3 outings, 50 km each, 300 per ticket' });
+      .send({ text: 'Groceries 250 on day 15' });
 
     expect(parseRes.status).toBe(200);
     expect(parseRes.body.item).toBeDefined();
-    expect(parseRes.body.item.type).toBe('formula');
-    expect(parseRes.body.item.formulaConfig.distance).toBe(50);
+    expect(parseRes.body.item.type).toBe('one-time');
+    expect(parseRes.body.item.amount).toBe(25000);
+    expect(parseRes.body.item.day).toBe(15);
   });
 
   it('explains timeline when enabled and provides recommendations', async () => {
@@ -90,8 +91,8 @@ describe('AI Assistant & Toggle Suite', () => {
     // Invalid item type
     expect(() => validateDraftItemSchema({ name: 'Test', type: 'crypto' })).toThrow(/Invalid item type/);
 
-    // Missing formulaConfig for formula item
-    expect(() => validateDraftItemSchema({ name: 'Trip', type: 'formula' })).toThrow(/formulaConfig/);
+    // Reject removed formula item type
+    expect(() => validateDraftItemSchema({ name: 'Trip', type: 'formula' })).toThrow(/Invalid item type/);
 
     // Valid explanation schema
     const validExplanation = validateExplanationSchema({
