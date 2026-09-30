@@ -8,7 +8,7 @@ async function main() {
     console.log(`Connected to MongoDB at ${config.mongoUri}`);
 
     const app = createApp();
-    app.listen(config.port, () => {
+    app.listen(config.port, '0.0.0.0', () => {
       console.log(`Budget Planner API server running on http://localhost:${config.port}`);
     });
   } catch (err) {

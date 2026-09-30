@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -60,13 +60,15 @@ jobs:
           SERVER_PID=$!
           echo "Waiting for server to start..."
           for i in {1..30}; do
-            if curl -s http://localhost:4000/api/health | grep '"status":"ok"'; then
+            RESPONSE=$(curl -s http://127.0.0.1:4000/api/health || true)
+            echo "Health check attempt $i: $RESPONSE"
+            if echo "$RESPONSE" | grep -q '"status":"ok"'; then
               echo "Server health check verified successfully!"
-              kill $SERVER_PID
+              kill -9 $SERVER_PID || true
               exit 0
             fi
             sleep 1
           done
           echo "Server failed to respond to health check!"
-          kill $SERVER_PID || true
+          kill -9 $SERVER_PID || true
           exit 1
