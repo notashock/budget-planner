@@ -191,6 +191,7 @@ export default function App() {
       const created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
       setTransactions((prev) => [...prev, created]);
       setQuickLogOpen(false);
+      loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to log transaction');
     }
@@ -201,6 +202,7 @@ export default function App() {
     try {
       await api.deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => t._id !== id));
+      loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to delete transaction');
     }
@@ -218,6 +220,7 @@ export default function App() {
       }
       setItemModalOpen(false);
       setEditingItem(null);
+      loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to save item');
     }
@@ -229,6 +232,7 @@ export default function App() {
       await api.deleteItem(id);
       setItems((prev) => prev.filter((i) => i._id !== id));
       handleWhatIfChange(id, null);
+      loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to delete item');
     }
@@ -259,6 +263,7 @@ export default function App() {
     try {
       const res = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
       setCurrentMonth(res.month);
+      loadGoals(res.month.year, res.month.month);
     } catch (err) {
       alert(err.message || 'Failed to update month settings');
     }
@@ -386,6 +391,8 @@ export default function App() {
           <GoalsScreen
             month={currentMonth}
             goals={goals}
+            items={items}
+            transactions={transactions}
             onCreateGoal={handleCreateGoal}
             onConvertGoalToItem={handleConvertGoalToItem}
             onDeferGoal={handleDeferGoal}

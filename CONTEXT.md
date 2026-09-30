@@ -79,3 +79,8 @@ _Avoid_: Evaluating, pending, queued, purchased.
 **Priority Tier**:
 A 3-tier visual ordering system for same-day items: High (3 bars / 0), Medium (2 bars / 1), and Low (1 bar / 2), controlling the deterministic order in which simultaneous expenses draw on the daily balance.
 _Avoid_: Priority number, rank, star rating.
+
+**Goal Safety Buffer**:
+The minimum cash surplus from candidate purchase date to month-end calculated strictly from the Plan screen's baseline running-balance timeline: $\min_{t \ge d} (\text{running balance}_t) - \text{price} - \text{safetyFloor}$. If negative, the purchase is deemed infeasible and deferral to next month is recommended.
+_Avoid_: Static buffer, opening balance margin.
+

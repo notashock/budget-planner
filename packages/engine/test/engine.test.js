@@ -272,5 +272,45 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(recommendation.projectedFloorDeficit).toBeGreaterThan(0);
       expect(recommendation.explanation).toContain('Price is too high for this month');
     });
+
+    it('computes buffer from running-balance timeline taking expenses into account, recommending waiting for next month when buffer is negative', () => {
+      // Scenario from user:
+      // Income + opening balance: 7,743 (774,300 minor units)
+      // Expenses: 4,622 (462,200 minor units) arriving on Day 10 and Day 20
+      // Real balance remaining: 3,121 (312,100 minor units)
+      // Purchase: 2,500 (250,000 minor units) - Helmet
+      // Safety floor: 1,000 (100,000 minor units)
+      // Projected balance would drop to 3,121 - 2,500 = 621 (62,100 minor units)
+      // Safety buffer: 3,121 - 2,500 - 1,000 = -379 (-37,900 minor units), deficit = 379
+      const settings = {
+        openingBalance: 0,
+        incomeAmount: 774300,
+        incomeCreditDay: 1,
+        safetyFloor: 100000,
+        currentDay: 1
+      };
+
+      const items = [
+        { id: 'bills-1', type: 'recurring', name: 'Utility Bills', amount: 200000, dayOfMonth: 10, isFixed: true },
+        { id: 'bills-2', type: 'one-time', name: 'Insurance & Groceries', amount: 262200, day: 20 }
+      ];
+
+      const recommendation = recommendPurchaseDate(
+        settings,
+        items,
+        { year: 2026, month: 10 },
+        250000 // Helmet: 2,500
+      );
+
+      // Must be infeasible because buffer (-379) is negative on all days
+      expect(recommendation.feasible).toBe(false);
+      expect(recommendation.recommendedDate).toBeNull();
+      expect(recommendation.recommendedDay).toBeNull();
+      expect(recommendation.savingsBuffer).toBe(-37900);
+      expect(recommendation.projectedFloorDeficit).toBe(37900);
+      expect(recommendation.projectedLowestBalance).toBe(62100);
+      expect(recommendation.explanation).toContain('Price is too high for this month');
+      expect(recommendation.explanation).toContain('Wait for next month');
+    });
   });
 });

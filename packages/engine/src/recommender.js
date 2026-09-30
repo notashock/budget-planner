@@ -101,41 +101,56 @@ export function recommendPurchaseDate(
     ? Math.max(...heavyBillDays)
     : currentDay;
 
-  // Pipeline Step 4: Evaluate candidates from currentDay to daysInMonth
+  // Pipeline Step 4: Compute baseline simulation timeline (same as Plan screen)
+  const baselineSim = simulate(settings, items, month, transactions);
+
   const safeCandidates = [];
-  let highestLowestBalance = -Infinity;
-  let bestAlternativeDay = null;
+  let highestBuffer = -Infinity;
+  let bestLowestBalance = -Infinity;
+  let bestDay = null;
+  let bestLowestDate = null;
 
   for (let d = currentDay; d <= daysInMonth; d++) {
-    const candidateItem = {
-      id: '__hypothetical_goal_purchase__',
-      type: 'one-time',
-      name: 'Goal Purchase',
-      amount: cost,
-      day: d,
-      date: formatDate(year, monthNum, d),
-      priority: 10
-    };
+    // Gather all running balances from day d through month-end
+    const candidatePoints = [
+      ...baselineSim.dailyBalances.filter((p) => p.day >= d).map((p) => ({ balance: p.balance, date: p.date, day: p.day })),
+      ...baselineSim.events.filter((e) => e.day >= d).map((e) => ({ balance: e.balanceAfter, date: e.date, day: e.day }))
+    ];
 
-    const simResult = simulate(
-      settings,
-      [...items, candidateItem],
-      month,
-      transactions
-    );
+    let minBalanceFromDToEnd = baselineSim.endingBalance;
+    let minPointDate = formatDate(year, monthNum, daysInMonth);
 
-    if (simResult.lowestBalance > highestLowestBalance) {
-      highestLowestBalance = simResult.lowestBalance;
-      bestAlternativeDay = d;
+    if (candidatePoints.length > 0) {
+      let minVal = Infinity;
+      for (const pt of candidatePoints) {
+        if (pt.balance < minVal) {
+          minVal = pt.balance;
+          minPointDate = pt.date;
+        }
+      }
+      minBalanceFromDToEnd = minVal;
     }
 
-    if (!simResult.floorBreached && simResult.lowestBalance >= safetyFloor) {
+    // Safety buffer: minimum balance from the purchase date to month-end, minus price, minus floor
+    const buffer = minBalanceFromDToEnd - cost - safetyFloor;
+    const projectedLowest = minBalanceFromDToEnd - cost;
+
+    if (buffer > highestBuffer) {
+      highestBuffer = buffer;
+      bestLowestBalance = projectedLowest;
+      bestDay = d;
+      bestLowestDate = minPointDate;
+    }
+
+    if (buffer >= 0) {
       safeCandidates.push({
         day: d,
         date: formatDate(year, monthNum, d),
-        lowestBalance: simResult.lowestBalance,
-        savingsBuffer: simResult.lowestBalance - safetyFloor,
-        isAfterHeavyBills: d >= latestHeavyBillDay
+        minBalanceFromDToEnd,
+        projectedLowestBalance: projectedLowest,
+        savingsBuffer: buffer,
+        isAfterHeavyBills: d >= latestHeavyBillDay,
+        lowestDate: minPointDate
       });
     }
   }
@@ -160,8 +175,9 @@ export function recommendPurchaseDate(
       recommendedDate: chosen.date,
       recommendedDay: chosen.day,
       feasible: true,
-      projectedLowestBalance: chosen.lowestBalance,
+      projectedLowestBalance: chosen.projectedLowestBalance,
       savingsBuffer: chosen.savingsBuffer,
+      lowestDate: chosen.lowestDate,
       explanation: `Purchasing on ${chosen.date} preserves a safety buffer of ${chosen.savingsBuffer} minor units after clearing scheduled monthly obligations.`,
       pipelineDetails: {
         currentDay,
@@ -172,16 +188,17 @@ export function recommendPurchaseDate(
     };
   }
 
-  // Pipeline Step 6: Infeasible - NEVER display an arbitrary date!
-  const deficit = safetyFloor - highestLowestBalance;
+  // Pipeline Step 6: Infeasible - buffer is negative; recommend waiting for next month
+  const deficit = Math.abs(highestBuffer);
 
   return {
     recommendedDate: null,
     recommendedDay: null,
     feasible: false,
-    projectedLowestBalance: highestLowestBalance,
-    savingsBuffer: -deficit,
+    projectedLowestBalance: bestLowestBalance,
+    savingsBuffer: highestBuffer,
     projectedFloorDeficit: deficit,
+    lowestDate: bestLowestDate,
     explanation: `Price is too high for this month. Purchasing would breach your safety floor by ${deficit} minor units. Wait for next month.`,
     pipelineDetails: {
       currentDay,

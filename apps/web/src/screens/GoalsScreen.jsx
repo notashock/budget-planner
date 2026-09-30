@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import React, { useState, useEffect, useMemo } from 'react';
+import { formatCurrency, formatDisplayDate, recommendPurchaseDate } from '@budget/engine';
 
 export function GoalsScreen({
   month,
   goals = [],
+  items = [],
+  transactions = [],
   onCreateGoal,
   onConvertGoalToItem,
   onDeferGoal,
@@ -23,6 +25,36 @@ export function GoalsScreen({
   const [currencySymbol, setCurrencySymbol] = useState('₹');
 
   const [monthSaved, setMonthSaved] = useState(false);
+
+  // Live evaluation of purchase goals against running-balance timeline
+  const evaluatedGoals = useMemo(() => {
+    if (!month) return goals;
+    return goals.map((goal) => {
+      if (goal.status === 'active' || goal.status === 'evaluating') {
+        const liveRecommendation = recommendPurchaseDate(
+          {
+            openingBalance: month.openingBalance,
+            incomeAmount: month.incomeAmount,
+            incomeCreditDate: month.incomeCreditDate,
+            incomeCreditDay: month.incomeCreditDay,
+            safetyFloor: month.safetyFloor,
+            unplannedAllowance: month.unplannedAllowance || 0,
+            currentDay: new Date().getDate(),
+            scale: 100
+          },
+          items,
+          { year: month.year, month: month.month },
+          goal.targetAmount,
+          transactions
+        );
+        return {
+          ...goal,
+          recommendation: liveRecommendation || goal.recommendation
+        };
+      }
+      return goal;
+    });
+  }, [goals, month, items, transactions]);
 
   useEffect(() => {
     if (month) {
@@ -118,12 +150,12 @@ export function GoalsScreen({
 
         {/* List of goals */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {goals.length === 0 ? (
+          {evaluatedGoals.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)', fontSize: '13px' }}>
               No purchase goals logged yet for this month.
             </div>
           ) : (
-            goals.map((goal) => (
+            evaluatedGoals.map((goal) => (
               <div
                 key={goal._id}
                 style={{
