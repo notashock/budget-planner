@@ -61,6 +61,11 @@ export function createApp(options = {}) {
     })
   );
 
+  // Health check endpoint (public, unauthenticated)
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Mount API routers
   app.use('/api/auth', authRouter);
   app.use('/api/settings', settingsRouter);
@@ -69,11 +74,6 @@ export function createApp(options = {}) {
   app.use('/api', itemsRouter);
   app.use('/api', transactionsRouter);
   app.use('/api', goalsRouter);
-
-  // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
 
   return app;
 }
