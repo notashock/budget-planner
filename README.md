@@ -145,9 +145,38 @@ npm run test --workspace=@budget/server
 
 ---
 
+## Docker Deployment (Voroa / Container Runtimes)
+
+The repository includes a production-ready, multi-stage `Dockerfile` and `docker-compose.yml` that builds both the calculation engine and Vite frontend, serving the entire application and API from a single lightweight container.
+
+### Building & Running with Docker
+
+```bash
+# Build the production container image
+docker build -t budget-planner .
+
+# Run the container (connecting to external MongoDB)
+docker run -p 4000:4000 \
+  -e PORT=4000 \
+  -e MONGODB_URI="mongodb://your-mongo-host:27017/budget_planner" \
+  -e SESSION_SECRET="your_production_secret" \
+  budget-planner
+```
+
+### Running with Docker Compose (Includes MongoDB)
+
+```bash
+docker compose up -d --build
+```
+
+Access the application in your browser at `http://localhost:4000`.
+
+---
+
 ## Non-Goals
 
 - No automatic bank scraping or sync.
 - No payment execution.
 - No investment advice or speculative projections.
 - No multi-user shared ledgers.
+

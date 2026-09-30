@@ -2,6 +2,9 @@ import express from 'express';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
@@ -10,6 +13,9 @@ import { itemsRouter } from './routes/items.js';
 import { aiRouter } from './routes/ai.js';
 import { transactionsRouter } from './routes/transactions.js';
 import { goalsRouter } from './routes/goals.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export function createApp(options = {}) {
   const app = express();
@@ -74,6 +80,18 @@ export function createApp(options = {}) {
   app.use('/api', itemsRouter);
   app.use('/api', transactionsRouter);
   app.use('/api', goalsRouter);
+
+  // Serve static web frontend if built (production Docker runtime)
+  const webDistPath = path.resolve(__dirname, '../../web/dist');
+  if (fs.existsSync(webDistPath)) {
+    app.use(express.static(webDistPath));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(path.join(webDistPath, 'index.html'));
+    });
+  }
 
   return app;
 }
