@@ -1,5 +1,8 @@
+const BASE_API_URL = import.meta.env.VITE_API_URL || '';
+
 async function request(url, options = {}) {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith('http') ? url : `${BASE_API_URL}${url}`;
+  const res = await fetch(fullUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

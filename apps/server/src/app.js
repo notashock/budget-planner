@@ -14,20 +14,31 @@ import { goalsRouter } from './routes/goals.js';
 export function createApp(options = {}) {
   const app = express();
 
+  if (config.isProduction) {
+    app.set('trust proxy', 1);
+  }
+
+  const effectiveCorsOrigin = options.corsOrigin ?? (
+    config.corsOrigin === '*'
+      ? true
+      : (config.corsOrigin.includes(',') ? config.corsOrigin.split(',').map((s) => s.trim()) : config.corsOrigin)
+  );
+
   app.use(cors({
-    origin: options.corsOrigin || true,
+    origin: effectiveCorsOrigin,
     credentials: true
   }));
 
   app.use(express.json());
 
   // Configure Session Store
+  const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
   let store = options.sessionStore;
   if (!store && options.useMongoStore !== false) {
     try {
       store = MongoStore.create({
         mongoUrl: options.mongoUri || config.mongoUri,
-        ttl: 14 * 24 * 60 * 60 // 14 days
+        ttl: sessionTtlSeconds
       });
     } catch (e) {
       // MemoryStore fallback if MongoDB store creation fails
@@ -45,7 +56,7 @@ export function createApp(options = {}) {
         secure: config.isProduction,
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 14 * 24 * 60 * 60 * 1000
+        maxAge: sessionTtlSeconds * 1000
       }
     })
   );

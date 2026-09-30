@@ -25,24 +25,36 @@ The project is structured as an npm workspaces monorepo:
 
 ## Environment Variables
 
-Create an `.env` file inside `apps/server/` or pass variables to your runtime environment:
+Copy the provided `.env.example` templates to `.env` in the root, `apps/server/`, or `apps/web/`:
 
-```env
-# Server port (default: 4000)
-PORT=4000
+```bash
+# Server configuration (or root .env)
+cp apps/server/.env.example apps/server/.env
 
-# MongoDB connection string (default: mongodb://127.0.0.1:27017/budget_planner)
-MONGODB_URI=mongodb://127.0.0.1:27017/budget_planner
-
-# Session secret used to sign session cookies
-SESSION_SECRET=your_secure_random_session_secret
-
-# Optional: Google Gemini API key for assistant features (off by default)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Runtime environment (development / production)
-NODE_ENV=development
+# Web client configuration
+cp apps/web/.env.example apps/web/.env
 ```
+
+### Server Variables (`apps/server/.env`)
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PORT` | `4000` | HTTP port the Express API server listens on |
+| `NODE_ENV` | `development` | Runtime environment (`development`, `production`, `test`) |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017/budget_planner` | MongoDB connection string |
+| `SESSION_SECRET` | `dev_session_secret_change_in_production` | Secret string for signing session cookies |
+| `SESSION_MAX_AGE_DAYS` | `14` | Session cookie and MongoDB session TTL in days |
+| `CORS_ORIGIN` | `http://localhost:3000` | Allowed origins (supports comma-separated list or `*`) |
+| `GEMINI_API_KEY` | _(empty)_ | Optional Google Gemini API key for assistant features |
+
+### Web Client Variables (`apps/web/.env`)
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `VITE_PORT` | `3000` | HTTP port the Vite development server binds to |
+| `VITE_PROXY_TARGET` | `http://localhost:4000` | Target URL for Vite dev proxy forwarding `/api` |
+| `VITE_API_URL` | _(empty)_ | Direct API base URL (leave empty to use Vite proxy / relative path) |
+
 
 ---
 

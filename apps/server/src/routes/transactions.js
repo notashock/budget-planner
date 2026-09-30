@@ -5,6 +5,7 @@ import { Item } from '../models/Item.js';
 import { Setting } from '../models/Setting.js';
 import { requireAuth } from '../middleware/auth.js';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
+import { config } from '../config.js';
 
 export const transactionsRouter = express.Router();
 transactionsRouter.use(requireAuth);
@@ -183,7 +184,7 @@ transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res)
     const setting = await Setting.findOne({ userId: req.session.userId });
     if (setting?.aiAssistantEnabled) {
       try {
-        const adapter = new GeminiAssistantAdapter(process.env.GEMINI_API_KEY);
+        const adapter = new GeminiAssistantAdapter(config.geminiApiKey);
         const explanation = await adapter.explainTimeline(
           {
             floorBreached: false,

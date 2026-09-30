@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { Setting } from '../models/Setting.js';
 import { requireAuth } from '../middleware/auth.js';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
+import { config } from '../config.js';
 
 export const aiRouter = express.Router();
 aiRouter.use(requireAuth);
@@ -35,7 +36,7 @@ async function requireAiEnabled(req, res, next) {
 
 aiRouter.use(requireAiEnabled);
 
-const adapter = new GeminiAssistantAdapter(process.env.GEMINI_API_KEY);
+const adapter = new GeminiAssistantAdapter(config.geminiApiKey);
 
 // POST /api/ai/parse-text
 aiRouter.post('/parse-text', async (req, res) => {
