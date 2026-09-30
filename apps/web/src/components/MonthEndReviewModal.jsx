@@ -6,7 +6,7 @@ export function MonthEndReviewModal({
   isOpen,
   onClose,
   month,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(false);

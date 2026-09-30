@@ -94,17 +94,21 @@ npm run test --workspace=@budget/server
    - One-time: name, amount, scheduled date.
    - Recurring: name, amount, day of month (automatically clamped to month end on shorter months), with an optional `isFixed` flag to carry forward the exact amount on the same day to the next month during rollover.
    - Fuel Log: records fuel stops with odometer readings, liters, and cost; automatically calculates bike fuel efficiency (km/L) once 2 stops are logged.
-   - Formula: name, distance, efficiency, fuel price, extra cost per occurrence, list of dates.
-2. **Actual Calendar Dates**:
+2. **Actual Calendar Dates & Specific Salary Credit Date**:
+   - Specific calendar date selector for salary credit (`incomeCreditDate`).
+   - Seamlessly handles salary credited on preceding month-ends (e.g. Sept 30) for the current month's budget, crediting funds on Day 1 (Oct 1).
    - Dates displayed across the UI as readable dates (e.g. `Fri, Sep 18`) replacing raw day numbers.
+   - Rupee (`₹`) is the default currency across the application.
 3. **Today's Balance & Timeline**:
    - Summary cards prominently display your running balance as of today's date (`todayBalance`), with month-end projected balance in subtext.
-4. **Purchase Goals & Safe Date Recommendation**:
-   - Dedicated "Purchase goals" section in the Goals screen.
-   - Add purchase goals with target prices within the month.
-   - Engine evaluates cash flows: recommends safe date maximizing savings buffer, provides 1-tap scheduling, or warns "Wait for next month" with projected floor deficit and 1-tap deferral.
+4. **Optimized Goal Date Recommendation Pipeline**:
+   - Evaluates dynamic daily spending pattern (burn rate) from logged actuals.
+   - Restricts recommendation candidate dates strictly to today onwards (`d >= currentDay`).
+   - Ensures heavy recurring bills due in the near future are cleared first before scheduling discretionary goal purchases.
+   - Never displays an arbitrary date when a purchase is infeasible; explicitly reports the projected safety floor deficit with 1-tap "Defer to next month".
+   - Focused Goals screen with clutter-free interface (global defaults removed).
 5. **Net Item Amount on Mapped Refunds**:
-   - When a refund/credit transaction is mapped to a planned item, the UI displays the net of the item (e.g. $319 original minus $300 refund displays $19 net) while accurately preserving cash timing in timeline simulations.
+   - When a refund/credit transaction is mapped to a planned item, the UI displays the net of the item (e.g. ₹319 original minus ₹300 refund displays ₹19 net) while accurately preserving cash timing in timeline simulations.
 6. **Unplanned Expense Logging & Actuals Tracking**:
    - `transactions` collection with 3-tap quick-log (amount, optional tag from Food/Travel/Health/Other, optional note, date defaults to today).
    - Monthly unplanned allowance monitored as "Safe to spend per day" (`allowance left ÷ days left`).

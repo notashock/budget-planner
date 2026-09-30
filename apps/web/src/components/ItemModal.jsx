@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  calculateFormulaCost,
   calculateFuelEfficiency,
   formatCurrency,
   formatDate
@@ -11,7 +10,7 @@ export function ItemModal({
   onClose,
   onSave,
   initialItem = null,
-  currencySymbol = '$',
+  currencySymbol = '₹',
   month,
   existingItems = [],
   existingTransactions = []
@@ -23,13 +22,6 @@ export function ItemModal({
   const [date, setDate] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [isFixed, setIsFixed] = useState(false);
-
-  // Formula fields
-  const [distance, setDistance] = useState('');
-  const [efficiency, setEfficiency] = useState('');
-  const [fuelPrice, setFuelPrice] = useState('');
-  const [extraCost, setExtraCost] = useState('');
-  const [datesStr, setDatesStr] = useState('');
 
   // Fuel log fields: list of fuel stops
   const [fuelStops, setFuelStops] = useState([
@@ -62,13 +54,6 @@ export function ItemModal({
             fuelCost: s.fuelCost ? (s.fuelCost / 100).toString() : ''
           })) || []
         );
-      } else if (initialItem.type === 'formula') {
-        const cfg = initialItem.formulaConfig || {};
-        setDistance(cfg.distance?.toString() || '');
-        setEfficiency(cfg.efficiency?.toString() || '');
-        setFuelPrice(cfg.fuelPrice ? (cfg.fuelPrice / 100).toString() : '');
-        setExtraCost(cfg.extraCost ? (cfg.extraCost / 100).toString() : '');
-        setDatesStr(cfg.dates ? cfg.dates.join(', ') : '');
       }
     } else {
       setType('one-time');
@@ -78,11 +63,6 @@ export function ItemModal({
       setAmount('');
       setDate(defaultDate);
       setDayOfMonth(1);
-      setDistance('');
-      setEfficiency('');
-      setFuelPrice('');
-      setExtraCost('');
-      setDatesStr('');
       setFuelStops([
         { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' },
         { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' }
@@ -104,31 +84,6 @@ export function ItemModal({
 
   const fuelEfficiencyResult = calculateFuelEfficiency(parsedFuelStops);
 
-  // Live Formula Calculation
-  let formulaPerCost = 0;
-  let parsedDates = [];
-  if (type === 'formula') {
-    const distNum = Number(distance) || 0;
-    const effNum = Number(efficiency) || 1;
-    const fuelNum = Math.round(Number(fuelPrice || 0) * 100);
-    const extraNum = Math.round(Number(extraCost || 0) * 100);
-
-    if (distNum > 0 && effNum > 0) {
-      formulaPerCost = calculateFormulaCost({
-        distance: distNum,
-        efficiency: effNum,
-        fuelPrice: fuelNum,
-        extraCost: extraNum,
-        scale: 100
-      });
-    }
-
-    parsedDates = datesStr
-      .split(',')
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => !isNaN(n) && n >= 1 && n <= 31);
-  }
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -149,14 +104,6 @@ export function ItemModal({
       payload.isFixed = isFixed;
     } else if (type === 'fuel-log') {
       payload.fuelStops = parsedFuelStops;
-    } else if (type === 'formula') {
-      payload.formulaConfig = {
-        distance: Number(distance) || 0,
-        efficiency: Number(efficiency) > 0 ? Number(efficiency) : 1,
-        fuelPrice: Math.round(Number(fuelPrice || 0) * 100),
-        extraCost: Math.round(Number(extraCost || 0) * 100),
-        dates: parsedDates
-      };
     }
 
     onSave(payload);
@@ -172,8 +119,8 @@ export function ItemModal({
 
         {/* Tab Selector */}
         {!initialItem && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
-            {['one-time', 'recurring', 'fuel-log', 'formula'].map((t) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+            {['one-time', 'recurring', 'fuel-log'].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -209,7 +156,7 @@ export function ItemModal({
               />
             </div>
 
-            {type !== 'formula' && type !== 'fuel-log' && (
+            {type !== 'fuel-log' && (
               <div className="form-group">
                 <label className="form-label">Amount ({currencySymbol})</label>
                 <input
@@ -378,80 +325,7 @@ export function ItemModal({
             </div>
           )}
 
-          {/* Formula item */}
-          {type === 'formula' && (
-            <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Distance per trip</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="e.g. 50"
-                    required
-                    value={distance}
-                    onChange={(e) => setDistance(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Fuel efficiency (km/L)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="e.g. 42.5"
-                    required
-                    value={efficiency}
-                    onChange={(e) => setEfficiency(e.target.value)}
-                  />
-                </div>
-              </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Fuel price ({currencySymbol} / unit)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 117"
-                    required
-                    value={fuelPrice}
-                    onChange={(e) => setFuelPrice(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Extra per occurrence ({currencySymbol})</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 300"
-                    value={extraCost}
-                    onChange={(e) => setExtraCost(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Dates in month (comma separated)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 10, 17, 25"
-                  required
-                  value={datesStr}
-                  onChange={(e) => setDatesStr(e.target.value)}
-                />
-              </div>
-
-              {formulaPerCost > 0 && (
-                <div className="assumptions-box">
-                  <strong>Assumptions:</strong> {distance} units @ {efficiency} efficiency, fuel {currencySymbol}{fuelPrice} + extra {currencySymbol}{extraCost || 0}
-                  <br />
-                  <strong>Per occurrence:</strong> {formatCurrency(formulaPerCost, currencySymbol)} rounded to whole unit.
-                  <br />
-                  <strong>Total ({parsedDates.length} occurrences):</strong> {formatCurrency(formulaPerCost * parsedDates.length, currencySymbol)}
-                </div>
-              )}
-            </>
-          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
             <button type="button" onClick={onClose}>

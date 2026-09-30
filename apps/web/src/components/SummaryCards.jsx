@@ -15,7 +15,7 @@ export function SummaryCards({
   allowanceLeft = 0,
   daysLeft = 1,
   safeToSpendPerDay = 0,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const totalOutflow = events
     .filter((e) => e.amount < 0)

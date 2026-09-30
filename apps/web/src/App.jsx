@@ -132,6 +132,7 @@ export default function App() {
         openingBalance: currentMonth.openingBalance,
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDay: currentMonth.incomeCreditDay,
+        incomeCreditDate: currentMonth.incomeCreditDate,
         safetyFloor: currentMonth.safetyFloor,
         unplannedAllowance: currentMonth.unplannedAllowance || 0,
         currentDay,
@@ -366,7 +367,7 @@ export default function App() {
             items={items}
             transactions={transactions}
             simulation={activeSimulation}
-            currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '$'}
+            currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
             onOpenAddItem={() => {
               setEditingItem(null);
               setItemModalOpen(true);
@@ -384,14 +385,12 @@ export default function App() {
         {activeTab === 'goals' && (
           <GoalsScreen
             month={currentMonth}
-            settings={settings}
             goals={goals}
             onCreateGoal={handleCreateGoal}
             onConvertGoalToItem={handleConvertGoalToItem}
             onDeferGoal={handleDeferGoal}
             onDeleteGoal={handleDeleteGoal}
             onSaveMonthSettings={handleSaveMonthSettings}
-            onSaveDefaults={handleSaveDefaults}
           />
         )}
 
@@ -402,7 +401,7 @@ export default function App() {
             simulation={activeSimulation}
             month={currentMonth}
             onSaveParsedItem={handleSaveItem}
-            currencySymbol={currentMonth?.currencySymbol || '$'}
+            currencySymbol={currentMonth?.currencySymbol || '₹'}
           />
         )}
       </main>
@@ -413,12 +412,13 @@ export default function App() {
       <ItemModal
         isOpen={itemModalOpen}
         initialItem={editingItem}
-        currencySymbol={currentMonth?.currencySymbol || '$'}
+        currencySymbol={currentMonth?.currencySymbol || '₹'}
         month={currentMonth}
         monthSettings={{
           openingBalance: currentMonth?.openingBalance || 0,
           incomeAmount: currentMonth?.incomeAmount || 0,
           incomeCreditDay: currentMonth?.incomeCreditDay || 1,
+          incomeCreditDate: currentMonth?.incomeCreditDate,
           safetyFloor: currentMonth?.safetyFloor || 0,
           unplannedAllowance: currentMonth?.unplannedAllowance || 0
         }}
@@ -436,7 +436,7 @@ export default function App() {
         isOpen={quickLogOpen}
         month={currentMonth}
         plannedItems={items}
-        currencySymbol={currentMonth?.currencySymbol || '$'}
+        currencySymbol={currentMonth?.currencySymbol || '₹'}
         onClose={() => setQuickLogOpen(false)}
         onLogTransaction={handleLogTransaction}
       />
@@ -445,7 +445,7 @@ export default function App() {
       <MonthEndReviewModal
         isOpen={reviewOpen}
         month={currentMonth}
-        currencySymbol={currentMonth?.currencySymbol || '$'}
+        currencySymbol={currentMonth?.currencySymbol || '₹'}
         onClose={() => setReviewOpen(false)}
       />
 
@@ -462,7 +462,7 @@ export default function App() {
         isOpen={rolloverOpen}
         currentMonth={currentMonth}
         endingBalance={activeSimulation?.endingBalance || 0}
-        currencySymbol={currentMonth?.currencySymbol || '$'}
+        currencySymbol={currentMonth?.currencySymbol || '₹'}
         onClose={() => setRolloverOpen(false)}
         onConfirm={handleRollover}
       />

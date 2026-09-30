@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
-export function TimelineList({ events = [], safetyFloor = 0, currencySymbol = '$' }) {
+export function TimelineList({ events = [], safetyFloor = 0, currencySymbol = '₹' }) {
   if (!events || events.length === 0) {
     return (
       <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>

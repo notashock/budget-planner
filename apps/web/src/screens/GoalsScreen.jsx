@@ -3,14 +3,12 @@ import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 export function GoalsScreen({
   month,
-  settings,
   goals = [],
   onCreateGoal,
   onConvertGoalToItem,
   onDeferGoal,
   onDeleteGoal,
-  onSaveMonthSettings,
-  onSaveDefaults
+  onSaveMonthSettings
 }) {
   // Goal creation inputs
   const [goalName, setGoalName] = useState('');
@@ -19,38 +17,28 @@ export function GoalsScreen({
 
   // Current month overrides
   const [incomeAmount, setIncomeAmount] = useState('');
-  const [incomeCreditDay, setIncomeCreditDay] = useState(1);
+  const [incomeCreditDate, setIncomeCreditDate] = useState('');
   const [safetyFloor, setSafetyFloor] = useState('');
   const [unplannedAllowance, setUnplannedAllowance] = useState('');
-  const [currencySymbol, setCurrencySymbol] = useState('$');
-
-  // Global default settings
-  const [defaultIncome, setDefaultIncome] = useState('');
-  const [defaultCreditDay, setDefaultCreditDay] = useState(1);
-  const [defaultFloor, setDefaultFloor] = useState('');
-  const [defaultAllowance, setDefaultAllowance] = useState('');
+  const [currencySymbol, setCurrencySymbol] = useState('₹');
 
   const [monthSaved, setMonthSaved] = useState(false);
-  const [defaultsSaved, setDefaultsSaved] = useState(false);
 
   useEffect(() => {
     if (month) {
       setIncomeAmount((month.incomeAmount / 100).toString());
-      setIncomeCreditDay(month.incomeCreditDay || 1);
+      if (month.incomeCreditDate) {
+        setIncomeCreditDate(month.incomeCreditDate);
+      } else {
+        const d = String(month.incomeCreditDay || 1).padStart(2, '0');
+        const m = String(month.month).padStart(2, '0');
+        setIncomeCreditDate(`${month.year}-${m}-${d}`);
+      }
       setSafetyFloor((month.safetyFloor / 100).toString());
       setUnplannedAllowance(month.unplannedAllowance ? (month.unplannedAllowance / 100).toString() : '');
-      setCurrencySymbol(month.currencySymbol || '$');
+      setCurrencySymbol(month.currencySymbol || '₹');
     }
   }, [month]);
-
-  useEffect(() => {
-    if (settings) {
-      setDefaultIncome((settings.defaultIncomeAmount / 100).toString());
-      setDefaultCreditDay(settings.defaultIncomeCreditDay || 1);
-      setDefaultFloor((settings.defaultSafetyFloor / 100).toString());
-      setDefaultAllowance(settings.defaultUnplannedAllowance ? (settings.defaultUnplannedAllowance / 100).toString() : '');
-    }
-  }, [settings]);
 
   const handleAddGoal = async (e) => {
     e.preventDefault();
@@ -72,26 +60,13 @@ export function GoalsScreen({
     e.preventDefault();
     onSaveMonthSettings({
       incomeAmount: Math.round(Number(incomeAmount || 0) * 100),
-      incomeCreditDay: Number(incomeCreditDay) || 1,
+      incomeCreditDate: incomeCreditDate,
       safetyFloor: Math.round(Number(safetyFloor || 0) * 100),
       unplannedAllowance: Math.round(Number(unplannedAllowance || 0) * 100),
-      currencySymbol: currencySymbol.trim() || '$'
+      currencySymbol: currencySymbol.trim() || '₹'
     });
     setMonthSaved(true);
     setTimeout(() => setMonthSaved(false), 2500);
-  };
-
-  const handleSaveDefaults = (e) => {
-    e.preventDefault();
-    onSaveDefaults({
-      defaultIncomeAmount: Math.round(Number(defaultIncome || 0) * 100),
-      defaultIncomeCreditDay: Number(defaultCreditDay) || 1,
-      defaultSafetyFloor: Math.round(Number(defaultFloor || 0) * 100),
-      defaultUnplannedAllowance: Math.round(Number(defaultAllowance || 0) * 100),
-      currencySymbol: currencySymbol.trim() || '$'
-    });
-    setDefaultsSaved(true);
-    setTimeout(() => setDefaultsSaved(false), 2500);
   };
 
   return (
@@ -207,15 +182,15 @@ export function GoalsScreen({
                       marginTop: '4px',
                       padding: '10px',
                       borderRadius: 'var(--radius)',
-                      background: goal.recommendation.feasible ? 'var(--surface-subtle)' : 'var(--danger-subtle)',
-                      border: `1px solid ${goal.recommendation.feasible ? 'var(--border)' : 'var(--danger-border)'}`,
+                      background: (goal.recommendation.feasible && goal.recommendation.recommendedDate) ? 'var(--surface-subtle)' : 'var(--danger-subtle)',
+                      border: `1px solid ${(goal.recommendation.feasible && goal.recommendation.recommendedDate) ? 'var(--border)' : 'var(--danger-border)'}`,
                       fontSize: '12px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '6px'
                     }}
                   >
-                    {goal.recommendation.feasible ? (
+                    {goal.recommendation.feasible && goal.recommendation.recommendedDate ? (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontWeight: 600, color: 'var(--success)' }}>
@@ -246,8 +221,8 @@ export function GoalsScreen({
                           Purchasing this month would breach your safety floor by{' '}
                           <strong>
                             {formatCurrency(Math.abs(goal.recommendation.projectedFloorDeficit || 0), currencySymbol)}
-                          </strong>{' '}
-                          on {formatDisplayDate(goal.recommendation.lowestDate, true)}.
+                          </strong>
+                          {goal.recommendation.lowestDate ? ` on ${formatDisplayDate(goal.recommendation.lowestDate, true)}.` : '.'}
                         </div>
                         <button
                           type="button"
@@ -306,15 +281,16 @@ export function GoalsScreen({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Income credit day (1 - 31)</label>
+                <label className="form-label">Salary credit date</label>
                 <input
-                  type="number"
-                  min="1"
-                  max="31"
+                  type="date"
                   required
-                  value={incomeCreditDay}
-                  onChange={(e) => setIncomeCreditDay(e.target.value)}
+                  value={incomeCreditDate}
+                  onChange={(e) => setIncomeCreditDate(e.target.value)}
                 />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Supports preceding month-end (e.g. Sept 30) for this month's budget.
+                </span>
               </div>
             </div>
 
@@ -363,70 +339,6 @@ export function GoalsScreen({
           </form>
         </div>
       )}
-
-      {/* Global User Defaults */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">Default profile settings</span>
-        </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          These defaults are automatically pre-filled when creating new budget months.
-        </p>
-
-        <form onSubmit={handleSaveDefaults} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Default income</label>
-              <input
-                type="number"
-                step="0.01"
-                value={defaultIncome}
-                onChange={(e) => setDefaultIncome(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Default credit day</label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                value={defaultCreditDay}
-                onChange={(e) => setDefaultCreditDay(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Default safety floor</label>
-              <input
-                type="number"
-                step="0.01"
-                value={defaultFloor}
-                onChange={(e) => setDefaultFloor(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Default unplanned allowance</label>
-              <input
-                type="number"
-                step="0.01"
-                value={defaultAllowance}
-                onChange={(e) => setDefaultAllowance(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--success)' }}>
-              {defaultsSaved ? 'Defaults saved.' : ''}
-            </span>
-            <button type="submit" className="btn-primary">
-              Save profile defaults
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

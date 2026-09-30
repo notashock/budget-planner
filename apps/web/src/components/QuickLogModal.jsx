@@ -6,7 +6,7 @@ export function QuickLogModal({
   onClose,
   onLogTransaction,
   plannedItems = [],
-  currencySymbol = '$',
+  currencySymbol = '₹',
   month
 }) {
   const [amount, setAmount] = useState('');

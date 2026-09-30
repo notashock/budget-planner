@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { calculateFormulaCost, calculateFuelEfficiency, formatCurrency, formatDisplayDate } from '@budget/engine';
+import { calculateFuelEfficiency, formatCurrency, formatDisplayDate } from '@budget/engine';
 
 export function ItemsScreen({
   items = [],
   transactions = [],
   simulation = null,
-  currencySymbol = '$',
+  currencySymbol = '₹',
   onOpenAddItem,
   onOpenQuickLog,
   onEditItem,
@@ -36,7 +36,7 @@ export function ItemsScreen({
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {['all', 'recurring', 'one-time', 'fuel-log', 'formula', 'transactions'].map((t) => (
+        {['all', 'recurring', 'one-time', 'fuel-log', 'transactions'].map((t) => (
           <button
             key={t}
             type="button"
@@ -115,18 +115,6 @@ export function ItemsScreen({
                 const fuelRes = calculateFuelEfficiency(item.fuelStops || []);
                 amountDisplay = formatCurrency(fuelRes.totalFuelCost, currencySymbol);
                 details = `${item.fuelStops?.length || 0} fuel stop${(item.fuelStops?.length || 0) > 1 ? 's' : ''}`;
-              } else if (item.type === 'formula') {
-                const cfg = item.formulaConfig || {};
-                const perCost = calculateFormulaCost({
-                  distance: cfg.distance || 0,
-                  efficiency: cfg.efficiency || 1,
-                  fuelPrice: cfg.fuelPrice || 0,
-                  extraCost: cfg.extraCost || 0,
-                  scale: 100
-                });
-                const totalCost = perCost * (cfg.dates?.length || 0);
-                amountDisplay = formatCurrency(totalCost, currencySymbol);
-                details = `${cfg.dates?.length || 0} trips (days ${cfg.dates?.join(', ')})`;
               }
 
               return (
@@ -224,20 +212,7 @@ export function ItemsScreen({
                     </div>
                   )}
 
-                  {/* Assumptions for Formula items */}
-                  {item.type === 'formula' && (
-                    <div className="assumptions-box">
-                      <strong>Assumptions:</strong> Distance: {item.formulaConfig?.distance} units, Efficiency: {item.formulaConfig?.efficiency}, Fuel price: {formatCurrency(item.formulaConfig?.fuelPrice || 0, currencySymbol)}, Extra cost: {formatCurrency(item.formulaConfig?.extraCost || 0, currencySymbol)}.
-                      <br />
-                      <strong>Calculated per occurrence:</strong> {formatCurrency(calculateFormulaCost({
-                        distance: item.formulaConfig?.distance || 0,
-                        efficiency: item.formulaConfig?.efficiency || 1,
-                        fuelPrice: item.formulaConfig?.fuelPrice || 0,
-                        extraCost: item.formulaConfig?.extraCost || 0,
-                        scale: 100
-                      }), currencySymbol)} (rounded to whole unit).
-                    </div>
-                  )}
+
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
                     <button

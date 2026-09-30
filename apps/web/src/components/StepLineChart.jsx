@@ -8,7 +8,7 @@ import { formatCurrency, formatDisplayDate } from '@budget/engine';
 export function StepLineChart({
   dailyBalances = [],
   safetyFloor = 0,
-  currencySymbol = '$',
+  currencySymbol = '₹',
   floorBreached = false,
   lowestDate = ''
 }) {

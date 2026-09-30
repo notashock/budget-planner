@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
-import { formatCurrency, calculateFormulaCost } from '@budget/engine';
+import { formatCurrency } from '@budget/engine';
 
 export function AssistantScreen({
   settings,
@@ -8,7 +8,7 @@ export function AssistantScreen({
   simulation,
   month,
   onSaveParsedItem,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const isEnabled = settings?.aiAssistantEnabled === true;
 
@@ -131,7 +131,7 @@ export function AssistantScreen({
         <form onSubmit={handleParse} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <textarea
             rows="2"
-            placeholder="e.g. 3 outings, 50 km each, 300 per ticket on days 10, 15, 20"
+            placeholder="e.g. Internet bill of 999 on the 15th every month, or groceries 2500 on day 5"
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
           />
@@ -167,23 +167,9 @@ export function AssistantScreen({
               <strong>Name:</strong> {draftItem.name} ({draftItem.type})
             </div>
 
-            {draftItem.type !== 'formula' ? (
-              <div style={{ fontSize: '13px' }}>
-                <strong>Amount:</strong> {formatCurrency(draftItem.amount, currencySymbol)} on day {draftItem.day || draftItem.dayOfMonth}
-              </div>
-            ) : (
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                <strong>Trip details:</strong> {draftItem.formulaConfig?.distance} units, fuel {formatCurrency(draftItem.formulaConfig?.fuelPrice || 0, currencySymbol)}, extra {formatCurrency(draftItem.formulaConfig?.extraCost || 0, currencySymbol)} across {draftItem.formulaConfig?.dates?.length} dates (days {draftItem.formulaConfig?.dates?.join(', ')}).
-                <br />
-                <strong>Per occurrence:</strong> {formatCurrency(calculateFormulaCost({
-                  distance: draftItem.formulaConfig?.distance || 0,
-                  efficiency: draftItem.formulaConfig?.efficiency || 1,
-                  fuelPrice: draftItem.formulaConfig?.fuelPrice || 0,
-                  extraCost: draftItem.formulaConfig?.extraCost || 0,
-                  scale: 100
-                }), currencySymbol)}
-              </div>
-            )}
+            <div style={{ fontSize: '13px' }}>
+              <strong>Amount:</strong> {formatCurrency(draftItem.amount, currencySymbol)} on day {draftItem.day || draftItem.dayOfMonth}
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
               <button type="button" onClick={() => setDraftItem(null)}>

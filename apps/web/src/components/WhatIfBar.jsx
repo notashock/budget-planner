@@ -6,7 +6,7 @@ export function WhatIfBar({
   whatIfOverrides = {},
   onOverrideChange,
   onReset,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const activeOverrideCount = Object.keys(whatIfOverrides).length;

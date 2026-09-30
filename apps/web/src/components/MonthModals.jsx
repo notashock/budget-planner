@@ -11,6 +11,9 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
 
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonthNum);
+  const [incomeCreditDate, setIncomeCreditDate] = useState(
+    `${currentYear}-${String(currentMonthNum).padStart(2, '0')}-01`
+  );
   const [openingBalance, setOpeningBalance] = useState('');
   const [incomeAmount, setIncomeAmount] = useState(
     settings?.defaultIncomeAmount ? (settings.defaultIncomeAmount / 100).toString() : ''
@@ -19,6 +22,16 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
     settings?.defaultSafetyFloor ? (settings.defaultSafetyFloor / 100).toString() : ''
   );
 
+  const handleMonthChange = (newMonth) => {
+    setMonth(newMonth);
+    setIncomeCreditDate(`${year}-${String(newMonth).padStart(2, '0')}-01`);
+  };
+
+  const handleYearChange = (newYear) => {
+    setYear(newYear);
+    setIncomeCreditDate(`${newYear}-${String(month).padStart(2, '0')}-01`);
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -26,6 +39,7 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
     onCreate({
       year: Number(year),
       month: Number(month),
+      incomeCreditDate: incomeCreditDate || undefined,
       openingBalance: openingBalance ? Math.round(Number(openingBalance) * 100) : 0,
       incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
       safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined
@@ -48,12 +62,12 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
                 type="number"
                 required
                 value={year}
-                onChange={(e) => setYear(e.target.value)}
+                onChange={(e) => handleYearChange(e.target.value)}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Month</label>
-              <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              <select value={month} onChange={(e) => handleMonthChange(Number(e.target.value))}>
                 {MONTH_NAMES.map((name, idx) => (
                   <option key={idx + 1} value={idx + 1}>
                     {name}
@@ -64,7 +78,20 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Opening balance ({settings?.currencySymbol || '$'})</label>
+            <label className="form-label">Salary credit date</label>
+            <input
+              type="date"
+              required
+              value={incomeCreditDate}
+              onChange={(e) => setIncomeCreditDate(e.target.value)}
+            />
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Supports preceding month-end (e.g. Sept 30 for Oct budget).
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Opening balance ({settings?.currencySymbol || '₹'})</label>
             <input
               type="number"
               step="0.01"
@@ -76,7 +103,7 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Income ({settings?.currencySymbol || '$'})</label>
+              <label className="form-label">Income ({settings?.currencySymbol || '₹'})</label>
               <input
                 type="number"
                 step="0.01"
@@ -86,7 +113,7 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Safety floor ({settings?.currencySymbol || '$'})</label>
+              <label className="form-label">Safety floor ({settings?.currencySymbol || '₹'})</label>
               <input
                 type="number"
                 step="0.01"
@@ -113,7 +140,7 @@ export function RolloverModal({
   onConfirm,
   currentMonth,
   endingBalance = 0,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const [carryBalance, setCarryBalance] = useState(true);
 

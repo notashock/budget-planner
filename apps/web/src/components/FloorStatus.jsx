@@ -6,7 +6,7 @@ export function FloorStatus({
   lowestBalance = 0,
   lowestDate = '',
   safetyFloor = 0,
-  currencySymbol = '$'
+  currencySymbol = '₹'
 }) {
   const formattedLowestDate = lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A';
 
