@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  verify:
+    name: Verify Engine, Server, Web & Health
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 4000
+      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
+      SESSION_SECRET: ci_session_secret_for_testing
+      SESSION_MAX_AGE_DAYS: 14
+      CORS_ORIGIN: http://localhost:3000
+      VITE_PORT: 3000
+      VITE_PROXY_TARGET: http://localhost:4000
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Engine Unit Tests
+        run: npm run test:engine
+
+      - name: Run Server Integration Tests (MongoDB)
+        run: npm run test:server
+
+      - name: Build Web Application (Vite)
+        run: npm run build:web
+
+      - name: Verify Server Boot & Health Check Connection
+        run: |
+          node apps/server/src/index.js &
+          SERVER_PID=$!
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:4000/api/health | grep '"status":"ok"'; then
+              echo "Server health check verified successfully!"
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to respond to health check!"
+          kill $SERVER_PID || true
+          exit 1

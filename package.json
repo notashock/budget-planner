@@ -9,6 +9,10 @@
   "scripts": {
     "test": "npm run test --workspace=@budget/engine",
     "test:engine": "npm run test --workspace=@budget/engine",
+    "test:server": "npm run test --workspace=@budget/server",
+    "test:all": "npm run test:engine && npm run test:server",
+    "build": "npm run build --workspace=@budget/web",
+    "build:web": "npm run build --workspace=@budget/web",
     "dev:server": "npm run dev --workspace=@budget/server",
     "dev:web": "npm run dev --workspace=@budget/web",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\""
