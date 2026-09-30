@@ -25,8 +25,8 @@ const goalSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['evaluating', 'ready', 'deferred', 'purchased'],
-      default: 'evaluating'
+      enum: ['active', 'scheduled', 'deferred', 'evaluating', 'ready'],
+      default: 'active'
     }
   },
   { timestamps: true }

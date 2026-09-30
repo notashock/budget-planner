@@ -25,7 +25,9 @@ export function Header({
   return (
     <header className="app-header">
       <div className="app-title-group">
-        <span className="app-brand">Budget planner</span>
+        <span className="app-brand">
+          Budget planner <span className="beta-badge">BETA</span>
+        </span>
         <button
           type="button"
           className="month-picker-btn"

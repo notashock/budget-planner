@@ -146,29 +146,46 @@ export function ItemModal({
             />
           </div>
 
-          <div className="form-row">
+          {type !== 'fuel-log' && (
             <div className="form-group">
-              <label className="form-label">Same-day priority (0 = high)</label>
+              <label className="form-label">Amount ({currencySymbol})</label>
               <input
                 type="number"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
               />
             </div>
+          )}
 
-            {type !== 'fuel-log' && (
-              <div className="form-group">
-                <label className="form-label">Amount ({currencySymbol})</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-            )}
+          <div className="form-group">
+            <label className="form-label">Same-day priority</label>
+            <div className="priority-selector">
+              {[
+                { label: 'High', value: 0, bars: 3 },
+                { label: 'Medium', value: 1, bars: 2 },
+                { label: 'Low', value: 2, bars: 1 }
+              ].map((tier) => {
+                const isSelected = (Number(priority) || 0) === tier.value;
+                return (
+                  <button
+                    key={tier.value}
+                    type="button"
+                    className={`priority-option-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setPriority(tier.value)}
+                  >
+                    <span className="priority-bars-icon" aria-hidden="true">
+                      <span className={`priority-bar bar-1 ${tier.bars >= 1 ? 'active' : ''}`} />
+                      <span className={`priority-bar bar-2 ${tier.bars >= 2 ? 'active' : ''}`} />
+                      <span className={`priority-bar bar-3 ${tier.bars >= 3 ? 'active' : ''}`} />
+                    </span>
+                    <span>{tier.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* One-Time Date Picker */}

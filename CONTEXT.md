@@ -71,3 +71,11 @@ _Avoid_: Wishlist, savings target, impulse budget.
 **Net Item Amount**:
 The effective monetary cost of a budget item computed by subtracting all mapped refund transactions from its original amount.
 _Avoid_: Adjusted cost, discounted price, revised expense.
+
+**Goal Lifecycle Status**:
+The state of a purchase goal within a budget month: `active` (evaluating recommendation dynamically against cash flows), `scheduled` (promoted to a planned one-time budget item), or `deferred` (pushed to the following budget month).
+_Avoid_: Evaluating, pending, queued, purchased.
+
+**Priority Tier**:
+A 3-tier visual ordering system for same-day items: High (3 bars / 0), Medium (2 bars / 1), and Low (1 bar / 2), controlling the deterministic order in which simultaneous expenses draw on the daily balance.
+_Avoid_: Priority number, rank, star rating.

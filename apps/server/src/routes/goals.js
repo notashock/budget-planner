@@ -49,8 +49,12 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
         transactions
       );
 
+      const obj = goal.toObject();
+      if (obj.status === 'evaluating') obj.status = 'active';
+      if (obj.status === 'ready') obj.status = 'scheduled';
+
       return {
-        ...goal.toObject(),
+        ...obj,
         recommendation
       };
     });
@@ -87,7 +91,7 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
       monthId: month._id,
       name: name.trim(),
       targetAmount: Math.round(Number(targetAmount)),
-      status: 'evaluating'
+      status: 'active'
     });
 
     // Evaluate recommendation immediately
@@ -174,7 +178,7 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
       priority: 0
     });
 
-    goal.status = 'ready';
+    goal.status = 'scheduled';
     await goal.save();
 
     return res.status(201).json({ item, goal });

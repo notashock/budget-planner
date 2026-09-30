@@ -134,6 +134,37 @@ export function ItemsScreen({
                         >
                           {item.type}
                         </span>
+                        {(() => {
+                          const pVal = item.priority ?? 0;
+                          const pTier = pVal === 0
+                            ? { label: 'High', bars: 3, color: 'var(--accent)' }
+                            : pVal === 1
+                            ? { label: 'Med', bars: 2, color: 'var(--warning)' }
+                            : { label: 'Low', bars: 1, color: 'var(--text-muted)' };
+                          return (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '11px',
+                                color: pTier.color,
+                                background: 'var(--surface-subtle)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 500
+                              }}
+                              title={`Priority: ${pTier.label}`}
+                            >
+                              <span className="priority-bars-icon" style={{ height: '11px' }}>
+                                <span className={`priority-bar bar-1 ${pTier.bars >= 1 ? 'active' : ''}`} style={{ width: '2px', height: '4px' }} />
+                                <span className={`priority-bar bar-2 ${pTier.bars >= 2 ? 'active' : ''}`} style={{ width: '2px', height: '7px' }} />
+                                <span className={`priority-bar bar-3 ${pTier.bars >= 3 ? 'active' : ''}`} style={{ width: '2px', height: '10px' }} />
+                              </span>
+                              {pTier.label}
+                            </span>
+                          );
+                        })()}
                         {item.type === 'recurring' && item.isFixed && (
                           <span
                             style={{
@@ -166,7 +197,6 @@ export function ItemsScreen({
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {details}
-                        {item.priority !== 0 && ` • Priority ${item.priority}`}
                         {hasRefund && ` • Original: ${formatCurrency(netInfo.originalAmount, currencySymbol)}`}
                       </div>
                     </div>

@@ -146,20 +146,24 @@ export function GoalsScreen({
                           padding: '2px 6px',
                           borderRadius: '4px',
                           background:
-                            goal.status === 'scheduled'
+                            (goal.status === 'scheduled' || goal.status === 'ready')
                               ? 'var(--success-subtle)'
                               : goal.status === 'deferred'
                               ? 'var(--warning-subtle)'
-                              : 'var(--surface-subtle)',
+                              : 'var(--accent-subtle)',
                           color:
-                            goal.status === 'scheduled'
+                            (goal.status === 'scheduled' || goal.status === 'ready')
                               ? 'var(--success)'
                               : goal.status === 'deferred'
                               ? 'var(--warning)'
-                              : 'var(--text-secondary)'
+                              : 'var(--accent)'
                         }}
                       >
-                        {goal.status}
+                        {(goal.status === 'scheduled' || goal.status === 'ready')
+                          ? 'scheduled'
+                          : goal.status === 'deferred'
+                          ? 'deferred'
+                          : 'active'}
                       </span>
                     </div>
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -176,7 +180,7 @@ export function GoalsScreen({
                   </button>
                 </div>
 
-                {goal.status === 'active' && goal.recommendation && (
+                {(goal.status === 'active' || goal.status === 'evaluating') && goal.recommendation && (
                   <div
                     style={{
                       marginTop: '4px',
@@ -243,7 +247,7 @@ export function GoalsScreen({
                   </div>
                 )}
 
-                {goal.status === 'scheduled' && (
+                {(goal.status === 'scheduled' || goal.status === 'ready') && (
                   <div style={{ fontSize: '12px', color: 'var(--success)', marginTop: '2px' }}>
                     Scheduled as a planned budget purchase.
                   </div>
