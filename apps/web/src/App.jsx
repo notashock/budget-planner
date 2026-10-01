@@ -7,8 +7,7 @@ import { PlanScreen } from './screens/PlanScreen.jsx';
 import { ItemsScreen } from './screens/ItemsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
-import { ItemModal } from './components/ItemModal.jsx';
-import { QuickLogModal } from './components/QuickLogModal.jsx';
+import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
@@ -36,13 +35,11 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
-  // What-If in-memory overrides: { [itemId]: { amount: number } }
-  const [whatIfOverrides, setWhatIfOverrides] = useState({});
 
   // Modals state
-  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [unifiedEntryOpen, setUnifiedEntryOpen] = useState(false);
+  const [unifiedEntryMode, setUnifiedEntryMode] = useState('log'); // 'log' | 'plan'
   const [editingItem, setEditingItem] = useState(null);
-  const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [createMonthOpen, setCreateMonthOpen] = useState(false);
   const [rolloverOpen, setRolloverOpen] = useState(false);
@@ -99,7 +96,6 @@ export default function App() {
       setCurrentMonth(res.month);
       setItems(res.items);
       setTransactions(res.transactions || []);
-      setWhatIfOverrides({});
       loadGoals(year, monthNum);
     } catch (err) {
       console.error('Failed to load month details:', err);
@@ -112,18 +108,9 @@ export default function App() {
     }
   }, [user]);
 
-  // Pure in-browser simulation calculation with What-If and actual transactions support
+  // Pure in-browser simulation calculation with actual transactions support
   const activeSimulation = useMemo(() => {
     if (!currentMonth) return null;
-
-    // Apply any in-memory what-if overrides
-    const effectiveItems = items.map((item) => {
-      const override = whatIfOverrides[item._id];
-      if (override && typeof override.amount === 'number') {
-        return { ...item, amount: override.amount };
-      }
-      return item;
-    });
 
     const currentDay = new Date().getDate();
 
@@ -138,11 +125,12 @@ export default function App() {
         currentDay,
         scale: 100
       },
-      effectiveItems,
+      items,
       { year: currentMonth.year, month: currentMonth.month },
-      transactions
+      transactions,
+      goals
     );
-  }, [currentMonth, items, whatIfOverrides, transactions]);
+  }, [currentMonth, items, transactions, goals]);
 
   // Auth actions
   const handleLogin = async (email, password) => {
@@ -168,29 +156,13 @@ export default function App() {
     setTransactions([]);
   };
 
-  // What-If actions
-  const handleWhatIfChange = (itemId, newAmount) => {
-    setWhatIfOverrides((prev) => {
-      const next = { ...prev };
-      if (newAmount === null) {
-        delete next[itemId];
-      } else {
-        next[itemId] = { amount: newAmount };
-      }
-      return next;
-    });
-  };
 
-  const handleResetWhatIf = () => {
-    setWhatIfOverrides({});
-  };
-
-  // Transaction quick-log actions
+  // Transaction entry actions
   const handleLogTransaction = async (txData) => {
     try {
       const created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
       setTransactions((prev) => [...prev, created]);
-      setQuickLogOpen(false);
+      setUnifiedEntryOpen(false);
       loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to log transaction');
@@ -218,7 +190,7 @@ export default function App() {
         const created = await api.createItem(currentMonth.year, currentMonth.month, itemData);
         setItems((prev) => [...prev, created]);
       }
-      setItemModalOpen(false);
+      setUnifiedEntryOpen(false);
       setEditingItem(null);
       loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
@@ -231,7 +203,6 @@ export default function App() {
     try {
       await api.deleteItem(id);
       setItems((prev) => prev.filter((i) => i._id !== id));
-      handleWhatIfChange(id, null);
       loadGoals(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to delete item');
@@ -305,6 +276,15 @@ export default function App() {
     }
   };
 
+  const handleReactivateGoal = async (goalId) => {
+    try {
+      await api.reactivateGoal(goalId);
+      await loadGoals(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      alert(err.message || 'Failed to reactivate goal');
+    }
+  };
+
   const handleDeleteGoal = async (goalId) => {
     try {
       await api.deleteGoal(goalId);
@@ -312,6 +292,18 @@ export default function App() {
     } catch (err) {
       alert(err.message || 'Failed to delete goal');
     }
+  };
+
+  const handleOpenUnifiedEntry = (mode = 'log') => {
+    setEditingItem(null);
+    setUnifiedEntryMode(mode);
+    setUnifiedEntryOpen(true);
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setUnifiedEntryMode('plan');
+    setUnifiedEntryOpen(true);
   };
 
   const handleToggleAi = async (enabled) => {
@@ -336,11 +328,12 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className="app-shell">
       <Header
         user={user}
         months={months}
         currentMonth={currentMonth}
+        simulation={activeSimulation}
         onSelectMonth={(y, m) => loadMonthDetails(y, m)}
         onOpenCreateMonth={() => setCreateMonthOpen(true)}
         onOpenRollover={() => setRolloverOpen(true)}
@@ -349,20 +342,15 @@ export default function App() {
         onToggleTheme={toggleTheme}
       />
 
+      <div className="app-container">
+
       <main style={{ flex: 1 }}>
         {activeTab === 'plan' && (
           <PlanScreen
             month={currentMonth}
             items={items}
             simulation={activeSimulation}
-            whatIfOverrides={whatIfOverrides}
-            onWhatIfChange={handleWhatIfChange}
-            onResetWhatIf={handleResetWhatIf}
-            onOpenAddItem={() => {
-              setEditingItem(null);
-              setItemModalOpen(true);
-            }}
-            onOpenQuickLog={() => setQuickLogOpen(true)}
+            onOpenUnifiedEntry={handleOpenUnifiedEntry}
             onOpenReview={() => setReviewOpen(true)}
           />
         )}
@@ -373,15 +361,8 @@ export default function App() {
             transactions={transactions}
             simulation={activeSimulation}
             currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
-            onOpenAddItem={() => {
-              setEditingItem(null);
-              setItemModalOpen(true);
-            }}
-            onOpenQuickLog={() => setQuickLogOpen(true)}
-            onEditItem={(item) => {
-              setEditingItem(item);
-              setItemModalOpen(true);
-            }}
+            onOpenUnifiedEntry={handleOpenUnifiedEntry}
+            onEditItem={handleEditItem}
             onDeleteItem={handleDeleteItem}
             onDeleteTransaction={handleDeleteTransaction}
           />
@@ -393,9 +374,11 @@ export default function App() {
             goals={goals}
             items={items}
             transactions={transactions}
+            simulation={activeSimulation}
             onCreateGoal={handleCreateGoal}
             onConvertGoalToItem={handleConvertGoalToItem}
             onDeferGoal={handleDeferGoal}
+            onReactivateGoal={handleReactivateGoal}
             onDeleteGoal={handleDeleteGoal}
             onSaveMonthSettings={handleSaveMonthSettings}
           />
@@ -412,46 +395,32 @@ export default function App() {
           />
         )}
       </main>
+      </div>
 
       <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
 
-      {/* Item Modal (Add/Edit) */}
-      <ItemModal
-        isOpen={itemModalOpen}
+      {/* Unified Entry Modal: Single Component & Button for Logging & Planning */}
+      <UnifiedEntryModal
+        isOpen={unifiedEntryOpen}
+        initialMode={unifiedEntryMode}
         initialItem={editingItem}
-        currencySymbol={currentMonth?.currencySymbol || '₹'}
+        plannedItems={items}
+        currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
         month={currentMonth}
-        monthSettings={{
-          openingBalance: currentMonth?.openingBalance || 0,
-          incomeAmount: currentMonth?.incomeAmount || 0,
-          incomeCreditDay: currentMonth?.incomeCreditDay || 1,
-          incomeCreditDate: currentMonth?.incomeCreditDate,
-          safetyFloor: currentMonth?.safetyFloor || 0,
-          unplannedAllowance: currentMonth?.unplannedAllowance || 0
-        }}
-        existingItems={items}
-        existingTransactions={transactions}
         onClose={() => {
-          setItemModalOpen(false);
+          setUnifiedEntryOpen(false);
           setEditingItem(null);
         }}
-        onSave={handleSaveItem}
-      />
-
-      {/* 3-Tap Quick-Log Spending Modal */}
-      <QuickLogModal
-        isOpen={quickLogOpen}
-        month={currentMonth}
-        plannedItems={items}
-        currencySymbol={currentMonth?.currencySymbol || '₹'}
-        onClose={() => setQuickLogOpen(false)}
         onLogTransaction={handleLogTransaction}
+        onSaveItem={handleSaveItem}
       />
 
       {/* Month-End Review Modal */}
       <MonthEndReviewModal
         isOpen={reviewOpen}
         month={currentMonth}
+        items={items}
+        simulation={activeSimulation}
         currencySymbol={currentMonth?.currencySymbol || '₹'}
         onClose={() => setReviewOpen(false)}
       />
