@@ -2,8 +2,10 @@ import express from 'express';
 import { Month } from '../models/Month.js';
 import { Transaction } from '../models/Transaction.js';
 import { Item } from '../models/Item.js';
+import { Goal } from '../models/Goal.js';
 import { Setting } from '../models/Setting.js';
 import { requireAuth } from '../middleware/auth.js';
+import { recommendPurchaseDate } from '@budget/engine';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
 
@@ -90,6 +92,83 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
       note: note ? String(note).trim() : '',
       plannedItemId: verifiedPlannedItemId
     });
+
+    // Dynamic Goal Re-evaluation & Auto-Deferral:
+    // If an expense purchase compromises the safety buffer of any active goal,
+    // automatically transition that goal to deferred status.
+    if (transaction.amount > 0) {
+      try {
+        const activeGoals = await Goal.find({
+          userId: req.session.userId,
+          monthId: month._id,
+          status: { $in: ['active', 'evaluating'] }
+        });
+
+        if (activeGoals.length > 0) {
+          const [items, allTransactions] = await Promise.all([
+            Item.find({ userId: req.session.userId, monthId: month._id }),
+            Transaction.find({ userId: req.session.userId, monthId: month._id })
+          ]);
+
+          for (const goal of activeGoals) {
+            const rec = recommendPurchaseDate(
+              {
+                openingBalance: month.openingBalance,
+                incomeAmount: month.incomeAmount,
+                incomeCreditDate: month.incomeCreditDate,
+                incomeCreditDay: month.incomeCreditDay,
+                safetyFloor: month.safetyFloor,
+                unplannedAllowance: month.unplannedAllowance || 0,
+                currentDay: new Date().getDate(),
+                scale: 100
+              },
+              items,
+              { year, month: monthNum },
+              goal.targetAmount,
+              allTransactions
+            );
+
+            if (!rec.feasible) {
+              goal.status = 'deferred';
+              goal.deferredReason = 'Auto-deferred: recent purchase compromised safety buffer';
+
+              let nextYear = month.year;
+              let nextMonthNum = month.month + 1;
+              if (nextMonthNum > 12) {
+                nextMonthNum = 1;
+                nextYear += 1;
+              }
+
+              let nextMonth = await Month.findOne({
+                userId: req.session.userId,
+                year: nextYear,
+                month: nextMonthNum
+              });
+
+              if (!nextMonth) {
+                nextMonth = await Month.create({
+                  userId: req.session.userId,
+                  year: nextYear,
+                  month: nextMonthNum,
+                  openingBalance: 0,
+                  incomeAmount: month.incomeAmount,
+                  incomeCreditDay: month.incomeCreditDay,
+                  incomeCreditDate: month.incomeCreditDate,
+                  safetyFloor: month.safetyFloor,
+                  unplannedAllowance: month.unplannedAllowance || 0,
+                  currencySymbol: month.currencySymbol
+                });
+              }
+
+              goal.monthId = nextMonth._id;
+              await goal.save();
+            }
+          }
+        }
+      } catch (goalEvalErr) {
+        console.error('Goal auto-deferral evaluation error:', goalEvalErr);
+      }
+    }
 
     return res.status(201).json(transaction);
   } catch (err) {
