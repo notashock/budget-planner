@@ -140,3 +140,26 @@ _Avoid_: Static allowance-only review that ignores recurring overhead or dynamic
 A responsive multi-column card layout on the goals screen organizing purchase goals into structured cards with prominent target prices, monochrome status badges, compact recommendation insight boxes, and streamlined action triggers.
 _Avoid_: Full-width vertical stacked lists with heavy colored banners.
 
+**Pending Planned Item**:
+A scheduled expense whose scheduled date has arrived or passed but whose payment has not yet been disbursed (`isPaid: false`). The funds remain credited in the current bank balance while the projected debit is pushed forward to today/future, preventing premature cash depression while still safeguarding month-end reserves.
+_Avoid_: Floating debt, unpaid invoice, phantom debit.
+
+**Affordable Goal Bundle**:
+A mathematically evaluated combination of active purchase goals whose collective purchase price fits safely within the current dynamic survival cushion without risking a safety floor breach before month-end.
+_Avoid_: Wishlist cart, multi-buy package, goal group.
+
+**Pace-Calibrated Payment Date Recommender**:
+An algorithm that determines the earliest viable calendar date to schedule an expense by factoring in available liquid cash, the user's empirical spending velocity (daily burn rate), upcoming committed fixed bills, and the safety floor cushion, rather than deferring arbitrarily to month-end.
+_Avoid_: End-of-month deferred date picker, static day scheduler.
+
+**Month-Scoped Payment Status**:
+The tracking of payment disbursement (`isPaid: true/false`) isolated strictly to a specific budget month, ensuring recurring monthly expenses automatically reset to pending upon the start of each month until explicitly confirmed.
+_Avoid_: Global recurring paid flag, permanent payment toggle.
+
+**Unified Payment Toggle Switch**:
+A standardized, animated sliding pill switch component (`.recurring-toggle-switch`) used consistently across all card types (recurring, one-time, debt) and modal entry forms (unified entry modal, item modal) to toggle payment disbursement status (`isPaid: true/false`), replacing disparate checkboxes, ad-hoc buttons, and redundant "in account" labels with a unified tactile interface.
+_Avoid_: Native checkbox, ad-hoc button toggle, "in account" label, disparate per-card controls.
+
+
+
+
