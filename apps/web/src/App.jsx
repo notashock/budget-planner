@@ -209,6 +209,15 @@ export default function App() {
     }
   };
 
+  const handleTogglePaid = async (id, isPaid) => {
+    try {
+      const updated = await api.updateItem(id, { isPaid });
+      setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
+    } catch (err) {
+      alert(err.message || 'Failed to update payment status');
+    }
+  };
+
   // Month actions
   const handleCreateMonth = async (monthData) => {
     try {
@@ -363,6 +372,7 @@ export default function App() {
             currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
             onOpenUnifiedEntry={handleOpenUnifiedEntry}
             onEditItem={handleEditItem}
+            onTogglePaid={handleTogglePaid}
             onDeleteItem={handleDeleteItem}
             onDeleteTransaction={handleDeleteTransaction}
           />
