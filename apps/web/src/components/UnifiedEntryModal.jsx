@@ -14,6 +14,7 @@ import {
   CheckCircleIcon
 } from './Icons.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
+import { api } from '../api.js';
 
 export function UnifiedEntryModal({
   isOpen,
@@ -44,6 +45,8 @@ export function UnifiedEntryModal({
   const [itemDate, setItemDate] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [isFixed, setIsFixed] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [recommending, setRecommending] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -59,6 +62,7 @@ export function UnifiedEntryModal({
       setItemName(initialItem.name);
       setPriority(initialItem.priority ?? 0);
       setIsFixed(Boolean(initialItem.isFixed));
+      setIsPaid(Boolean(initialItem.isPaid));
 
       const year = month?.year || now.getFullYear();
       const monthNum = month?.month || (now.getMonth() + 1);
@@ -90,8 +94,9 @@ export function UnifiedEntryModal({
       setItemName('');
       setPriority(0);
       setIsFixed(false);
+      setIsPaid(false);
       setItemAmount('');
-      setItemDate(todayStr);
+      setItemDate(''); // Default mode not done: keep date blank for recommendation
       setDayOfMonth(now.getDate() || 1);
     }
   }, [isOpen, initialItem, initialMode, month]);
@@ -115,25 +120,76 @@ export function UnifiedEntryModal({
     });
   };
 
+  const handleTogglePaidStatus = (newPaid) => {
+    setIsPaid(newPaid);
+    if (newPaid && !itemDate) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      setItemDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    } else if (!newPaid && !initialItem) {
+      setItemDate('');
+    }
+  };
+
+  const handleRecommendDate = async () => {
+    const amt = Math.round(Number(itemAmount || 0) * 100);
+    const year = month?.year || new Date().getFullYear();
+    const monthNum = month?.month || (new Date().getMonth() + 1);
+    setRecommending(true);
+    try {
+      const rec = await api.recommendPurchaseDate(year, monthNum, amt > 0 ? amt : 1000);
+      if (rec?.recommendedDate) {
+        setItemDate(rec.recommendedDate);
+      } else {
+        alert(rec?.explanation || 'No safe date could be found this month without risking floor breach.');
+      }
+    } catch (err) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      setItemDate(`${year}-${pad(monthNum)}-01`);
+    } finally {
+      setRecommending(false);
+    }
+  };
+
   // Plan item submission
-  const handleItemSubmit = (e) => {
+  const handleItemSubmit = async (e) => {
     e.preventDefault();
     if (!itemName.trim()) return;
+
+    let finalDate = itemDate;
+    const year = month?.year || new Date().getFullYear();
+    const monthNum = month?.month || (new Date().getMonth() + 1);
+
+    // If payment not done and date left blank, auto-assign the best recommended date
+    if (itemType === 'one-time' && !finalDate && !isPaid) {
+      try {
+        const amt = Math.round(Number(itemAmount || 0) * 100);
+        const rec = await api.recommendPurchaseDate(year, monthNum, amt > 0 ? amt : 1000);
+        if (rec?.recommendedDate) {
+          finalDate = rec.recommendedDate;
+        } else {
+          const pad = (n) => String(n).padStart(2, '0');
+          finalDate = `${year}-${pad(monthNum)}-01`;
+        }
+      } catch (err) {
+        const pad = (n) => String(n).padStart(2, '0');
+        finalDate = `${year}-${pad(monthNum)}-01`;
+      }
+    }
 
     const payload = {
       type: itemType,
       name: itemName.trim(),
-      priority: Number(priority) || 0
+      priority: Number(priority) || 0,
+      isPaid
     };
-
-    const year = month?.year || new Date().getFullYear();
-    const monthNum = month?.month || (new Date().getMonth() + 1);
 
     if (itemType === 'one-time') {
       payload.amount = Math.round(Number(itemAmount || 0) * 100);
-      const relativeDay = itemDate ? getRelativeDay(itemDate, year, monthNum) : 1;
+      const relativeDay = finalDate ? getRelativeDay(finalDate, year, monthNum) : 1;
       payload.day = relativeDay;
-      payload.date = itemDate;
+      payload.date = finalDate;
     } else if (itemType === 'recurring') {
       payload.amount = Math.round(Number(itemAmount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
@@ -453,15 +509,35 @@ export function UnifiedEntryModal({
             {/* One-Time Date Picker */}
             {itemType === 'one-time' && (
               <div className="form-group">
-                <label className="form-label">Purchase date</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Planned payment date</label>
+                  {!isPaid && (
+                    <button
+                      type="button"
+                      className="btn-subtle"
+                      style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border)' }}
+                      onClick={handleRecommendDate}
+                      disabled={recommending}
+                      title="Recommend best date based on spending pace, balance, and floor buffer"
+                    >
+                      {recommending ? 'Calculating...' : '⚡ Recommend best date'}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="date"
-                  required
                   value={itemDate}
                   onChange={(e) => setItemDate(e.target.value)}
+                  placeholder="Leave blank for auto-recommended safe date"
                 />
+                {!itemDate && !isPaid && (
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+                    Payment pending: date left blank. Application will assign best date on save or click "Recommend best date".
+                  </span>
+                )}
                 {(() => {
-                  const relDay = itemDate ? getRelativeDay(itemDate, currentYear, currentMonthNum) : 1;
+                  if (!itemDate) return null;
+                  const relDay = getRelativeDay(itemDate, currentYear, currentMonthNum);
                   if (relDay < 0) {
                     return (
                       <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -514,15 +590,49 @@ export function UnifiedEntryModal({
               </>
             )}
 
+            {/* Modal Footer with Payment Status on Left Corner and Actions on Right */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                marginTop: '16px',
+                paddingTop: '12px',
+                borderTop: '1px solid var(--border)'
+              }}
+            >
+              {/* Left corner: Payment Done Toggle Switch */}
+              <div
+                className="recurring-toggle-switch"
+                onClick={() => handleTogglePaidStatus(!isPaid)}
+                title={isPaid ? 'Payment done - click to toggle pending' : 'Payment pending - click to mark done'}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleTogglePaidStatus(!isPaid);
+                  }
+                }}
+              >
+                <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
+                  <div className="recurring-toggle-thumb" />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  {isPaid ? 'Payment done' : 'Payment pending'}
+                </span>
+              </div>
 
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-              <button type="button" onClick={onClose}>
-                Cancel
-              </button>
-              <button type="submit" className="btn-primary" style={{ padding: '10px 20px' }}>
-                {initialItem ? 'Update planned item' : 'Save planned item'}
-              </button>
+              {/* Right corner: Cancel & Save */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" onClick={onClose}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{ padding: '8px 18px' }}>
+                  {initialItem ? 'Update planned item' : 'Save planned item'}
+                </button>
+              </div>
             </div>
           </form>
         )}
