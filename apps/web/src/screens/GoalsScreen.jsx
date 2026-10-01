@@ -2,6 +2,40 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate, recommendPurchaseDate } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon } from '../components/Icons.jsx';
 
+function computeAffordableGoalBundles(activeGoals, availableCushion) {
+  if (!activeGoals || activeGoals.length === 0 || availableCushion <= 0) return [];
+
+  const results = [];
+  const n = Math.min(activeGoals.length, 10); // cap subset combinations to 10 goals
+
+  for (let mask = 1; mask < (1 << n); mask++) {
+    const bundle = [];
+    let totalCost = 0;
+    for (let i = 0; i < n; i++) {
+      if ((mask & (1 << i)) !== 0) {
+        bundle.push(activeGoals[i]);
+        totalCost += activeGoals[i].targetAmount;
+      }
+    }
+    if (totalCost <= availableCushion) {
+      results.push({
+        goals: bundle,
+        totalCost,
+        remainingCushion: availableCushion - totalCost,
+        itemCount: bundle.length
+      });
+    }
+  }
+
+  // Sort by item count descending (multi-item bundles first), then total value descending
+  results.sort((a, b) => {
+    if (b.itemCount !== a.itemCount) return b.itemCount - a.itemCount;
+    return b.totalCost - a.totalCost;
+  });
+
+  return results.slice(0, 3);
+}
+
 export function GoalsScreen({
   month,
   goals = [],
@@ -19,6 +53,7 @@ export function GoalsScreen({
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
   const [goalSubmitting, setGoalSubmitting] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   // Current month settings state
   const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -116,18 +151,160 @@ export function GoalsScreen({
     setIsEditingSettings(false);
   };
 
+  // Available Survival Cushion for Goals
+  const availableCushion = simulation?.safeVelocity?.freeSurplus ?? simulation?.allowanceLeft ?? 0;
+  const activeGoals = useMemo(() => {
+    return evaluatedGoals.filter((g) => g.status === 'active' || g.status === 'evaluating');
+  }, [evaluatedGoals]);
+
+  const affordableBundles = useMemo(() => {
+    return computeAffordableGoalBundles(activeGoals, availableCushion);
+  }, [activeGoals, availableCushion]);
+
   return (
     <div className="screen-content">
       <h2>Goals & settings</h2>
 
       {/* Purchase Goals Section */}
       <div className="card">
-        <div className="card-header">
-          <span className="card-title">Purchase goals</span>
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="card-title">Purchase goals</span>
+            <button
+              type="button"
+              className="btn-subtle"
+              onClick={() => setShowInfo(!showInfo)}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                padding: 0,
+                fontSize: '11px',
+                fontWeight: 700,
+                lineHeight: 1,
+                border: '1px solid var(--border-strong)',
+                background: showInfo ? 'var(--surface-subtle)' : 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer'
+              }}
+              title="Click to view explanation"
+              aria-label="Info about purchase goals"
+            >
+              i
+            </button>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+            Cushion: {formatCurrency(availableCushion, currencySymbol)}
+          </span>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          Set a target purchase for this month. The simulation calculates the safest date to buy so your cash reserves are maximized, or recommends waiting for next month if the price would breach your floor.
-        </p>
+
+        {/* Collapsible Info Box */}
+        {showInfo && (
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius)',
+              background: 'var(--surface-subtle)',
+              border: '1px solid var(--border)',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.4,
+              marginBottom: '12px'
+            }}
+          >
+            Set a target purchase for this month. The simulation calculates the safest date to buy so your cash reserves are maximized, or recommends waiting for next month if the price would breach your floor.
+          </div>
+        )}
+
+        {/* Affordable Goal Combinations in place of paragraph */}
+        <div
+          style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--radius)',
+            background: 'var(--surface-subtle)',
+            border: '1px solid var(--border)',
+            marginBottom: '14px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Affordable goal combinations this month
+            </span>
+            {affordableBundles.length > 0 && (
+              <span
+                style={{
+                  fontSize: '9px',
+                  padding: '1px 6px',
+                  borderRadius: '3px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase'
+                }}
+              >
+                Safe to Buy
+              </span>
+            )}
+          </div>
+
+          {activeGoals.length === 0 ? (
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              No active goals logged yet. Add target purchases below to discover affordable combinations within your survival cushion.
+            </div>
+          ) : affordableBundles.length === 0 ? (
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              Current cushion ({formatCurrency(availableCushion, currencySymbol)}) is insufficient for active goals without breaching your safety floor. Focus on a single goal or defer to next month.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {affordableBundles.map((bundle, bIdx) => (
+                <div
+                  key={bIdx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    background: 'var(--surface)',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)',
+                    fontSize: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        background: 'var(--surface-subtle)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        flexShrink: 0
+                      }}
+                    >
+                      {bundle.itemCount === 1 ? 'Single' : `${bundle.itemCount} Combo`}
+                    </span>
+                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {bundle.goals.map((g) => g.name).join(' + ')}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '8px' }}>
+                    <span style={{ fontWeight: 600 }}>
+                      {formatCurrency(bundle.totalCost, currencySymbol)}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                      (+{formatCurrency(bundle.remainingCushion, currencySymbol)} buffer)
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <form onSubmit={handleAddGoal} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
           <div className="form-row">
