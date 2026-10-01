@@ -291,8 +291,8 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(recommendation.feasible).toBe(true);
       // Must not recommend any day before today (day 10)
       expect(recommendation.recommendedDay).toBeGreaterThanOrEqual(10);
-      // Prefers scheduling after the heavy rent bill clears on the 15th
-      expect(recommendation.recommendedDay).toBeGreaterThanOrEqual(15);
+      // Prefers scheduling on or immediately after the heavy rent bill clears on the 15th (not waiting until Day 31)
+      expect(recommendation.recommendedDay).toBe(15);
       expect(recommendation.savingsBuffer).toBeGreaterThanOrEqual(0);
     });
 
@@ -404,6 +404,37 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(result.safeVelocity.committedUpcomingItems).toBe(150000);
       expect(result.safeVelocity.activeGoalsCost).toBe(50000);
       expect(result.safeVelocity.burnRatePerDay).toBe(2000); // 20,000 / 10 days
+    });
+
+    it('preserves cash in todayBalance for unpaid past-due items and deducts when marked isPaid: true', () => {
+      const settings = {
+        openingBalance: 100000,
+        incomeAmount: 0,
+        incomeCreditDay: 1,
+        safetyFloor: 10000,
+        currentDay: 10
+      };
+
+      const unpaidItems = [
+        { id: 'item-1', type: 'one-time', name: 'Past Bill', amount: 30000, day: 5, isPaid: false }
+      ];
+
+      // With isPaid: false, payment not done yet -> money is still in account on Day 10!
+      const unpaidResult = simulate(settings, unpaidItems, { year: 2026, month: 10 });
+      expect(unpaidResult.todayBalance).toBe(100000);
+      expect(unpaidResult.endingBalance).toBe(70000);
+      expect(unpaidResult.events[0].isPending).toBe(true);
+      expect(unpaidResult.events[0].originalDay).toBe(5);
+
+      // With isPaid: true, payment was completed on Day 5 -> todayBalance is debited!
+      const paidItems = [
+        { id: 'item-1', type: 'one-time', name: 'Past Bill', amount: 30000, day: 5, isPaid: true }
+      ];
+      const paidResult = simulate(settings, paidItems, { year: 2026, month: 10 });
+      expect(paidResult.todayBalance).toBe(70000);
+      expect(paidResult.endingBalance).toBe(70000);
+      expect(paidResult.events[0].isPending).toBe(false);
+      expect(paidResult.events[0].day).toBe(5);
     });
   });
 });
