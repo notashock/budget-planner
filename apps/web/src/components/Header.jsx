@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '@budget/engine';
+import { PlusIcon, RefreshIcon, SunIcon, MoonIcon, LogOutIcon } from './Icons.jsx';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -9,6 +11,7 @@ export function Header({
   user,
   months = [],
   currentMonth,
+  simulation,
   onSelectMonth,
   onOpenCreateMonth,
   onOpenRollover,
@@ -22,121 +25,129 @@ export function Header({
     ? `${MONTH_NAMES[currentMonth.month - 1]} ${currentMonth.year}`
     : 'Select month';
 
+  const safetyFloor = currentMonth?.safetyFloor ?? 0;
+  const currencySymbol = currentMonth?.currencySymbol ?? '₹';
+  const lowestBalance = simulation?.lowestBalance ?? 0;
+  const floorBreached = simulation?.floorBreached ?? false;
+  const deficit = safetyFloor - lowestBalance;
+  const margin = lowestBalance - safetyFloor;
+
   return (
     <header className="app-header">
-      <div className="app-title-group">
-        <span className="app-brand">
-          Budget planner <span className="beta-badge">BETA</span>
-        </span>
-        <button
-          type="button"
-          className="month-picker-btn"
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-        >
-          {monthLabel} ▾
-        </button>
+      <div className="app-header-inner">
+        <div className="app-title-group" style={{ position: 'relative' }}>
+          <span className="app-brand">
+            Budget Planner <span className="beta-badge">BETA</span>
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="month-picker-btn"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+            >
+              {monthLabel} ▾
+            </button>
+
+            {currentMonth && safetyFloor > 0 && (
+              <div
+                className={`header-floor-pill ${floorBreached ? 'breached' : 'safe'}`}
+                title={
+                  floorBreached
+                    ? `Safety floor breached by ${formatCurrency(deficit, currencySymbol)}. Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
+                    : `Safety floor maintained (+${formatCurrency(margin, currencySymbol)} cushion). Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
+                }
+              >
+                <span className={`floor-indicator-dot ${floorBreached ? 'breached' : 'safe'}`} />
+                <span className="header-floor-text">
+                  {floorBreached
+                    ? `Floor Breached (-${formatCurrency(deficit, currencySymbol)})`
+                    : `Floor: ${formatCurrency(safetyFloor, currencySymbol)} Safe`}
+                </span>
+              </div>
+            )}
+          </div>
 
         {dropdownOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '55px',
-              left: '16px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              zIndex: 40,
-              minWidth: '220px',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: 'none'
-            }}
-          >
-            {months.map((m) => (
-              <button
-                key={`${m.year}-${m.month}`}
-                type="button"
-                className="btn-subtle"
-                style={{
-                  justifyContent: 'flex-start',
-                  fontWeight: currentMonth?.year === m.year && currentMonth?.month === m.month ? 600 : 400,
-                  padding: '8px 12px',
-                  borderRadius: 0,
-                  borderBottom: '1px solid var(--border)'
-                }}
-                onClick={() => {
-                  onSelectMonth(m.year, m.month);
-                  setDropdownOpen(false);
-                }}
-              >
-                {MONTH_NAMES[m.month - 1]} {m.year}
-              </button>
-            ))}
+          <div className="app-dropdown-menu">
+            {months.map((m) => {
+              const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
+              return (
+                <button
+                  key={`${m.year}-${m.month}`}
+                  type="button"
+                  className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
+                  onClick={() => {
+                    onSelectMonth(m.year, m.month);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                  {isSelected && <span style={{ fontSize: '11px', color: 'var(--accent)' }}>●</span>}
+                </button>
+              );
+            })}
+
+            <div className="app-dropdown-divider" />
 
             <button
               type="button"
-              className="btn-subtle"
-              style={{
-                justifyContent: 'flex-start',
-                padding: '8px 12px',
-                color: 'var(--accent)',
-                fontWeight: 500,
-                borderRadius: 0,
-                borderBottom: '1px solid var(--border)'
-              }}
+              className="app-dropdown-item"
+              style={{ color: 'var(--accent)', fontWeight: 500 }}
               onClick={() => {
                 setDropdownOpen(false);
                 onOpenCreateMonth();
               }}
             >
-              + Create new month
+              <PlusIcon size={14} color="var(--accent)" />
+              <span>Create new month</span>
             </button>
 
             {currentMonth && (
               <button
                 type="button"
-                className="btn-subtle"
-                style={{
-                  justifyContent: 'flex-start',
-                  padding: '8px 12px',
-                  color: 'var(--text)',
-                  fontSize: '12px',
-                  borderRadius: 0
-                }}
+                className="app-dropdown-item"
+                style={{ fontSize: '12px' }}
                 onClick={() => {
                   setDropdownOpen(false);
                   onOpenRollover();
                 }}
               >
-                ↻ Rollover to next month
+                <RefreshIcon size={13} />
+                <span>Rollover to next month</span>
               </button>
             )}
           </div>
         )}
       </div>
 
-      <div className="header-actions">
+      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <button
           type="button"
-          className="btn-subtle"
+          className="btn-subtle header-action-btn"
           onClick={onToggleTheme}
-          title="Toggle light/dark theme"
-          style={{ padding: '6px 10px', fontSize: '12px' }}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
-          {theme === 'dark' ? 'Light' : 'Dark'}
+          {theme === 'dark' ? <SunIcon size={14} /> : <MoonIcon size={14} />}
+          <span className="header-btn-text">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
 
         {user && (
           <button
             type="button"
-            className="btn-subtle"
+            className="btn-subtle header-action-btn"
             onClick={onLogout}
-            style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-secondary)' }}
+            title="Sign out"
+            aria-label="Sign out"
+            style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            Sign out
+            <LogOutIcon size={14} />
+            <span className="header-btn-text">Sign out</span>
           </button>
         )}
       </div>
-    </header>
+    </div>
+  </header>
   );
 }
