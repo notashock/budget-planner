@@ -1,20 +1,82 @@
 import React from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
-export function SummaryCards({
+export function SafeVelocityCard({
+  safeVelocity = null,
+  daysLeft = 1,
+  safeToSpendPerDay = 0,
+  allowanceLeft = 0,
+  currencySymbol = '₹'
+}) {
+  return (
+    <div
+      className="summary-card safe-velocity-card"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="summary-label" style={{ fontWeight: 600, color: 'var(--text)' }}>
+            Dynamic Safe Velocity
+          </span>
+          {safeVelocity?.paceStatus && (
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-subtle)',
+                color: 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                letterSpacing: '0.04em'
+              }}
+            >
+              {safeVelocity.paceStatus}
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+          {safeVelocity?.daysLeft || daysLeft} days remaining
+        </span>
+      </div>
+
+      <div className="safe-velocity-hero" style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+        <span className="summary-value safe-velocity-value">
+          {formatCurrency(safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay, currencySymbol)}
+          <span className="safe-velocity-per-day"> / day</span>
+        </span>
+      </div>
+
+      <div className="safe-velocity-footer">
+        <span>
+          Upcoming bills: {formatCurrency(safeVelocity?.committedUpcomingItems || 0, currencySymbol)}
+        </span>
+        {safeVelocity?.burnRatePerDay > 0 && (
+          <span>
+            Burn pace: {formatCurrency(safeVelocity.burnRatePerDay, currencySymbol)}/day
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function DetailedKpiGrid({
   incomeAmount = 0,
   incomeCreditDay = 1,
-  openingBalance = 0,
   events = [],
   endingBalance = 0,
   todayBalance,
   lowestBalance = 0,
   lowestDate = '',
   safetyFloor = 0,
-  unplannedAllowance = 0,
-  allowanceLeft = 0,
-  daysLeft = 1,
-  safeToSpendPerDay = 0,
   currencySymbol = '₹'
 }) {
   const totalOutflow = events
@@ -24,32 +86,10 @@ export function SummaryCards({
   const floorBreached = lowestBalance < safetyFloor;
 
   return (
-    <div className="summary-grid">
-      {/* Safe to spend per day */}
-      {unplannedAllowance > 0 && (
-        <div className="summary-card summary-card-full" style={{ background: 'var(--accent-subtle)', borderColor: 'var(--accent)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="summary-label" style={{ color: 'var(--accent)', fontWeight: 600 }}>
-              Safe to spend per day
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {daysLeft} days left in month
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '2px' }}>
-            <span className="summary-value" style={{ color: 'var(--accent)' }}>
-              {formatCurrency(safeToSpendPerDay, currencySymbol)}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              ({formatCurrency(allowanceLeft, currencySymbol)} allowance remaining)
-            </span>
-          </div>
-        </div>
-      )}
-
+    <div className="detailed-kpi-grid summary-grid">
       <div className="summary-card">
         <span className="summary-label">Monthly income</span>
-        <span className="summary-value" style={{ color: 'var(--success)' }}>
+        <span className="summary-value">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -90,5 +130,14 @@ export function SummaryCards({
         </span>
       </div>
     </div>
+  );
+}
+
+export function SummaryCards(props) {
+  return (
+    <>
+      <SafeVelocityCard {...props} />
+      <DetailedKpiGrid {...props} />
+    </>
   );
 }
