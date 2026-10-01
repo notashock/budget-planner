@@ -38,10 +38,10 @@ const itemSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    // For one-time: day of month (1 - 31)
+    // For one-time: day of month (-31 to 31, negative values for pre-month events)
     day: {
       type: Number,
-      min: 1,
+      min: -31,
       max: 31
     },
     // For recurring: day of month (1 - 31)
