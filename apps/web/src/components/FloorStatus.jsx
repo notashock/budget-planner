@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import { AlertTriangleIcon, CheckCircleIcon } from './Icons.jsx';
 
 export function FloorStatus({
   floorBreached = false,
@@ -13,7 +14,10 @@ export function FloorStatus({
   if (floorBreached) {
     const deficit = safetyFloor - lowestBalance;
     return (
-      <div className="floor-banner breached">
+      <div className="floor-banner breached" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+        <div style={{ marginTop: '2px', flexShrink: 0 }}>
+          <AlertTriangleIcon size={18} color="var(--danger)" />
+        </div>
         <div>
           <div className="floor-banner-title">
             Safety floor breached
@@ -28,7 +32,10 @@ export function FloorStatus({
 
   const margin = lowestBalance - safetyFloor;
   return (
-    <div className="floor-banner safe">
+    <div className="floor-banner safe" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+      <div style={{ marginTop: '2px', flexShrink: 0 }}>
+        <CheckCircleIcon size={18} color="var(--success)" />
+      </div>
       <div>
         <div className="floor-banner-title">
           Safety floor maintained
