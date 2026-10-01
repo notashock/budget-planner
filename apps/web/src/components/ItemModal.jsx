@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   calculateFuelEfficiency,
   formatCurrency,
-  formatDate
+  formatDate,
+  getRelativeDay,
+  getDateFromRelativeDay
 } from '@budget/engine';
 
 export function ItemModal({
@@ -32,7 +34,9 @@ export function ItemModal({
   useEffect(() => {
     const year = month?.year || 2026;
     const monthNum = month?.month || 1;
-    const defaultDate = formatDate(year, monthNum, 1);
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
     if (initialItem) {
       setType(initialItem.type);
@@ -41,14 +45,18 @@ export function ItemModal({
       setIsFixed(Boolean(initialItem.isFixed));
       if (initialItem.type === 'one-time') {
         setAmount((initialItem.amount / 100).toString());
-        setDate(formatDate(year, monthNum, initialItem.day || 1));
+        if (typeof initialItem.day === 'number' && initialItem.day < 0) {
+          setDate(initialItem.date || getDateFromRelativeDay(initialItem.day, year, monthNum));
+        } else {
+          setDate(initialItem.date || formatDate(year, monthNum, initialItem.day || 1));
+        }
       } else if (initialItem.type === 'recurring') {
         setAmount((initialItem.amount / 100).toString());
         setDayOfMonth(initialItem.dayOfMonth || 1);
       } else if (initialItem.type === 'fuel-log') {
         setFuelStops(
           initialItem.fuelStops?.map((s) => ({
-            date: s.date || defaultDate,
+            date: s.date || todayStr,
             odometer: s.odometer?.toString() || '',
             fuelVolume: s.fuelVolume?.toString() || '',
             fuelCost: s.fuelCost ? (s.fuelCost / 100).toString() : ''
@@ -61,11 +69,11 @@ export function ItemModal({
       setPriority(0);
       setIsFixed(false);
       setAmount('');
-      setDate(defaultDate);
-      setDayOfMonth(1);
+      setDate(todayStr);
+      setDayOfMonth(now.getDate() || 1);
       setFuelStops([
-        { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' },
-        { date: defaultDate, odometer: '', fuelVolume: '', fuelCost: '' }
+        { date: todayStr, odometer: '', fuelVolume: '', fuelCost: '' },
+        { date: todayStr, odometer: '', fuelVolume: '', fuelCost: '' }
       ]);
     }
   }, [initialItem, isOpen, month]);
@@ -96,8 +104,11 @@ export function ItemModal({
 
     if (type === 'one-time') {
       payload.amount = Math.round(Number(amount || 0) * 100);
-      const parsedDay = date ? parseInt(date.split('-')[2], 10) : 1;
-      payload.day = parsedDay || 1;
+      const year = month?.year || 2026;
+      const monthNum = month?.month || 1;
+      const relativeDay = date ? getRelativeDay(date, year, monthNum) : 1;
+      payload.day = relativeDay;
+      payload.date = date;
     } else if (type === 'recurring') {
       payload.amount = Math.round(Number(amount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
@@ -198,6 +209,19 @@ export function ItemModal({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
+              {(() => {
+                const year = month?.year || 2026;
+                const monthNum = month?.month || 1;
+                const relDay = date ? getRelativeDay(date, year, monthNum) : 1;
+                if (relDay < 0) {
+                  return (
+                    <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
+                      Pre-month event (Day {relDay}): will be processed before Day 1.
+                    </span>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
 
