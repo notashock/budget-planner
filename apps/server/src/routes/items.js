@@ -37,7 +37,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 
     if (type === 'one-time') {
       itemData.amount = Math.round(Number(amount) || 0);
-      itemData.day = Math.max(1, Math.min(31, Math.floor(Number(day) || 1)));
+      itemData.day = Math.max(-31, Math.min(31, Math.floor(Number(day) || 1)));
     } else if (type === 'recurring') {
       itemData.amount = Math.round(Number(amount) || 0);
       itemData.dayOfMonth = Math.max(1, Math.min(31, Math.floor(Number(dayOfMonth) || 1)));
@@ -80,7 +80,7 @@ itemsRouter.put('/items/:id', async (req, res) => {
 
     if (item.type === 'one-time') {
       if (typeof amount === 'number') item.amount = Math.round(amount);
-      if (typeof day === 'number') item.day = Math.max(1, Math.min(31, Math.floor(day)));
+      if (typeof day === 'number') item.day = Math.max(-31, Math.min(31, Math.floor(day)));
     } else if (item.type === 'recurring') {
       if (typeof amount === 'number') item.amount = Math.round(amount);
       if (typeof dayOfMonth === 'number') item.dayOfMonth = Math.max(1, Math.min(31, Math.floor(dayOfMonth)));
