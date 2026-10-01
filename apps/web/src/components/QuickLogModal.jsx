@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import { formatCurrency, formatDisplayDate, getRelativeDay } from '@budget/engine';
+import { SearchableItemPicker } from './SearchableItemPicker';
 
 export function QuickLogModal({
   isOpen,
@@ -24,15 +25,13 @@ export function QuickLogModal({
       setNote('');
       setPlannedItemId('');
 
-      // Default date to today, clamped to this month
+      // Always default date selector strictly to today's real-world date
       const now = new Date();
-      const currentYear = month ? month.year : now.getFullYear();
-      const currentMonth = month ? month.month : now.getMonth() + 1;
-      const day = Math.min(28, now.getDate());
       const pad = (n) => String(n).padStart(2, '0');
-      setDate(`${currentYear}-${pad(currentMonth)}-${pad(day)}`);
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      setDate(todayStr);
     }
-  }, [isOpen, month]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -125,17 +124,12 @@ export function QuickLogModal({
           {/* Tap 3: Match to Planned Item or Draw Down Unplanned Allowance */}
           <div className="form-group">
             <label className="form-label">Match to planned item (optional)</label>
-            <select
-              value={plannedItemId}
-              onChange={(e) => setPlannedItemId(e.target.value)}
-            >
-              <option value="">Unexpected spending (draws down unplanned allowance)</option>
-              {eligiblePlannedItems.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.name} ({formatCurrency(item.amount, currencySymbol)})
-                </option>
-              ))}
-            </select>
+            <SearchableItemPicker
+              items={eligiblePlannedItems}
+              selectedId={plannedItemId}
+              onSelect={(id) => setPlannedItemId(id)}
+              currencySymbol={currencySymbol}
+            />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               {plannedItemId
                 ? isRefund
@@ -156,6 +150,19 @@ export function QuickLogModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
+            {(() => {
+              const year = month?.year || new Date().getFullYear();
+              const monthNum = month?.month || (new Date().getMonth() + 1);
+              const relDay = date ? getRelativeDay(date, year, monthNum) : 1;
+              if (relDay < 0) {
+                return (
+                  <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
+                    Pre-month event (Day {relDay}): will be processed before Day 1.
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
