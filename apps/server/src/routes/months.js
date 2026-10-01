@@ -106,7 +106,9 @@ monthsRouter.get('/:year/:month', async (req, res) => {
       }).sort({ date: 1, createdAt: 1 })
     ]);
 
-    const currentDay = new Date().getDate();
+    const now = new Date();
+    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
 
     const simulation = simulate(
       {
@@ -178,6 +180,10 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       Transaction.find({ userId: req.session.userId, monthId: month._id })
     ]);
 
+    const now = new Date();
+    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
+
     const simulation = simulate(
       {
         openingBalance: month.openingBalance,
@@ -185,7 +191,7 @@ monthsRouter.put('/:year/:month', async (req, res) => {
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay: new Date().getDate(),
+        currentDay,
         scale: 100
       },
       items,
@@ -225,6 +231,10 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
       Transaction.find({ userId: req.session.userId, monthId: month._id })
     ]);
 
+    const now = new Date();
+    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
+
     const recommendation = recommendPurchaseDate(
       {
         openingBalance: month.openingBalance,
@@ -233,7 +243,7 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay: new Date().getDate(),
+        currentDay,
         scale: 100
       },
       items,
@@ -339,7 +349,8 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
           priority: item.priority,
           amount: item.amount,
           dayOfMonth: item.dayOfMonth,
-          isFixed: true
+          isFixed: true,
+          isPaid: false
         });
       }
     }
