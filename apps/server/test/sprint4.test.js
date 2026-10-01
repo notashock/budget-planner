@@ -88,14 +88,16 @@ describe('Sprint 4 Backend Suite - Salary Credit Date, Dynamic Goals, Rupee, and
     const { simulation } = detailRes.body;
     expect(simulation.events).toBeDefined();
 
-    // Verify salary credited event appears on Day 1 (Oct 1)
+    // Verify salary credited event appears on Day -1 (Sept 30)
     const incomeEvent = simulation.events.find((e) => e.amount > 0);
     expect(incomeEvent).toBeDefined();
-    expect(incomeEvent.date).toBe('2026-10-01');
+    expect(incomeEvent.date).toBe('2026-09-30');
+    expect(incomeEvent.day).toBe(-1);
     expect(incomeEvent.label).toContain('Salary (credited 2026-09-30)');
 
-    // Opening Day 1 balance: 75,000 - 25,000 = 50,000 (5,000,000 minor units)
-    expect(simulation.dailyBalances[0].balance).toBe(5000000);
+    // Day -1 balance is 75,000; Day 1 balance: 75,000 - 25,000 = 50,000
+    const day1Point = simulation.dailyBalances.find((d) => d.day === 1);
+    expect(day1Point.balance).toBe(5000000);
     expect(simulation.floorBreached).toBe(false);
   });
 
@@ -140,5 +142,35 @@ describe('Sprint 4 Backend Suite - Salary Credit Date, Dynamic Goals, Rupee, and
     expect(infeasibleRes.body.recommendation.recommendedDate).toBeNull();
     expect(infeasibleRes.body.recommendation.recommendedDay).toBeNull();
     expect(infeasibleRes.body.recommendation.explanation).toContain('Price is too high for this month');
+  });
+
+  it('auto-defers an active goal to next month when an unplanned purchase compromises safety buffer', async () => {
+    // Smartphone goal is initially active and feasible
+    const activeGoalsRes = await agent.get('/api/months/2026/10/goals');
+    const smartphoneGoal = activeGoalsRes.body.find((g) => g.name === 'Smartphone');
+    expect(smartphoneGoal).toBeDefined();
+    expect(smartphoneGoal.status).toBe('active');
+
+    // User logs an unplanned heavy expense (e.g. ₹55,000 for emergency car repair)
+    const txRes = await agent.post('/api/months/2026/10/transactions').send({
+      amount: 5500000,
+      tag: 'Other',
+      note: 'Emergency car repair'
+    });
+    expect(txRes.status).toBe(201);
+
+    // After this heavy expense, the smartphone goal should have been auto-deferred to next month
+    const goalsAfterRes = await agent.get('/api/months/2026/10/goals');
+    const remainingOctGoal = goalsAfterRes.body.find((g) => g.name === 'Smartphone');
+    // It should have moved out of Oct goals or marked deferred
+    expect(remainingOctGoal).toBeUndefined();
+
+    // Verify it moved to November (2026/11)
+    const novGoalsRes = await agent.get('/api/months/2026/11/goals');
+    expect(novGoalsRes.status).toBe(200);
+    const novGoal = novGoalsRes.body.find((g) => g.name === 'Smartphone');
+    expect(novGoal).toBeDefined();
+    expect(novGoal.status).toBe('deferred');
+    expect(novGoal.deferredReason).toContain('Auto-deferred: recent purchase compromised safety buffer');
   });
 });
