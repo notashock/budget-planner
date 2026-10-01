@@ -148,29 +148,46 @@ export function simulate(
       }
 
       const amount = Math.round(item.amount ?? 0);
+      const isPastDueUnpaid = item.isPaid === false && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
+      const effectiveDay = isPastDueUnpaid ? Math.min(daysInMonth, (currentDay || 1) + 1) : targetDay;
+      const effectiveDate = isPastDueUnpaid ? formatDate(year, monthNum, effectiveDay) : targetDate;
+
       rawEvents.push({
-        day: targetDay,
-        date: targetDate,
+        day: effectiveDay,
+        date: effectiveDate,
+        originalDay: targetDay,
+        originalDate: targetDate,
         label: item.name,
         amount: -Math.abs(amount),
         priority,
         sourceIndex: index,
         itemType: 'one-time',
+        isPaid: Boolean(item.isPaid),
+        isPending: Boolean(isPastDueUnpaid),
         isActual: false,
         itemId: item.id || item._id || null
       });
     } else if (item.type === 'recurring') {
       const targetDay = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
+      const targetDate = formatDate(year, monthNum, targetDay);
       const amount = Math.round(item.amount ?? 0);
+      const isPastDueUnpaid = item.isPaid === false && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
+      const effectiveDay = isPastDueUnpaid ? Math.min(daysInMonth, (currentDay || 1) + 1) : targetDay;
+      const effectiveDate = isPastDueUnpaid ? formatDate(year, monthNum, effectiveDay) : targetDate;
+
       rawEvents.push({
-        day: targetDay,
-        date: formatDate(year, monthNum, targetDay),
+        day: effectiveDay,
+        date: effectiveDate,
+        originalDay: targetDay,
+        originalDate: targetDate,
         label: item.name,
         amount: -Math.abs(amount),
         priority,
         sourceIndex: index,
         itemType: 'recurring',
         isFixed: Boolean(item.isFixed),
+        isPaid: Boolean(item.isPaid),
+        isPending: Boolean(isPastDueUnpaid),
         isActual: false,
         itemId: item.id || item._id || null
       });
@@ -268,11 +285,15 @@ export function simulate(
     return {
       date: evt.date,
       day: evt.day,
+      originalDay: evt.originalDay ?? evt.day,
+      originalDate: evt.originalDate ?? evt.date,
       label: evt.label,
       amount: evt.amount,
       balanceAfter,
       itemType: evt.itemType,
       isFixed: evt.isFixed,
+      isPaid: evt.isPaid,
+      isPending: evt.isPending,
       isActual: evt.isActual,
       itemId: evt.itemId || null,
       transactionId: evt.transactionId || null,
