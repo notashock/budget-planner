@@ -54,6 +54,7 @@ export const api = {
   createGoal: (year, month, goal) => request(`/api/months/${year}/${month}/goals`, { method: 'POST', body: JSON.stringify(goal) }),
   convertGoalToItem: (id) => request(`/api/goals/${id}/convert-to-item`, { method: 'POST' }),
   deferGoal: (id) => request(`/api/goals/${id}/defer`, { method: 'POST' }),
+  reactivateGoal: (id) => request(`/api/goals/${id}/reactivate`, { method: 'POST' }),
   deleteGoal: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
 
   // AI Assistant (Gated by settings toggle)
