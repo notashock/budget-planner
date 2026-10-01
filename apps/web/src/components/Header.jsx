@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '@budget/engine';
 import { PlusIcon, RefreshIcon, SunIcon, MoonIcon, LogOutIcon } from './Icons.jsx';
+import { AnimatedLogo } from './AnimatedLogo.jsx';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -37,7 +38,9 @@ export function Header({
       <div className="app-header-inner">
         <div className="app-title-group" style={{ position: 'relative' }}>
           <span className="app-brand">
-            Budget Planner <span className="beta-badge">BETA</span>
+            <AnimatedLogo size={24} />
+            <span>Budget Planner</span>
+            <span className="beta-badge">BETA</span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
