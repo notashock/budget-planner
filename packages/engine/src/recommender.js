@@ -142,13 +142,26 @@ export function recommendPurchaseDate(
       bestLowestDate = minPointDate;
     }
 
-    if (buffer >= 0) {
+    // Days remaining from d to end of month
+    const daysRemaining = Math.max(0, daysInMonth - d);
+    // Discretionary spending expected to be burned between day d and month end based on pace
+    const projectedBurnRemaining = effectiveBurnRate * daysRemaining;
+    // Buffer remaining after accounting for spending pace
+    const paceBuffer = buffer - projectedBurnRemaining;
+
+    // Check if balance on day d itself can absorb the cost without dipping below floor
+    const dayBalancePoint = baselineSim.dailyBalances.find((p) => p.day === d);
+    const balanceOnDay = dayBalancePoint ? dayBalancePoint.balance : minBalanceFromDToEnd;
+    const canAffordOnDay = (balanceOnDay - cost) >= safetyFloor;
+
+    if (buffer >= 0 && canAffordOnDay) {
       safeCandidates.push({
         day: d,
         date: formatDate(year, monthNum, d),
         minBalanceFromDToEnd,
         projectedLowestBalance: projectedLowest,
         savingsBuffer: buffer,
+        paceBuffer,
         isAfterHeavyBills: d >= latestHeavyBillDay,
         lowestDate: minPointDate
       });
@@ -161,15 +174,24 @@ export function recommendPurchaseDate(
     const preferredCandidates = safeCandidates.filter((c) => c.isAfterHeavyBills);
     const candidatePool = preferredCandidates.length > 0 ? preferredCandidates : safeCandidates;
 
-    // Pick the date that maximizes remaining cash buffer; tie-break by latest date
-    candidatePool.sort((a, b) => {
+    // Filter days where available buffer covers the cost AND expected spending pace
+    const paceSafeCandidates = candidatePool.filter((c) => c.paceBuffer >= 0);
+    const activePool = paceSafeCandidates.length > 0 ? paceSafeCandidates : candidatePool;
+
+    // Pick the earliest safe date instead of artificially delaying to month-end!
+    activePool.sort((a, b) => {
+      if (paceSafeCandidates.length > 0) {
+        // Earliest day that safely covers burn pace & bills
+        return a.day - b.day;
+      }
+      // If tight on pace, prioritize maximum buffer, then earliest day
       if (b.savingsBuffer !== a.savingsBuffer) {
         return b.savingsBuffer - a.savingsBuffer;
       }
-      return b.day - a.day;
+      return a.day - b.day;
     });
 
-    const chosen = candidatePool[0];
+    const chosen = activePool[0];
 
     return {
       recommendedDate: chosen.date,
@@ -178,12 +200,13 @@ export function recommendPurchaseDate(
       projectedLowestBalance: chosen.projectedLowestBalance,
       savingsBuffer: chosen.savingsBuffer,
       lowestDate: chosen.lowestDate,
-      explanation: `Purchasing on ${chosen.date} preserves a safety buffer of ${chosen.savingsBuffer} minor units after clearing scheduled monthly obligations.`,
+      explanation: `Purchasing on ${chosen.date} preserves a safety buffer of ${chosen.savingsBuffer} minor units after clearing scheduled monthly obligations and accounting for spending pace.`,
       pipelineDetails: {
         currentDay,
         burnRatePerDay: effectiveBurnRate,
         heavyBillDays: Array.from(heavyBillDays),
-        safeDaysCount: safeCandidates.length
+        safeDaysCount: safeCandidates.length,
+        paceSafeDaysCount: paceSafeCandidates.length
       }
     };
   }
