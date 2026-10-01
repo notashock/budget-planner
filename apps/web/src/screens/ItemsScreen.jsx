@@ -9,14 +9,18 @@ export function ItemsScreen({
   currencySymbol = '₹',
   onOpenUnifiedEntry,
   onEditItem,
+  onTogglePaid,
   onDeleteItem,
   onDeleteTransaction
 }) {
   const [filter, setFilter] = useState('all');
 
+  const pendingCount = items.filter((i) => !i.isPaid).length;
+
   const filteredItems = items.filter((item) => {
     if (filter === 'all') return true;
     if (filter === 'transactions') return false;
+    if (filter === 'pending') return !item.isPaid;
     return item.type === filter;
   });
 
@@ -37,7 +41,7 @@ export function ItemsScreen({
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {['all', 'recurring', 'one-time', 'transactions'].map((t) => (
+        {['all', 'recurring', 'one-time', 'pending', 'transactions'].map((t) => (
           <button
             key={t}
             type="button"
@@ -45,7 +49,7 @@ export function ItemsScreen({
             onClick={() => setFilter(t)}
             style={{ padding: '6px 10px', fontSize: '11px', textTransform: 'capitalize' }}
           >
-            {t} {t === 'transactions' ? `(${transactions.length})` : ''}
+            {t} {t === 'pending' ? `(${pendingCount})` : t === 'transactions' ? `(${transactions.length})` : ''}
           </button>
         ))}
       </div>
@@ -180,6 +184,26 @@ export function ItemsScreen({
                             Fixed
                           </span>
                         )}
+                        <div
+                          className="recurring-toggle-switch"
+                          onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
+                          title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onTogglePaid?.(item._id, !item.isPaid);
+                            }
+                          }}
+                        >
+                          <div className={`recurring-toggle-track ${item.isPaid ? 'active' : ''}`}>
+                            <div className="recurring-toggle-thumb" />
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                            {item.isPaid ? 'Paid' : 'Pending'}
+                          </span>
+                        </div>
                         {hasRefund && (
                           <span
                             style={{
@@ -212,24 +236,43 @@ export function ItemsScreen({
                       )}
                     </div>
 
-                    {/* Bento Footer: Actions */}
+                    {/* Bento Footer: Status & Actions */}
                     <div className="item-bento-footer">
-                      <button
-                        type="button"
-                        className="btn-subtle"
-                        onClick={() => onEditItem(item)}
-                        style={{ padding: '4px 10px', fontSize: '11px' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-danger"
-                        onClick={() => onDeleteItem(item._id)}
-                        style={{ padding: '4px 10px', fontSize: '11px' }}
-                      >
-                        Delete
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                          onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
+                          title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
+                        >
+                          {item.type === 'recurring'
+                            ? (item.isPaid ? '✓ Billed this month' : '○ Unpaid this month')
+                            : (item.isPaid ? '✓ Paid' : '○ Pending')}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-subtle"
+                          onClick={() => onEditItem(item)}
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => onDeleteItem(item._id)}
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
