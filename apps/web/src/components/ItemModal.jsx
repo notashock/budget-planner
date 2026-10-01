@@ -6,6 +6,7 @@ import {
   getRelativeDay,
   getDateFromRelativeDay
 } from '@budget/engine';
+import { api } from '../api.js';
 
 export function ItemModal({
   isOpen,
@@ -24,6 +25,8 @@ export function ItemModal({
   const [date, setDate] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [isFixed, setIsFixed] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [recommending, setRecommending] = useState(false);
 
   // Fuel log fields: list of fuel stops
   const [fuelStops, setFuelStops] = useState([
@@ -43,6 +46,7 @@ export function ItemModal({
       setName(initialItem.name);
       setPriority(initialItem.priority ?? 0);
       setIsFixed(Boolean(initialItem.isFixed));
+      setIsPaid(Boolean(initialItem.isPaid));
       if (initialItem.type === 'one-time') {
         setAmount((initialItem.amount / 100).toString());
         if (typeof initialItem.day === 'number' && initialItem.day < 0) {
@@ -68,8 +72,9 @@ export function ItemModal({
       setName('');
       setPriority(0);
       setIsFixed(false);
+      setIsPaid(false);
       setAmount('');
-      setDate(todayStr);
+      setDate(''); // Default mode not done: keep date blank for recommendation
       setDayOfMonth(now.getDate() || 1);
       setFuelStops([
         { date: todayStr, odometer: '', fuelVolume: '', fuelCost: '' },
@@ -92,23 +97,75 @@ export function ItemModal({
 
   const fuelEfficiencyResult = calculateFuelEfficiency(parsedFuelStops);
 
-  const handleSubmit = (e) => {
+  const handleTogglePaid = (newPaid) => {
+    setIsPaid(newPaid);
+    if (newPaid && !date) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      setDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    } else if (!newPaid && !initialItem) {
+      setDate('');
+    }
+  };
+
+  const handleRecommendDate = async () => {
+    const amt = Math.round(Number(amount || 0) * 100);
+    const year = month?.year || new Date().getFullYear();
+    const monthNum = month?.month || (new Date().getMonth() + 1);
+    setRecommending(true);
+    try {
+      const rec = await api.recommendPurchaseDate(year, monthNum, amt > 0 ? amt : 1000);
+      if (rec?.recommendedDate) {
+        setDate(rec.recommendedDate);
+      } else {
+        alert(rec?.explanation || 'No safe date could be found this month without risking floor breach.');
+      }
+    } catch (err) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      setDate(`${year}-${pad(monthNum)}-01`);
+    } finally {
+      setRecommending(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    let finalDate = date;
+    const year = month?.year || 2026;
+    const monthNum = month?.month || 1;
+
+    // If payment not done and date left blank, auto-assign the best recommended date
+    if (type === 'one-time' && !finalDate && !isPaid) {
+      try {
+        const amt = Math.round(Number(amount || 0) * 100);
+        const rec = await api.recommendPurchaseDate(year, monthNum, amt > 0 ? amt : 1000);
+        if (rec?.recommendedDate) {
+          finalDate = rec.recommendedDate;
+        } else {
+          const pad = (n) => String(n).padStart(2, '0');
+          finalDate = `${year}-${pad(monthNum)}-01`;
+        }
+      } catch (err) {
+        const pad = (n) => String(n).padStart(2, '0');
+        finalDate = `${year}-${pad(monthNum)}-01`;
+      }
+    }
 
     const payload = {
       type,
       name: name.trim(),
-      priority: Number(priority) || 0
+      priority: Number(priority) || 0,
+      isPaid
     };
 
     if (type === 'one-time') {
       payload.amount = Math.round(Number(amount || 0) * 100);
-      const year = month?.year || 2026;
-      const monthNum = month?.month || 1;
-      const relativeDay = date ? getRelativeDay(date, year, monthNum) : 1;
+      const relativeDay = finalDate ? getRelativeDay(finalDate, year, monthNum) : 1;
       payload.day = relativeDay;
-      payload.date = date;
+      payload.date = finalDate;
     } else if (type === 'recurring') {
       payload.amount = Math.round(Number(amount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
@@ -202,17 +259,37 @@ export function ItemModal({
           {/* One-Time Date Picker */}
           {type === 'one-time' && (
             <div className="form-group">
-              <label className="form-label">Purchase date</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <label className="form-label" style={{ margin: 0 }}>Planned payment date</label>
+                {!isPaid && (
+                  <button
+                    type="button"
+                    className="btn-subtle"
+                    style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border)' }}
+                    onClick={handleRecommendDate}
+                    disabled={recommending}
+                    title="Recommend best date based on spending pace, balance, and floor buffer"
+                  >
+                    {recommending ? 'Calculating...' : '⚡ Recommend best date'}
+                  </button>
+                )}
+              </div>
               <input
                 type="date"
-                required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                placeholder="Leave blank for auto-recommended safe date"
               />
+              {!date && !isPaid && (
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+                  Payment pending: date left blank. Application will assign best date on save or click "Recommend best date".
+                </span>
+              )}
               {(() => {
+                if (!date) return null;
                 const year = month?.year || 2026;
                 const monthNum = month?.month || 1;
-                const relDay = date ? getRelativeDay(date, year, monthNum) : 1;
+                const relDay = getRelativeDay(date, year, monthNum);
                 if (relDay < 0) {
                   return (
                     <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
@@ -368,13 +445,51 @@ export function ItemModal({
 
 
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              {initialItem ? 'Update item' : 'Save item'}
-            </button>
+          {/* Modal Footer with Payment Status on Left Corner and Actions on Right */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginTop: '16px',
+              paddingTop: '12px',
+              borderTop: '1px solid var(--border)'
+            }}
+          >
+            {/* Left corner: Payment Done Toggle Switch */}
+            {type !== 'fuel-log' ? (
+              <div
+                className="recurring-toggle-switch"
+                onClick={() => handleTogglePaid(!isPaid)}
+                title={isPaid ? 'Payment done - click to toggle pending' : 'Payment pending - click to mark done'}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleTogglePaid(!isPaid);
+                  }
+                }}
+              >
+                <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
+                  <div className="recurring-toggle-thumb" />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  {isPaid ? 'Payment done' : 'Payment pending'}
+                </span>
+              </div>
+            ) : <div />}
+
+            {/* Right corner: Cancel & Save */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" onClick={onClose}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary">
+                {initialItem ? 'Update item' : 'Save item'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
