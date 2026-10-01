@@ -33,6 +33,11 @@ const itemSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    // If true, payment is marked done; if false, payment is pending and cash remains in account
+    isPaid: {
+      type: Boolean,
+      default: false
+    },
     // Used for one-time and recurring
     amount: {
       type: Number,
