@@ -1,4 +1,10 @@
-import { getDaysInMonth, clampDayToMonth, formatDate } from './calendar.js';
+import {
+  getDaysInMonth,
+  clampDayToMonth,
+  formatDate,
+  getRelativeDay,
+  getDateFromRelativeDay
+} from './calendar.js';
 
 /**
  * Pure simulation engine.
@@ -18,6 +24,7 @@ import { getDaysInMonth, clampDayToMonth, formatDate } from './calendar.js';
  * @param {Array<object>} items - List of planned items for the month
  * @param {object} month - { year, month } (month 1 - 12)
  * @param {Array<object>} [transactions=[]] - Logged real-world transactions
+ * @param {Array<object>} [goals=[]] - Active purchase goals
  * 
  * @returns {object} SimulationResult
  */
@@ -25,7 +32,8 @@ export function simulate(
   settings = {},
   items = [],
   month = { year: 2026, month: 1 },
-  transactions = []
+  transactions = [],
+  goals = []
 ) {
   const { year, month: monthNum } = month;
   const daysInMonth = getDaysInMonth(year, monthNum);
@@ -53,13 +61,15 @@ export function simulate(
     if (settings.incomeCreditDate && typeof settings.incomeCreditDate === 'string' && settings.incomeCreditDate.trim()) {
       const parsedDate = settings.incomeCreditDate.trim();
       const firstOfMonth = formatDate(year, monthNum, 1);
-      if (parsedDate <= firstOfMonth) {
-        // Credited on or before Day 1 (e.g. Sep 30 for October) -> available from Day 1
+      if (parsedDate < firstOfMonth) {
+        // Credited prior to Day 1 (e.g. Sep 30 for October) -> relative negative day
+        incomeDay = getRelativeDay(parsedDate, year, monthNum);
+        incomeDate = parsedDate;
+        incomeLabel = `Salary (credited ${parsedDate})`;
+      } else if (parsedDate === firstOfMonth) {
         incomeDay = 1;
         incomeDate = firstOfMonth;
-        incomeLabel = parsedDate < firstOfMonth
-          ? `Salary (credited ${parsedDate})`
-          : 'Income';
+        incomeLabel = 'Income';
       } else {
         const parts = parsedDate.split('-');
         const parsedD = parseInt(parts[2], 10);
@@ -119,11 +129,28 @@ export function simulate(
     const priority = typeof item.priority === 'number' ? item.priority : 0;
 
     if (item.type === 'one-time') {
-      const targetDay = clampDayToMonth(item.day ?? 1, daysInMonth);
+      let targetDay = 1;
+      let targetDate = '';
+      if (typeof item.day === 'number') {
+        if (item.day < 0) {
+          targetDay = item.day;
+          targetDate = item.date || getDateFromRelativeDay(item.day, year, monthNum);
+        } else {
+          targetDay = clampDayToMonth(item.day, daysInMonth);
+          targetDate = item.date || formatDate(year, monthNum, targetDay);
+        }
+      } else if (item.date) {
+        targetDay = getRelativeDay(item.date, year, monthNum);
+        targetDate = item.date;
+      } else {
+        targetDay = 1;
+        targetDate = formatDate(year, monthNum, 1);
+      }
+
       const amount = Math.round(item.amount ?? 0);
       rawEvents.push({
         day: targetDay,
-        date: formatDate(year, monthNum, targetDay),
+        date: targetDate,
         label: item.name,
         amount: -Math.abs(amount),
         priority,
@@ -152,13 +179,15 @@ export function simulate(
       stops.forEach((stop, sIdx) => {
         if (stop.fuelCost && stop.fuelCost > 0) {
           let stopDay = 1;
+          let stopDate = stop.date || formatDate(year, monthNum, 1);
           if (stop.date) {
-            const parsedDay = parseInt(stop.date.split('-')[2], 10);
-            if (!isNaN(parsedDay)) stopDay = clampDayToMonth(parsedDay, daysInMonth);
+            stopDay = getRelativeDay(stop.date, year, monthNum);
+            if (stopDay > 0) stopDay = clampDayToMonth(stopDay, daysInMonth);
+            stopDate = stop.date;
           }
           rawEvents.push({
             day: stopDay,
-            date: stop.date || formatDate(year, monthNum, stopDay),
+            date: stopDate,
             label: `${item.name} (${stop.fuelVolume || 0}L)`,
             amount: -Math.abs(Math.round(stop.fuelCost)),
             priority,
@@ -176,10 +205,11 @@ export function simulate(
   let totalUnplannedSpent = 0;
   (transactions || []).forEach((tx, txIndex) => {
     let txDay = 1;
+    let txDate = tx.date || formatDate(year, monthNum, 1);
     if (tx.date) {
-      const parts = tx.date.split('-');
-      const parsedDay = parseInt(parts[2], 10);
-      if (!isNaN(parsedDay)) txDay = clampDayToMonth(parsedDay, daysInMonth);
+      txDay = getRelativeDay(tx.date, year, monthNum);
+      if (txDay > 0) txDay = clampDayToMonth(txDay, daysInMonth);
+      txDate = tx.date;
     }
 
     const txAmount = Math.round(Number(tx.amount) || 0);
@@ -199,7 +229,7 @@ export function simulate(
 
     rawEvents.push({
       day: txDay,
-      date: tx.date || formatDate(year, monthNum, txDay),
+      date: txDate,
       label: eventLabel,
       amount: eventAmount,
       priority: 0,
@@ -259,13 +289,19 @@ export function simulate(
 
   const floorBreached = lowestBalance < safetyFloor;
 
-  // 7. Daily balance points (day 1 to daysInMonth)
+  // 7. Daily balance points (minNegativeDay to daysInMonth)
+  const minNegativeDay = rawEvents.length > 0 && rawEvents[0].day < 0
+    ? rawEvents[0].day
+    : 1;
+
   const dailyBalances = [];
   let dayBalance = openingBalance;
   let eventIdx = 0;
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = formatDate(year, monthNum, d);
+  for (let d = minNegativeDay; d <= daysInMonth; d++) {
+    if (d === 0) continue; // Calendar skips Day 0 between Day -1 and Day 1
+
+    const dateStr = getDateFromRelativeDay(d, year, monthNum);
     while (eventIdx < events.length && events[eventIdx].day === d) {
       dayBalance = events[eventIdx].balanceAfter;
       eventIdx++;
@@ -300,11 +336,54 @@ export function simulate(
     };
   });
 
-  // 10. Unplanned Allowance and "Safe to Spend per Day"
-  const allowanceLeft = unplannedAllowance - totalUnplannedSpent;
+  // 10. Pace-Adaptive Safe Velocity and Dynamic Allowance
   const effectiveDay = currentDay || 1;
   const daysLeft = Math.max(1, daysInMonth - effectiveDay + 1);
-  const safeToSpendPerDay = Math.max(0, Math.round(allowanceLeft / daysLeft));
+  const daysElapsed = Math.max(1, effectiveDay);
+
+  // Calculate upcoming committed expenses from effectiveDay onwards
+  let committedUpcomingItems = 0;
+  events.forEach((evt) => {
+    if (evt.day >= effectiveDay && !evt.isActual && evt.amount < 0) {
+      committedUpcomingItems += Math.abs(evt.amount);
+    }
+  });
+
+  // Calculate active purchase goals
+  let activeGoalsCost = 0;
+  (goals || []).forEach((g) => {
+    if (g && (g.status === 'active' || g.status === 'evaluating')) {
+      activeGoalsCost += Math.round(Number(g.targetAmount) || 0);
+    }
+  });
+
+  // Dynamic Free Surplus: money left after preserving safety floor, upcoming bills, and active goals
+  const freeSurplus = Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost);
+  const safeVelocityPerDay = Math.max(0, Math.floor(freeSurplus / daysLeft));
+  const burnRatePerDay = totalUnplannedSpent > 0 ? Math.round(totalUnplannedSpent / daysElapsed) : 0;
+
+  let paceStatus = 'stable';
+  if (safeVelocityPerDay <= 0) {
+    paceStatus = 'critical';
+  } else if (burnRatePerDay > safeVelocityPerDay * 1.25) {
+    paceStatus = 'contracting';
+  } else if (burnRatePerDay < safeVelocityPerDay * 0.75) {
+    paceStatus = 'expanding';
+  }
+
+  // Allowance left: if legacy static unplanned allowance is explicitly passed, honor it;
+  // otherwise, the dynamic Safe Velocity freeSurplus is automatically treated as the unplanned allowance.
+  const dynamicAllowance = unplannedAllowance > 0
+    ? unplannedAllowance
+    : (freeSurplus + totalUnplannedSpent);
+
+  const allowanceLeft = unplannedAllowance > 0
+    ? (unplannedAllowance - totalUnplannedSpent)
+    : freeSurplus;
+  
+  const safeToSpendPerDay = unplannedAllowance > 0
+    ? Math.max(0, Math.round(allowanceLeft / daysLeft))
+    : safeVelocityPerDay;
 
   return {
     events,
@@ -316,10 +395,21 @@ export function simulate(
     floorBreached,
     daysInMonth,
     itemNetMap,
-    unplannedAllowance,
+    unplannedAllowance: dynamicAllowance,
     totalUnplannedSpent,
     allowanceLeft,
     daysLeft,
-    safeToSpendPerDay
+    daysElapsed,
+    safeToSpendPerDay,
+    safeVelocity: {
+      safeVelocityPerDay,
+      freeSurplus,
+      burnRatePerDay,
+      committedUpcomingItems,
+      activeGoalsCost,
+      daysLeft,
+      daysElapsed,
+      paceStatus
+    }
   };
 }
