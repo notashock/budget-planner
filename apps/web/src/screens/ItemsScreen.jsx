@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { calculateFuelEfficiency, formatCurrency, formatDisplayDate } from '@budget/engine';
+import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import { PlusIcon } from '../components/Icons.jsx';
 
 export function ItemsScreen({
   items = [],
   transactions = [],
   simulation = null,
   currencySymbol = '₹',
-  onOpenAddItem,
-  onOpenQuickLog,
+  onOpenUnifiedEntry,
   onEditItem,
   onDeleteItem,
   onDeleteTransaction
@@ -24,19 +24,20 @@ export function ItemsScreen({
     <div className="screen-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2>Budget & spending</h2>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button type="button" onClick={onOpenQuickLog} style={{ padding: '6px 10px', fontSize: '12px' }}>
-            ⚡ Log spending
-          </button>
-          <button type="button" className="btn-primary" onClick={onOpenAddItem} style={{ padding: '6px 10px', fontSize: '12px' }}>
-            + Plan item
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => onOpenUnifiedEntry?.('log')}
+          style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <PlusIcon size={14} />
+          <span>New Entry</span>
+        </button>
       </div>
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {['all', 'recurring', 'one-time', 'fuel-log', 'transactions'].map((t) => (
+        {['all', 'recurring', 'one-time', 'transactions'].map((t) => (
           <button
             key={t}
             type="button"
@@ -54,7 +55,7 @@ export function ItemsScreen({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {transactions.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
-              No transactions logged yet this month. Tap "⚡ Log spending" to quick-log an expense.
+              No transactions logged yet this month. Tap "New Entry" to log an expense or credit.
             </div>
           ) : (
             transactions.map((tx) => (
@@ -88,91 +89,90 @@ export function ItemsScreen({
 
       {/* Items View */}
       {filter !== 'transactions' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div>
           {filteredItems.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
               No budget items found in this view.
             </div>
           ) : (
-            filteredItems.map((item) => {
-              const netInfo = simulation?.itemNetMap?.[item._id];
-              const hasRefund = Boolean(netInfo?.hasRefund);
+            <div className="items-grid">
+              {filteredItems.map((item) => {
+                const netInfo = simulation?.itemNetMap?.[item._id];
+                const hasRefund = Boolean(netInfo?.hasRefund);
 
-              let amountDisplay = '';
-              let details = '';
+                let amountDisplay = '';
+                let details = '';
 
-              if (item.type === 'one-time') {
-                amountDisplay = hasRefund
-                  ? formatCurrency(netInfo.netAmount, currencySymbol)
-                  : formatCurrency(item.amount, currencySymbol);
-                details = `Scheduled: Day ${item.day}`;
-              } else if (item.type === 'recurring') {
-                amountDisplay = hasRefund
-                  ? formatCurrency(netInfo.netAmount, currencySymbol)
-                  : formatCurrency(item.amount, currencySymbol);
-                details = `Recurring: Day ${item.dayOfMonth} each month`;
-              } else if (item.type === 'fuel-log') {
-                const fuelRes = calculateFuelEfficiency(item.fuelStops || []);
-                amountDisplay = formatCurrency(fuelRes.totalFuelCost, currencySymbol);
-                details = `${item.fuelStops?.length || 0} fuel stop${(item.fuelStops?.length || 0) > 1 ? 's' : ''}`;
-              }
+                if (item.type === 'one-time') {
+                  amountDisplay = hasRefund
+                    ? formatCurrency(netInfo.netAmount, currencySymbol)
+                    : formatCurrency(item.amount, currencySymbol);
+                  details = `Scheduled: Day ${item.day}`;
+                } else {
+                  amountDisplay = hasRefund
+                    ? formatCurrency(netInfo.netAmount, currencySymbol)
+                    : formatCurrency(item.amount || 0, currencySymbol);
+                  details = `Recurring: Day ${item.dayOfMonth || 1} each month`;
+                }
 
-              return (
-                <div key={item._id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                const pVal = item.priority ?? 0;
+                const pTier = pVal === 0
+                  ? { label: 'High', bars: 3, color: 'var(--accent)' }
+                  : pVal === 1
+                  ? { label: 'Med', bars: 2, color: 'var(--warning)' }
+                  : { label: 'Low', bars: 1, color: 'var(--text-muted)' };
+
+                return (
+                  <div key={item._id} className="item-bento-card">
+                    {/* Bento Header: Title & Priority */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '15px' }}>{item.name}</span>
+                      <div className="item-bento-header">
+                        <span className="item-bento-title" title={item.name}>{item.name}</span>
                         <span
                           style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                             fontSize: '11px',
-                            color: 'var(--text-secondary)',
+                            color: pTier.color,
                             background: 'var(--surface-subtle)',
                             padding: '2px 6px',
-                            borderRadius: '4px'
+                            borderRadius: '4px',
+                            fontWeight: 500,
+                            flexShrink: 0
+                          }}
+                          title={`Priority: ${pTier.label}`}
+                        >
+                          <span className="priority-bars-icon" style={{ height: '11px' }}>
+                            <span className={`priority-bar bar-1 ${pTier.bars >= 1 ? 'active' : ''}`} style={{ width: '2px', height: '4px' }} />
+                            <span className={`priority-bar bar-2 ${pTier.bars >= 2 ? 'active' : ''}`} style={{ width: '2px', height: '7px' }} />
+                            <span className={`priority-bar bar-3 ${pTier.bars >= 3 ? 'active' : ''}`} style={{ width: '2px', height: '10px' }} />
+                          </span>
+                          {pTier.label}
+                        </span>
+                      </div>
+
+                      <div className="item-bento-badges">
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--surface-subtle)',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            textTransform: 'capitalize'
                           }}
                         >
                           {item.type}
                         </span>
-                        {(() => {
-                          const pVal = item.priority ?? 0;
-                          const pTier = pVal === 0
-                            ? { label: 'High', bars: 3, color: 'var(--accent)' }
-                            : pVal === 1
-                            ? { label: 'Med', bars: 2, color: 'var(--warning)' }
-                            : { label: 'Low', bars: 1, color: 'var(--text-muted)' };
-                          return (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '11px',
-                                color: pTier.color,
-                                background: 'var(--surface-subtle)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontWeight: 500
-                              }}
-                              title={`Priority: ${pTier.label}`}
-                            >
-                              <span className="priority-bars-icon" style={{ height: '11px' }}>
-                                <span className={`priority-bar bar-1 ${pTier.bars >= 1 ? 'active' : ''}`} style={{ width: '2px', height: '4px' }} />
-                                <span className={`priority-bar bar-2 ${pTier.bars >= 2 ? 'active' : ''}`} style={{ width: '2px', height: '7px' }} />
-                                <span className={`priority-bar bar-3 ${pTier.bars >= 3 ? 'active' : ''}`} style={{ width: '2px', height: '10px' }} />
-                              </span>
-                              {pTier.label}
-                            </span>
-                          );
-                        })()}
                         {item.type === 'recurring' && item.isFixed && (
                           <span
                             style={{
-                              fontSize: '11px',
+                              fontSize: '10px',
                               color: 'var(--accent)',
                               background: 'var(--accent-subtle)',
                               border: '1px solid var(--accent)',
-                              padding: '2px 6px',
+                              padding: '1px 6px',
                               borderRadius: '4px',
                               fontWeight: 500
                             }}
@@ -183,10 +183,10 @@ export function ItemsScreen({
                         {hasRefund && (
                           <span
                             style={{
-                              fontSize: '11px',
+                              fontSize: '10px',
                               color: 'var(--success)',
                               background: 'var(--success-subtle)',
-                              padding: '2px 6px',
+                              padding: '1px 6px',
                               borderRadius: '4px',
                               fontWeight: 500
                             }}
@@ -195,76 +195,46 @@ export function ItemsScreen({
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {details}
-                        {hasRefund && ` • Original: ${formatCurrency(netInfo.originalAmount, currencySymbol)}`}
-                      </div>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 600, fontSize: '15px' }}>
+                    {/* Bento Body: Prominent Amount & Schedule */}
+                    <div className="item-bento-body">
+                      <div className="item-bento-amount">
                         {amountDisplay}
                       </div>
+                      <div className="item-bento-schedule">
+                        {details}
+                      </div>
                       {hasRefund && (
-                        <div style={{ fontSize: '11px', color: 'var(--success)' }}>
-                          -{formatCurrency(netInfo.refundTotal, currencySymbol)} refund
+                        <div className="item-bento-refund">
+                          Original: {formatCurrency(netInfo.originalAmount, currencySymbol)} (-{formatCurrency(netInfo.refundTotal, currencySymbol)})
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* Bike Fuel Log Efficiency Display */}
-                  {item.type === 'fuel-log' && (
-                    <div className="assumptions-box" style={{ background: 'var(--surface-subtle)' }}>
-                      {(() => {
-                        const res = calculateFuelEfficiency(item.fuelStops || []);
-                        return (
-                          <>
-                            <strong>Bike efficiency: </strong>
-                            {res.averageEfficiency ? (
-                              <span style={{ color: 'var(--success)', fontWeight: 600 }}>
-                                {res.averageEfficiency} km/L
-                              </span>
-                            ) : (
-                              <span>Log 2nd stop to compute efficiency</span>
-                            )}
-                            {res.totalDistance > 0 && ` (${res.totalDistance} km traveled)`}
-                            <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                              {item.fuelStops?.map((s, idx) => (
-                                <div key={idx}>
-                                  Stop {idx + 1} ({formatDisplayDate(s.date, false)}): {s.odometer} km • {s.fuelVolume} L • {formatCurrency(s.fuelCost, currencySymbol)}
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        );
-                      })()}
+                    {/* Bento Footer: Actions */}
+                    <div className="item-bento-footer">
+                      <button
+                        type="button"
+                        className="btn-subtle"
+                        onClick={() => onEditItem(item)}
+                        style={{ padding: '4px 10px', fontSize: '11px' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => onDeleteItem(item._id)}
+                        style={{ padding: '4px 10px', fontSize: '11px' }}
+                      >
+                        Delete
+                      </button>
                     </div>
-                  )}
-
-
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-                    <button
-                      type="button"
-                      className="btn-subtle"
-                      onClick={() => onEditItem(item)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={() => onDeleteItem(item._id)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      Delete
-                    </button>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       )}
