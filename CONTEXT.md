@@ -44,9 +44,9 @@ _Avoid_: Formula item, mileage expense, dynamic bill.
 The process of creating the next calendar month, copying fixed recurring items and optionally carrying forward the ending balance as the new opening balance.
 _Avoid_: Month close, archive, reset.
 
-**What-If**:
-An ephemeral in-memory recalculation of the timeline with modified item amounts or frequencies without saving to the database.
-_Avoid_: Scenario, simulation draft, sandbox.
+**Pre-Month Event**:
+A dated transaction, item, or salary credit occurring prior to Day 1 of the planned month, indexed as a negative relative day offset from the 1st (e.g., Day -1 for 1 day prior, Day -2 for 2 days prior), processed chronologically before Day 1 and plotted on the balance chart and timeline preceding Day 1.
+_Avoid_: Previous month carryover, early expense, Day 30 alias.
 
 **Goal Date Estimation Pipeline**:
 An algorithm that determines whether a target purchase goal is feasible within the remainder of the month by evaluating upcoming heavy fixed bills, projecting remaining spend from the user's actual daily burn rate, and picking the safest upcoming date that maximizes savings buffer. If no safe date exists, it returns no date (`null`) with an explicit floor deficit and wait-for-next-month guidance.
@@ -57,12 +57,12 @@ A recorded financial actual (expense or negative refund) on an exact date, eithe
 _Avoid_: Purchase entry, ledger entry, receipt.
 
 **Unplanned Allowance**:
-A monthly pool allocated for unexpected spending not captured by planned items, monitored through a daily rate.
-_Avoid_: Buffer, slush fund, petty cash.
+The remaining liquid cash cushion after accounting for the safety floor, upcoming committed expenses, and active goals, dynamically derived directly from the Pace-Adaptive Safe Velocity calculation rather than a static manual quota.
+_Avoid_: Buffer, slush fund, petty cash, static allowance quota.
 
 **Safe to Spend per Day**:
-The remaining unplanned allowance divided by the remaining calendar days in the month.
-_Avoid_: Daily budget, burn rate.
+The remaining unplanned allowance (Safe Velocity daily rate) calculated as dynamic free surplus divided by the remaining calendar days in the month.
+_Avoid_: Daily budget, rigid daily burn quota.
 
 **Purchase Goal**:
 A target one-time purchase evaluated against the monthly cash flow to recommend a feasible purchase date or advise waiting for the following month.
@@ -83,4 +83,60 @@ _Avoid_: Priority number, rank, star rating.
 **Goal Safety Buffer**:
 The minimum cash surplus from candidate purchase date to month-end calculated strictly from the Plan screen's baseline running-balance timeline: $\min_{t \ge d} (\text{running balance}_t) - \text{price} - \text{safetyFloor}$. If negative, the purchase is deemed infeasible and deferral to next month is recommended.
 _Avoid_: Static buffer, opening balance margin.
+
+**Dynamic Goal Auto-Deferral**:
+An automated lifecycle transition that shifts an active purchase goal to deferred status when new actual expenses reduce the projected safety buffer below zero, safeguarding the safety floor.
+_Avoid_: Goal cancellation, manual deferral requirement.
+
+**Unified Entry Modal**:
+A single consolidated dialog with a top segmented switch to record actual spending transactions or schedule planned budget items from a single entry point.
+_Avoid_: Separate logging modals, disjointed item forms.
+
+**Safe Velocity (Pace-Adaptive Allowance)**:
+A dynamically calculated discretionary spending capacity derived from remaining liquid cash, upcoming committed bills, active purchase goals, and real spending pace. It recalculates the sustainable daily spend to guarantee reaching month-end with a preserved safety floor cushion.
+_Avoid_: Static allowance, rigid spending limit, arbitrary daily quota.
+
+**Mobile Glance-and-Act Hierarchy**:
+A mobile-optimized screen layout ordering that surfaces critical status and instant execution before detailed analytics: Floor Status & Safe Velocity Card -> '+ New Entry' Action Bar -> Curved Timeline Chart -> Detailed KPI Cards -> Interactive Timeline List.
+_Avoid_: Desktop-mirror layout, buried action buttons, chart-first overflow.
+
+**Mobile Density Tier**:
+A calibrated visual compacting scale triggered strictly on viewports under 640px that tightens screen margins, card insets, grid gaps, typography scale, and button/input dimensions to provide an ergonomic native-app feel while leaving the desktop layout and tablet spacing completely untouched.
+_Avoid_: Global CSS font reduction, fixed-zoom breakpoint, responsive layout breakage.
+
+**Header Salary Floor Indicator**:
+A persistent, compact status pill residing in the top application header beside the month selector that communicates instantaneous safety floor integrity (safe cushion or active breach deficit), replacing the vertical floor banner on the dashboard page body.
+_Avoid_: Dashboard floor card, full-width alert banner.
+
+**Timeline Middle-Date Spine**:
+A 3-column interactive event row architecture placing the time anchor (`Day X`, `Today`, formatted date) in the central column as a vertical axis separating qualitative item metadata (left) from financial delta and balance figures (right).
+_Avoid_: Far-left date column, disconnected date badges.
+
+**Cumulative Expenses Trajectory**:
+A secondary dotted outflow curve rendered synchronously alongside the running balance spline on the timeline chart, illustrating month-to-date expenditure accumulation against remaining liquidity.
+_Avoid_: Collision with main balance line, unscaled dual axes.
+
+**Items Bento Grid**:
+A responsive multi-column grid layout for budget items that organizes item metadata, priority tiers, prominent amounts, and management actions into structured bento tiles.
+_Avoid_: Single-column list on wide screens, cramped action buttons.
+
+**Ambient Outflow Spline**:
+A subtle, low-opacity (0.45) curved spline representing cumulative expense trajectory overlaid onto the daily balance chart, providing a non-intrusive macro view of spending acceleration without competing with the primary balance curve.
+_Avoid_: Harsh rigid steps, high-contrast colliding lines.
+
+**Monochrome Form Dropdowns**:
+A unified select and floating popover menu system styled with custom SVG glyphs, contextual border focus states, and elevated blur surfaces matching the monochrome design system.
+_Avoid_: Default browser-rendered selects with OS-native chrome.
+
+**Searchable Match Popover**:
+A floating interactive item picker in the transaction logger featuring quick filter search, a clean continuous list with compact inline tags (`recurring`, `fixed`) without cumbersome group headers, and direct unexpected spending drawdown selection.
+_Avoid_: Dense unsearchable native select tags or cluttered category section headers.
+
+**Holistic Month Review**:
+An end-of-month audit popup integrating the **Dynamic Survival Cushion** (free surplus remaining and safe velocity burn pace), fixed and recurring commitments (rent, EMIs, recurring subscriptions), categorized spending breakdown, and projected next-month survival cushion recommendations.
+_Avoid_: Static allowance-only review that ignores recurring overhead or dynamic liquidity.
+
+**Purchase Goals Bento Grid**:
+A responsive multi-column card layout on the goals screen organizing purchase goals into structured cards with prominent target prices, monochrome status badges, compact recommendation insight boxes, and streamlined action triggers.
+_Avoid_: Full-width vertical stacked lists with heavy colored banners.
 
