@@ -27,6 +27,10 @@ const goalSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'scheduled', 'deferred', 'evaluating', 'ready'],
       default: 'active'
+    },
+    deferredReason: {
+      type: String,
+      default: null
     }
   },
   { timestamps: true }
