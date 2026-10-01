@@ -31,6 +31,10 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
       Transaction.find({ userId: req.session.userId, monthId: month._id })
     ]);
 
+    const now = new Date();
+    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
+
     const evaluatedGoals = goals.map((goal) => {
       const recommendation = recommendPurchaseDate(
         {
@@ -40,7 +44,7 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
           incomeCreditDay: month.incomeCreditDay,
           safetyFloor: month.safetyFloor,
           unplannedAllowance: month.unplannedAllowance || 0,
-          currentDay: new Date().getDate(),
+          currentDay,
           scale: 100
         },
         items,
@@ -100,6 +104,10 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
       Transaction.find({ userId: req.session.userId, monthId: month._id })
     ]);
 
+    const now = new Date();
+    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
+
     const recommendation = recommendPurchaseDate(
       {
         openingBalance: month.openingBalance,
@@ -108,7 +116,7 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay: new Date().getDate(),
+        currentDay,
         scale: 100
       },
       items,
@@ -148,6 +156,10 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
       Transaction.find({ userId: req.session.userId, monthId: month._id })
     ]);
 
+    const now = new Date();
+    const isCurrentMonth = Number(month.year) === now.getFullYear() && Number(month.month) === (now.getMonth() + 1);
+    const currentDay = isCurrentMonth ? now.getDate() : null;
+
     const recommendation = recommendPurchaseDate(
       {
         openingBalance: month.openingBalance,
@@ -156,7 +168,7 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
         incomeCreditDay: month.incomeCreditDay,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay: new Date().getDate(),
+        currentDay,
         scale: 100
       },
       items,
