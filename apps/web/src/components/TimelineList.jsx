@@ -26,6 +26,7 @@ export function TimelineList({
     all: events.length,
     incomes: events.filter((e) => e.amount > 0).length,
     planned: events.filter((e) => !e.isActual && e.amount < 0).length,
+    pending: events.filter((e) => e.isPending).length,
     actuals: events.filter((e) => e.isActual).length,
     breaches: events.filter((e) => e.balanceAfter < safetyFloor).length
   };
@@ -40,6 +41,7 @@ export function TimelineList({
     // 2. Type filter pill
     if (filterType === 'incomes') return evt.amount > 0;
     if (filterType === 'planned') return !evt.isActual && evt.amount < 0;
+    if (filterType === 'pending') return Boolean(evt.isPending);
     if (filterType === 'actuals') return evt.isActual;
     if (filterType === 'breaches') return evt.balanceAfter < safetyFloor;
     return true;
@@ -88,6 +90,7 @@ export function TimelineList({
           { id: 'all', label: 'All', count: counts.all },
           { id: 'incomes', label: 'Incomes', count: counts.incomes },
           { id: 'planned', label: 'Planned', count: counts.planned },
+          ...(counts.pending > 0 ? [{ id: 'pending', label: 'Pending', count: counts.pending }] : []),
           { id: 'actuals', label: 'Actuals', count: counts.actuals },
           { id: 'breaches', label: 'Floor Breaches', count: counts.breaches }
         ].map((tab) => (
@@ -191,9 +194,28 @@ export function TimelineList({
                   title="Click to focus this day on the balance chart"
                 >
                   <div className="timeline-event-info">
-                    <span className="timeline-event-label">{evt.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="timeline-event-label">{evt.label}</span>
+                      {evt.isPending && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 600,
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            background: 'var(--surface-subtle)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-secondary)',
+                            textTransform: 'uppercase'
+                          }}
+                          title={`Scheduled for Day ${evt.originalDay} but unpaid; cash remains in today's balance.`}
+                        >
+                          Pending
+                        </span>
+                      )}
+                    </div>
                     <span className="timeline-event-type">
-                      {evt.itemType} {evt.isActual ? '• logged transaction' : '• scheduled'}
+                      {evt.itemType} {evt.isActual ? '• logged transaction' : evt.isPending ? `• pending disbursement (orig. Day ${evt.originalDay})` : '• scheduled'}
                       {evt.isFixed ? ' • fixed rollover' : ''}
                     </span>
                   </div>
