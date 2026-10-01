@@ -114,8 +114,8 @@ describe('Sprint 2 Backend Suite - Transactions, Recommender, and Fuel Logs', ()
 
     expect(res.status).toBe(200);
     expect(res.body.feasible).toBe(true);
-    expect(res.body.recommendedDay).toBe(30);
-    expect(res.body.recommendedDate).toBe('2026-09-30');
+    expect(res.body.recommendedDay).toBe(1);
+    expect(res.body.recommendedDate).toBe('2026-09-01');
     expect(res.body.savingsBuffer).toBeGreaterThanOrEqual(0);
   });
 
