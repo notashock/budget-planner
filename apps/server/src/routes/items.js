@@ -54,6 +54,10 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
       }));
     }
 
+    if (typeof req.body.isPaid === 'boolean') {
+      itemData.isPaid = req.body.isPaid;
+    }
+
     const item = await Item.create(itemData);
     return res.status(201).json(item);
   } catch (err) {
@@ -94,6 +98,10 @@ itemsRouter.put('/items/:id', async (req, res) => {
           fuelCost: Math.round(Number(s.fuelCost) || 0)
         }));
       }
+    }
+
+    if (typeof req.body.isPaid === 'boolean') {
+      item.isPaid = req.body.isPaid;
     }
 
     await item.save();
