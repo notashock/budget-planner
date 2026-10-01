@@ -79,7 +79,8 @@ describe('Sprint 4 Backend Suite - Salary Credit Date, Dynamic Goals, Rupee, and
       name: 'October Rent',
       amount: 2500000,
       dayOfMonth: 1,
-      isFixed: true
+      isFixed: true,
+      isPaid: true
     });
 
     const detailRes = await agent.get('/api/months/2026/10');
