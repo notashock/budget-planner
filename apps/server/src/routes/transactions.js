@@ -97,6 +97,10 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
     // If an expense purchase compromises the safety buffer of any active goal,
     // automatically transition that goal to deferred status.
     if (transaction.amount > 0) {
+      if (verifiedPlannedItemId) {
+        await Item.updateOne({ _id: verifiedPlannedItemId }, { $set: { isPaid: true } });
+      }
+
       try {
         const activeGoals = await Goal.find({
           userId: req.session.userId,
@@ -110,6 +114,10 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
             Transaction.find({ userId: req.session.userId, monthId: month._id })
           ]);
 
+          const now = new Date();
+          const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+          const currentDay = isCurrentMonth ? now.getDate() : null;
+
           for (const goal of activeGoals) {
             const rec = recommendPurchaseDate(
               {
@@ -119,7 +127,7 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
                 incomeCreditDay: month.incomeCreditDay,
                 safetyFloor: month.safetyFloor,
                 unplannedAllowance: month.unplannedAllowance || 0,
-                currentDay: new Date().getDate(),
+                currentDay,
                 scale: 100
               },
               items,
