@@ -241,6 +241,28 @@ goalsRouter.post('/goals/:id/defer', async (req, res) => {
   }
 });
 
+// POST /api/goals/:id/reactivate (Reactivate deferred goal)
+goalsRouter.post('/goals/:id/reactivate', async (req, res) => {
+  try {
+    const goal = await Goal.findOne({
+      _id: req.params.id,
+      userId: req.session.userId
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    goal.status = 'active';
+    goal.deferredReason = null;
+    await goal.save();
+
+    return res.json({ message: 'Goal reactivated successfully', goal });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to reactivate goal' });
+  }
+});
+
 // DELETE /api/goals/:id
 goalsRouter.delete('/goals/:id', async (req, res) => {
   try {
