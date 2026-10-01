@@ -205,16 +205,64 @@ describe('Engine Suite - Core & Sprint Features', () => {
 
       const result = simulate(octoberSettings, items, { year: 2026, month: 10 });
 
-      // Salary should be credited on Day 1 (Oct 1)
+      // Salary should be credited on Day -1 (Sept 30)
       const incomeEvent = result.events.find((e) => e.amount > 0);
       expect(incomeEvent).toBeDefined();
-      expect(incomeEvent.date).toBe('2026-10-01');
+      expect(incomeEvent.date).toBe('2026-09-30');
+      expect(incomeEvent.day).toBe(-1);
       expect(incomeEvent.label).toContain('Salary (credited 2026-09-30)');
 
-      // On Oct 1, balance = 80,000 - 25,000 = 55,000
-      expect(result.dailyBalances[0].date).toBe('2026-10-01');
-      expect(result.dailyBalances[0].balance).toBe(5500000);
+      // On Day -1, balance = 80,000; on Day 1, balance = 80,000 - 25,000 = 55,000
+      expect(result.dailyBalances[0].date).toBe('2026-09-30');
+      expect(result.dailyBalances[0].day).toBe(-1);
+      expect(result.dailyBalances[0].balance).toBe(8000000);
+      expect(result.dailyBalances[1].date).toBe('2026-10-01');
+      expect(result.dailyBalances[1].day).toBe(1);
+      expect(result.dailyBalances[1].balance).toBe(5500000);
       expect(result.endingBalance).toBe(5500000);
+    });
+
+    it('treats pre-month dates as relative negative days (-1 for Sep 30, -2 for Sep 29)', () => {
+      const settings = {
+        openingBalance: 1000000, // ₹10,000 opening
+        incomeAmount: 5000000,
+        incomeCreditDay: 1,
+        safetyFloor: 1000000,
+        scale: 100
+      };
+
+      const items = [
+        { id: 'item-pre', type: 'one-time', name: 'Pre-Month Item', amount: 200000, day: -1, date: '2026-09-30' }
+      ];
+
+      const transactions = [
+        { id: 'tx-pre2', date: '2026-09-29', amount: 100000, note: 'Pre-month dinner' }
+      ];
+
+      const result = simulate(settings, items, { year: 2026, month: 10 }, transactions);
+
+      // Events should have tx on Day -2 (2026-09-29) and item on Day -1 (2026-09-30)
+      const eventPre2 = result.events.find((e) => e.date === '2026-09-29');
+      expect(eventPre2).toBeDefined();
+      expect(eventPre2.day).toBe(-2);
+      expect(eventPre2.balanceAfter).toBe(900000); // 10,000 - 1,000 = 9,000
+
+      const eventPre1 = result.events.find((e) => e.date === '2026-09-30');
+      expect(eventPre1).toBeDefined();
+      expect(eventPre1.day).toBe(-1);
+      expect(eventPre1.balanceAfter).toBe(700000); // 9,000 - 2,000 = 7,000
+
+      // Income occurs on Day 1 (+50,000) -> 7,000 + 50,000 = 57,000
+      const incomeEvent = result.events.find((e) => e.day === 1 && e.amount > 0);
+      expect(incomeEvent.balanceAfter).toBe(5700000);
+
+      // Daily balances include Day -2, Day -1, then Day 1
+      expect(result.dailyBalances[0].day).toBe(-2);
+      expect(result.dailyBalances[0].balance).toBe(900000);
+      expect(result.dailyBalances[1].day).toBe(-1);
+      expect(result.dailyBalances[1].balance).toBe(700000);
+      expect(result.dailyBalances[2].day).toBe(1);
+      expect(result.dailyBalances[2].balance).toBe(5700000);
     });
 
     it('estimates goal date dynamically: ignores past dates and schedules after heavy bills', () => {
@@ -312,5 +360,51 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(recommendation.explanation).toContain('Price is too high for this month');
       expect(recommendation.explanation).toContain('Wait for next month');
     });
+
+    it('calculates dynamic pace-adaptive Safe Velocity based on liquid cash, upcoming items, safety floor, and goals', () => {
+      // Income: 500,000 (Day 1)
+      // Safety Floor: 100,000
+      // Current Day: 10
+      // Upcoming planned item on Day 20: 150,000
+      // Active goal: 50,000
+      // Unplanned spending so far (days 1-10): 20,000
+      // Liquid cash on Day 10: 500,000 - 20,000 = 480,000
+      // Free Surplus: 480,000 - 150,000 (upcoming) - 100,000 (floor) - 50,000 (goal) = 180,000
+      // Days left in October (31 days, day 10): 31 - 10 + 1 = 22 days
+      // Safe velocity per day: Math.floor(180,000 / 22) = 8,181
+      const settings = {
+        openingBalance: 0,
+        incomeAmount: 500000,
+        incomeCreditDay: 1,
+        safetyFloor: 100000,
+        currentDay: 10,
+        unplannedAllowance: 0 // dynamic mode
+      };
+
+      const items = [
+        { id: 'upcoming-item', type: 'one-time', name: 'Car Service', amount: 150000, day: 20 }
+      ];
+
+      const transactions = [
+        { id: 'tx-1', date: '2026-10-05', amount: 20000, tag: 'Food', note: 'Dinner', plannedItemId: null }
+      ];
+
+      const goals = [
+        { id: 'goal-1', status: 'active', name: 'Headphones', targetAmount: 50000 }
+      ];
+
+      const result = simulate(settings, items, { year: 2026, month: 10 }, transactions, goals);
+
+      expect(result.safeVelocity).toBeDefined();
+      expect(result.safeVelocity.freeSurplus).toBe(180000);
+      expect(result.safeVelocity.daysLeft).toBe(22);
+      expect(result.safeVelocity.safeVelocityPerDay).toBe(8181);
+      expect(result.safeToSpendPerDay).toBe(8181);
+      expect(result.allowanceLeft).toBe(180000);
+      expect(result.safeVelocity.committedUpcomingItems).toBe(150000);
+      expect(result.safeVelocity.activeGoalsCost).toBe(50000);
+      expect(result.safeVelocity.burnRatePerDay).toBe(2000); // 20,000 / 10 days
+    });
   });
 });
+
