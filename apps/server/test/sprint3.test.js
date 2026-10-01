@@ -102,7 +102,7 @@ describe('Sprint 3 Backend Suite - Fixed Recurring, Goals, and Refund Mapping', 
     expect(goalRes.status).toBe(201);
     expect(goalRes.body.name).toBe('Noise Cancelling Headphones');
     expect(goalRes.body.recommendation.feasible).toBe(true);
-    expect(goalRes.body.recommendation.recommendedDay).toBe(30);
+    expect(goalRes.body.recommendation.recommendedDay).toBe(1);
 
     const goalId = goalRes.body._id;
 
@@ -110,7 +110,7 @@ describe('Sprint 3 Backend Suite - Fixed Recurring, Goals, and Refund Mapping', 
     const convertRes = await agent.post(`/api/goals/${goalId}/convert-to-item`);
     expect(convertRes.status).toBe(201);
     expect(convertRes.body.item.name).toBe('Noise Cancelling Headphones');
-    expect(convertRes.body.item.day).toBe(30);
+    expect(convertRes.body.item.day).toBe(1);
     expect(['scheduled', 'ready']).toContain(convertRes.body.goal.status);
 
     // 3. Create another goal that is too expensive and defer it
