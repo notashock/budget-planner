@@ -178,14 +178,12 @@ export function MonthEndReviewModal({
       isDraggingSheet.current = true;
       if (e.cancelable) e.preventDefault();
 
-      if (deltaY >= 0) {
-        gsap.set(contentRef.current, { y: deltaY });
-        const progress = Math.max(0, 1 - deltaY / 320);
-        if (overlayRef.current) {
-          gsap.set(overlayRef.current, { opacity: progress });
-        }
-      } else {
-        gsap.set(contentRef.current, { y: deltaY * 0.2 });
+      // Clamp y >= 0 via gsap.utils.clamp: prevents sheet from ever translating above the top viewport edge
+      const clampedY = gsap.utils.clamp(0, window.innerHeight, deltaY);
+      gsap.set(contentRef.current, { y: clampedY });
+      const progress = gsap.utils.clamp(0, 1, 1 - clampedY / 320);
+      if (overlayRef.current) {
+        gsap.set(overlayRef.current, { opacity: progress });
       }
     }
   };
@@ -195,7 +193,7 @@ export function MonthEndReviewModal({
     isDraggingSheet.current = false;
 
     const currentY = e.changedTouches[0].clientY;
-    const deltaY = currentY - touchStartY.current;
+    const deltaY = Math.max(0, currentY - touchStartY.current);
     const elapsed = Date.now() - touchStartTime.current;
     const velocity = deltaY / (elapsed || 1);
 
@@ -222,6 +220,14 @@ export function MonthEndReviewModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [shouldRender, triggerExit]);
 
+  // Clean up active tweens on unmount
+  useEffect(() => {
+    return () => {
+      if (contentRef.current) gsap.killTweensOf(contentRef.current);
+      if (overlayRef.current) gsap.killTweensOf(overlayRef.current);
+    };
+  }, []);
+
   if (!shouldRender) return null;
 
   // Breakdown of recurring and fixed commitments
@@ -247,7 +253,7 @@ export function MonthEndReviewModal({
       >
         <div
           ref={contentRef}
-          className="modal-content"
+          className="modal-content month-review-content"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
