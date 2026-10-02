@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '@budget/engine';
-import { PlusIcon, RefreshIcon, SunIcon, MoonIcon, LogOutIcon } from './Icons.jsx';
+import {
+  PlusIcon,
+  RefreshIcon,
+  SunIcon,
+  MoonIcon,
+  LogOutIcon,
+  LayoutDashboardIcon,
+  ListOrderedIcon,
+  TargetIcon,
+  SparklesIcon
+} from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const NAV_TABS = [
+  { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
+  { id: 'items', label: 'Items', Icon: ListOrderedIcon },
+  { id: 'goals', label: 'Goals', Icon: TargetIcon },
+  { id: 'assistant', label: 'Assistant', Icon: SparklesIcon }
 ];
 
 export function Header({
@@ -18,7 +35,9 @@ export function Header({
   onOpenRollover,
   onLogout,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  activeTab = 'plan',
+  onSelectTab
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -60,7 +79,9 @@ export function Header({
                     : `Safety floor maintained (+${formatCurrency(margin, currencySymbol)} cushion). Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
                 }
               >
-                <span className={`floor-indicator-dot ${floorBreached ? 'breached' : 'safe'}`} />
+                <span className={`floor-indicator-glyph ${floorBreached ? 'breached' : 'safe'}`}>
+                  {floorBreached ? '▲' : '✓'}
+                </span>
                 <span className="header-floor-text">
                   {floorBreached
                     ? `Floor Breached (-${formatCurrency(deficit, currencySymbol)})`
@@ -85,7 +106,7 @@ export function Header({
                   }}
                 >
                   <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
-                  {isSelected && <span style={{ fontSize: '11px', color: 'var(--accent)' }}>●</span>}
+                  {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
                 </button>
               );
             })}
@@ -95,13 +116,13 @@ export function Header({
             <button
               type="button"
               className="app-dropdown-item"
-              style={{ color: 'var(--accent)', fontWeight: 500 }}
+              style={{ color: 'var(--text)', fontWeight: 600 }}
               onClick={() => {
                 setDropdownOpen(false);
                 onOpenCreateMonth();
               }}
             >
-              <PlusIcon size={14} color="var(--accent)" />
+              <PlusIcon size={14} color="currentColor" />
               <span>Create new month</span>
             </button>
 
@@ -122,6 +143,25 @@ export function Header({
           </div>
         )}
       </div>
+
+      {/* Desktop Segmented Navigation Bar */}
+      <nav className="desktop-header-nav" aria-label="Main Navigation">
+        {NAV_TABS.map((tab) => {
+          const Icon = tab.Icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`desktop-nav-pill ${isActive ? 'active' : ''}`}
+              onClick={() => onSelectTab?.(tab.id)}
+            >
+              <Icon size={14} color="currentColor" strokeWidth={isActive ? 2.2 : 1.7} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <button
