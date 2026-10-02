@@ -207,3 +207,16 @@ _Avoid_: Clunky boxed action buttons in field labels, hidden date calculators.
 **Tiered Activity & Skeleton Loaders**:
 A unified application-wide loading paradigm comprising an initial brand splash loader, a header activity progress line, and pulsing zinc skeleton cards.
 _Avoid_: Unstyled plain text loading strings, jarring full-screen modal spinners on minor API requests.
+
+**Upward-Anchored Solid Popovers**:
+Popovers and dropdown pickers (including the monochrome DatePicker calendar and planned item mapper) anchored directly above their input trigger (`bottom: calc(100% + 6px); top: auto;`) with an elevated solid opaque background (`var(--bg)` with 1px zinc hairline border and deep shadow), preventing downward overflow out of mobile bottom sheets and eliminating underlying transparency bleed.
+_Avoid_: Downward-overflowing popovers inside bottom sheets, semi-transparent dropdown backgrounds.
+
+**Dynamic Viewport Modal Containment**:
+Strict capping of mobile review sheets to `calc(100dvh - 24px)` with bounded gesture translation clamped to `y >= 0` via `gsap.utils.clamp`, smooth internal touch scrolling, and safe area inset padding, preventing modals from expanding or sliding beyond the top or bottom of the mobile viewport.
+_Avoid_: Unbounded touch translations, modals cutting off behind browser toolbars, uncapped vertical sheet heights.
+
+**Hardware-Accelerated Animation Pipeline**:
+An animation and computation pipeline optimized for 60fps interaction: memoizing expensive cubic Bézier SVG path calculations (`StepLineChart`), batching layout reads and writes before GSAP tweens, and cleaning up active tweens on unmount.
+_Avoid_: Per-hover SVG path recomputations, unmanaged orphan tweens, layout thrashing in animation loops.
+
