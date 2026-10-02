@@ -85,29 +85,23 @@ export function TimelineList({
       </div>
 
       {/* Filter Tabs / Pills */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px' }}>
+      <div className="timeline-filters-row">
         {[
           { id: 'all', label: 'All', count: counts.all },
           { id: 'incomes', label: 'Incomes', count: counts.incomes },
           { id: 'planned', label: 'Planned', count: counts.planned },
           ...(counts.pending > 0 ? [{ id: 'pending', label: 'Pending', count: counts.pending }] : []),
           { id: 'actuals', label: 'Actuals', count: counts.actuals },
-          { id: 'breaches', label: 'Floor Breaches', count: counts.breaches }
+          { id: 'breaches', label: 'Breaches', count: counts.breaches }
         ].map((tab) => (
           <button
             key={tab.id}
             type="button"
-            className={filterType === tab.id ? 'btn-primary' : 'btn-subtle'}
+            className={`timeline-filter-btn ${filterType === tab.id ? 'active' : ''}`}
             onClick={() => setFilterType(tab.id)}
-            style={{
-              padding: '4px 10px',
-              fontSize: '11px',
-              whiteSpace: 'nowrap',
-              borderRadius: '14px',
-              fontWeight: filterType === tab.id ? 600 : 400
-            }}
           >
-            {tab.label} ({tab.count})
+            <span>{tab.label}</span>
+            <span className="filter-count tabular-nums">{tab.count}</span>
           </button>
         ))}
       </div>
@@ -149,47 +143,18 @@ export function TimelineList({
             return (
               <React.Fragment key={`${evt.date}-${evt.sourceIndex || idx}`}>
                 {showTodayMarker && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '4px 0',
-                      margin: '2px 0'
-                    }}
-                  >
-                    <div style={{ flex: 1, height: '1px', background: 'var(--accent)', opacity: 0.4 }} />
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                        color: 'var(--accent)',
-                        background: 'var(--accent-subtle)',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <MapPinIcon size={12} color="var(--accent)" />
+                  <div className="timeline-today-divider">
+                    <div className="today-line" />
+                    <span className="today-badge">
+                      <MapPinIcon size={12} color="currentColor" />
                       Today ({formatDisplayDate(todayStr, true)})
                     </span>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--accent)', opacity: 0.4 }} />
+                    <div className="today-line" />
                   </div>
                 )}
 
                 <div
-                  className="timeline-event-row"
-                  style={{
-                    cursor: 'pointer',
-                    borderColor: isSelected ? 'var(--accent)' : undefined,
-                    background: isSelected ? 'var(--accent-subtle)' : undefined,
-                    boxShadow: isSelected ? '0 0 0 1px var(--accent)' : undefined,
-                    transition: 'all 0.15s ease'
-                  }}
+                  className={`timeline-event-row ${isSelected ? 'selected' : ''} ${isBreach ? 'row-breached' : ''}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
@@ -198,16 +163,7 @@ export function TimelineList({
                       <span className="timeline-event-label">{evt.label}</span>
                       {evt.isPending && (
                         <span
-                          style={{
-                            fontSize: '9px',
-                            fontWeight: 600,
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            background: 'var(--surface-subtle)',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text-secondary)',
-                            textTransform: 'uppercase'
-                          }}
+                          className="pending-status-pill"
                           title={`Scheduled for Day ${evt.originalDay} but unpaid; cash remains in today's balance.`}
                         >
                           Pending
@@ -215,42 +171,20 @@ export function TimelineList({
                       )}
                     </div>
                     <span className="timeline-event-type">
-                      {evt.itemType} {evt.isActual ? '• logged transaction' : evt.isPending ? `• pending disbursement (orig. Day ${evt.originalDay})` : '• scheduled'}
-                      {evt.isFixed ? ' • fixed rollover' : ''}
+                      {evt.itemType} {evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : '• planned'}
+                      {evt.isFixed ? ' • fixed' : ''}
                     </span>
                   </div>
 
-                  <div className="timeline-event-date" style={{ minWidth: '80px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 500 }}>{formatDisplayDate(evt.date, true)}</div>
+                  <div className="timeline-event-date">
+                    <div className="event-date-text tabular-nums">{formatDisplayDate(evt.date, true)}</div>
                     {isPreMonth && (
-                      <span
-                        style={{
-                          fontSize: '9px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '8px',
-                          background: 'var(--text)',
-                          color: 'var(--bg)',
-                          display: 'inline-block',
-                          marginTop: '2px'
-                        }}
-                      >
+                      <span className="day-offset-pill tabular-nums">
                         Day {evt.day}
                       </span>
                     )}
                     {isToday && !isPreMonth && (
-                      <span
-                        style={{
-                          fontSize: '9px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '8px',
-                          background: 'var(--accent)',
-                          color: '#fff',
-                          display: 'inline-block',
-                          marginTop: '2px'
-                        }}
-                      >
+                      <span className="today-pill">
                         Today
                       </span>
                     )}
@@ -258,17 +192,14 @@ export function TimelineList({
 
                   <div className="timeline-event-numbers">
                     <span
-                      className={`timeline-event-amount ${isIncome ? 'positive' : ''}`}
+                      className={`timeline-event-amount tabular-nums ${isIncome ? 'positive' : ''}`}
                     >
                       {isIncome ? '+' : ''}{formatCurrency(evt.amount, currencySymbol)}
                     </span>
                     <span
-                      className="timeline-event-balance"
-                      style={{
-                        color: isBreach ? 'var(--danger)' : 'var(--text-secondary)',
-                        fontWeight: isBreach ? 700 : 400
-                      }}
+                      className={`timeline-event-balance tabular-nums ${isBreach ? 'text-breached' : ''}`}
                     >
+                      {isBreach && <span className="inline-breach-glyph">▲ </span>}
                       bal: {formatCurrency(evt.balanceAfter, currencySymbol)}
                     </span>
                   </div>
