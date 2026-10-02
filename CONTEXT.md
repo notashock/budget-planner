@@ -220,3 +220,11 @@ _Avoid_: Unbounded touch translations, modals cutting off behind browser toolbar
 An animation and computation pipeline optimized for 60fps interaction: memoizing expensive cubic Bézier SVG path calculations (`StepLineChart`), batching layout reads and writes before GSAP tweens, and cleaning up active tweens on unmount.
 _Avoid_: Per-hover SVG path recomputations, unmanaged orphan tweens, layout thrashing in animation loops.
 
+**Component Error Boundary**:
+A fault-isolation layer wrapping critical dashboard views and SVG charts (`StepLineChart`, `PlanScreen`, and main screen tab router) that catches runtime exceptions, isolates failures from unmounting parent trees, and renders an elegant Swiss-Linear recovery interface ("Try again" / "Reload").
+_Avoid_: Uncaught React runtime crashes, unhandled white screens, silent component unmounting.
+
+**Web Component Verification Pipeline**:
+An automated component test suite in `@budget/web` powered by Vitest, JSDOM, and `@testing-library/react` integrated directly into the root `npm run test:all` script and GitHub Actions CI workflow (`ci.yml`), validating interactive contracts (touch gestures, upward popovers, month-year navigation, and error isolation) across all core components before build and deployment.
+_Avoid_: Untested client-side UI components, manual regression testing of chart gestures and popovers.
+
