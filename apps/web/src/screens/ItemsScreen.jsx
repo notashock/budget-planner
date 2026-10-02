@@ -40,16 +40,21 @@ export function ItemsScreen({
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div className="timeline-filters-row">
         {['all', 'recurring', 'one-time', 'pending', 'transactions'].map((t) => (
           <button
             key={t}
             type="button"
-            className={filter === t ? 'btn-primary' : ''}
+            className={`timeline-filter-btn ${filter === t ? 'active' : ''}`}
             onClick={() => setFilter(t)}
-            style={{ padding: '6px 10px', fontSize: '11px', textTransform: 'capitalize' }}
+            style={{ textTransform: 'capitalize' }}
           >
-            {t} {t === 'pending' ? `(${pendingCount})` : t === 'transactions' ? `(${transactions.length})` : ''}
+            <span>{t}</span>
+            {(t === 'pending' || t === 'transactions') && (
+              <span className="filter-count tabular-nums">
+                {t === 'pending' ? pendingCount : transactions.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -63,23 +68,23 @@ export function ItemsScreen({
             </div>
           ) : (
             transactions.map((tx) => (
-              <div key={tx._id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }}>
+              <div key={tx._id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
                     {tx.note || tx.tag}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {formatDisplayDate(tx.date, true)} • {tx.tag} {tx.plannedItemId ? '• matched to planned item' : '• unexpected'}
+                    <span className="tabular-nums">{formatDisplayDate(tx.date, true)}</span> • {tx.tag} {tx.plannedItemId ? '• matched planned item' : '• unexpected'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontWeight: 600, color: tx.amount < 0 ? 'var(--success)' : 'var(--text)' }}>
+                  <span className="tabular-nums" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
                     {formatCurrency(tx.amount, currencySymbol)}
                   </span>
                   <button
                     type="button"
                     className="btn-danger"
-                    style={{ padding: '2px 6px', fontSize: '11px' }}
+                    style={{ padding: '3px 8px', fontSize: '11px' }}
                     onClick={() => onDeleteTransaction(tx._id)}
                   >
                     Delete
@@ -121,9 +126,9 @@ export function ItemsScreen({
 
                 const pVal = item.priority ?? 0;
                 const pTier = pVal === 0
-                  ? { label: 'High', bars: 3, color: 'var(--accent)' }
+                  ? { label: 'High', bars: 3, color: 'var(--text)' }
                   : pVal === 1
-                  ? { label: 'Med', bars: 2, color: 'var(--warning)' }
+                  ? { label: 'Med', bars: 2, color: 'var(--text-secondary)' }
                   : { label: 'Low', bars: 1, color: 'var(--text-muted)' };
 
                 return (
