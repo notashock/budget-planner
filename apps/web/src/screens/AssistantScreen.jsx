@@ -137,10 +137,24 @@ export function AssistantScreen({
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn-primary" disabled={parsing || !promptText.trim()}>
-              {parsing ? 'Parsing...' : 'Parse into item'}
+              {parsing ? (
+                <>
+                  <span className="btn-spinner" style={{ marginRight: '8px' }} />
+                  <span>Parsing item...</span>
+                </>
+              ) : (
+                'Parse into item'
+              )}
             </button>
           </div>
         </form>
+
+        {parsing && (
+          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="skeleton-pulse" style={{ height: '14px', width: '45%' }} />
+            <div className="skeleton-pulse" style={{ height: '36px', width: '100%' }} />
+          </div>
+        )}
 
         {parseError && (
           <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: '12px' }}>
@@ -198,8 +212,23 @@ export function AssistantScreen({
           onClick={handleExplain}
           disabled={explaining || !simulation}
         >
-          {explaining ? 'Analyzing timeline...' : 'Analyze timeline'}
+          {explaining ? (
+            <>
+              <span className="btn-spinner" style={{ marginRight: '8px' }} />
+              <span>Analyzing timeline...</span>
+            </>
+          ) : (
+            'Analyze timeline'
+          )}
         </button>
+
+        {explaining && (
+          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="skeleton-pulse" style={{ height: '16px', width: '60%' }} />
+            <div className="skeleton-pulse" style={{ height: '14px', width: '90%' }} />
+            <div className="skeleton-pulse" style={{ height: '14px', width: '75%' }} />
+          </div>
+        )}
 
         {explainError && (
           <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: '12px' }}>
