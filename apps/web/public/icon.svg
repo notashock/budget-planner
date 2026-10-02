@@ -1,7 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="64" fill="#09090b"/>
-  <path d="M96 384 L180 384 L180 240 L260 240 L260 160 L360 160 L360 300 L416 300" fill="none" stroke="#22c55e" stroke-width="28" stroke-linecap="square" stroke-linejoin="miter"/>
-  <line x1="80" y1="320" x2="432" y2="320" stroke="#ef4444" stroke-width="12" stroke-dasharray="16 16"/>
-  <circle cx="260" cy="160" r="16" fill="#22c55e"/>
-  <circle cx="360" cy="300" r="16" fill="#ef4444"/>
+  <!-- Outer Shield Frame -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#09090b" stroke="#27272a" stroke-width="20"/>
+
+  <!-- Safety Floor Axis (Dotted Line) -->
+  <line x1="80" y1="368" x2="432" y2="368" stroke="#71717a" stroke-width="16" stroke-dasharray="24 24"/>
+
+  <!-- Dynamic Running Balance Spline Curve -->
+  <path d="M 80 336 C 160 336, 192 160, 272 192 C 352 224, 368 112, 432 144" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Outer Glow Halo on Balance Node -->
+  <circle cx="272" cy="192" r="64" fill="none" stroke="#71717a" stroke-width="12" opacity="0.6"/>
+
+  <!-- Core Solid Balance Node -->
+  <circle cx="272" cy="192" r="32" fill="#ffffff"/>
 </svg>
