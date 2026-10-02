@@ -114,20 +114,24 @@ export function SearchableItemPicker({
         </span>
       </button>
 
-      {/* Floating Popover Dropdown Card */}
+      {/* Floating Popover Dropdown Card (Upward Opening) */}
       {isOpen && (
         <div
           className="app-dropdown-menu"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            bottom: 'calc(100% + 6px)',
+            top: 'auto',
             left: 0,
             right: 0,
             width: '100%',
-            maxHeight: '280px',
+            maxHeight: '260px',
             overflowY: 'auto',
-            zIndex: 70,
-            padding: '6px'
+            zIndex: 100,
+            padding: '6px',
+            background: 'var(--bg)',
+            border: '1px solid var(--border-strong)',
+            boxShadow: '0 -12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border)'
           }}
           role="listbox"
         >
