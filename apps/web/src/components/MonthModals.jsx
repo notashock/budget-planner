@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { DatePicker } from './DatePicker.jsx';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -79,11 +80,11 @@ export function CreateMonthModal({ isOpen, onClose, onCreate, settings }) {
 
           <div className="form-group">
             <label className="form-label">Salary credit date</label>
-            <input
-              type="date"
-              required
+            <DatePicker
               value={incomeCreditDate}
-              onChange={(e) => setIncomeCreditDate(e.target.value)}
+              onChange={(d) => setIncomeCreditDate(d)}
+              month={{ year, month }}
+              required
             />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               Supports preceding month-end (e.g. Sept 30 for Oct budget).
