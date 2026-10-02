@@ -779,14 +779,14 @@ input[type="number"] {
   top: 100%;
   left: 0;
   margin-top: 6px;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   z-index: 50;
   min-width: 220px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
   overflow: hidden;
   padding: 4px;
 }
@@ -1655,6 +1655,24 @@ input[type="number"] {
   }
 }
 
+/* Month Review Mobile Viewport Capping & Containment */
+.month-review-content {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: max(28px, env(safe-area-inset-bottom, 28px));
+}
+
+@media (min-width: 640px) {
+  .month-review-content {
+    max-height: 88vh;
+    padding-bottom: 20px;
+  }
+}
+
 /* Modal Segmented Tab Track & Sliding Indicator */
 .modal-tab-track {
   position: relative;
@@ -2056,14 +2074,15 @@ input[type="number"] {
 
 .datepicker-popover {
   position: absolute;
-  top: calc(100% + 6px);
+  bottom: calc(100% + 6px);
+  top: auto;
   left: 0;
   z-index: 100;
   width: 270px;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: calc(var(--radius) + 2px);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -2072,7 +2091,7 @@ input[type="number"] {
 }
 
 @keyframes datepickerFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
