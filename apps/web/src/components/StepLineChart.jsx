@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 /**
@@ -18,7 +18,18 @@ export function StepLineChart({
   currentDay = null
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile((prev) => (prev !== mobile ? mobile : prev));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!dailyBalances || dailyBalances.length === 0) {
     return (
@@ -53,10 +64,10 @@ export function StepLineChart({
   const minVal = Math.min(0, ...balances, safetyFloor);
   const maxVal = Math.max(...balances, safetyFloor, totalExpense > 0 ? totalExpense : 1000);
 
-  // Compact SVG dimensions for desktop alignment with left panels
-  const width = 600;
-  const height = 175;
-  const paddingLeft = 62;
+  // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
+  const width = isMobile ? 500 : 600;
+  const height = isMobile ? 220 : 175;
+  const paddingLeft = isMobile ? 54 : 62;
   const paddingRight = 16;
   const paddingTop = 16;
   const paddingBottom = 26;
@@ -241,7 +252,7 @@ export function StepLineChart({
       prunedXTicks,
       cumulativeExpensesMap
     };
-  }, [dailyBalances, events, safetyFloor, currencySymbol]);
+  }, [dailyBalances, events, safetyFloor, currencySymbol, isMobile]);
 
   const {
     minDay,

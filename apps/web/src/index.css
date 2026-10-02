@@ -1854,6 +1854,18 @@ input[type="number"] {
     letter-spacing: 0.03em;
   }
 
+  /* Mobile Chart Enlargement & Breathing Room */
+  .dashboard-chart-panel .chart-container {
+    min-height: 155px;
+    display: flex;
+    align-items: center;
+  }
+
+  .dashboard-chart-panel .chart-svg {
+    min-height: 155px;
+    height: auto;
+  }
+
   /* Compact Summary & Safe Velocity */
   .summary-grid {
     gap: 7px;
