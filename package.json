@@ -7,10 +7,11 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm run test --workspace=@budget/engine",
+    "test": "npm run test:all",
     "test:engine": "npm run test --workspace=@budget/engine",
     "test:server": "npm run test --workspace=@budget/server",
-    "test:all": "npm run test:engine && npm run test:server",
+    "test:web": "npm run test --workspace=@budget/web",
+    "test:all": "npm run test:engine && npm run test:server && npm run test:web",
     "build": "npm run build --workspace=@budget/web",
     "build:web": "npm run build --workspace=@budget/web",
     "dev:server": "npm run dev --workspace=@budget/server",
