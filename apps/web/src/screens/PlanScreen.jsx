@@ -3,6 +3,7 @@ import { SafeVelocityCard, DetailedKpiGrid } from '../components/SummaryCards.js
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon } from '../components/Icons.jsx';
+import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 
 export function PlanScreen({
   month,
@@ -92,17 +93,19 @@ export function PlanScreen({
 
         {/* COMPONENT 2: TOP-RIGHT TIMELINE CHART (CURVED LINE) */}
         <div className="dashboard-chart-panel">
-          <StepLineChart
-            dailyBalances={dailyBalances}
-            events={events}
-            safetyFloor={month.safetyFloor}
-            currencySymbol={month.currencySymbol}
-            floorBreached={floorBreached}
-            lowestDate={lowestDate}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            currentDay={currentDay}
-          />
+          <ErrorBoundary title="Chart unavailable">
+            <StepLineChart
+              dailyBalances={dailyBalances}
+              events={events}
+              safetyFloor={month.safetyFloor}
+              currencySymbol={month.currencySymbol}
+              floorBreached={floorBreached}
+              lowestDate={lowestDate}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              currentDay={currentDay}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 
