@@ -11,6 +11,7 @@ import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 
@@ -376,56 +377,58 @@ export default function App() {
       <div className="app-container">
 
       <main style={{ flex: 1 }}>
-        {activeTab === 'plan' && (
-          <PlanScreen
-            month={currentMonth}
-            items={items}
-            simulation={activeSimulation}
-            onOpenUnifiedEntry={handleOpenUnifiedEntry}
-            onOpenReview={() => setReviewOpen(true)}
-          />
-        )}
+        <ErrorBoundary title="Screen rendering error">
+          {activeTab === 'plan' && (
+            <PlanScreen
+              month={currentMonth}
+              items={items}
+              simulation={activeSimulation}
+              onOpenUnifiedEntry={handleOpenUnifiedEntry}
+              onOpenReview={() => setReviewOpen(true)}
+            />
+          )}
 
-        {activeTab === 'items' && (
-          <ItemsScreen
-            items={items}
-            transactions={transactions}
-            simulation={activeSimulation}
-            currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
-            onOpenUnifiedEntry={handleOpenUnifiedEntry}
-            onEditItem={handleEditItem}
-            onTogglePaid={handleTogglePaid}
-            onDeleteItem={handleDeleteItem}
-            onDeleteTransaction={handleDeleteTransaction}
-          />
-        )}
+          {activeTab === 'items' && (
+            <ItemsScreen
+              items={items}
+              transactions={transactions}
+              simulation={activeSimulation}
+              currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
+              onOpenUnifiedEntry={handleOpenUnifiedEntry}
+              onEditItem={handleEditItem}
+              onTogglePaid={handleTogglePaid}
+              onDeleteItem={handleDeleteItem}
+              onDeleteTransaction={handleDeleteTransaction}
+            />
+          )}
 
-        {activeTab === 'goals' && (
-          <GoalsScreen
-            month={currentMonth}
-            goals={goals}
-            items={items}
-            transactions={transactions}
-            simulation={activeSimulation}
-            onCreateGoal={handleCreateGoal}
-            onConvertGoalToItem={handleConvertGoalToItem}
-            onDeferGoal={handleDeferGoal}
-            onReactivateGoal={handleReactivateGoal}
-            onDeleteGoal={handleDeleteGoal}
-            onSaveMonthSettings={handleSaveMonthSettings}
-          />
-        )}
+          {activeTab === 'goals' && (
+            <GoalsScreen
+              month={currentMonth}
+              goals={goals}
+              items={items}
+              transactions={transactions}
+              simulation={activeSimulation}
+              onCreateGoal={handleCreateGoal}
+              onConvertGoalToItem={handleConvertGoalToItem}
+              onDeferGoal={handleDeferGoal}
+              onReactivateGoal={handleReactivateGoal}
+              onDeleteGoal={handleDeleteGoal}
+              onSaveMonthSettings={handleSaveMonthSettings}
+            />
+          )}
 
-        {activeTab === 'assistant' && (
-          <AssistantScreen
-            settings={settings}
-            onToggleAi={handleToggleAi}
-            simulation={activeSimulation}
-            month={currentMonth}
-            onSaveParsedItem={handleSaveItem}
-            currencySymbol={currentMonth?.currencySymbol || '₹'}
-          />
-        )}
+          {activeTab === 'assistant' && (
+            <AssistantScreen
+              settings={settings}
+              onToggleAi={handleToggleAi}
+              simulation={activeSimulation}
+              month={currentMonth}
+              onSaveParsedItem={handleSaveItem}
+              currencySymbol={currentMonth?.currencySymbol || '₹'}
+            />
+          )}
+        </ErrorBoundary>
       </main>
       </div>
 
