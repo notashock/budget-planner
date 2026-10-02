@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, formatDisplayDate, getRelativeDay } from '@budget/engine';
 import { SearchableItemPicker } from './SearchableItemPicker';
+import { DatePicker } from './DatePicker';
 
 export function QuickLogModal({
   isOpen,
@@ -144,25 +145,12 @@ export function QuickLogModal({
           {/* Date Picker (defaults to today, supports backdating) */}
           <div className="form-group">
             <label className="form-label">Date</label>
-            <input
-              type="date"
-              required
+            <DatePicker
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(d) => setDate(d)}
+              month={month}
+              required
             />
-            {(() => {
-              const year = month?.year || new Date().getFullYear();
-              const monthNum = month?.month || (new Date().getMonth() + 1);
-              const relDay = date ? getRelativeDay(date, year, monthNum) : 1;
-              if (relDay < 0) {
-                return (
-                  <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
-                    Pre-month event (Day {relDay}): will be processed before Day 1.
-                  </span>
-                );
-              }
-              return null;
-            })()}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
