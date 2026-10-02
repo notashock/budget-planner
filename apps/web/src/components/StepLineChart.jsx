@@ -248,13 +248,15 @@ export function StepLineChart({
           <span className="card-title">Daily balance timeline</span>
           {selectedDay !== null && (
             <span
+              className="selected-day-tag tabular-nums"
               style={{
                 fontSize: '11px',
                 padding: '2px 8px',
-                background: 'var(--accent-subtle)',
-                color: 'var(--accent)',
-                borderRadius: '12px',
-                cursor: 'pointer'
+                background: 'var(--text)',
+                color: 'var(--bg)',
+                borderRadius: 'var(--radius-pill)',
+                cursor: 'pointer',
+                fontWeight: 600
               }}
               onClick={() => onSelectDay?.(null)}
               title="Click to clear day filter"
