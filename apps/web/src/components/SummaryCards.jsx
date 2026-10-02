@@ -9,58 +9,37 @@ export function SafeVelocityCard({
   currencySymbol = '₹'
 }) {
   return (
-    <div
-      className="summary-card safe-velocity-card"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border-strong)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px'
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span className="summary-label" style={{ fontWeight: 600, color: 'var(--text)' }}>
+    <div className="summary-card safe-velocity-card">
+      <div className="card-top-row">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="summary-label">
             Dynamic Safe Velocity
           </span>
           {safeVelocity?.paceStatus && (
-            <span
-              style={{
-                fontSize: '10px',
-                padding: '1px 6px',
-                borderRadius: '4px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-subtle)',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-                letterSpacing: '0.04em'
-              }}
-            >
+            <span className="pace-status-badge">
               {safeVelocity.paceStatus}
             </span>
           )}
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-          {safeVelocity?.daysLeft || daysLeft} days remaining
+        <span className="days-remaining-pill">
+          {safeVelocity?.daysLeft || daysLeft} days left
         </span>
       </div>
 
-      <div className="safe-velocity-hero" style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-        <span className="summary-value safe-velocity-value">
+      <div className="safe-velocity-hero">
+        <span className="safe-velocity-value tabular-nums">
           {formatCurrency(safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay, currencySymbol)}
-          <span className="safe-velocity-per-day"> / day</span>
         </span>
+        <span className="safe-velocity-per-day">/ day</span>
       </div>
 
       <div className="safe-velocity-footer">
-        <span>
-          Upcoming bills: {formatCurrency(safeVelocity?.committedUpcomingItems || 0, currencySymbol)}
+        <span className="safe-velocity-meta-item">
+          Committed bills: <strong className="tabular-nums">{formatCurrency(safeVelocity?.committedUpcomingItems || 0, currencySymbol)}</strong>
         </span>
         {safeVelocity?.burnRatePerDay > 0 && (
-          <span>
-            Burn pace: {formatCurrency(safeVelocity.burnRatePerDay, currencySymbol)}/day
+          <span className="safe-velocity-meta-item">
+            Burn pace: <strong className="tabular-nums">{formatCurrency(safeVelocity.burnRatePerDay, currencySymbol)}/day</strong>
           </span>
         )}
       </div>
@@ -87,46 +66,50 @@ export function DetailedKpiGrid({
 
   return (
     <div className="detailed-kpi-grid summary-grid">
-      <div className="summary-card">
+      <div className="summary-card kpi-card">
         <span className="summary-label">Monthly income</span>
-        <span className="summary-value">
+        <span className="summary-value tabular-nums">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+        <span className="kpi-subtext">
           Credited on day {incomeCreditDay}
         </span>
       </div>
 
-      <div className="summary-card">
+      <div className="summary-card kpi-card">
         <span className="summary-label">Total expenses</span>
-        <span className="summary-value">
+        <span className="summary-value tabular-nums">
           {formatCurrency(totalOutflow, currencySymbol)}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+        <span className="kpi-subtext">
           Across {events.filter((e) => e.amount < 0).length} occurrences
         </span>
       </div>
 
-      <div className="summary-card">
+      <div className="summary-card kpi-card">
         <span className="summary-label">Today's balance</span>
-        <span className="summary-value">
+        <span className="summary-value tabular-nums">
           {formatCurrency(todayBalance !== undefined ? todayBalance : endingBalance, currencySymbol)}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          Month-end projected: {formatCurrency(endingBalance, currencySymbol)}
+        <span className="kpi-subtext">
+          Month-end: <span className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</span>
         </span>
       </div>
 
-      <div className="summary-card">
-        <span className="summary-label">Lowest balance</span>
-        <span
-          className="summary-value"
-          style={{ color: floorBreached ? 'var(--danger)' : 'var(--text)' }}
-        >
+      <div className={`summary-card kpi-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="summary-label">Lowest balance</span>
+          {floorBreached && (
+            <span className="kpi-breach-badge">
+              ▲ BREACH
+            </span>
+          )}
+        </div>
+        <span className={`summary-value tabular-nums ${floorBreached ? 'text-breached' : ''}`}>
           {formatCurrency(lowestBalance, currencySymbol)}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          Occurs on {lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A'}
+        <span className="kpi-subtext">
+          On {lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A'}
         </span>
       </div>
     </div>
