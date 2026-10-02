@@ -318,14 +318,12 @@ export function UnifiedEntryModal({
       isDraggingSheet.current = true;
       if (e.cancelable) e.preventDefault();
 
-      if (deltaY >= 0) {
-        gsap.set(contentRef.current, { y: deltaY });
-        const progress = Math.max(0, 1 - deltaY / 320);
-        if (overlayRef.current) {
-          gsap.set(overlayRef.current, { opacity: progress });
-        }
-      } else {
-        gsap.set(contentRef.current, { y: deltaY * 0.2 });
+      // Clamp y >= 0 via gsap.utils.clamp: prevents sheet from ever translating above the top viewport edge
+      const clampedY = gsap.utils.clamp(0, window.innerHeight, deltaY);
+      gsap.set(contentRef.current, { y: clampedY });
+      const progress = gsap.utils.clamp(0, 1, 1 - clampedY / 320);
+      if (overlayRef.current) {
+        gsap.set(overlayRef.current, { opacity: progress });
       }
     }
   };
@@ -380,6 +378,15 @@ export function UnifiedEntryModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [shouldRender, triggerExit]);
+
+  // Clean up active tweens on unmount
+  useEffect(() => {
+    return () => {
+      if (contentRef.current) gsap.killTweensOf(contentRef.current);
+      if (overlayRef.current) gsap.killTweensOf(overlayRef.current);
+      if (indicatorRef.current) gsap.killTweensOf(indicatorRef.current);
+    };
+  }, []);
 
   const handleSwitchMode = contextSafe((newMode) => {
     if (newMode === mode) return;
