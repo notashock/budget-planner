@@ -12,6 +12,8 @@ import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
 
+import { AnimatedLogo } from './components/AnimatedLogo.jsx';
+
 export default function App() {
   // Theme state
   const [theme, setTheme] = useState(() => localStorage.getItem('budget_theme') || 'dark');
@@ -26,6 +28,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Month & Items state
   const [months, setMonths] = useState([]);
@@ -59,6 +62,7 @@ export default function App() {
 
   // Fetch months when user logs in
   const loadMonths = async (selectYear = null, selectMonth = null) => {
+    setDataLoading(true);
     try {
       const list = await api.getMonths();
       setMonths(list);
@@ -68,7 +72,7 @@ export default function App() {
           const match = list.find((m) => m.year === selectYear && m.month === selectMonth);
           if (match) target = match;
         }
-        loadMonthDetails(target.year, target.month);
+        await loadMonthDetails(target.year, target.month);
       } else {
         setCurrentMonth(null);
         setItems([]);
@@ -78,6 +82,8 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to load months:', err);
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -91,14 +97,17 @@ export default function App() {
   };
 
   const loadMonthDetails = async (year, monthNum) => {
+    setDataLoading(true);
     try {
       const res = await api.getMonthDetail(year, monthNum);
       setCurrentMonth(res.month);
       setItems(res.items);
       setTransactions(res.transactions || []);
-      loadGoals(year, monthNum);
+      await loadGoals(year, monthNum);
     } catch (err) {
       console.error('Failed to load month details:', err);
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -326,8 +335,14 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-secondary)' }}>
-        Loading budget planner...
+      <div className="app-splash-screen">
+        <AnimatedLogo size={36} />
+        <div className="app-splash-loader-bar">
+          <div className="app-splash-loader-progress" />
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+          Initializing Budget Planner
+        </span>
       </div>
     );
   }
@@ -338,6 +353,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {dataLoading && (
+        <div className="top-activity-bar">
+          <div className="top-activity-line" />
+        </div>
+      )}
       <Header
         user={user}
         months={months}
@@ -349,6 +369,8 @@ export default function App() {
         onLogout={handleLogout}
         theme={theme}
         onToggleTheme={toggleTheme}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
       />
 
       <div className="app-container">
