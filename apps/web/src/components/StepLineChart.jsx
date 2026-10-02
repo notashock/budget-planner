@@ -219,6 +219,8 @@ export function StepLineChart({
     }
 
     return {
+      minDay,
+      maxDay,
       width,
       height,
       paddingLeft,
@@ -242,6 +244,8 @@ export function StepLineChart({
   }, [dailyBalances, events, safetyFloor, currencySymbol]);
 
   const {
+    minDay,
+    maxDay,
     width,
     height,
     paddingLeft,
