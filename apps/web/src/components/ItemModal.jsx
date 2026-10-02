@@ -7,6 +7,8 @@ import {
   getDateFromRelativeDay
 } from '@budget/engine';
 import { api } from '../api.js';
+import { DatePicker } from './DatePicker.jsx';
+import { SparklesIcon } from './Icons.jsx';
 
 export function ItemModal({
   isOpen,
@@ -264,41 +266,27 @@ export function ItemModal({
                 {!isPaid && (
                   <button
                     type="button"
-                    className="btn-subtle"
-                    style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border)' }}
+                    className="sparkle-action-link"
                     onClick={handleRecommendDate}
                     disabled={recommending}
-                    title="Recommend best date based on spending pace, balance, and floor buffer"
+                    title="Recommend best safe date based on spending pace, balance, and floor buffer"
                   >
-                    {recommending ? 'Calculating...' : '⚡ Recommend best date'}
+                    <SparklesIcon size={12} className={recommending ? 'sparkle-spin-icon' : ''} />
+                    <span>{recommending ? 'Analyzing cash flow...' : 'Recommend best date'}</span>
                   </button>
                 )}
               </div>
-              <input
-                type="date"
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(d) => setDate(d)}
                 placeholder="Leave blank for auto-recommended safe date"
+                month={month}
               />
               {!date && !isPaid && (
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
                   Payment pending: date left blank. Application will assign best date on save or click "Recommend best date".
                 </span>
               )}
-              {(() => {
-                if (!date) return null;
-                const year = month?.year || 2026;
-                const monthNum = month?.month || 1;
-                const relDay = getRelativeDay(date, year, monthNum);
-                if (relDay < 0) {
-                  return (
-                    <span style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', display: 'block' }}>
-                      Pre-month event (Day {relDay}): will be processed before Day 1.
-                    </span>
-                  );
-                }
-                return null;
-              })()}
             </div>
           )}
 
