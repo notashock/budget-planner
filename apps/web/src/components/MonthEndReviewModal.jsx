@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { api } from '../api.js';
 import { formatCurrency } from '@budget/engine';
+
+gsap.registerPlugin(useGSAP);
 
 export function MonthEndReviewModal({
   isOpen,
@@ -10,10 +14,46 @@ export function MonthEndReviewModal({
   simulation = null,
   currencySymbol = '₹'
 }) {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const isClosingRef = useRef(false);
+
+  const containerRef = useRef(null);
+  const overlayRef = useRef(null);
+  const contentRef = useRef(null);
+  const reviewBodyRef = useRef(null);
+
+  // Touch gesture tracking for mobile bottom-to-top drawer
+  const touchStartY = useRef(0);
+  const touchStartScrollTop = useRef(0);
+  const isDraggingSheet = useRef(false);
+  const touchStartTime = useRef(0);
+
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Lock outer background body scroll while modal is rendered
+  useEffect(() => {
+    if (shouldRender) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [shouldRender]);
+
+  // Sync internal render state with isOpen prop
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      isClosingRef.current = false;
+    } else if (shouldRender && !isClosingRef.current) {
+      triggerExit();
+    }
+  }, [isOpen]);
+
+  // Fetch review data on open
   useEffect(() => {
     if (isOpen && month) {
       setLoading(true);
@@ -25,7 +65,164 @@ export function MonthEndReviewModal({
     }
   }, [isOpen, month]);
 
-  if (!isOpen) return null;
+  const { contextSafe } = useGSAP({ scope: containerRef });
+
+  // Exit animation execution
+  const triggerExit = contextSafe((onDone) => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setShouldRender(false);
+        isClosingRef.current = false;
+        if (typeof onDone === 'function') onDone();
+        onClose?.();
+      }
+    });
+
+    if (contentRef.current) {
+      tl.to(
+        contentRef.current,
+        {
+          y: isMobile ? '100%' : 16,
+          scale: isMobile ? 1 : 0.985,
+          opacity: isMobile ? 1 : 0,
+          duration: 0.18,
+          ease: 'power2.in'
+        },
+        0
+      );
+    }
+
+    if (overlayRef.current) {
+      tl.to(
+        overlayRef.current,
+        {
+          opacity: 0,
+          duration: 0.18,
+          ease: 'power2.in'
+        },
+        0
+      );
+    }
+  });
+
+  // Entrance animation on mount
+  useGSAP(() => {
+    if (!shouldRender || isClosingRef.current) return;
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    gsap.killTweensOf([overlayRef.current, contentRef.current]);
+
+    if (overlayRef.current) {
+      gsap.fromTo(
+        overlayRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.24, ease: 'power2.out' }
+      );
+    }
+
+    if (contentRef.current) {
+      gsap.fromTo(
+        contentRef.current,
+        {
+          y: isMobile ? '100%' : 18,
+          scale: isMobile ? 1 : 0.985,
+          opacity: isMobile ? 1 : 0
+        },
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.28,
+          ease: 'power3.out'
+        }
+      );
+    }
+  }, { dependencies: [shouldRender], scope: containerRef });
+
+  // Stagger review cards when review data arrives
+  useGSAP(() => {
+    if (!shouldRender || !review || loading || !reviewBodyRef.current) return;
+
+    const cards = reviewBodyRef.current.querySelectorAll('.summary-card, .card');
+    if (cards.length) {
+      gsap.fromTo(
+        cards,
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, stagger: 0.03, duration: 0.24, ease: 'power2.out' }
+      );
+    }
+  }, { dependencies: [review, loading, shouldRender], scope: containerRef });
+
+  // Touch gesture drag-to-dismiss handlers
+  const handleTouchStart = (e) => {
+    if (!contentRef.current) return;
+    touchStartY.current = e.touches[0].clientY;
+    touchStartScrollTop.current = contentRef.current.scrollTop;
+    isDraggingSheet.current = false;
+    touchStartTime.current = Date.now();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!contentRef.current) return;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    if (!isMobile) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    if ((touchStartScrollTop.current <= 0 && deltaY > 0) || isDraggingSheet.current) {
+      isDraggingSheet.current = true;
+      if (e.cancelable) e.preventDefault();
+
+      if (deltaY >= 0) {
+        gsap.set(contentRef.current, { y: deltaY });
+        const progress = Math.max(0, 1 - deltaY / 320);
+        if (overlayRef.current) {
+          gsap.set(overlayRef.current, { opacity: progress });
+        }
+      } else {
+        gsap.set(contentRef.current, { y: deltaY * 0.2 });
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!contentRef.current || !isDraggingSheet.current) return;
+    isDraggingSheet.current = false;
+
+    const currentY = e.changedTouches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+    const elapsed = Date.now() - touchStartTime.current;
+    const velocity = deltaY / (elapsed || 1);
+
+    if (deltaY > 80 || (velocity > 0.45 && deltaY > 25)) {
+      triggerExit();
+    } else {
+      gsap.to(contentRef.current, { y: 0, duration: 0.18, ease: 'power2.out' });
+      if (overlayRef.current) {
+        gsap.to(overlayRef.current, { opacity: 1, duration: 0.18, ease: 'power2.out' });
+      }
+    }
+  };
+
+  // Keyboard Escape listener
+  useEffect(() => {
+    if (!shouldRender) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        triggerExit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [shouldRender, triggerExit]);
+
+  if (!shouldRender) return null;
 
   // Breakdown of recurring and fixed commitments
   const recurringItems = (items || []).filter((i) => i.type === 'recurring');
@@ -42,212 +239,230 @@ export function MonthEndReviewModal({
   const paceStatus = simulation?.safeVelocity?.paceStatus || null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div ref={containerRef}>
       <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '580px', maxHeight: '88vh', overflowY: 'auto' }}
+        ref={overlayRef}
+        className="modal-overlay"
+        onClick={() => triggerExit()}
       >
-        <div className="modal-drag-handle" />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Month Review</h3>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Audit of planned baselines, recurring commitments, and dynamic survival cushion
-            </span>
+        <div
+          ref={contentRef}
+          className="modal-content"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ maxWidth: '580px' }}
+        >
+          {/* Mobile bottom-sheet grab handle */}
+          <div className="modal-drag-zone">
+            <div className="modal-drag-handle" />
           </div>
-          <button
-            type="button"
-            className="btn-subtle"
-            onClick={onClose}
-            style={{ fontSize: '18px', padding: '4px 8px', lineHeight: 1 }}
-            title="Close"
-          >
-            &times;
-          </button>
-        </div>
 
-        {loading ? (
-          <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading review analysis...
-          </div>
-        ) : error ? (
-          <div style={{ color: 'var(--danger)', fontSize: '13px', padding: '12px 0' }}>{error}</div>
-        ) : review ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
-            {/* Dynamic Survival Cushion vs Actual Spend */}
-            <div className="summary-grid">
-              <div className="summary-card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className="summary-label">Dynamic survival cushion</span>
-                  {paceStatus && (
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        background: 'var(--surface-subtle)',
-                        color: 'var(--text-secondary)',
-                        textTransform: 'uppercase',
-                        fontWeight: 600
-                      }}
-                    >
-                      {paceStatus}
-                    </span>
-                  )}
-                </div>
-                <span className="summary-value">
-                  {formatCurrency(survivalCushion, currencySymbol)}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {formatCurrency(safeVelocityPerDay, currencySymbol)}/day safe pace
-                </span>
-              </div>
-              <div className="summary-card">
-                <span className="summary-label">Actual unplanned spend</span>
-                <span
-                  className="summary-value"
-                  style={{
-                    color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)'
-                  }}
-                >
-                  {formatCurrency(review.totalUnplannedActual, currencySymbol)}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {review.totalUnplannedActual > survivalCushion ? 'Exceeded cushion' : 'Within survival limits'}
-                </span>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Month Review</h3>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Audit of planned baselines, recurring commitments, and dynamic survival cushion
+              </span>
             </div>
+            <button
+              type="button"
+              className="btn-subtle"
+              onClick={() => triggerExit()}
+              style={{ fontSize: '18px', padding: '4px 8px', lineHeight: 1 }}
+              title="Close"
+            >
+              &times;
+            </button>
+          </div>
 
-            {/* Fixed & Recurring Commitments Section */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Fixed & recurring commitments</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Total: {formatCurrency(totalRecurringCommitted, currencySymbol)}
-                </span>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 0' }}>
+              <div className="summary-grid">
+                <div className="skeleton-pulse" style={{ height: '76px' }} />
+                <div className="skeleton-pulse" style={{ height: '76px' }} />
+              </div>
+              <div className="skeleton-pulse" style={{ height: '140px' }} />
+              <div className="skeleton-pulse" style={{ height: '90px' }} />
+            </div>
+          ) : error ? (
+            <div style={{ color: 'var(--danger)', fontSize: '13px', padding: '12px 0' }}>{error}</div>
+          ) : review ? (
+            <div ref={reviewBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '4px' }}>
+              {/* Dynamic Survival Cushion vs Actual Spend */}
+              <div className="summary-grid">
+                <div className="summary-card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span className="summary-label">Dynamic survival cushion</span>
+                    {paceStatus && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: 'var(--surface-subtle)',
+                          color: 'var(--text-secondary)',
+                          textTransform: 'uppercase',
+                          fontWeight: 600
+                        }}
+                      >
+                        {paceStatus}
+                      </span>
+                    )}
+                  </div>
+                  <span className="summary-value">
+                    {formatCurrency(survivalCushion, currencySymbol)}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    {formatCurrency(safeVelocityPerDay, currencySymbol)}/day safe pace
+                  </span>
+                </div>
+                <div className="summary-card">
+                  <span className="summary-label">Actual unplanned spend</span>
+                  <span
+                    className="summary-value"
+                    style={{
+                      color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)'
+                    }}
+                  >
+                    {formatCurrency(review.totalUnplannedActual, currencySymbol)}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    {review.totalUnplannedActual > survivalCushion ? 'Exceeded cushion' : 'Within survival limits'}
+                  </span>
+                </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '10px' }}>
-                <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Fixed Rollovers</div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
-                    {formatCurrency(totalFixedCommitted, currencySymbol)}
+              {/* Fixed & Recurring Commitments Section */}
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-title">Fixed & recurring commitments</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    Total: {formatCurrency(totalRecurringCommitted, currencySymbol)}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '10px' }}>
+                  <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Fixed Rollovers</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
+                      {formatCurrency(totalFixedCommitted, currencySymbol)}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {fixedItems.length} fixed item{fixedItems.length !== 1 ? 's' : ''}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {fixedItems.length} fixed item{fixedItems.length !== 1 ? 's' : ''}
+
+                  <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Monthly Variable</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
+                      {formatCurrency(totalRecurringCommitted - totalFixedCommitted, currencySymbol)}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {variableRecurring.length} variable item{variableRecurring.length !== 1 ? 's' : ''}
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Monthly Variable</div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
-                    {formatCurrency(totalRecurringCommitted - totalFixedCommitted, currencySymbol)}
+                {recurringItems.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '12px' }}>
+                    No recurring commitments configured for this month.
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {variableRecurring.length} variable item{variableRecurring.length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-              </div>
-
-              {recurringItems.length === 0 ? (
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '12px' }}>
-                  No recurring commitments configured for this month.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {recurringItems.map((item) => (
-                    <div
-                      key={item._id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 0',
-                        borderBottom: '1px solid var(--border)',
-                        fontSize: '13px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 500 }}>{item.name}</span>
-                        {item.isFixed && (
-                          <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>
-                            Fixed Rollover
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {recurringItems.map((item) => (
+                      <div
+                        key={item._id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 0',
+                          borderBottom: '1px solid var(--border)',
+                          fontSize: '13px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 500 }}>{item.name}</span>
+                          {item.isFixed && (
+                            <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>
+                              Fixed Rollover
+                            </span>
+                          )}
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            Day {item.dayOfMonth || 1}
                           </span>
-                        )}
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          Day {item.dayOfMonth || 1}
+                        </div>
+                        <span style={{ fontWeight: 600 }}>
+                          {formatCurrency(item.amount, currencySymbol)}
                         </span>
                       </div>
-                      <span style={{ fontWeight: 600 }}>
-                        {formatCurrency(item.amount, currencySymbol)}
-                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Tag Breakdown */}
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-title">Spending by category</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {Object.keys(review.tagBreakdown || {}).length === 0 ? (
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px' }}>
+                      No categorized spending recorded this month.
                     </div>
-                  ))}
+                  ) : (
+                    Object.entries(review.tagBreakdown || {}).map(([tag, data]) => (
+                      <div
+                        key={tag}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 0',
+                          borderBottom: '1px solid var(--border)',
+                          fontSize: '13px'
+                        }}
+                      >
+                        <span>{tag} ({data.count} entries)</span>
+                        <span style={{ fontWeight: 600 }}>
+                          {formatCurrency(data.total, currencySymbol)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Suggested Survival Cushion */}
+              <div className="card" style={{ background: 'var(--surface-subtle)' }}>
+                <div className="card-header">
+                  <span className="card-title">Suggested next-month survival cushion</span>
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--accent)' }}>
+                  {formatCurrency(review.suggestedNextMonthAllowance, currencySymbol)}
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Dynamically projected based on actual spending velocity + 10% safety buffer to safeguard your salary floor and active commitments.
+                </p>
+              </div>
+
+              {/* Optional AI Pattern Explanation */}
+              {review.aiExplanation && (
+                <div className="card">
+                  <div className="card-header">
+                    <span className="card-title">Assistant spending insight</span>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {review.aiExplanation}
+                  </p>
                 </div>
               )}
             </div>
-
-            {/* Tag Breakdown */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Spending by category</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {Object.keys(review.tagBreakdown || {}).length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px' }}>
-                    No categorized spending recorded this month.
-                  </div>
-                ) : (
-                  Object.entries(review.tagBreakdown || {}).map(([tag, data]) => (
-                    <div
-                      key={tag}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 0',
-                        borderBottom: '1px solid var(--border)',
-                        fontSize: '13px'
-                      }}
-                    >
-                      <span>{tag} ({data.count} entries)</span>
-                      <span style={{ fontWeight: 600 }}>
-                        {formatCurrency(data.total, currencySymbol)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Suggested Survival Cushion */}
-            <div className="card" style={{ background: 'var(--surface-subtle)' }}>
-              <div className="card-header">
-                <span className="card-title">Suggested next-month survival cushion</span>
-              </div>
-              <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--accent)' }}>
-                {formatCurrency(review.suggestedNextMonthAllowance, currencySymbol)}
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Dynamically projected based on actual spending velocity + 10% safety buffer to safeguard your salary floor and active commitments.
-              </p>
-            </div>
-
-            {/* Optional AI Pattern Explanation */}
-            {review.aiExplanation && (
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title">Assistant spending insight</span>
-                </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  {review.aiExplanation}
-                </p>
-              </div>
-            )}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </div>
   );
