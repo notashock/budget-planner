@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 /**
@@ -28,8 +28,10 @@ export function StepLineChart({
     );
   }
 
-  // Compute cumulative expenses per day
-  const expenseEvents = (events || []).filter((e) => e.amount < 0);
+  // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
+  const chartData = useMemo(() => {
+    // Compute cumulative expenses per day
+    const expenseEvents = (events || []).filter((e) => e.amount < 0);
   const cumulativeExpensesMap = {};
   let runningExpense = 0;
 
@@ -207,14 +209,59 @@ export function StepLineChart({
     }
   });
 
-  // Guarantee maxDay is represented at the month-end boundary
-  if (!prunedXTicks.includes(maxDay)) {
-    if (prunedXTicks.length > 0 && Math.abs(getX(maxDay) - getX(prunedXTicks[prunedXTicks.length - 1])) < 38) {
-      prunedXTicks[prunedXTicks.length - 1] = maxDay;
-    } else {
-      prunedXTicks.push(maxDay);
+    // Guarantee maxDay is represented at the month-end boundary
+    if (!prunedXTicks.includes(maxDay)) {
+      if (prunedXTicks.length > 0 && Math.abs(getX(maxDay) - getX(prunedXTicks[prunedXTicks.length - 1])) < 38) {
+        prunedXTicks[prunedXTicks.length - 1] = maxDay;
+      } else {
+        prunedXTicks.push(maxDay);
+      }
     }
-  }
+
+    return {
+      width,
+      height,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      chartWidth,
+      chartHeight,
+      getX,
+      getY,
+      points,
+      pathD,
+      areaD,
+      expensePoints,
+      expensePathD,
+      floorY,
+      yTicks,
+      prunedXTicks,
+      cumulativeExpensesMap
+    };
+  }, [dailyBalances, events, safetyFloor, currencySymbol]);
+
+  const {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+    chartWidth,
+    chartHeight,
+    getX,
+    getY,
+    points,
+    pathD,
+    areaD,
+    expensePoints,
+    expensePathD,
+    floorY,
+    yTicks,
+    prunedXTicks,
+    cumulativeExpensesMap
+  } = chartData;
 
   // Active point for tooltip inspection
   const activeDay = hoveredDay !== null ? hoveredDay : selectedDay;
