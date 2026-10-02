@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate, recommendPurchaseDate } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon } from '../components/Icons.jsx';
+import { DatePicker } from '../components/DatePicker.jsx';
 
 function computeAffordableGoalBundles(activeGoals, availableCushion) {
   if (!activeGoals || activeGoals.length === 0 || availableCushion <= 0) return [];
@@ -569,11 +570,11 @@ export function GoalsScreen({
 
                 <div className="form-group">
                   <label className="form-label">Salary credit date</label>
-                  <input
-                    type="date"
-                    required
+                  <DatePicker
                     value={incomeCreditDate}
-                    onChange={(e) => setIncomeCreditDate(e.target.value)}
+                    onChange={(d) => setIncomeCreditDate(d)}
+                    month={month}
+                    required
                   />
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     Supports preceding month-end (e.g. Sept 30) for this month's budget.
