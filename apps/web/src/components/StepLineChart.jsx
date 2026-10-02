@@ -288,6 +288,29 @@ export function StepLineChart({
 
   const todayPoint = typeof currentDay === 'number' ? dailyBalances.find((p) => p.day === currentDay) : null;
 
+  const handleTouch = (e) => {
+    if (!e.touches || e.touches.length === 0 || !containerRef.current) return;
+    const touch = e.touches[0];
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width) return;
+    const touchX = touch.clientX - rect.left;
+    const relX = (touchX / rect.width) * width;
+
+    let closestDay = dailyBalances[0]?.day ?? 1;
+    let minDistance = Infinity;
+
+    dailyBalances.forEach((pt) => {
+      const px = getX(pt.day);
+      const dist = Math.abs(px - relX);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestDay = pt.day;
+      }
+    });
+
+    setHoveredDay(closestDay);
+  };
+
   return (
     <div className="card">
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '6px' }}>
