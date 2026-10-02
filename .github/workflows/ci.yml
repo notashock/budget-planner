@@ -51,6 +51,9 @@ jobs:
       - name: Run Server Integration Tests (MongoDB)
         run: npm run test:server
 
+      - name: Run Web Component Unit Tests
+        run: npm run test:web
+
       - name: Build Web Application (Vite)
         run: npm run build:web
 
