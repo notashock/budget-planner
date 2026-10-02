@@ -68,7 +68,14 @@ export function AuthScreen({ onLogin, onRegister }) {
           )}
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '6px' }}>
-            {loading ? 'Please wait...' : (isRegister ? 'Register' : 'Sign in')}
+            {loading ? (
+              <>
+                <span className="btn-spinner" style={{ marginRight: '8px' }} />
+                <span>Please wait...</span>
+              </>
+            ) : (
+              isRegister ? 'Register' : 'Sign in'
+            )}
           </button>
         </form>
 
