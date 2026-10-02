@@ -160,6 +160,50 @@ _Avoid_: Global recurring paid flag, permanent payment toggle.
 A standardized, animated sliding pill switch component (`.recurring-toggle-switch`) used consistently across all card types (recurring, one-time, debt) and modal entry forms (unified entry modal, item modal) to toggle payment disbursement status (`isPaid: true/false`), replacing disparate checkboxes, ad-hoc buttons, and redundant "in account" labels with a unified tactile interface.
 _Avoid_: Native checkbox, ad-hoc button toggle, "in account" label, disparate per-card controls.
 
+**Swiss-Linear Monochrome Aesthetic**:
+The visual design architecture of the application, defined by deep obsidian `#09090b` and pure white `#ffffff`, hairline 1px zinc borders (`#27272a` / `#e4e4e7`), Geist/Inter typography with tabular figures (`tnum`), and strictly zero chromatic saturation.
+_Avoid_: Rainbow UI, pastel tags, saturation accents, muddy gray-on-gray borders.
 
+**Adaptive Navigation Architecture**:
+A responsive navigation layout featuring an integrated segmented pill navigation bar in the top header for desktop and tablet viewports, transitioning to a compact, thumb-accessible bottom tab bar on mobile viewports (<640px) while reclaiming desktop viewport height.
+_Avoid_: Pinned bottom bar on wide desktop, desktop hamburger menu, fixed mobile-first layout.
 
+**High-Contrast Monochrome Breach Inversion**:
+A visual status paradigm for critical financial safety alerts (floor breaches and deficit warnings) utilizing solid inverted pills (pure white background on dark mode, pure black on light mode) with crisp geometric glyphs (▲ / ✓) and hairline contrasting borders, ensuring instantaneous visual hierarchy without relying on color cues.
+_Avoid_: Red text on dark gray, subtle warning borders, color-only indicators, indistinguishable gray alert pills.
 
+**Choreographed Modal Lifecycle**:
+A coordinated entry and exit orchestration using GSAP and React state that defers unmounting until dismissal tweens complete, guaranteeing fluid backdrop dissolves and surface transitions without sudden DOM popping.
+_Avoid_: Abrupt conditional unmounting, cut-off exit transitions, unmanaged modal unmounts.
+
+**Swiss-Precision Motion Profile**:
+A non-elastic, high-velocity easing standard (`power3.out` entry at ~280ms, `power2.in` exit at ~180ms) tailored for the Swiss-Linear monochrome aesthetic, prohibiting bounce, overshoot, and chromatic flourishes while delivering instantaneous tactile response.
+_Avoid_: Bouncy elastic springs, slow floaty easings, linear transitions.
+
+**Sliding Segmented Mode Track**:
+A GSAP-driven sliding pill indicator that smoothly interpolates position and width across segmented view switchers (such as Log Spending vs Plan Budget Item) while triggering staggered, micro-delayed form field entries.
+_Avoid_: Abrupt view cutovers, jumpy tab highlights, uncoordinated multi-mode swaps.
+
+**Bottom-to-Top Mobile Slider (Unified Drawer)**:
+A mobile bottom sheet architecture replacing static modal dialogs on viewports under 640px, featuring slide-up entrance, 1:1 real-time drag-to-dismiss gesture tracking, body scroll lock, and content-adaptive dynamic viewport capping (`100dvh`).
+_Avoid_: Dual scrolling container, inner scrolling with fixed outer box, disconnected desktop-on-mobile dialog.
+
+**Gesture Drag-to-Dismiss Threshold**:
+A calibrated touch interaction model where downward drag past 80px or rapid velocity dismisses the mobile slider with proportional backdrop dimming, while drags below threshold snap cleanly back to `y: 0` via a spring interpolation.
+_Avoid_: Hard dismissal without threshold, rigid non-draggable sheets, flick-only gesture detection.
+
+**Two-Stage Scroll-Expanded Drawer**:
+A mobile drawer state architecture where scroll engagement (`scrollTop > 0`) or input focusing elevates the bottom sheet from its resting content-adaptive height (~70vh) to a near-full-screen expanded viewport (`calc(100dvh - 12px)`), providing a 2-stage downward gesture collapse (Expanded ➔ Resting ➔ Dismiss).
+_Avoid_: Fixed static height sheet, input squishing, sudden non-interpolated height snap.
+
+**Monochrome Calendar Popover**:
+A custom date picker architecture featuring a floating obsidian/zinc month calendar grid, keyboard navigation, and pre-month negative day support, replacing disparate browser-native date inputs.
+_Avoid_: Browser-native OS date picker, disparate calendar chrome, text-only date strings.
+
+**Sparkle Safe-Date Link**:
+An understated inline action trigger with a geometric sparkle glyph for initiating pace-calibrated purchase date estimations without visual clutter.
+_Avoid_: Clunky boxed action buttons in field labels, hidden date calculators.
+
+**Tiered Activity & Skeleton Loaders**:
+A unified application-wide loading paradigm comprising an initial brand splash loader, a header activity progress line, and pulsing zinc skeleton cards.
+_Avoid_: Unstyled plain text loading strings, jarring full-screen modal spinners on minor API requests.
