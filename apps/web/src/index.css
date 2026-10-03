@@ -111,6 +111,32 @@ body::-webkit-scrollbar {
   color: var(--bg);
 }
 
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+select {
+  caret-color: var(--text);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.btn-primary:focus-visible,
+.nav-tab:focus-visible,
+.timeline-filter-btn:focus-visible,
+.datepicker-trigger:focus-visible,
+.app-select-trigger:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -584,7 +610,7 @@ input[type="number"] {
 /* Animated App Logo: Dynamic Balance Spline & Pulse Node */
 .animated-app-logo {
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animated-app-logo:hover {
@@ -1630,7 +1656,7 @@ input[type="number"] {
   will-change: transform, opacity;
   box-shadow: 0 -10px 40px -5px rgba(0, 0, 0, 0.55);
   touch-action: pan-y;
-  transition: max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.24s ease;
+  transition: border-radius 0.24s ease;
 }
 
 .modal-content.is-expanded {
