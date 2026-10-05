@@ -56,12 +56,17 @@ export function recommendPurchaseDate(
 
   const resolvedFundingSource = fundingSource || settings.fundingSource || null;
 
-  // Pipeline Step 1: Candidate date window restricted to today onwards
-  const currentDay = typeof settings.currentDay === 'number'
-    ? Math.max(1, Math.min(daysInMonth, Math.floor(settings.currentDay)))
-    : 1;
+  // Pipeline Step 1: Candidate date window restricted strictly to future dates relative to present
+  let currentDay = 1;
+  let candidateStartDay = 1;
 
-  if (currentDay > daysInMonth) {
+  if (typeof settings.currentDay === 'number') {
+    currentDay = Math.floor(settings.currentDay);
+    // If currentDay is within active month (>= 1), only recommend future dates (currentDay + 1 .. daysInMonth)
+    // If currentDay === 0 (future month planning), start at Day 1
+    candidateStartDay = currentDay >= 1 ? currentDay + 1 : 1;
+  } else if (settings.currentDay === null) {
+    // Explicitly a completed past month
     return {
       recommendedDate: null,
       recommendedDay: null,
@@ -70,6 +75,22 @@ export function recommendPurchaseDate(
       savingsBuffer: 0,
       projectedFloorDeficit: cost,
       explanation: 'Month has concluded. Defer goal to the following month.'
+    };
+  } else {
+    // currentDay not specified; default to starting from Day 1
+    currentDay = 1;
+    candidateStartDay = 1;
+  }
+
+  if (candidateStartDay > daysInMonth) {
+    return {
+      recommendedDate: null,
+      recommendedDay: null,
+      feasible: false,
+      projectedLowestBalance: 0,
+      savingsBuffer: 0,
+      projectedFloorDeficit: cost,
+      explanation: 'No remaining future dates exist in this month. Defer to the following month.'
     };
   }
 
@@ -123,7 +144,7 @@ export function recommendPurchaseDate(
   let bestLowestDate = null;
   let accountDeficitFound = false;
 
-  for (let d = currentDay; d <= daysInMonth; d++) {
+  for (let d = candidateStartDay; d <= daysInMonth; d++) {
     // Gather all running balances from day d through month-end
     const candidatePoints = [
       ...baselineSim.dailyBalances.filter((p) => p.day >= d).map((p) => ({ balance: p.balance, date: p.date, day: p.day })),
