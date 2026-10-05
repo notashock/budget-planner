@@ -257,6 +257,35 @@ export function simulate(
   });
 
   // 3. Generate Expense Events from Unfulfilled Planned Items
+  // Pre-calculate future scheduled load per day for forward-rolling overdue pending items
+  const forwardRollDayMap = {};
+  const rollStartDay = typeof currentDay === 'number' && currentDay >= 1 ? Math.min(daysInMonth, currentDay + 1) : 1;
+  for (let d = rollStartDay; d <= daysInMonth; d++) {
+    forwardRollDayMap[d] = 0;
+  }
+  items.forEach((it) => {
+    let td = 1;
+    if (it.type === 'recurring') td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
+    else if (it.type === 'one-time') td = clampDayToMonth(it.day ?? 1, daysInMonth);
+    if (td >= rollStartDay) {
+      forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.amount ?? 0));
+    }
+  });
+
+  const getNextRecommendedDayForPending = (itemAmt) => {
+    let chosenDay = rollStartDay;
+    let minLoad = Infinity;
+    for (let d = rollStartDay; d <= daysInMonth; d++) {
+      const load = forwardRollDayMap[d] ?? 0;
+      if (load < minLoad) {
+        minLoad = load;
+        chosenDay = d;
+      }
+    }
+    forwardRollDayMap[chosenDay] = (forwardRollDayMap[chosenDay] || 0) + itemAmt;
+    return chosenDay;
+  };
+
   items.forEach((item, index) => {
     const itemIdStr = String(item.id || item._id || '');
     if (fulfilledItemIds.has(itemIdStr)) {
@@ -299,7 +328,7 @@ export function simulate(
         }
       } else if (item.isPaid === false) {
         if (currentDay !== null && currentDay !== undefined && targetDay < currentDay) {
-          effectiveDay = Math.min(daysInMonth, (currentDay || 1) + 1);
+          effectiveDay = getNextRecommendedDayForPending(Math.abs(amount));
         }
       }
       const isPastDueUnpaid = item.isPaid === false && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
@@ -310,8 +339,8 @@ export function simulate(
       rawEvents.push({
         day: effectiveDay,
         date: effectiveDate,
-        originalDay: targetDay,
-        originalDate: targetDate,
+        originalDay: (typeof item.originalDay === 'number') ? item.originalDay : targetDay,
+        originalDate: item.originalDate || targetDate,
         label: item.name,
         amount: -Math.abs(amount),
         priority,
@@ -336,7 +365,7 @@ export function simulate(
         }
       } else if (item.isPaid === false) {
         if (currentDay !== null && currentDay !== undefined && targetDay < currentDay) {
-          effectiveDay = Math.min(daysInMonth, (currentDay || 1) + 1);
+          effectiveDay = getNextRecommendedDayForPending(Math.abs(amount));
         }
       }
       const isPastDueUnpaid = item.isPaid === false && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
@@ -347,8 +376,8 @@ export function simulate(
       rawEvents.push({
         day: effectiveDay,
         date: effectiveDate,
-        originalDay: targetDay,
-        originalDate: targetDate,
+        originalDay: (typeof item.originalDay === 'number') ? item.originalDay : targetDay,
+        originalDate: item.originalDate || targetDate,
         label: item.name,
         amount: -Math.abs(amount),
         priority,
@@ -508,7 +537,7 @@ export function simulate(
 
   // 7. Calculate Running Balances
   let currentBalance = effectiveOpeningBalance;
-  let lowestBalance = effectiveOpeningBalance;
+  let lowestBalance = rawEvents.length > 0 ? Infinity : effectiveOpeningBalance;
   let lowestDate = formatDate(year, monthNum, 1);
 
   // Initialize account running balances and canonical ID resolution
@@ -777,7 +806,8 @@ export function simulate(
 
   let committedUpcomingItems = 0;
   events.forEach((evt) => {
-    if (evt.day >= effectiveDay && !evt.isActual && evt.amount < 0) {
+    // Per ADR 0041: Unpaid planned items are excluded from Safe Velocity committed deduction; strictly future events only
+    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0 && evt.isPaid !== false) {
       committedUpcomingItems += Math.abs(evt.amount);
     }
   });
@@ -880,7 +910,8 @@ export function simulate(
       }
       if (evt.amount < 0 && isSrc) {
         accExpenses += Math.abs(evt.amount);
-        if (evt.day >= effectiveDay && !evt.isActual) {
+        // Per ADR 0041: Unpaid planned items are excluded from Safe Velocity committed deduction; strictly future events only
+        if (evt.day > effectiveDay && !evt.isActual && evt.isPaid !== false) {
           accCommitted += Math.abs(evt.amount);
         }
       }
