@@ -207,9 +207,9 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('Log Spending')).toBeInTheDocument();
-      expect(screen.getByText('Plan Budget Item')).toBeInTheDocument();
-      expect(screen.getByText('Transfer')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Spending/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Plan/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Transfer/i })).toBeInTheDocument();
 
       // Payment Account selector exists in Log mode
       expect(screen.getByText(/Payment Account/)).toBeInTheDocument();
@@ -542,8 +542,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      // Verify Log Income tab is present and click it
-      const incomeTabBtn = screen.getByRole('button', { name: /Log Income/i });
+      // Verify Income tab is present and click it
+      const incomeTabBtn = screen.getByRole('button', { name: /Income/i });
       expect(incomeTabBtn).toBeInTheDocument();
       fireEvent.click(incomeTabBtn);
 
