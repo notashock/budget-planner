@@ -284,3 +284,150 @@ export function recommendPurchaseDate(
     }
   };
 }
+
+/**
+ * Evaluates multiple purchase goals in sequential priority order, reserving funds from both the
+ * unified cashflow and the designated funding accounts' daily balances.
+ *
+ * @param {object} params
+ * @param {object} params.settings - Simulation settings (openingBalance, incomeAmount, accounts, etc.)
+ * @param {Array<object>} params.items - Planned budget items
+ * @param {object} params.month - { year, month }
+ * @param {Array<object>} params.goals - Goals to evaluate
+ * @param {Array<object>} [params.transactions=[]] - Real-world transactions
+ * @param {Array<object>} [params.transfers=[]] - Inter-account transfers
+ * @param {Array<object>} [params.accounts=[]] - Bank accounts and wallets
+ * @returns {Array<object>} Evaluated goals with attached recommendation
+ */
+export function evaluateGoalsWithReservation({
+  settings = {},
+  items = [],
+  month = { year: 2026, month: 1 },
+  goals = [],
+  transactions = [],
+  transfers = [],
+  accounts = []
+}) {
+  const normId = (val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return val.trim();
+    if (val._id) return String(val._id).trim();
+    if (val.id) return String(val.id).trim();
+    return String(val).trim();
+  };
+
+  // Build account lookup
+  let allAccounts = [];
+  if (Array.isArray(accounts) && accounts.length > 0) {
+    allAccounts = accounts;
+  } else if (Array.isArray(settings.accounts)) {
+    allAccounts = settings.accounts;
+  } else if (settings.accounts && (Array.isArray(settings.accounts.bankAccounts) || Array.isArray(settings.accounts.wallets))) {
+    allAccounts = [
+      ...(settings.accounts.bankAccounts || []),
+      ...(settings.accounts.wallets || [])
+    ];
+  }
+
+  const accountMap = new Map();
+  allAccounts.forEach((acc) => {
+    const id = normId(acc._id) || normId(acc.id);
+    if (id) accountMap.set(id, acc);
+  });
+
+  const simSettings = {
+    ...settings,
+    accounts: allAccounts.length > 0 ? allAccounts : settings.accounts,
+    transfers: Array.isArray(transfers) && transfers.length > 0 ? transfers : settings.transfers
+  };
+
+  // Clone items to accumulate synthetic reservations for feasible goals
+  const committedItems = [...items];
+
+  // Map goals with original indices for stable output order
+  const indexedGoals = goals.map((g, idx) => ({
+    originalIndex: idx,
+    goal: g,
+    priority: Number(g.priority ?? 0)
+  }));
+
+  // Sort by priority ascending (0 = High, 1 = Med, 2 = Low), then by original order / creation
+  indexedGoals.sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
+    }
+    return a.originalIndex - b.originalIndex;
+  });
+
+  const evaluated = [];
+
+  for (const item of indexedGoals) {
+    const g = item.goal;
+    const goalObj = typeof g.toObject === 'function' ? g.toObject() : (g._doc ? { ...g._doc } : { ...g });
+    const isEvaluable = !goalObj.status || goalObj.status === 'active' || goalObj.status === 'evaluating' || goalObj.status === 'ready' || goalObj.status === 'scheduled';
+
+    if (!isEvaluable) {
+      evaluated.push({
+        originalIndex: item.originalIndex,
+        goal: { ...goalObj }
+      });
+      continue;
+    }
+
+    // Resolve designated funding source
+    let resolvedFunding = null;
+    const targetAccountId = normId(g.fundingBankAccountId) || normId(g.fundingWalletId) || normId(g.fundingAccountId);
+    if (targetAccountId && accountMap.has(targetAccountId)) {
+      const acc = accountMap.get(targetAccountId);
+      resolvedFunding = {
+        id: normId(acc._id) || normId(acc.id),
+        type: g.fundingSourceType || acc.type || 'bank',
+        name: acc.name || 'Account',
+        minimumBalance: Math.round(Number(acc.minimumBalance) || 0)
+      };
+    }
+
+    const recommendation = recommendPurchaseDate(
+      simSettings,
+      committedItems,
+      month,
+      g.targetAmount,
+      transactions,
+      [],
+      transfers,
+      resolvedFunding
+    );
+
+    if (recommendation.feasible && recommendation.recommendedDay) {
+      // Reserve this goal's funds on and after its recommendedDay
+      committedItems.push({
+        _id: `goal_res_${g._id || g.id || item.originalIndex}`,
+        type: 'one-time',
+        name: `[Goal Reserved] ${g.name}`,
+        amount: Math.round(Number(g.targetAmount) || 0),
+        day: recommendation.recommendedDay,
+        date: recommendation.recommendedDate,
+        accountType: resolvedFunding ? resolvedFunding.type : (g.fundingSourceType || null),
+        bankAccountId: (resolvedFunding && resolvedFunding.type === 'bank') ? resolvedFunding.id : (g.fundingBankAccountId || null),
+        walletId: (resolvedFunding && resolvedFunding.type === 'wallet') ? resolvedFunding.id : (g.fundingWalletId || null),
+        isPaid: false
+      });
+    }
+
+    if (goalObj.status === 'evaluating') goalObj.status = 'active';
+    if (goalObj.status === 'ready') goalObj.status = 'scheduled';
+
+    evaluated.push({
+      originalIndex: item.originalIndex,
+      goal: {
+        ...goalObj,
+        recommendation
+      }
+    });
+  }
+
+  // Restore original ordering
+  evaluated.sort((a, b) => a.originalIndex - b.originalIndex);
+  return evaluated.map((e) => e.goal);
+}
+
