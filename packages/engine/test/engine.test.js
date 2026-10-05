@@ -396,17 +396,17 @@ describe('Engine Suite - Core & Sprint Features', () => {
       const result = simulate(settings, items, { year: 2026, month: 10 }, transactions, goals);
 
       expect(result.safeVelocity).toBeDefined();
-      // Per ADR 0041: Unpaid planned item is not deducted from Safe Velocity
-      expect(result.safeVelocity.freeSurplus).toBe(330000);
+      // All committed upcoming planned bills are considered into Safe Velocity
+      expect(result.safeVelocity.committedUpcomingItems).toBe(150000);
+      expect(result.safeVelocity.freeSurplus).toBe(180000);
       expect(result.safeVelocity.daysLeft).toBe(22);
-      expect(result.safeVelocity.safeVelocityPerDay).toBe(15000);
-      expect(result.safeToSpendPerDay).toBe(15000);
-      expect(result.allowanceLeft).toBe(330000);
-      expect(result.safeVelocity.committedUpcomingItems).toBe(0);
+      expect(result.safeVelocity.safeVelocityPerDay).toBe(8181);
+      expect(result.safeToSpendPerDay).toBe(8181);
+      expect(result.allowanceLeft).toBe(180000);
       expect(result.safeVelocity.activeGoalsCost).toBe(50000);
       expect(result.safeVelocity.burnRatePerDay).toBe(2000); // 20,000 / 10 days
 
-      // When the upcoming item is marked paid, its cash is debited from todayBalance directly (committedUpcomingItems is 0, freeSurplus is 180000)
+      // When the upcoming item is marked paid, its cash is debited from todayBalance directly (committedUpcomingItems is 0, freeSurplus remains 180000)
       const paidResult = simulate(settings, [{ ...items[0], isPaid: true }], { year: 2026, month: 10 }, transactions, goals);
       expect(paidResult.safeVelocity.committedUpcomingItems).toBe(0);
       expect(paidResult.safeVelocity.freeSurplus).toBe(180000);
@@ -491,6 +491,21 @@ describe('Engine Suite - Core & Sprint Features', () => {
         // Forward-rolled after currentDay (Day 8); picks zero-load Day 10 rather than Day 9
         expect(pastItemEvt.day).toBeGreaterThan(8);
         expect(pastItemEvt.day).toBe(10);
+      });
+
+      it('only recommends future dates strictly greater than currentDay and never past dates', () => {
+        const settings = {
+          openingBalance: 1000000,
+          incomeAmount: 5000000,
+          incomeCreditDay: 1,
+          safetyFloor: 100000,
+          currentDay: 6 // Today is the 6th
+        };
+
+        const rec = recommendPurchaseDate(settings, [], { year: 2026, month: 10 }, 50000);
+        expect(rec.feasible).toBe(true);
+        // Must be strictly greater than present day (6)
+        expect(rec.recommendedDay).toBeGreaterThan(6);
       });
     });
   });
