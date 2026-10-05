@@ -34,6 +34,7 @@ export const api = {
   createMonth: (data) => request('/api/months', { method: 'POST', body: JSON.stringify(data) }),
   getMonthDetail: (year, month) => request(`/api/months/${year}/${month}`),
   updateMonth: (year, month, updates) => request(`/api/months/${year}/${month}`, { method: 'PUT', body: JSON.stringify(updates) }),
+  creditSalary: (year, month, data = {}) => request(`/api/months/${year}/${month}/credit-salary`, { method: 'POST', body: JSON.stringify(data) }),
   rolloverMonth: (year, month, carryBalance = true) => request(`/api/months/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance }) }),
   deleteMonth: (year, month) => request(`/api/months/${year}/${month}`, { method: 'DELETE' }),
 
@@ -56,6 +57,25 @@ export const api = {
   deferGoal: (id) => request(`/api/goals/${id}/defer`, { method: 'POST' }),
   reactivateGoal: (id) => request(`/api/goals/${id}/reactivate`, { method: 'POST' }),
   deleteGoal: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
+
+  // Bank Accounts & Migration
+  getMigrationStatus: () => request('/api/bank-accounts/migration-status'),
+  migrateLegacyData: (data) => request('/api/bank-accounts/migrate', { method: 'POST', body: JSON.stringify(data) }),
+  getBankAccounts: (includeArchived = false) => request(`/api/bank-accounts${includeArchived ? '?includeArchived=true' : ''}`),
+  createBankAccount: (data) => request('/api/bank-accounts', { method: 'POST', body: JSON.stringify(data) }),
+  updateBankAccount: (id, updates) => request(`/api/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(updates) }),
+  deleteBankAccount: (id) => request(`/api/bank-accounts/${id}`, { method: 'DELETE' }),
+
+  // Wallets
+  getWallets: (includeArchived = false) => request(`/api/wallets${includeArchived ? '?includeArchived=true' : ''}`),
+  createWallet: (data) => request('/api/wallets', { method: 'POST', body: JSON.stringify(data) }),
+  updateWallet: (id, updates) => request(`/api/wallets/${id}`, { method: 'PUT', body: JSON.stringify(updates) }),
+  deleteWallet: (id) => request(`/api/wallets/${id}`, { method: 'DELETE' }),
+
+  // Transfers
+  getTransfers: (monthId) => request(`/api/transfers${monthId ? `?monthId=${monthId}` : ''}`),
+  createTransfer: (data) => request('/api/transfers', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTransfer: (id) => request(`/api/transfers/${id}`, { method: 'DELETE' }),
 
   // AI Assistant (Gated by settings toggle)
   parseText: (text) => request('/api/ai/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
