@@ -41,8 +41,20 @@ A vehicle fuel expense entry recording odometer readings, fuel volume, and total
 _Avoid_: Formula item, mileage expense, dynamic bill.
 
 **Month Rollover**:
-The process of creating the next calendar month, copying fixed recurring items and optionally carrying forward the ending balance as the new opening balance.
+The process of creating the next calendar month, copying fixed recurring items, optionally rolling forward unpaid one-time items to their optimal dates, and carrying forward the ending balance as the new opening balance.
 _Avoid_: Month close, archive, reset.
+
+**Forward-Rolling Pending Item**:
+A planned budget item whose scheduled date has passed without payment settlement (`isPaid: false`). The system dynamically moves its scheduled date forward to the next recommended safe date within the current month, leveling daily outflows until the item is settled.
+_Avoid_: Expired item, overdue debt, frozen bill.
+
+**Actual Payment Date Attribution**:
+The practice of updating a planned budget item's active execution date (`item.day` / `item.date`) to the current calendar date when marked as paid (`isPaid: true`), while preserving its initial planned schedule in `originalDay` / `originalDate`. This ensures the running balance timeline records the cash debit on the actual day settlement occurred.
+_Avoid_: Static past date debit, retro-debit, unrecorded payment timing.
+
+**Unpaid Item Rollover**:
+A capability during month rollover that detects unpaid one-time items remaining at the conclusion of a month and prompts the user to carry them forward into the new month, automatically assigning them to the new month's best recommended date.
+_Avoid_: Forced item deletion, forgotten expense.
 
 **Pre-Month Event**:
 A dated transaction, item, or salary credit occurring prior to Day 1 of the planned month, indexed as a negative relative day offset from the 1st (e.g., Day -1 for 1 day prior, Day -2 for 2 days prior), processed chronologically before Day 1 and plotted on the balance chart and timeline preceding Day 1.
@@ -52,12 +64,16 @@ _Avoid_: Previous month carryover, early expense, Day 30 alias.
 An algorithm that determines whether a target purchase goal is feasible within the remainder of the month by evaluating upcoming heavy fixed bills, projecting remaining spend from the user's actual daily burn rate, and picking the safest upcoming date that maximizes savings buffer. If no safe date exists, it returns no date (`null`) with an explicit floor deficit and wait-for-next-month guidance.
 _Avoid_: Spend date picker, price estimator.
 
+**Date Diversification (Daily Outflow Smoothing)**:
+A date recommendation strategy that evaluates candidate dates for safety floor preservation and selects the day with the minimum existing expenditure load (total scheduled payments on that day), breaking ties by the earliest feasible calendar date. This avoids clustering multiple payments or compounding heavy bills on a single day, ensuring smooth, non-shock cash flow.
+_Avoid_: Random date spread, fixed date clustering, naive maximum-buffer dating.
+
 **Transaction**:
 A recorded financial actual (expense or negative refund) on an exact date, either linked to a planned item or logged as an unexpected expense.
 _Avoid_: Purchase entry, ledger entry, receipt.
 
 **Unplanned Allowance**:
-The remaining liquid cash cushion after accounting for the safety floor, upcoming committed expenses, and active goals, dynamically derived directly from the Pace-Adaptive Safe Velocity calculation rather than a static manual quota.
+The remaining liquid cash cushion after accounting for the safety floor and active goals, dynamically derived directly from the Pace-Adaptive Safe Velocity calculation rather than a static manual quota. Unpaid planned items do not deduct from this cushion until settled.
 _Avoid_: Buffer, slush fund, petty cash, static allowance quota.
 
 **Safe to Spend per Day**:
@@ -93,7 +109,7 @@ A single consolidated dialog with a top segmented switch to record actual spendi
 _Avoid_: Separate logging modals, disjointed item forms.
 
 **Safe Velocity (Pace-Adaptive Allowance)**:
-A dynamically calculated discretionary spending capacity derived from remaining liquid cash, upcoming committed bills, active purchase goals, and real spending pace. It recalculates the sustainable daily spend to guarantee reaching month-end with a preserved safety floor cushion.
+A dynamically calculated discretionary spending capacity derived from current liquid cash, active purchase goals, and real spending pace, with all unpaid planned budget items excluded from deductions until marked paid. It recalculates the sustainable daily spend to guarantee reaching month-end with a preserved safety floor cushion.
 _Avoid_: Static allowance, rigid spending limit, arbitrary daily quota.
 
 **Mobile Glance-and-Act Hierarchy**:
