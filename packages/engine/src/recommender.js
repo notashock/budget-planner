@@ -10,7 +10,8 @@ import { simulate } from './simulator.js';
  * 2. Analysing user spending pattern (actual daily burn rate vs planned allowance).
  * 3. Clearing heavy upcoming bills first (e.g. rent, fixed recurring items) to avoid cash squeezes.
  * 4. Finding the safe date that maximizes cash reserve while preserving safety floor.
- * 5. If no day in the month safely maintains the floor, returns feasible: false with
+ * 5. Optionally verifying designated Funding Source (Bank Account / Wallet) solvency.
+ * 6. If no day in the month safely maintains the floor or account balance, returns feasible: false with
  *    recommendedDate: null (never returns a misleading date).
  * 
  * @param {object} settings - Simulation settings including openingBalance, incomeAmount, safetyFloor, unplannedAllowance, currentDay
@@ -18,6 +19,9 @@ import { simulate } from './simulator.js';
  * @param {object} month - { year, month }
  * @param {number} purchaseAmount - Goal target price in minor units
  * @param {Array<object>} [transactions=[]] - Logged transactions for spending velocity analysis
+ * @param {Array<object>} [goals=[]] - Active purchase goals
+ * @param {Array<object>} [transfers=[]] - Paired Account Transfers
+ * @param {object|null} [fundingSource=null] - Optional funding account constraints { id, type, name, minimumBalance }
  * 
  * @returns {{
  *   recommendedDate: string | null,
@@ -40,12 +44,17 @@ export function recommendPurchaseDate(
   items = [],
   month = { year: 2026, month: 1 },
   purchaseAmount = 0,
-  transactions = []
+  transactions = [],
+  goals = [],
+  transfers = [],
+  fundingSource = null
 ) {
   const { year, month: monthNum } = month;
   const daysInMonth = getDaysInMonth(year, monthNum);
   const safetyFloor = Math.round(settings.safetyFloor ?? 0);
   const cost = Math.abs(Math.round(purchaseAmount || 0));
+
+  const resolvedFundingSource = fundingSource || settings.fundingSource || null;
 
   // Pipeline Step 1: Candidate date window restricted to today onwards
   const currentDay = typeof settings.currentDay === 'number'
@@ -66,7 +75,7 @@ export function recommendPurchaseDate(
 
   // Pipeline Step 2: Analyse spending velocity / daily burn rate from logged transactions
   const unexpectedSpend = (transactions || [])
-    .filter((tx) => !tx.plannedItemId && Number(tx.amount) > 0)
+    .filter((tx) => !tx.plannedItemId && !tx.isIncome && Number(tx.amount) > 0)
     .reduce((sum, tx) => sum + Math.round(Number(tx.amount)), 0);
 
   const daysPassed = Math.max(1, currentDay);
@@ -77,7 +86,6 @@ export function recommendPurchaseDate(
   const effectiveBurnRate = Math.max(actualDailyBurnRate, plannedDailyRate);
 
   // Pipeline Step 3: Identify heavy scheduled bills in the remainder of the month
-  // A heavy bill is defined as any planned debit >= 15% of monthly income, or >= 3x planned daily allowance
   const heavyBillThreshold = settings.incomeAmount > 0
     ? Math.round(settings.incomeAmount * 0.15)
     : Math.max(cost, 10000);
@@ -102,13 +110,14 @@ export function recommendPurchaseDate(
     : currentDay;
 
   // Pipeline Step 4: Compute baseline simulation timeline (same as Plan screen)
-  const baselineSim = simulate(settings, items, month, transactions);
+  const baselineSim = simulate(settings, items, month, transactions, goals, transfers);
 
   const safeCandidates = [];
   let highestBuffer = -Infinity;
   let bestLowestBalance = -Infinity;
   let bestDay = null;
   let bestLowestDate = null;
+  let accountDeficitFound = false;
 
   for (let d = currentDay; d <= daysInMonth; d++) {
     // Gather all running balances from day d through month-end
@@ -142,19 +151,32 @@ export function recommendPurchaseDate(
       bestLowestDate = minPointDate;
     }
 
-    // Days remaining from d to end of month
     const daysRemaining = Math.max(0, daysInMonth - d);
-    // Discretionary spending expected to be burned between day d and month end based on pace
     const projectedBurnRemaining = effectiveBurnRate * daysRemaining;
-    // Buffer remaining after accounting for spending pace
     const paceBuffer = buffer - projectedBurnRemaining;
 
-    // Check if balance on day d itself can absorb the cost without dipping below floor
+    // Check if aggregate balance on day d itself can absorb the cost
     const dayBalancePoint = baselineSim.dailyBalances.find((p) => p.day === d);
     const balanceOnDay = dayBalancePoint ? dayBalancePoint.balance : minBalanceFromDToEnd;
     const canAffordOnDay = (balanceOnDay - cost) >= safetyFloor;
 
-    if (buffer >= 0 && canAffordOnDay) {
+    // Check designated funding source solvency if configured
+    let fundingSourceSafe = true;
+    if (resolvedFundingSource && resolvedFundingSource.id) {
+      const accDaily = baselineSim.accountDailyBalances?.[String(resolvedFundingSource.id)] || [];
+      const accRemaining = accDaily.filter((p) => p.day >= d);
+      const minAccBal = accRemaining.length > 0
+        ? Math.min(...accRemaining.map((p) => p.balance))
+        : 0;
+      const minRequired = Math.round(Number(resolvedFundingSource.minimumBalance) || 0);
+
+      if ((minAccBal - cost) < minRequired) {
+        fundingSourceSafe = false;
+        accountDeficitFound = true;
+      }
+    }
+
+    if (buffer >= 0 && canAffordOnDay && fundingSourceSafe) {
       safeCandidates.push({
         day: d,
         date: formatDate(year, monthNum, d),
@@ -170,21 +192,16 @@ export function recommendPurchaseDate(
 
   // Pipeline Step 5: Decision & Selection
   if (safeCandidates.length > 0) {
-    // Prefer safe days that clear heavy bills first
     const preferredCandidates = safeCandidates.filter((c) => c.isAfterHeavyBills);
     const candidatePool = preferredCandidates.length > 0 ? preferredCandidates : safeCandidates;
 
-    // Filter days where available buffer covers the cost AND expected spending pace
     const paceSafeCandidates = candidatePool.filter((c) => c.paceBuffer >= 0);
     const activePool = paceSafeCandidates.length > 0 ? paceSafeCandidates : candidatePool;
 
-    // Pick the earliest safe date instead of artificially delaying to month-end!
     activePool.sort((a, b) => {
       if (paceSafeCandidates.length > 0) {
-        // Earliest day that safely covers burn pace & bills
         return a.day - b.day;
       }
-      // If tight on pace, prioritize maximum buffer, then earliest day
       if (b.savingsBuffer !== a.savingsBuffer) {
         return b.savingsBuffer - a.savingsBuffer;
       }
@@ -211,8 +228,12 @@ export function recommendPurchaseDate(
     };
   }
 
-  // Pipeline Step 6: Infeasible - buffer is negative; recommend waiting for next month
+  // Pipeline Step 6: Infeasible
   const deficit = Math.abs(highestBuffer);
+  let explanation = `Price is too high for this month. Purchasing would breach your safety floor by ${deficit} minor units. Wait for next month.`;
+  if (accountDeficitFound && highestBuffer >= 0 && resolvedFundingSource) {
+    explanation = `Selected funding account (${resolvedFundingSource.name || 'account'}) does not have sufficient balance to cover this purchase while respecting its minimum required balance. Transfer funds into this account or select a different funding source.`;
+  }
 
   return {
     recommendedDate: null,
@@ -222,7 +243,7 @@ export function recommendPurchaseDate(
     savingsBuffer: highestBuffer,
     projectedFloorDeficit: deficit,
     lowestDate: bestLowestDate,
-    explanation: `Price is too high for this month. Purchasing would breach your safety floor by ${deficit} minor units. Wait for next month.`,
+    explanation,
     pipelineDetails: {
       currentDay,
       burnRatePerDay: effectiveBurnRate,

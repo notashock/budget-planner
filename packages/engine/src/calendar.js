@@ -92,3 +92,120 @@ export function getDateFromRelativeDay(relativeDay, year, monthNum) {
   const day = d.getUTCDate();
   return formatDate(y, m, day);
 }
+
+/**
+ * Calculates the active 10-day salary logging window and lock status.
+ * Window: 5 days before expected credit date through 4 days after expected credit date (10 days total).
+ * 
+ * @param {object} month - { year, month, incomeAmount, incomeCreditDay, salaryCreditedDate, salaryBankAccountId }
+ * @param {string|Date} [currentDate] - Current date to evaluate against (defaults to now)
+ * @returns {object} { isLocked, isUnconfigured, windowStartDate, windowEndDate, expectedDate, reason, tooltip }
+ */
+export function getSalaryWindowStatus(month, currentDate) {
+  if (!month || !month.year || !month.month) {
+    return { isLocked: false, isUnconfigured: true, tooltip: 'No active month' };
+  }
+
+  // Initial configuration exemption: if salary is not configured yet, allow setup
+  const isConfigured = Boolean(
+    (month.incomeAmount && Number(month.incomeAmount) > 0) ||
+    month.salaryBankAccountId
+  );
+  if (!isConfigured) {
+    return {
+      isLocked: false,
+      isUnconfigured: true,
+      status: 'unconfigured',
+      reason: 'Configure monthly salary',
+      tooltip: 'Configure monthly salary'
+    };
+  }
+
+  const year = month.year;
+  const monthNum = month.month; // 1-indexed
+
+  let expectedDay = 1;
+  if (month.incomeCreditDay && !isNaN(Number(month.incomeCreditDay))) {
+    expectedDay = Math.max(1, Math.min(31, Number(month.incomeCreditDay)));
+  } else if (month.salaryCreditedDate) {
+    const parts = String(month.salaryCreditedDate).split('-');
+    if (parts.length === 3) expectedDay = parseInt(parts[2], 10) || 1;
+  }
+
+  // Pure UTC / ISO date math to avoid any local timezone drift
+  const expectedDate = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
+
+  const windowStart = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
+  windowStart.setUTCDate(windowStart.getUTCDate() - 5);
+
+  const windowEnd = new Date(Date.UTC(year, monthNum - 1, expectedDay, 23, 59, 59, 999));
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 4);
+
+  // Parse comparison date
+  let now;
+  if (currentDate) {
+    if (typeof currentDate === 'string') {
+      const p = currentDate.trim().split('-');
+      if (p.length === 3) {
+        now = new Date(Date.UTC(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0));
+      } else {
+        now = new Date(currentDate);
+      }
+    } else {
+      now = new Date(currentDate);
+    }
+  } else {
+    const today = new Date();
+    now = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0));
+  }
+
+  const startStr = formatDate(windowStart.getUTCFullYear(), windowStart.getUTCMonth() + 1, windowStart.getUTCDate());
+  const endStr = formatDate(windowEnd.getUTCFullYear(), windowEnd.getUTCMonth() + 1, windowEnd.getUTCDate());
+  const expStr = formatDate(expectedDate.getUTCFullYear(), expectedDate.getUTCMonth() + 1, expectedDate.getUTCDate());
+
+  const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatFriendly = (d) => `${monthsShort[d.getUTCMonth()]} ${d.getUTCDate()}`;
+
+  const friendlyStart = formatFriendly(windowStart);
+  const friendlyEnd = formatFriendly(windowEnd);
+
+  if (now.getTime() < windowStart.getTime()) {
+    const tooltip = `Unlocks on ${friendlyStart} — 5 days before expected salary credit`;
+    return {
+      isLocked: true,
+      isUnconfigured: false,
+      status: 'before_window',
+      reason: tooltip,
+      windowStartDate: startStr,
+      windowEndDate: endStr,
+      expectedDate: expStr,
+      tooltip
+    };
+  }
+
+  if (now.getTime() > windowEnd.getTime()) {
+    const tooltip = `Window closed on ${friendlyEnd}`;
+    return {
+      isLocked: true,
+      isUnconfigured: false,
+      status: 'after_window',
+      reason: tooltip,
+      windowStartDate: startStr,
+      windowEndDate: endStr,
+      expectedDate: expStr,
+      tooltip
+    };
+  }
+
+  const tooltip = `Salary logging open until ${friendlyEnd}`;
+  return {
+    isLocked: false,
+    isUnconfigured: false,
+    status: 'in_window',
+    reason: tooltip,
+    windowStartDate: startStr,
+    windowEndDate: endStr,
+    expectedDate: expStr,
+    tooltip
+  };
+}

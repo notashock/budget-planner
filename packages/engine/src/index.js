@@ -1,7 +1,7 @@
 export { simulate } from './simulator.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate } from './recommender.js';
-export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay } from './calendar.js';
+export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
 
 /**
  * Currency conversion and formatting utilities.
