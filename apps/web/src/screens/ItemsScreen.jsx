@@ -130,12 +130,24 @@ export function ItemsScreen({
                   amountDisplay = hasRefund
                     ? formatCurrency(netInfo.netAmount, currencySymbol)
                     : formatCurrency(item.amount, currencySymbol);
-                  details = `Scheduled: Day ${item.day}`;
+                  if (item.isPaid && item.originalDay && item.originalDay !== item.day) {
+                    details = `Paid: Day ${item.day} (Orig: Day ${item.originalDay})`;
+                  } else if (item.isPaid) {
+                    details = `Paid: Day ${item.day}`;
+                  } else {
+                    details = `Scheduled: Day ${item.day}`;
+                  }
                 } else {
                   amountDisplay = hasRefund
                     ? formatCurrency(netInfo.netAmount, currencySymbol)
                     : formatCurrency(item.amount || 0, currencySymbol);
-                  details = `Recurring: Day ${item.dayOfMonth || 1} each month`;
+                  if (item.isPaid && item.originalDay && item.originalDay !== (item.dayOfMonth || item.day)) {
+                    details = `Paid: Day ${item.day || item.dayOfMonth} (Orig: Day ${item.originalDay})`;
+                  } else if (item.isPaid) {
+                    details = `Paid: Day ${item.day || item.dayOfMonth}`;
+                  } else {
+                    details = `Recurring: Day ${item.dayOfMonth || 1} each month`;
+                  }
                 }
 
                 const pVal = item.priority ?? 0;
@@ -237,6 +249,22 @@ export function ItemsScreen({
                             }}
                           >
                             Net Refund
+                          </span>
+                        )}
+                        {item.isPaid && item.originalDay && item.originalDay !== (item.type === 'one-time' ? item.day : (item.dayOfMonth || item.day)) && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              color: 'var(--primary)',
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              border: '1px solid rgba(59, 130, 246, 0.25)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 500
+                            }}
+                            title={`Rescheduled upon payment from Day ${item.originalDay} to Day ${item.day || item.dayOfMonth}`}
+                          >
+                            Orig: Day {item.originalDay}
                           </span>
                         )}
                       </div>
