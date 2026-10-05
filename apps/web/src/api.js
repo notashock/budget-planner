@@ -35,7 +35,7 @@ export const api = {
   getMonthDetail: (year, month) => request(`/api/months/${year}/${month}`),
   updateMonth: (year, month, updates) => request(`/api/months/${year}/${month}`, { method: 'PUT', body: JSON.stringify(updates) }),
   creditSalary: (year, month, data = {}) => request(`/api/months/${year}/${month}/credit-salary`, { method: 'POST', body: JSON.stringify(data) }),
-  rolloverMonth: (year, month, carryBalance = true) => request(`/api/months/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance }) }),
+  rolloverMonth: (year, month, carryBalance = true, rolloverUnpaidOneTimeItems = false) => request(`/api/months/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance, rolloverUnpaidOneTimeItems }) }),
   deleteMonth: (year, month) => request(`/api/months/${year}/${month}`, { method: 'DELETE' }),
 
   // Items
