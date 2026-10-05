@@ -184,7 +184,7 @@ export function ItemModal({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3>{initialItem ? 'Edit budget item' : 'Add budget item'}</h3>
-          <button type="button" className="btn-subtle" onClick={onClose}>Close</button>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
 
         {/* Tab Selector */}
