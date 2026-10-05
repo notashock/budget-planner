@@ -691,7 +691,11 @@ export default function App() {
       </main>
       </div>
 
-      <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenUnifiedEntry={handleOpenUnifiedEntry}
+      />
 
       {/* Unified Entry Modal: Single Component & Button for Logging & Planning */}
       <UnifiedEntryModal
