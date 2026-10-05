@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { formatDate, getRelativeDay } from '@budget/engine';
 import { CalendarIcon } from './Icons.jsx';
 
@@ -11,6 +11,8 @@ export function DatePicker({
   required = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [placement, setPlacement] = useState('down');
+  const [alignRight, setAlignRight] = useState(false);
   const containerRef = useRef(null);
 
   // Parse current value or fallback to today/month
@@ -37,6 +39,88 @@ export function DatePicker({
       }
     }
   }, [value]);
+
+  // Dynamically evaluate whether popover should pop up or down based on available space
+  const updatePlacement = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+
+    // If zeroed (e.g. unmounted or headless test runner)
+    if (rect.top === 0 && rect.bottom === 0 && rect.width === 0 && rect.height === 0) {
+      return;
+    }
+
+    // Horizontal bounds: if opening to the right would overflow the viewport, align right
+    const POPOVER_WIDTH = 270;
+    if (rect.left + POPOVER_WIDTH > window.innerWidth - 12) {
+      setAlignRight(true);
+    } else {
+      setAlignRight(false);
+    }
+
+    // Find scrollable parent (e.g. .modal-content or element with overflow-y)
+    let parent = containerRef.current.parentElement;
+    let scrollParent = null;
+    while (parent && parent !== document.body) {
+      const style = window.getComputedStyle(parent);
+      if (['auto', 'scroll'].includes(style.overflowY) || parent.classList.contains('modal-content')) {
+        scrollParent = parent;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+
+    const spaceAboveViewport = rect.top;
+    const spaceBelowViewport = window.innerHeight - rect.bottom;
+
+    let spaceAbove = spaceAboveViewport;
+    let spaceBelow = spaceBelowViewport;
+
+    if (scrollParent) {
+      const pRect = scrollParent.getBoundingClientRect();
+      spaceAbove = Math.min(spaceAboveViewport, rect.top - pRect.top);
+      spaceBelow = Math.min(spaceBelowViewport, pRect.bottom - rect.bottom);
+    }
+
+    const POPOVER_HEIGHT = 280;
+
+    // Prefer popping down if there is adequate room, otherwise pop up
+    if (spaceBelow >= POPOVER_HEIGHT) {
+      setPlacement('down');
+    } else if (spaceAbove >= POPOVER_HEIGHT) {
+      setPlacement('up');
+    } else if (spaceBelow >= spaceAbove) {
+      setPlacement('down');
+    } else {
+      setPlacement('up');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePlacement();
+      const parentFormGroup = containerRef.current?.closest('.form-group');
+      const parentFormRow = containerRef.current?.closest('.form-row');
+      if (parentFormGroup) {
+        parentFormGroup.classList.add('has-open-datepicker');
+      }
+      if (parentFormRow) {
+        parentFormRow.classList.add('has-open-datepicker');
+      }
+      window.addEventListener('resize', updatePlacement);
+      window.addEventListener('scroll', updatePlacement, true);
+      return () => {
+        if (parentFormGroup) {
+          parentFormGroup.classList.remove('has-open-datepicker');
+        }
+        if (parentFormRow) {
+          parentFormRow.classList.remove('has-open-datepicker');
+        }
+        window.removeEventListener('resize', updatePlacement);
+        window.removeEventListener('scroll', updatePlacement, true);
+      };
+    }
+  }, [isOpen, updatePlacement]);
 
   // Click outside to close
   useEffect(() => {
@@ -178,7 +262,7 @@ export function DatePicker({
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
-    <div ref={containerRef} className="datepicker-container">
+    <div ref={containerRef} className={`datepicker-container ${isOpen ? 'open is-open' : ''}`}>
       <button
         type="button"
         className={`datepicker-trigger ${isOpen ? 'open' : ''}`}
@@ -197,7 +281,7 @@ export function DatePicker({
       </button>
 
       {isOpen && (
-        <div className="datepicker-popover" role="dialog" aria-label="Choose Date">
+        <div className={`datepicker-popover placement-${placement} ${alignRight ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
           {/* Header */}
           <div className="datepicker-header">
             <button

@@ -808,7 +808,7 @@ input[type="number"] {
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  z-index: 50;
+  z-index: 500;
   min-width: 220px;
   display: flex;
   flex-direction: column;
@@ -2075,6 +2075,23 @@ input[type="number"] {
   width: 100%;
 }
 
+.datepicker-container.open,
+.datepicker-container.is-open {
+  position: relative;
+  z-index: 1000;
+  isolation: isolate;
+}
+
+.form-group:has(.datepicker-container.open),
+.form-group:has(.datepicker-container.is-open),
+.form-group.has-open-datepicker,
+.form-row:has(.datepicker-container.open),
+.form-row:has(.datepicker-container.is-open),
+.form-row.has-open-datepicker {
+  position: relative;
+  z-index: 1000;
+}
+
 .datepicker-trigger {
   width: 100%;
   display: flex;
@@ -2112,24 +2129,48 @@ input[type="number"] {
 
 .datepicker-popover {
   position: absolute;
-  bottom: calc(100% + 6px);
-  top: auto;
   left: 0;
-  z-index: 100;
+  z-index: 1001;
   width: 270px;
+  max-width: calc(100vw - 32px);
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: calc(var(--radius) + 2px);
-  box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  animation: datepickerFadeIn 0.16s ease-out;
 }
 
-@keyframes datepickerFadeIn {
+.datepicker-popover.align-right {
+  left: auto;
+  right: 0;
+}
+
+/* Default / Pop-up positioning: when upside has clear space */
+.datepicker-popover,
+.datepicker-popover.placement-up {
+  bottom: calc(100% + 6px);
+  top: auto;
+  box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border);
+  animation: datepickerFadeInUp 0.16s ease-out;
+}
+
+/* Dynamic pop-down positioning: when downside has clear space */
+.datepicker-popover.placement-down {
+  top: calc(100% + 6px);
+  bottom: auto;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border);
+  animation: datepickerFadeInDown 0.16s ease-out;
+}
+
+@keyframes datepickerFadeInUp {
   from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes datepickerFadeInDown {
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

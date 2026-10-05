@@ -14,7 +14,11 @@ import {
   CalendarIcon,
   RefreshIcon,
   CheckCircleIcon,
-  SparklesIcon
+  SparklesIcon,
+  ArrowRightLeftIcon,
+  BuildingLibraryIcon,
+  WalletIcon,
+  TrendingUpIcon
 } from './Icons.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { DatePicker } from './DatePicker.jsx';
@@ -27,9 +31,13 @@ export function UnifiedEntryModal({
   onClose,
   onLogTransaction,
   onSaveItem,
+  onCreateTransfer,
+  onOpenAddBank,
   initialItem = null,
-  initialMode = 'log', // 'log' | 'plan'
+  initialMode = 'log', // 'log' | 'income' | 'plan' | 'transfer'
   plannedItems = [],
+  bankAccounts = [],
+  wallets = [],
   currencySymbol = '₹',
   month
 }) {
@@ -41,7 +49,9 @@ export function UnifiedEntryModal({
   const overlayRef = useRef(null);
   const contentRef = useRef(null);
   const logBtnRef = useRef(null);
+  const incomeBtnRef = useRef(null);
   const planBtnRef = useRef(null);
+  const transferBtnRef = useRef(null);
   const indicatorRef = useRef(null);
   const formRef = useRef(null);
 
@@ -51,7 +61,16 @@ export function UnifiedEntryModal({
   const isDraggingSheet = useRef(false);
   const touchStartTime = useRef(0);
 
-  const [mode, setMode] = useState('log'); // 'log' | 'plan'
+  const [mode, setMode] = useState('log'); // 'log' | 'income' | 'plan' | 'transfer'
+
+  // --- Income State ---
+  const [incAmount, setIncAmount] = useState('');
+  const [incDate, setIncDate] = useState('');
+  const [incTag, setIncTag] = useState('Salary');
+  const [incNote, setIncNote] = useState('');
+  const [incAccountType, setIncAccountType] = useState('bank');
+  const [incBankAccountId, setIncBankAccountId] = useState('');
+  const [incWalletId, setIncWalletId] = useState('');
 
   // --- Transaction State ---
   const [txAmount, setTxAmount] = useState('');
@@ -60,6 +79,9 @@ export function UnifiedEntryModal({
   const [note, setNote] = useState('');
   const [matchedItemId, setMatchedItemId] = useState('');
   const [txDate, setTxDate] = useState('');
+  const [txAccountType, setTxAccountType] = useState('unassigned');
+  const [txBankAccountId, setTxBankAccountId] = useState('');
+  const [txWalletId, setTxWalletId] = useState('');
 
   // --- Plan Item State ---
   const [itemType, setItemType] = useState('one-time');
@@ -71,6 +93,19 @@ export function UnifiedEntryModal({
   const [isFixed, setIsFixed] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [recommending, setRecommending] = useState(false);
+  const [itemAccountType, setItemAccountType] = useState('unassigned');
+  const [itemBankAccountId, setItemBankAccountId] = useState('');
+  const [itemWalletId, setItemWalletId] = useState('');
+
+  // --- Transfer State ---
+  const [transferDate, setTransferDate] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferSourceType, setTransferSourceType] = useState('bank');
+  const [transferSourceId, setTransferSourceId] = useState('');
+  const [transferDestType, setTransferDestType] = useState('wallet');
+  const [transferDestId, setTransferDestId] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [transferError, setTransferError] = useState('');
 
   // Lock outer background body scroll while the sheet is rendered
   useEffect(() => {
@@ -103,6 +138,11 @@ export function UnifiedEntryModal({
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
     setIsExpanded(false);
+    setTransferError('');
+
+    // Precalculate primary accounts
+    const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+    const primaryWallet = wallets.find((w) => w.isPrimary) || wallets[0];
 
     if (initialItem) {
       setMode('plan');
@@ -111,6 +151,12 @@ export function UnifiedEntryModal({
       setPriority(initialItem.priority ?? 0);
       setIsFixed(Boolean(initialItem.isFixed));
       setIsPaid(Boolean(initialItem.isPaid));
+      const initAcctType = (initialItem.accountType === 'wallet' || initialItem.walletId) ? 'wallet' : 'bank';
+      setItemAccountType(initAcctType);
+      const bId = initialItem.bankAccountId?._id || initialItem.bankAccountId || (initAcctType === 'bank' ? (primaryBank?._id || primaryBank?.id || '') : '');
+      const wId = initialItem.walletId?._id || initialItem.walletId || (initAcctType === 'wallet' ? (primaryWallet?._id || primaryWallet?.id || '') : '');
+      setItemBankAccountId(bId);
+      setItemWalletId(wId);
 
       const year = month?.year || now.getFullYear();
       const monthNum = month?.month || (now.getMonth() + 1);
@@ -135,6 +181,20 @@ export function UnifiedEntryModal({
       setMatchedItemId('');
       setTxDate(todayStr);
 
+      if (primaryBank) {
+        setTxAccountType('bank');
+        setTxBankAccountId(primaryBank._id || primaryBank.id || '');
+        setTxWalletId('');
+      } else if (primaryWallet) {
+        setTxAccountType('wallet');
+        setTxWalletId(primaryWallet._id || primaryWallet.id || '');
+        setTxBankAccountId('');
+      } else {
+        setTxAccountType('bank');
+        setTxBankAccountId('');
+        setTxWalletId('');
+      }
+
       setItemType('one-time');
       setItemName('');
       setPriority(0);
@@ -143,15 +203,64 @@ export function UnifiedEntryModal({
       setItemAmount('');
       setItemDate('');
       setDayOfMonth(now.getDate() || 1);
+      if (primaryBank) {
+        setItemAccountType('bank');
+        setItemBankAccountId(primaryBank._id || primaryBank.id || '');
+        setItemWalletId('');
+      } else if (primaryWallet) {
+        setItemAccountType('wallet');
+        setItemWalletId(primaryWallet._id || primaryWallet.id || '');
+        setItemBankAccountId('');
+      } else {
+        setItemAccountType('bank');
+        setItemBankAccountId('');
+        setItemWalletId('');
+      }
+
+      // Transfer defaults
+      setTransferDate(todayStr);
+      setTransferAmount('');
+      setTransferNote('');
+      setTransferSourceType(primaryBank ? 'bank' : (wallets[0] ? 'wallet' : 'bank'));
+      setTransferSourceId(primaryBank?._id || primaryBank?.id || bankAccounts[0]?._id || '');
+      setTransferDestType(primaryWallet ? 'wallet' : (bankAccounts[1] ? 'bank' : 'wallet'));
+      setTransferDestId(primaryWallet?._id || primaryWallet?.id || wallets[0]?._id || '');
+
+      // Income defaults
+      setIncAmount('');
+      setIncDate(todayStr);
+      setIncTag('Salary');
+      setIncNote('');
+      const salaryBankId = month?.salaryBankAccountId?._id || month?.salaryBankAccountId;
+      if (salaryBankId && bankAccounts.some((b) => (b._id || b.id) === salaryBankId)) {
+        setIncAccountType('bank');
+        setIncBankAccountId(salaryBankId);
+        setIncWalletId('');
+      } else if (primaryBank) {
+        setIncAccountType('bank');
+        setIncBankAccountId(primaryBank._id || primaryBank.id || '');
+        setIncWalletId('');
+      } else if (primaryWallet) {
+        setIncAccountType('wallet');
+        setIncWalletId(primaryWallet._id || primaryWallet.id || '');
+        setIncBankAccountId('');
+      } else {
+        setIncAccountType('bank');
+        setIncBankAccountId('');
+        setIncWalletId('');
+      }
     }
-  }, [isOpen, initialItem, initialMode, month]);
+  }, [isOpen, initialItem, initialMode, month, bankAccounts, wallets]);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
   // Update sliding segmented pill position
   const updateTabIndicator = useCallback((targetMode, immediate = false) => {
     if (!indicatorRef.current) return;
-    const activeBtn = targetMode === 'log' ? logBtnRef.current : planBtnRef.current;
+    let activeBtn = logBtnRef.current;
+    if (targetMode === 'income') activeBtn = incomeBtnRef.current;
+    else if (targetMode === 'plan') activeBtn = planBtnRef.current;
+    else if (targetMode === 'transfer') activeBtn = transferBtnRef.current;
     if (!activeBtn) return;
 
     const track = activeBtn.parentElement;
@@ -422,9 +531,38 @@ export function UnifiedEntryModal({
     handleMicroPress(e, () => handleTogglePaidStatus(!isPaid));
   };
 
+  const handleSelectMatchedItem = (id) => {
+    setMatchedItemId(id);
+    if (id) {
+      const selectedItem = eligiblePlannedItems.find((i) => (i._id || i.id) === id);
+      if (selectedItem && selectedItem.accountType && selectedItem.accountType !== 'unassigned') {
+        setTxAccountType(selectedItem.accountType);
+        if (selectedItem.accountType === 'bank') {
+          const bankId = selectedItem.bankAccountId?._id || selectedItem.bankAccountId || '';
+          if (bankId) {
+            setTxBankAccountId(bankId);
+            setTxWalletId('');
+          }
+        } else if (selectedItem.accountType === 'wallet') {
+          const walletId = selectedItem.walletId?._id || selectedItem.walletId || '';
+          if (walletId) {
+            setTxWalletId(walletId);
+            setTxBankAccountId('');
+          }
+        }
+      }
+    }
+  };
+
   const handleTransactionSubmit = (e) => {
     e.preventDefault();
     if (!txAmount || isNaN(Number(txAmount))) return;
+
+    const hasAccount = (txAccountType === 'bank' && txBankAccountId) || (txAccountType === 'wallet' && txWalletId);
+    if (!hasAccount) {
+      alert('Please select an active Bank Account or Wallet');
+      return;
+    }
 
     const baseAmount = Math.round(Math.abs(Number(txAmount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
@@ -434,7 +572,38 @@ export function UnifiedEntryModal({
       tag,
       note: note.trim(),
       date: txDate,
-      plannedItemId: matchedItemId || null
+      plannedItemId: matchedItemId || null,
+      accountType: txAccountType,
+      bankAccountId: txAccountType === 'bank' ? txBankAccountId : null,
+      walletId: txAccountType === 'wallet' ? txWalletId : null
+    });
+  };
+
+  const handleIncomeSubmit = (e) => {
+    e.preventDefault();
+    if (!incAmount || isNaN(Number(incAmount)) || Number(incAmount) <= 0) {
+      alert('Please enter a valid positive income amount');
+      return;
+    }
+
+    const hasAccount = (incAccountType === 'bank' && incBankAccountId) || (incAccountType === 'wallet' && incWalletId);
+    if (!hasAccount) {
+      alert('Please select an active Bank Account or Wallet');
+      return;
+    }
+
+    const baseAmount = Math.round(Math.abs(Number(incAmount)) * 100);
+
+    onLogTransaction({
+      amount: baseAmount,
+      isIncome: true,
+      tag: incTag,
+      note: incNote.trim(),
+      date: incDate,
+      plannedItemId: null,
+      accountType: incAccountType,
+      bankAccountId: incAccountType === 'bank' ? incBankAccountId : null,
+      walletId: incAccountType === 'wallet' ? incWalletId : null
     });
   };
 
@@ -474,6 +643,12 @@ export function UnifiedEntryModal({
     e.preventDefault();
     if (!itemName.trim()) return;
 
+    const hasAccount = (itemAccountType === 'bank' && itemBankAccountId) || (itemAccountType === 'wallet' && itemWalletId);
+    if (!hasAccount) {
+      alert('Please select an active Bank Account or Wallet');
+      return;
+    }
+
     let finalDate = itemDate;
     const year = month?.year || new Date().getFullYear();
     const monthNum = month?.month || (new Date().getMonth() + 1);
@@ -498,7 +673,10 @@ export function UnifiedEntryModal({
       type: itemType,
       name: itemName.trim(),
       priority: Number(priority) || 0,
-      isPaid
+      isPaid,
+      accountType: itemAccountType,
+      bankAccountId: itemAccountType === 'bank' ? itemBankAccountId : null,
+      walletId: itemAccountType === 'wallet' ? itemWalletId : null
     };
 
     if (itemType === 'one-time') {
@@ -513,6 +691,47 @@ export function UnifiedEntryModal({
     }
 
     onSaveItem(payload);
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    setTransferError('');
+
+    if (!transferAmount || Number(transferAmount) <= 0) {
+      setTransferError('Please enter a valid transfer amount.');
+      return;
+    }
+
+    if (!transferSourceId || !transferDestId) {
+      setTransferError('Both source and destination accounts are required.');
+      return;
+    }
+
+    if (transferSourceType === transferDestType && transferSourceId === transferDestId) {
+      setTransferError('Source and destination accounts must be different.');
+      return;
+    }
+
+    try {
+      const payload = {
+        date: transferDate,
+        amount: Math.round(Number(transferAmount) * 100),
+        sourceType: transferSourceType,
+        sourceBankAccountId: transferSourceType === 'bank' ? transferSourceId : null,
+        sourceWalletId: transferSourceType === 'wallet' ? transferSourceId : null,
+        destinationType: transferDestType,
+        destinationBankAccountId: transferDestType === 'bank' ? transferDestId : null,
+        destinationWalletId: transferDestType === 'wallet' ? transferDestId : null,
+        note: transferNote.trim()
+      };
+
+      if (onCreateTransfer) {
+        await onCreateTransfer(payload);
+      }
+      triggerExit();
+    } catch (err) {
+      setTransferError(err.message || 'Failed to record transfer.');
+    }
   };
 
   if (!shouldRender) return null;
@@ -562,6 +781,15 @@ export function UnifiedEntryModal({
                     <span>Log Spending</span>
                   </button>
                   <button
+                    ref={incomeBtnRef}
+                    type="button"
+                    className={`modal-tab-btn ${mode === 'income' ? 'active' : ''}`}
+                    onClick={() => handleSwitchMode('income')}
+                  >
+                    <TrendingUpIcon size={13} />
+                    <span>Log Income</span>
+                  </button>
+                  <button
                     ref={planBtnRef}
                     type="button"
                     className={`modal-tab-btn ${mode === 'plan' ? 'active' : ''}`}
@@ -569,6 +797,15 @@ export function UnifiedEntryModal({
                   >
                     <PlusIcon size={13} />
                     <span>Plan Budget Item</span>
+                  </button>
+                  <button
+                    ref={transferBtnRef}
+                    type="button"
+                    className={`modal-tab-btn ${mode === 'transfer' ? 'active' : ''}`}
+                    onClick={() => handleSwitchMode('transfer')}
+                  >
+                    <ArrowRightLeftIcon size={13} />
+                    <span>Transfer</span>
                   </button>
                 </>
               )}
@@ -646,6 +883,85 @@ export function UnifiedEntryModal({
                 />
               </div>
 
+              {/* Account Attribution (Mandatory per ADR 0035) */}
+              {bankAccounts.length === 0 && wallets.length === 0 ? (
+                <div style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border)', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                    Bank Account Required
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    You must register a bank account before logging transactions.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px' }}
+                    onClick={() => {
+                      triggerExit(() => {
+                        onOpenAddBank?.();
+                      });
+                    }}
+                  >
+                    + Add Bank Account
+                  </button>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Payment Account *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
+                    {bankAccounts.length > 0 && wallets.length > 0 && (
+                      <select
+                        value={txAccountType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          setTxAccountType(newType);
+                          if (newType === 'bank') {
+                            const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+                            setTxBankAccountId(primaryBank?._id || primaryBank?.id || '');
+                            setTxWalletId('');
+                          } else if (newType === 'wallet') {
+                            const primaryWallet = wallets.find((w) => w.isPrimary) || wallets[0];
+                            setTxWalletId(primaryWallet?._id || primaryWallet?.id || '');
+                            setTxBankAccountId('');
+                          }
+                        }}
+                      >
+                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
+                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
+                      </select>
+                    )}
+
+                    {txAccountType === 'bank' && (
+                      <select
+                        value={txBankAccountId}
+                        onChange={(e) => setTxBankAccountId(e.target.value)}
+                        required
+                      >
+                        {bankAccounts.map((b) => (
+                          <option key={b._id || b.id} value={b._id || b.id}>
+                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {txAccountType === 'wallet' && (
+                      <select
+                        value={txWalletId}
+                        onChange={(e) => setTxWalletId(e.target.value)}
+                        required
+                      >
+                        {wallets.map((w) => (
+                          <option key={w._id || w.id} value={w._id || w.id}>
+                            {w.name} ({w.walletType})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Category Tag Pills */}
               <div className="form-group">
                 <label className="form-label">Category tag</label>
@@ -686,7 +1002,7 @@ export function UnifiedEntryModal({
                 <SearchableItemPicker
                   items={eligiblePlannedItems}
                   selectedId={matchedItemId}
-                  onSelect={(id) => setMatchedItemId(id)}
+                  onSelect={handleSelectMatchedItem}
                   currencySymbol={currencySymbol}
                 />
                 <span
@@ -726,6 +1042,7 @@ export function UnifiedEntryModal({
                 <button
                   type="submit"
                   className="btn-primary"
+                  disabled={bankAccounts.length === 0 && wallets.length === 0}
                   style={{
                     padding: '10px 20px',
                     background: isRefund ? 'var(--success)' : undefined,
@@ -733,6 +1050,235 @@ export function UnifiedEntryModal({
                   }}
                 >
                   {isRefund ? 'Log credit inflow' : 'Log expense debit'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* MODE: LOG DIRECT / AD-HOC INCOME */}
+          {mode === 'income' && (
+            <form
+              ref={formRef}
+              onSubmit={handleIncomeSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              {/* Scheduled Base Salary Info Card */}
+              {month?.incomeAmount ? (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    background: 'var(--surface-subtle)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Scheduled Monthly Salary
+                    </span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                      +{currencySymbol}{(month.incomeAmount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>
+                      Deposit Target:{' '}
+                      <strong style={{ color: 'var(--text)' }}>
+                        {(() => {
+                          const bId = month.salaryBankAccountId?._id || month.salaryBankAccountId;
+                          const b = bankAccounts.find((x) => (x._id || x.id) === bId);
+                          return b ? b.name : (bId ? 'Assigned Bank' : 'Unassigned (Unified Only)');
+                        })()}
+                      </strong>
+                    </span>
+                    <span>
+                      Scheduled Day:{' '}
+                      <strong style={{ color: 'var(--text)' }}>
+                        {month.incomeCreditDate || `Day ${month.salaryDepositDay || 1}`}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'var(--surface-subtle)',
+                    border: '1px dashed var(--border)',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  No scheduled base salary configured for this month. Log any earnings or salary receipt below.
+                </div>
+              )}
+
+              {/* Income Amount */}
+              <div className="form-group">
+                <label className="form-label">Income Amount ({currencySymbol}) *</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  required
+                  autoFocus
+                  placeholder="0.00"
+                  value={incAmount}
+                  onChange={(e) => setIncAmount(e.target.value)}
+                  className="tabular-nums"
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    padding: '10px 14px',
+                    color: 'var(--text)',
+                    borderColor: 'var(--border)'
+                  }}
+                />
+              </div>
+
+              {/* Destination Account */}
+              {bankAccounts.length === 0 && wallets.length === 0 ? (
+                <div style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border)', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                    Bank Account Required
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    You must register a bank account before logging income.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px' }}
+                    onClick={() => {
+                      triggerExit(() => {
+                        onOpenAddBank?.();
+                      });
+                    }}
+                  >
+                    + Add Bank Account
+                  </button>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Deposited To (Account) *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
+                    {bankAccounts.length > 0 && wallets.length > 0 && (
+                      <select
+                        value={incAccountType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          setIncAccountType(newType);
+                          if (newType === 'bank') {
+                            const defaultBank = (month?.salaryBankAccountId ? bankAccounts.find((b) => (b._id || b.id) === (month.salaryBankAccountId?._id || month.salaryBankAccountId)) : null) || bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+                            setIncBankAccountId(defaultBank?._id || defaultBank?.id || '');
+                            setIncWalletId('');
+                          } else if (newType === 'wallet') {
+                            const primaryWallet = wallets.find((w) => w.isPrimary) || wallets[0];
+                            setIncWalletId(primaryWallet?._id || primaryWallet?.id || '');
+                            setIncBankAccountId('');
+                          }
+                        }}
+                      >
+                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
+                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
+                      </select>
+                    )}
+
+                    {incAccountType === 'bank' && (
+                      <select
+                        value={incBankAccountId}
+                        onChange={(e) => setIncBankAccountId(e.target.value)}
+                        required
+                      >
+                        {bankAccounts.map((b) => (
+                          <option key={b._id || b.id} value={b._id || b.id}>
+                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {incAccountType === 'wallet' && (
+                      <select
+                        value={incWalletId}
+                        onChange={(e) => setIncWalletId(e.target.value)}
+                        required
+                      >
+                        {wallets.map((w) => (
+                          <option key={w._id || w.id} value={w._id || w.id}>
+                            {w.name} ({w.walletType})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Income Category / Source */}
+              <div className="form-group">
+                <label className="form-label">Income Category / Source</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={incTag === t ? 'btn-primary' : 'btn-subtle'}
+                      onClick={(e) => handleMicroPress(e, () => setIncTag(t))}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: incTag === t ? 600 : 400,
+                        border: incTag === t ? undefined : '1px solid var(--border)'
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="form-group">
+                <label className="form-label">Receipt Date</label>
+                <DatePicker
+                  value={incDate}
+                  onChange={(d) => setIncDate(d)}
+                  month={month}
+                  required
+                />
+              </div>
+
+              {/* Note / Memo */}
+              <div className="form-group">
+                <label className="form-label">Note / Payer Reference (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Monthly salary payout, client invoice, dividends"
+                  value={incNote}
+                  onChange={(e) => setIncNote(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                <button type="button" onClick={() => triggerExit()}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={bankAccounts.length === 0 && wallets.length === 0}
+                  style={{
+                    padding: '10px 20px',
+                    background: 'var(--success)',
+                    borderColor: 'var(--success)'
+                  }}
+                >
+                  Record Income
                 </button>
               </div>
             </form>
@@ -826,6 +1372,85 @@ export function UnifiedEntryModal({
                   })}
                 </div>
               </div>
+
+              {/* Dedicated Account (Mandatory per ADR 0035) */}
+              {bankAccounts.length === 0 && wallets.length === 0 ? (
+                <div style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--surface-subtle)', border: '1px solid var(--border)', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                    Bank Account Required
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    You must register a bank account before scheduling planned items.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px' }}
+                    onClick={() => {
+                      triggerExit(() => {
+                        onOpenAddBank?.();
+                      });
+                    }}
+                  >
+                    + Add Bank Account
+                  </button>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Dedicated Account *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
+                    {bankAccounts.length > 0 && wallets.length > 0 && (
+                      <select
+                        value={itemAccountType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          setItemAccountType(newType);
+                          if (newType === 'bank') {
+                            const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+                            setItemBankAccountId(primaryBank?._id || primaryBank?.id || '');
+                            setItemWalletId('');
+                          } else if (newType === 'wallet') {
+                            const primaryWallet = wallets.find((w) => w.isPrimary) || wallets[0];
+                            setItemWalletId(primaryWallet?._id || primaryWallet?.id || '');
+                            setItemBankAccountId('');
+                          }
+                        }}
+                      >
+                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
+                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
+                      </select>
+                    )}
+
+                    {itemAccountType === 'bank' && (
+                      <select
+                        value={itemBankAccountId}
+                        onChange={(e) => setItemBankAccountId(e.target.value)}
+                        required
+                      >
+                        {bankAccounts.map((b) => (
+                          <option key={b._id || b.id} value={b._id || b.id}>
+                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {itemAccountType === 'wallet' && (
+                      <select
+                        value={itemWalletId}
+                        onChange={(e) => setItemWalletId(e.target.value)}
+                        required
+                      >
+                        {wallets.map((w) => (
+                          <option key={w._id || w.id} value={w._id || w.id}>
+                            {w.name} ({w.walletType})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* One-Time Date Picker */}
               {itemType === 'one-time' && (
@@ -937,10 +1562,170 @@ export function UnifiedEntryModal({
                   <button type="button" onClick={() => triggerExit()}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn-primary" style={{ padding: '8px 18px' }}>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={bankAccounts.length === 0 && wallets.length === 0}
+                    style={{ padding: '8px 18px' }}
+                  >
                     {initialItem ? 'Update planned item' : 'Save planned item'}
                   </button>
                 </div>
+              </div>
+            </form>
+          )}
+
+          {/* MODE 3: TRANSFER */}
+          {mode === 'transfer' && (
+            <form
+              ref={formRef}
+              onSubmit={handleTransferSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              {transferError && (
+                <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: '12px', fontWeight: 600 }}>
+                  {transferError}
+                </div>
+              )}
+
+              {/* Transfer Amount (Hero) */}
+              <div className="form-group">
+                <label className="form-label">Transfer Amount ({currencySymbol}) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  autoFocus
+                  placeholder="0.00"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="tabular-nums"
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    padding: '10px 14px',
+                    color: 'var(--text)'
+                  }}
+                />
+              </div>
+
+              {/* Source Account */}
+              <div className="form-group">
+                <label className="form-label">Source Account (Outflow) *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
+                  <select
+                    value={transferSourceType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setTransferSourceType(newType);
+                      if (newType === 'bank') {
+                        setTransferSourceId(bankAccounts[0]?._id || bankAccounts[0]?.id || '');
+                      } else {
+                        setTransferSourceId(wallets[0]?._id || wallets[0]?.id || '');
+                      }
+                    }}
+                  >
+                    {bankAccounts.length > 0 && <option value="bank">Bank</option>}
+                    {wallets.length > 0 && <option value="wallet">Wallet</option>}
+                  </select>
+
+                  <select
+                    value={transferSourceId}
+                    onChange={(e) => setTransferSourceId(e.target.value)}
+                    required
+                  >
+                    {transferSourceType === 'bank' ? (
+                      bankAccounts.map((b) => (
+                        <option key={b._id || b.id} value={b._id || b.id}>
+                          {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      wallets.map((w) => (
+                        <option key={w._id || w.id} value={w._id || w.id}>
+                          {w.name} ({w.walletType})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* Destination Account */}
+              <div className="form-group">
+                <label className="form-label">Destination Account (Inflow) *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
+                  <select
+                    value={transferDestType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setTransferDestType(newType);
+                      if (newType === 'bank') {
+                        setTransferDestId(bankAccounts[0]?._id || bankAccounts[0]?.id || '');
+                      } else {
+                        setTransferDestId(wallets[0]?._id || wallets[0]?.id || '');
+                      }
+                    }}
+                  >
+                    {wallets.length > 0 && <option value="wallet">Wallet</option>}
+                    {bankAccounts.length > 0 && <option value="bank">Bank</option>}
+                  </select>
+
+                  <select
+                    value={transferDestId}
+                    onChange={(e) => setTransferDestId(e.target.value)}
+                    required
+                  >
+                    {transferDestType === 'bank' ? (
+                      bankAccounts.map((b) => (
+                        <option key={b._id || b.id} value={b._id || b.id}>
+                          {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      wallets.map((w) => (
+                        <option key={w._id || w.id} value={w._id || w.id}>
+                          {w.name} ({w.walletType})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* Transfer Date */}
+              <div className="form-group">
+                <label className="form-label">Transfer Date *</label>
+                <DatePicker
+                  value={transferDate}
+                  onChange={(d) => setTransferDate(d)}
+                  month={month}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Note / Reference (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. ATM withdrawal, emergency savings, envelope funding"
+                  value={transferNote}
+                  onChange={(e) => setTransferNote(e.target.value)}
+                />
+              </div>
+
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                <button type="button" onClick={() => triggerExit()}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Record Transfer
+                </button>
               </div>
             </form>
           )}
