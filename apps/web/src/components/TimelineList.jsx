@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import { MapPinIcon, ZapIcon } from './Icons.jsx';
+import { MapPinIcon } from './Icons.jsx';
 
 export function TimelineList({
   events = [],
@@ -11,11 +11,131 @@ export function TimelineList({
   currentDay = null,
   month = null,
   selectedAccountId = 'all',
+  selectedAccount = null,
+  bankAccounts = [],
+  wallets = [],
   onCreditSalary = null
 }) {
   const [filterType, setFilterType] = useState('all');
 
-  if (!events || events.length === 0) {
+  // Fast lookup map for account names (banks and wallets)
+  const accountMap = useMemo(() => {
+    const map = new Map();
+    (bankAccounts || []).forEach((b) => {
+      if (b._id) map.set(String(b._id), b.name);
+      if (b.id) map.set(String(b.id), b.name);
+    });
+    (wallets || []).forEach((w) => {
+      if (w._id) map.set(String(w._id), w.name);
+      if (w.id) map.set(String(w.id), w.name);
+    });
+    return map;
+  }, [bankAccounts, wallets]);
+
+  const normSelectedId = String(selectedAccountId || '');
+  const isFilteringAccount = Boolean(normSelectedId && normSelectedId !== 'all');
+
+  // Enriched events with account-specific amounts, running balances, transfer details, and breaches
+  const processedEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+
+    let fallbackRunningBalance = Number(selectedAccount?.openingBalance) || 0;
+
+    return events.map((evt, idx) => {
+      let displayAmount = evt.amount;
+      let displayBalance = evt.balanceAfter;
+      let transferDetail = null;
+      let isTransferOut = false;
+      let isTransferIn = false;
+
+      if (isFilteringAccount) {
+        if (evt.itemType === 'transfer') {
+          const sBank = evt.sourceBankAccountId
+            ? String(evt.sourceBankAccountId._id || evt.sourceBankAccountId.id || evt.sourceBankAccountId)
+            : '';
+          const sWall = evt.sourceWalletId
+            ? String(evt.sourceWalletId._id || evt.sourceWalletId.id || evt.sourceWalletId)
+            : '';
+          const dBank = evt.destinationBankAccountId
+            ? String(evt.destinationBankAccountId._id || evt.destinationBankAccountId.id || evt.destinationBankAccountId)
+            : '';
+          const dWall = evt.destinationWalletId
+            ? String(evt.destinationWalletId._id || evt.destinationWalletId.id || evt.destinationWalletId)
+            : '';
+
+          const isSource = Boolean((sBank && sBank === normSelectedId) || (sWall && sWall === normSelectedId));
+          const isDest = Boolean((dBank && dBank === normSelectedId) || (dWall && dWall === normSelectedId));
+          const trAmt = Math.abs(Number(evt.transferAmount) || 0);
+
+          if (isSource) {
+            isTransferOut = true;
+            displayAmount = -trAmt;
+            const destName = accountMap.get(dBank || dWall) || (evt.destinationType === 'wallet' ? 'Wallet' : 'Bank Account');
+            transferDetail = `transfer • sent to ${destName}`;
+            displayBalance = evt.sourceAccountBalanceAfter;
+          } else if (isDest) {
+            isTransferIn = true;
+            displayAmount = trAmt;
+            const srcName = accountMap.get(sBank || sWall) || (evt.sourceType === 'wallet' ? 'Wallet' : 'Bank Account');
+            transferDetail = `transfer • received from ${srcName}`;
+            displayBalance = evt.destinationAccountBalanceAfter;
+          } else {
+            displayAmount = evt.amount;
+            transferDetail = 'transfer';
+            displayBalance = evt.accountBalanceAfter;
+          }
+        } else {
+          displayAmount = evt.amount;
+          displayBalance = evt.accountBalanceAfter;
+        }
+
+        // Robust fallback for running balance if engine accountBalanceAfter is missing
+        if (displayBalance === null || displayBalance === undefined) {
+          fallbackRunningBalance += displayAmount;
+          displayBalance = fallbackRunningBalance;
+        } else {
+          fallbackRunningBalance = displayBalance;
+        }
+      } else {
+        // Unified mode
+        displayAmount = evt.amount;
+        displayBalance = evt.balanceAfter;
+
+        if (evt.itemType === 'transfer') {
+          const sBank = evt.sourceBankAccountId ? String(evt.sourceBankAccountId._id || evt.sourceBankAccountId.id || evt.sourceBankAccountId) : '';
+          const sWall = evt.sourceWalletId ? String(evt.sourceWalletId._id || evt.sourceWalletId.id || evt.sourceWalletId) : '';
+          const dBank = evt.destinationBankAccountId ? String(evt.destinationBankAccountId._id || evt.destinationBankAccountId.id || evt.destinationBankAccountId) : '';
+          const dWall = evt.destinationWalletId ? String(evt.destinationWalletId._id || evt.destinationWalletId.id || evt.destinationWalletId) : '';
+          const srcName = accountMap.get(sBank || sWall) || 'Account';
+          const dstName = accountMap.get(dBank || dWall) || 'Account';
+          transferDetail = `transfer • ${srcName} → ${dstName} (net ${currencySymbol}0)`;
+        } else {
+          const bId = evt.bankAccountId ? String(evt.bankAccountId._id || evt.bankAccountId.id || evt.bankAccountId) : '';
+          const wId = evt.walletId ? String(evt.walletId._id || evt.walletId.id || evt.walletId) : '';
+          const acctName = accountMap.get(bId || wId);
+          const baseType = evt.itemType === 'actual-income'
+            ? 'income • actual credited'
+            : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
+          transferDetail = acctName ? `${baseType} • ${acctName}` : baseType;
+        }
+      }
+
+      // Check breach against active safety floor (account minimum balance in account mode, unified floor in unified mode)
+      const isBreach = displayBalance < safetyFloor;
+
+      return {
+        ...evt,
+        displayAmount,
+        displayBalance,
+        transferDetail,
+        isTransferOut,
+        isTransferIn,
+        isBreach
+      };
+    });
+  }, [events, isFilteringAccount, normSelectedId, selectedAccount, accountMap, safetyFloor, currencySymbol]);
+
+  if (!processedEvents || processedEvents.length === 0) {
     return (
       <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         No timeline events generated for this month.
@@ -23,29 +143,29 @@ export function TimelineList({
     );
   }
 
-  // Count filter items
+  // Count filter items using account-specific display values
   const counts = {
-    all: events.length,
-    incomes: events.filter((e) => e.amount > 0).length,
-    planned: events.filter((e) => !e.isActual && e.amount < 0).length,
-    pending: events.filter((e) => e.isPending).length,
-    actuals: events.filter((e) => e.isActual).length,
-    breaches: events.filter((e) => e.balanceAfter < safetyFloor).length
+    all: processedEvents.length,
+    incomes: processedEvents.filter((e) => e.displayAmount > 0).length,
+    planned: processedEvents.filter((e) => !e.isActual && e.displayAmount < 0).length,
+    pending: processedEvents.filter((e) => e.isPending).length,
+    actuals: processedEvents.filter((e) => e.isActual).length,
+    breaches: processedEvents.filter((e) => e.isBreach).length
   };
 
   // Apply filters
-  let filteredEvents = events.filter((evt) => {
+  let filteredEvents = processedEvents.filter((evt) => {
     // 1. Day selection from chart
     if (selectedDay !== null && evt.day !== selectedDay) {
       return false;
     }
 
     // 2. Type filter pill
-    if (filterType === 'incomes') return evt.amount > 0;
-    if (filterType === 'planned') return !evt.isActual && evt.amount < 0;
+    if (filterType === 'incomes') return evt.displayAmount > 0;
+    if (filterType === 'planned') return !evt.isActual && evt.displayAmount < 0;
     if (filterType === 'pending') return Boolean(evt.isPending);
     if (filterType === 'actuals') return evt.isActual;
-    if (filterType === 'breaches') return evt.balanceAfter < safetyFloor;
+    if (filterType === 'breaches') return evt.isBreach;
     return true;
   });
 
@@ -56,8 +176,29 @@ export function TimelineList({
   return (
     <div className="card">
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span className="card-title">Interactive timeline</span>
+          {isFilteringAccount && selectedAccount && (
+            <span
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                background: 'var(--surface-subtle)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                borderRadius: '12px',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <span>{selectedAccount.name}</span>
+              {safetyFloor > 0 && (
+                <span style={{ opacity: 0.75 }}>• Min Floor: {formatCurrency(safetyFloor, currencySymbol)}</span>
+              )}
+            </span>
+          )}
         </div>
 
         {selectedDay !== null && (
@@ -128,8 +269,6 @@ export function TimelineList({
       ) : (
         <div className="timeline-list">
           {filteredEvents.map((evt, idx) => {
-            const isIncome = evt.amount > 0;
-            const isBreach = evt.balanceAfter < safetyFloor;
             const isPreMonth = evt.day < 0;
             const isSelected = selectedDay === evt.day;
             const isToday = currentDay !== null && evt.day === currentDay;
@@ -156,7 +295,7 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`timeline-event-row ${isSelected ? 'selected' : ''} ${isBreach ? 'row-breached' : ''}`}
+                  className={`timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
@@ -186,16 +325,10 @@ export function TimelineList({
                       )}
                     </div>
                     <span className="timeline-event-type">
-                      {evt.itemType === 'transfer' ? (
-                        selectedAccountId === 'all'
-                          ? 'transfer • net 0 on total cash'
-                          : ((selectedAccountId === evt.sourceBankAccountId || selectedAccountId === evt.sourceWalletId)
-                              ? 'transfer • debit to destination'
-                              : 'transfer • credit from source')
-                      ) : evt.itemType === 'actual-income' ? (
-                        'income • actual credited'
-                      ) : (
-                        `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
+                      {evt.transferDetail || (
+                        evt.itemType === 'actual-income'
+                          ? 'income • actual credited'
+                          : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
                       )}
                     </span>
                   </div>
@@ -216,27 +349,18 @@ export function TimelineList({
 
                   <div className="timeline-event-numbers">
                     <span
-                      className={`timeline-event-amount tabular-nums ${
-                        evt.itemType === 'transfer'
-                          ? (selectedAccountId !== 'all' && (selectedAccountId === evt.destinationBankAccountId || selectedAccountId === evt.destinationWalletId) ? 'positive' : '')
-                          : (isIncome ? 'positive' : '')
-                      }`}
+                      className={`timeline-event-amount tabular-nums ${evt.displayAmount > 0 ? 'positive' : ''}`}
                     >
-                      {evt.itemType === 'transfer' ? (
-                        selectedAccountId === 'all'
-                          ? `⇄ ${formatCurrency(evt.transferAmount, currencySymbol)}`
-                          : ((selectedAccountId === evt.sourceBankAccountId || selectedAccountId === evt.sourceWalletId)
-                              ? `-${formatCurrency(evt.transferAmount, currencySymbol)}`
-                              : `+${formatCurrency(evt.transferAmount, currencySymbol)}`)
-                      ) : (
-                        `${isIncome ? '+' : ''}${formatCurrency(evt.amount, currencySymbol)}`
-                      )}
+                      {evt.itemType === 'transfer' && !isFilteringAccount
+                        ? `⇄ ${formatCurrency(evt.transferAmount, currencySymbol)}`
+                        : `${evt.displayAmount > 0 ? '+' : ''}${formatCurrency(evt.displayAmount, currencySymbol)}`
+                      }
                     </span>
                     <span
-                      className={`timeline-event-balance tabular-nums ${isBreach ? 'text-breached' : ''}`}
+                      className={`timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}
                     >
-                      {isBreach && <span className="inline-breach-glyph">▲ </span>}
-                      bal: {formatCurrency(evt.balanceAfter, currencySymbol)}
+                      {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
+                      bal: {formatCurrency(evt.displayBalance, currencySymbol)}
                     </span>
                   </div>
                 </div>
@@ -248,3 +372,4 @@ export function TimelineList({
     </div>
   );
 }
+
