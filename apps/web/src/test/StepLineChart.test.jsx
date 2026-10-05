@@ -22,7 +22,7 @@ describe('StepLineChart component', () => {
     expect(screen.getByText(/no balance history available/i)).toBeInTheDocument();
   });
 
-  it('renders SVG chart with title, legend, and safety floor', () => {
+  it('renders SVG chart with title, balance legend, and safety floor', () => {
     render(
       <StepLineChart
         dailyBalances={mockDailyBalances}
@@ -34,8 +34,9 @@ describe('StepLineChart component', () => {
 
     expect(screen.getByText('Daily balance timeline')).toBeInTheDocument();
     expect(screen.getByText('Balance')).toBeInTheDocument();
-    expect(screen.getByText('Expenses')).toBeInTheDocument();
-    expect(screen.getByText(/Floor: ₹1,000.00/i)).toBeInTheDocument();
+    expect(screen.queryByText('Expenses')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Floor: ₹1,000.00$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Safety floor: ₹1,000.00$/i)).toBeInTheDocument();
   });
 
   it('handles touch gestures (onTouchStart, onTouchMove, onTouchEnd) without throwing handleTouch errors', () => {
@@ -114,5 +115,25 @@ describe('StepLineChart component', () => {
 
     fireEvent.click(dayTag);
     expect(onSelectDay).toHaveBeenCalledWith(null);
+  });
+
+  it('displays opening balance, day spending, and closing balance in tooltip on day selection', () => {
+    render(
+      <StepLineChart
+        dailyBalances={mockDailyBalances}
+        events={mockEvents}
+        safetyFloor={1000}
+        currencySymbol="₹"
+        selectedDay={2}
+      />
+    );
+
+    // Day 2: 5000 paisa = ₹50.00, spending = -500 paisa = -₹5.00, closing = 4500 paisa = ₹45.00
+    expect(screen.getByText('Opening:')).toBeInTheDocument();
+    expect(screen.getByText('Spending:')).toBeInTheDocument();
+    expect(screen.getByText('Closing:')).toBeInTheDocument();
+    expect(screen.getByText('₹50.00')).toBeInTheDocument();
+    expect(screen.getByText('-₹5.00')).toBeInTheDocument();
+    expect(screen.getByText('₹45.00')).toBeInTheDocument();
   });
 });
