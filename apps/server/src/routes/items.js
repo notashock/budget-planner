@@ -148,7 +148,44 @@ itemsRouter.put('/items/:id', async (req, res) => {
     }
 
     if (typeof req.body.isPaid === 'boolean') {
-      item.isPaid = req.body.isPaid;
+      const willBePaid = req.body.isPaid;
+      if (willBePaid && !item.isPaid) {
+        // Mark as paid: assign today's actual date in current active month
+        const parentMonth = await Month.findById(item.monthId);
+        const now = new Date();
+        const isCurrentMonth = parentMonth && parentMonth.year === now.getFullYear() && parentMonth.month === (now.getMonth() + 1);
+
+        if (isCurrentMonth) {
+          if (item.originalDay === undefined || item.originalDay === null) {
+            item.originalDay = item.type === 'recurring' ? (item.dayOfMonth || 1) : (item.day || 1);
+            item.originalDate = item.date || null;
+          }
+          const todayDateNum = now.getDate();
+          if (item.type === 'one-time') {
+            item.day = todayDateNum;
+          } else if (item.type === 'recurring') {
+            item.dayOfMonth = todayDateNum;
+          }
+          const pad = (n) => String(n).padStart(2, '0');
+          item.date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(todayDateNum)}`;
+        }
+        item.isPaid = true;
+      } else if (!willBePaid && item.isPaid) {
+        // Revert to pending: restore original scheduled day if saved
+        if (item.originalDay !== undefined && item.originalDay !== null) {
+          if (item.type === 'one-time') {
+            item.day = item.originalDay;
+          } else if (item.type === 'recurring') {
+            item.dayOfMonth = item.originalDay;
+          }
+          if (item.originalDate) {
+            item.date = item.originalDate;
+          }
+          item.originalDay = null;
+          item.originalDate = null;
+        }
+        item.isPaid = false;
+      }
     }
 
     let accountUpdated = false;
