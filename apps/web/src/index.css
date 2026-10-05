@@ -1993,22 +1993,145 @@ input[type="number"] {
   }
 }
 
-/* Month Review Mobile Viewport Capping & Containment */
+/* Month Review Modal Optimization */
 .month-review-content {
+  max-width: 640px !important;
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   width: 100%;
   box-sizing: border-box;
-  padding-bottom: max(28px, env(safe-area-inset-bottom, 28px));
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 640px) {
   .month-review-content {
-    max-height: 88vh;
-    padding-bottom: 20px;
+    max-height: 86vh;
+    border-radius: var(--radius-lg);
   }
+}
+
+.month-review-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  flex-shrink: 0;
+}
+
+.month-review-scroll-body {
+  padding: 18px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* Executive Hero Card */
+.month-review-hero {
+  background: linear-gradient(145deg, var(--surface) 0%, var(--surface-subtle) 100%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.month-review-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent) 0%, #10b981 100%);
+  opacity: 0.9;
+}
+
+.month-review-hero-value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* Balanced Bento Row */
+.month-review-bento-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 520px) {
+  .month-review-bento-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Review Distribution Bar */
+.review-cat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  transition: background 0.15s ease;
+}
+
+.review-cat-item:hover {
+  background: var(--surface-subtle);
+}
+
+.review-cat-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.review-cat-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.review-cat-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, #10b981 100%);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Next Month Projection Card */
+.month-review-projection {
+  background: linear-gradient(145deg, var(--surface) 0%, var(--surface-subtle) 100%);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* Modal Segmented Tab Track & Sliding Indicator */
