@@ -52,6 +52,7 @@ export default function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [autoOpenAddBank, setAutoOpenAddBank] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewAccountId, setReviewAccountId] = useState('all');
   const [createMonthOpen, setCreateMonthOpen] = useState(false);
   const [rolloverOpen, setRolloverOpen] = useState(false);
   const [isSalarySafelineOpen, setIsSalarySafelineOpen] = useState(false);
@@ -621,7 +622,10 @@ export default function App() {
               migrationEligible={migrationEligible}
               onOpenMigration={() => setMigrationModalOpen(true)}
               onOpenUnifiedEntry={handleOpenUnifiedEntry}
-              onOpenReview={() => setReviewOpen(true)}
+              onOpenReview={(accId) => {
+                setReviewAccountId(accId || 'all');
+                setReviewOpen(true);
+              }}
             />
           )}
 
@@ -727,6 +731,7 @@ export default function App() {
         items={items}
         simulation={activeSimulation}
         currencySymbol={currentMonth?.currencySymbol || '₹'}
+        accountId={reviewAccountId}
         onClose={() => setReviewOpen(false)}
       />
 
