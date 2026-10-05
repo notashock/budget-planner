@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, recommendPurchaseDate } from '../src/index.js';
+import { simulate, recommendPurchaseDate, evaluateGoalsWithReservation } from '../src/index.js';
 
 describe('Phase 2 - Multi-Account & Wallet Simulation Engine', () => {
   const bankHDFC = {
@@ -251,6 +251,62 @@ describe('Phase 2 - Multi-Account & Wallet Simulation Engine', () => {
       expect(result.recommendedDate).toBeNull();
       expect(result.explanation).toContain('Selected funding account');
       expect(result.explanation).toContain('Physical Cash');
+    });
+
+    it('evaluates multiple goals sequentially by priority, reserving funds from funding account lowest balance', () => {
+      // HDFC has 200,000 opening, 10,000 minimum balance.
+      // Goal 1 (High Priority 0): ₹150,000 from HDFC.
+      // Goal 2 (Low Priority 2): ₹60,000 from HDFC.
+      // Remaining HDFC lowest balance after Goal 1 = 50,000.
+      // Goal 2 costs 60,000, which would drop HDFC to -10,000 (breaching 10,000 minimum balance), so Goal 2 is infeasible!
+      const settings = {
+        openingBalance: 260000,
+        safetyFloor: 15000,
+        currentDay: 1,
+        accounts
+      };
+
+      const goals = [
+        {
+          id: 'goal-gadget',
+          name: 'Noise Cancelling Headphones',
+          targetAmount: 60000,
+          priority: 2, // Low priority
+          fundingSourceType: 'bank',
+          fundingBankAccountId: 'bank-hdfc',
+          status: 'active'
+        },
+        {
+          id: 'goal-laptop',
+          name: 'Work Laptop',
+          targetAmount: 150000,
+          priority: 0, // High priority
+          fundingSourceType: 'bank',
+          fundingBankAccountId: 'bank-hdfc',
+          status: 'active'
+        }
+      ];
+
+      const evaluated = evaluateGoalsWithReservation({
+        settings,
+        items: [],
+        month: { year: 2026, month: 10 },
+        goals,
+        transactions: [],
+        transfers: [],
+        accounts
+      });
+
+      // Goal-laptop (Priority 0) should be scheduled safely
+      const laptop = evaluated.find((g) => g.id === 'goal-laptop');
+      expect(laptop.recommendation.feasible).toBe(true);
+      expect(laptop.recommendation.recommendedDay).toBeGreaterThanOrEqual(1);
+
+      // Goal-gadget (Priority 2) should be rejected because HDFC lowest balance cannot absorb both
+      const gadget = evaluated.find((g) => g.id === 'goal-gadget');
+      expect(gadget.recommendation.feasible).toBe(false);
+      expect(gadget.recommendation.recommendedDate).toBeNull();
+      expect(gadget.recommendation.explanation).toContain('Selected funding account');
     });
   });
 
