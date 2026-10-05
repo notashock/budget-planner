@@ -176,6 +176,14 @@ export function TimelineList({
                           ✓ Credited
                         </span>
                       )}
+                      {evt.isPaid && evt.originalDay && evt.originalDay !== evt.day && !evt.isPending && (
+                        <span
+                          style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--primary)', fontWeight: 600 }}
+                          title={`Paid on Day ${evt.day} (originally scheduled for Day ${evt.originalDay})`}
+                        >
+                          Orig Day {evt.originalDay}
+                        </span>
+                      )}
                     </div>
                     <span className="timeline-event-type">
                       {evt.itemType === 'transfer' ? (
@@ -187,7 +195,7 @@ export function TimelineList({
                       ) : evt.itemType === 'actual-income' ? (
                         'income • actual credited'
                       ) : (
-                        `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : '• planned'}${evt.isFixed ? ' • fixed' : ''}`
+                        `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
                       )}
                     </span>
                   </div>
