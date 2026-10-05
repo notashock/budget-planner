@@ -123,18 +123,19 @@ function getMonotoneCubicSplinePath(points) {
     // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
     const width = isMobile ? 540 : 600;
     const height = isMobile ? 260 : 175;
-    const paddingLeft = isMobile ? 54 : 62;
+    const paddingLeft = isMobile ? 58 : 66;
     const paddingRight = 16;
-    const paddingTop = 20;
-    const paddingBottom = 28;
+    const paddingTop = 14;
+    const paddingBottom = 26;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
 
-    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0
+    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0.
+    // Tight yMax margin removes dead space above the highest curve peak.
     const range = maxVal - minVal || 1000;
-    const yMin = minVal < 0 ? minVal - range * 0.05 : 0;
-    const yMax = maxVal + range * 0.08;
+    const yMin = minVal < 0 ? minVal - range * 0.03 : 0;
+    const yMax = maxVal + range * 0.02;
 
     const minDay = dailyBalances[0].day;
     const maxDay = dailyBalances[dailyBalances.length - 1].day;
@@ -291,8 +292,8 @@ function getMonotoneCubicSplinePath(points) {
   }
 
   // Tooltip geometry
-  const tooltipWidth = 186;
-  const tooltipHeight = isBreached ? 90 : 76;
+  const tooltipWidth = 204;
+  const tooltipHeight = isBreached ? 96 : 84;
   let tooltipX = activePoint ? getX(activePoint.day) - tooltipWidth / 2 : 0;
   if (tooltipX < paddingLeft) tooltipX = paddingLeft;
   if (tooltipX + tooltipWidth > width - paddingRight) tooltipX = width - paddingRight - tooltipWidth;
@@ -333,14 +334,14 @@ function getMonotoneCubicSplinePath(points) {
 
   return (
     <div className="card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: '6px' }}>
+      <div className="card-header" style={{ flexWrap: 'wrap', gap: '6px', marginBottom: '2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="card-title">Daily balance timeline</span>
           {selectedDay !== null && (
             <span
               className="selected-day-tag tabular-nums"
               style={{
-                fontSize: '11px',
+                fontSize: '11.5px',
                 padding: '2px 8px',
                 background: 'var(--text)',
                 color: 'var(--bg)',
@@ -355,12 +356,12 @@ function getMonotoneCubicSplinePath(points) {
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '10px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '12px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
             Balance
           </span>
-          <span>
+          <span style={{ fontWeight: 500 }}>
             Floor: {formatCurrency(safetyFloor, currencySymbol)}
           </span>
           {onOpenReview && (
@@ -370,7 +371,7 @@ function getMonotoneCubicSplinePath(points) {
               onClick={onOpenReview}
               style={{
                 padding: '3px 9px',
-                fontSize: '11px',
+                fontSize: '11.5px',
                 fontWeight: 600,
                 borderRadius: 'var(--radius)',
                 display: 'inline-flex',
@@ -414,9 +415,10 @@ function getMonotoneCubicSplinePath(points) {
               />
               <text
                 x={paddingLeft - 8}
-                y={getY(t.val) + 3}
+                y={getY(t.val) + 4}
                 textAnchor="end"
                 className="chart-axis-text"
+                style={{ fontSize: '11.5px', fontWeight: 500 }}
               >
                 {t.label}
               </text>
@@ -437,7 +439,7 @@ function getMonotoneCubicSplinePath(points) {
             x={width - paddingRight - 4}
             y={floorY - 6}
             textAnchor="end"
-            style={{ fontSize: '10px', fill: 'var(--text-secondary)', fontWeight: 600 }}
+            style={{ fontSize: '11.5px', fill: 'var(--text-secondary)', fontWeight: 600 }}
           >
             {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
@@ -469,19 +471,19 @@ function getMonotoneCubicSplinePath(points) {
                 opacity="0.8"
               />
               <rect
-                x={getX(todayPoint.day) - 18}
-                y={paddingTop - 14}
-                width="36"
+                x={getX(todayPoint.day) - 20}
+                y={paddingTop - 12}
+                width="40"
                 height="14"
                 rx="3"
                 fill="var(--text)"
               />
               <text
                 x={getX(todayPoint.day)}
-                y={paddingTop - 4}
+                y={paddingTop - 2}
                 textAnchor="middle"
                 fill="var(--bg)"
-                style={{ fontSize: '9px', fontWeight: 700 }}
+                style={{ fontSize: '10px', fontWeight: 700 }}
               >
                 TODAY
               </text>
@@ -581,12 +583,13 @@ function getMonotoneCubicSplinePath(points) {
               <text
                 key={day}
                 x={getX(day)}
-                y={height - 10}
+                y={height - 8}
                 textAnchor={textAnchor}
                 className="chart-axis-text"
                 style={{
                   fill: isSelected ? 'var(--text)' : isNegative ? 'var(--text)' : undefined,
-                  fontWeight: isSelected || isNegative ? 600 : 400,
+                  fontWeight: isSelected || isNegative ? 600 : 500,
+                  fontSize: '11.5px',
                   cursor: 'pointer'
                 }}
                 onClick={() => onSelectDay?.(selectedDay === day ? null : day)}
@@ -610,10 +613,10 @@ function getMonotoneCubicSplinePath(points) {
               />
               {/* Header: Date */}
               <text
-                x="10"
-                y="15"
+                x="12"
+                y="17"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 600 }}
+                style={{ fontSize: '11px', fontWeight: 600 }}
               >
                 {activePoint.day < 0
                   ? `${formatDisplayDate(activePoint.date, true)} (Day ${activePoint.day})`
@@ -622,60 +625,60 @@ function getMonotoneCubicSplinePath(points) {
 
               {/* Opening Balance */}
               <text
-                x="10"
-                y="31"
+                x="12"
+                y="35"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 500 }}
+                style={{ fontSize: '11.5px', fontWeight: 500 }}
               >
                 Opening:
               </text>
               <text
-                x={tooltipWidth - 10}
-                y="31"
+                x={tooltipWidth - 12}
+                y="35"
                 textAnchor="end"
                 className="tabular-nums"
                 fill="var(--text)"
-                style={{ fontSize: '11px', fontWeight: 600 }}
+                style={{ fontSize: '12px', fontWeight: 600 }}
               >
                 {formatCurrency(openingBalance, currencySymbol)}
               </text>
 
               {/* Day Spending */}
               <text
-                x="10"
-                y="46"
+                x="12"
+                y="52"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 500 }}
+                style={{ fontSize: '11.5px', fontWeight: 500 }}
               >
                 Spending:
               </text>
               <text
-                x={tooltipWidth - 10}
-                y="46"
+                x={tooltipWidth - 12}
+                y="52"
                 textAnchor="end"
                 className="tabular-nums"
                 fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
-                style={{ fontSize: '11px', fontWeight: 600 }}
+                style={{ fontSize: '12px', fontWeight: 600 }}
               >
                 {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
               </text>
 
               {/* Closing Balance */}
               <text
-                x="10"
-                y="61"
+                x="12"
+                y="69"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 500 }}
+                style={{ fontSize: '11.5px', fontWeight: 500 }}
               >
                 Closing:
               </text>
               <text
-                x={tooltipWidth - 10}
-                y="61"
+                x={tooltipWidth - 12}
+                y="69"
                 textAnchor="end"
                 className="tabular-nums"
                 fill="var(--text)"
-                style={{ fontSize: '11px', fontWeight: 700 }}
+                style={{ fontSize: '12px', fontWeight: 700 }}
               >
                 {formatCurrency(closingBalance, currencySymbol)}
               </text>
@@ -683,10 +686,10 @@ function getMonotoneCubicSplinePath(points) {
               {/* Floor Breached Warning */}
               {isBreached && (
                 <text
-                  x="10"
-                  y="77"
+                  x="12"
+                  y="87"
                   fill="var(--danger)"
-                  style={{ fontSize: '9px', fontWeight: 600 }}
+                  style={{ fontSize: '10.5px', fontWeight: 600 }}
                 >
                   ▲ Floor breached
                 </text>
