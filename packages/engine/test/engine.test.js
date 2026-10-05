@@ -291,8 +291,8 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(recommendation.feasible).toBe(true);
       // Must not recommend any day before today (day 10)
       expect(recommendation.recommendedDay).toBeGreaterThanOrEqual(10);
-      // Prefers scheduling on or immediately after the heavy rent bill clears on the 15th (not waiting until Day 31)
-      expect(recommendation.recommendedDay).toBe(15);
+      // Diversifies load by scheduling after the heavy rent bill on Day 15 onto zero-load Day 16
+      expect(recommendation.recommendedDay).toBe(16);
       expect(recommendation.savingsBuffer).toBeGreaterThanOrEqual(0);
     });
 
@@ -396,14 +396,21 @@ describe('Engine Suite - Core & Sprint Features', () => {
       const result = simulate(settings, items, { year: 2026, month: 10 }, transactions, goals);
 
       expect(result.safeVelocity).toBeDefined();
-      expect(result.safeVelocity.freeSurplus).toBe(180000);
+      // Per ADR 0041: Unpaid planned item is not deducted from Safe Velocity
+      expect(result.safeVelocity.freeSurplus).toBe(330000);
       expect(result.safeVelocity.daysLeft).toBe(22);
-      expect(result.safeVelocity.safeVelocityPerDay).toBe(8181);
-      expect(result.safeToSpendPerDay).toBe(8181);
-      expect(result.allowanceLeft).toBe(180000);
-      expect(result.safeVelocity.committedUpcomingItems).toBe(150000);
+      expect(result.safeVelocity.safeVelocityPerDay).toBe(15000);
+      expect(result.safeToSpendPerDay).toBe(15000);
+      expect(result.allowanceLeft).toBe(330000);
+      expect(result.safeVelocity.committedUpcomingItems).toBe(0);
       expect(result.safeVelocity.activeGoalsCost).toBe(50000);
       expect(result.safeVelocity.burnRatePerDay).toBe(2000); // 20,000 / 10 days
+
+      // When the upcoming item is marked paid, its cash is debited from todayBalance directly (committedUpcomingItems is 0, freeSurplus is 180000)
+      const paidResult = simulate(settings, [{ ...items[0], isPaid: true }], { year: 2026, month: 10 }, transactions, goals);
+      expect(paidResult.safeVelocity.committedUpcomingItems).toBe(0);
+      expect(paidResult.safeVelocity.freeSurplus).toBe(180000);
+      expect(paidResult.safeVelocity.safeVelocityPerDay).toBe(8181);
     });
 
     it('preserves cash in todayBalance for unpaid past-due items and deducts when marked isPaid: true', () => {
@@ -435,6 +442,56 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(paidResult.endingBalance).toBe(70000);
       expect(paidResult.events[0].isPending).toBe(false);
       expect(paidResult.events[0].day).toBe(5);
+    });
+
+    describe('ADR 0041: Dynamic Velocity Unpaid Exclusion, Load Smoothing, and Forward-Rolling', () => {
+      it('diversifies date recommendations to avoid heavy-load days', () => {
+        const settings = {
+          openingBalance: 500000,
+          incomeAmount: 5000000,
+          incomeCreditDay: 1,
+          safetyFloor: 100000,
+          currentDay: 10
+        };
+
+        const items = [
+          // Day 12 has a heavy load (50,000)
+          { id: 'bill-1', type: 'one-time', name: 'Heavy Bill', amount: 5000000, day: 12 },
+          // Day 13 has zero load
+        ];
+
+        // Recommend purchase for 1,500 (150000 minor units)
+        const rec = recommendPurchaseDate(settings, items, { year: 2026, month: 10 }, 150000);
+        expect(rec.feasible).toBe(true);
+        // Instead of stacking on Day 12, recommender picks the zero-load Day 13
+        expect(rec.recommendedDay).toBe(13);
+      });
+
+      it('rolls overdue unpaid items into future days and preserves originalDay', () => {
+        const settings = {
+          openingBalance: 300000,
+          incomeAmount: 0,
+          incomeCreditDay: 1,
+          safetyFloor: 50000,
+          currentDay: 8
+        };
+
+        const items = [
+          // Scheduled on Day 3, but unpaid
+          { id: 'bill-past', type: 'one-time', name: 'Past Due Bill', amount: 50000, day: 3, originalDay: 3, isPaid: false },
+          // Scheduled on Day 9 with existing load
+          { id: 'bill-future', type: 'one-time', name: 'Future Bill', amount: 100000, day: 9, isPaid: false }
+        ];
+
+        const sim = simulate(settings, items, { year: 2026, month: 10 });
+        const pastItemEvt = sim.events.find((e) => e.itemId === 'bill-past');
+        expect(pastItemEvt).toBeDefined();
+        expect(pastItemEvt.isPending).toBe(true);
+        expect(pastItemEvt.originalDay).toBe(3);
+        // Forward-rolled after currentDay (Day 8); picks zero-load Day 10 rather than Day 9
+        expect(pastItemEvt.day).toBeGreaterThan(8);
+        expect(pastItemEvt.day).toBe(10);
+      });
     });
   });
 });
