@@ -421,13 +421,17 @@ export function RolloverModal({
   currencySymbol = '₹',
   bankAccounts = [],
   wallets = [],
-  simulation = null
+  simulation = null,
+  items = []
 }) {
   const [carryBalance, setCarryBalance] = useState(true);
+  const [rolloverUnpaid, setRolloverUnpaid] = useState(true);
 
   if (!isOpen || !currentMonth) return null;
 
   const accountsMap = simulation?.accounts || {};
+  const unpaidOneTimeItems = (items || []).filter((i) => i.type === 'one-time' && !i.isPaid);
+  const unpaidSum = unpaidOneTimeItems.reduce((sum, i) => sum + (Math.round(i.amount || 0)), 0);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -490,12 +494,34 @@ export function RolloverModal({
           )}
         </div>
 
+        {/* Unpaid One-Time Items Rollover Prompt per ADR 0041 */}
+        {unpaidOneTimeItems.length > 0 && (
+          <div style={{ padding: '12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--border)' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                style={{ width: 'auto', marginTop: '2px' }}
+                checked={rolloverUnpaid}
+                onChange={(e) => setRolloverUnpaid(e.target.checked)}
+              />
+              <div>
+                <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>
+                  Roll forward unpaid one-time expenses ({unpaidOneTimeItems.length} items • {formatCurrency(unpaidSum, currencySymbol)})
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                  Automatically reschedules pending bills to the next month's best recommended dates.
+                </span>
+              </div>
+            </label>
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px' }}>
           <button type="button" onClick={onClose}>Cancel</button>
           <button
             type="button"
             className="btn-primary"
-            onClick={() => onConfirm(carryBalance)}
+            onClick={() => onConfirm(carryBalance, rolloverUnpaid)}
           >
             Confirm rollover
           </button>
