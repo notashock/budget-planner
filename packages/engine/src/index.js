@@ -1,6 +1,6 @@
 export { simulate } from './simulator.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
-export { recommendPurchaseDate } from './recommender.js';
+export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
 
 /**
