@@ -376,17 +376,6 @@ export function PlanScreen({
         </div>
 
         <div className="account-toolbar-actions">
-          {isFilteringAccount && (
-            <button
-              type="button"
-              className="btn-subtle"
-              onClick={() => setSelectedAccountId('all')}
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-              title="Reset to Unified View"
-            >
-              Reset to Unified
-            </button>
-          )}
           <button
             type="button"
             className="btn-primary desktop-only-btn"
@@ -477,7 +466,7 @@ export function PlanScreen({
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               currentDay={currentDay}
-              onOpenReview={onOpenReview}
+              onOpenReview={onOpenReview ? () => onOpenReview(selectedAccountId) : null}
             />
           </ErrorBoundary>
         </div>
