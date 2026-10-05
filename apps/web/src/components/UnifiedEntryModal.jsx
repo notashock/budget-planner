@@ -255,29 +255,23 @@ export function UnifiedEntryModal({
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
-  // Update sliding segmented pill position
+  // Update sliding segmented pill position matching Accounts toolbar
   const updateTabIndicator = useCallback((targetMode, immediate = false) => {
     if (!indicatorRef.current) return;
-    let activeBtn = logBtnRef.current;
-    if (targetMode === 'income') activeBtn = incomeBtnRef.current;
-    else if (targetMode === 'plan') activeBtn = planBtnRef.current;
-    else if (targetMode === 'transfer') activeBtn = transferBtnRef.current;
-    if (!activeBtn) return;
+    let targetEl = logBtnRef.current;
+    if (targetMode === 'income') targetEl = incomeBtnRef.current;
+    else if (targetMode === 'plan') targetEl = planBtnRef.current;
+    else if (targetMode === 'transfer') targetEl = transferBtnRef.current;
+    if (!targetEl) return;
 
-    const track = activeBtn.parentElement;
-    if (!track) return;
-
-    const trackRect = track.getBoundingClientRect();
-    const btnRect = activeBtn.getBoundingClientRect();
-    const targetX = btnRect.left - trackRect.left;
-    const targetWidth = btnRect.width;
+    const { offsetLeft, offsetWidth } = targetEl;
 
     if (immediate) {
-      gsap.set(indicatorRef.current, { x: targetX, width: targetWidth });
+      gsap.set(indicatorRef.current, { x: offsetLeft, width: offsetWidth });
     } else {
       gsap.to(indicatorRef.current, {
-        x: targetX,
-        width: targetWidth,
+        x: offsetLeft,
+        width: offsetWidth,
         duration: 0.22,
         ease: 'power2.out'
       });
@@ -776,52 +770,56 @@ export function UnifiedEntryModal({
 
           {/* Header & Mode Switcher */}
           <div className="modal-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
-            <div className="modal-tab-track">
+            <div className="modal-tab-track" style={{ flex: 1, maxWidth: '480px' }}>
               {!initialItem && (
                 <>
                   <div ref={indicatorRef} className="modal-tab-indicator" />
                   <button
                     ref={logBtnRef}
                     type="button"
-                    className={`modal-tab-btn ${mode === 'log' ? 'active' : ''}`}
+                    className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('log')}
                     aria-label="Spending"
                     title="Log Spending"
+                    style={{ flex: 1, justifyContent: 'center' }}
                   >
-                    <ZapIcon size={12} />
+                    <ZapIcon size={14} />
                     <span>Spending</span>
                   </button>
                   <button
                     ref={incomeBtnRef}
                     type="button"
-                    className={`modal-tab-btn ${mode === 'income' ? 'active' : ''}`}
+                    className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('income')}
                     aria-label="Income"
                     title="Log Income"
+                    style={{ flex: 1, justifyContent: 'center' }}
                   >
-                    <TrendingUpIcon size={12} />
+                    <TrendingUpIcon size={14} />
                     <span>Income</span>
                   </button>
                   <button
                     ref={planBtnRef}
                     type="button"
-                    className={`modal-tab-btn ${mode === 'plan' ? 'active' : ''}`}
+                    className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('plan')}
-                    aria-label="Plan"
+                    aria-label="Plan Budget Item"
                     title="Plan Budget Item"
+                    style={{ flex: 1, justifyContent: 'center' }}
                   >
-                    <PlusIcon size={12} />
+                    <PlusIcon size={14} />
                     <span>Plan</span>
                   </button>
                   <button
                     ref={transferBtnRef}
                     type="button"
-                    className={`modal-tab-btn ${mode === 'transfer' ? 'active' : ''}`}
+                    className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('transfer')}
                     aria-label="Transfer"
                     title="Transfer Funds"
+                    style={{ flex: 1, justifyContent: 'center' }}
                   >
-                    <ArrowRightLeftIcon size={12} />
+                    <ArrowRightLeftIcon size={14} />
                     <span>Transfer</span>
                   </button>
                 </>
