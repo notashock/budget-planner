@@ -48,7 +48,7 @@ export const api = {
   createTransaction: (year, month, tx) => request(`/api/months/${year}/${month}/transactions`, { method: 'POST', body: JSON.stringify(tx) }),
   deleteTransaction: (id) => request(`/api/transactions/${id}`, { method: 'DELETE' }),
   getMonthEndReview: (year, month) => request(`/api/months/${year}/${month}/month-end-review`),
-  recommendPurchaseDate: (year, month, amount) => request(`/api/months/${year}/${month}/recommend-purchase-date`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  recommendPurchaseDate: (year, month, amount, currentDay = new Date().getDate()) => request(`/api/months/${year}/${month}/recommend-purchase-date`, { method: 'POST', body: JSON.stringify({ amount, currentDay }) }),
 
   // Goals (Purchase Goals & Safe Date Recommendation)
   getGoals: (year, month) => request(`/api/months/${year}/${month}/goals`),
