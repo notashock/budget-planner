@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { formatCurrency, formatDisplayDate, recommendPurchaseDate } from '@budget/engine';
+import { formatCurrency, formatDisplayDate, evaluateGoalsWithReservation } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 
@@ -54,6 +54,7 @@ export function GoalsScreen({
   // Goal creation inputs
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
+  const [priority, setPriority] = useState(0);
   const [goalSubmitting, setGoalSubmitting] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
@@ -70,35 +71,32 @@ export function GoalsScreen({
 
   const currencySymbol = month?.currencySymbol || '₹';
 
-  // Live evaluation of purchase goals against running-balance timeline
+  // Live evaluation of purchase goals against running-balance timeline with sequential priority reservation
   const evaluatedGoals = useMemo(() => {
     if (!month) return goals;
-    return goals.map((goal) => {
-      if (goal.status === 'active' || goal.status === 'evaluating') {
-        const liveRecommendation = recommendPurchaseDate(
-          {
-            openingBalance: month.openingBalance,
-            incomeAmount: month.incomeAmount,
-            incomeCreditDate: month.incomeCreditDate,
-            incomeCreditDay: month.incomeCreditDay,
-            safetyFloor: month.safetyFloor,
-            unplannedAllowance: simulation?.safeVelocity?.freeSurplus || 0,
-            currentDay: new Date().getDate(),
-            scale: 100
-          },
-          items,
-          { year: month.year, month: month.month },
-          goal.targetAmount,
-          transactions
-        );
-        return {
-          ...goal,
-          recommendation: liveRecommendation || goal.recommendation
-        };
-      }
-      return goal;
+    const allAccs = [
+      ...(bankAccounts || []).map((b) => ({ ...b, type: 'bank' })),
+      ...(wallets || []).map((w) => ({ ...w, type: 'wallet' }))
+    ];
+    return evaluateGoalsWithReservation({
+      settings: {
+        openingBalance: month.openingBalance,
+        incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
+        incomeCreditDay: month.incomeCreditDay,
+        safetyFloor: month.safetyFloor,
+        unplannedAllowance: simulation?.safeVelocity?.freeSurplus || 0,
+        currentDay: new Date().getDate(),
+        scale: 100
+      },
+      items,
+      month: { year: month.year, month: month.month },
+      goals,
+      transactions,
+      transfers: simulation?.transfers || [],
+      accounts: allAccs
     });
-  }, [goals, month, items, transactions, simulation]);
+  }, [goals, month, items, transactions, simulation, bankAccounts, wallets]);
 
   // Available Survival Cushion for Goals
   const availableCushion = simulation?.safeVelocity?.freeSurplus ?? simulation?.allowanceLeft ?? 0;
@@ -132,7 +130,8 @@ export function GoalsScreen({
     try {
       const payload = {
         name: goalName.trim(),
-        targetAmount: Math.round(Number(goalAmount) * 100)
+        targetAmount: Math.round(Number(goalAmount) * 100),
+        priority: Number(priority) || 0
       };
       if (fundingSourceType) payload.fundingSourceType = fundingSourceType;
       if (fundingBankAccountId) payload.fundingBankAccountId = fundingBankAccountId;
@@ -141,6 +140,7 @@ export function GoalsScreen({
       await onCreateGoal?.(payload);
       setGoalName('');
       setGoalAmount('');
+      setPriority(0);
     } catch (err) {
       alert(err.message || 'Failed to create goal');
     } finally {
@@ -219,6 +219,36 @@ export function GoalsScreen({
                   </select>
                 </div>
               )}
+
+              <div className="form-group">
+                <label className="form-label">Priority</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`timeline-filter-btn ${priority === 0 ? 'active' : ''}`}
+                    onClick={() => setPriority(0)}
+                    style={{ justifyContent: 'center' }}
+                  >
+                    High (P0)
+                  </button>
+                  <button
+                    type="button"
+                    className={`timeline-filter-btn ${priority === 1 ? 'active' : ''}`}
+                    onClick={() => setPriority(1)}
+                    style={{ justifyContent: 'center' }}
+                  >
+                    Medium (P1)
+                  </button>
+                  <button
+                    type="button"
+                    className={`timeline-filter-btn ${priority === 2 ? 'active' : ''}`}
+                    onClick={() => setPriority(2)}
+                    style={{ justifyContent: 'center' }}
+                  >
+                    Low (P2)
+                  </button>
+                </div>
+              </div>
 
               <button
                 type="submit"
@@ -335,26 +365,42 @@ export function GoalsScreen({
                     <div>
                       <div className="goal-card-header">
                         <span className="goal-card-title" title={goal.name}>{goal.name}</span>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            background: 'var(--surface-subtle)',
-                            border: '1px solid var(--border)',
-                            color: isScheduled
-                              ? 'var(--text)'
-                              : isDeferred
-                              ? 'var(--text-muted)'
-                              : 'var(--text-secondary)',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                            letterSpacing: '0.04em',
-                            flexShrink: 0
-                          }}
-                        >
-                          {isScheduled ? 'Scheduled' : isDeferred ? 'Deferred' : 'Active'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: goal.priority === 0 ? 'rgba(239, 68, 68, 0.12)' : goal.priority === 1 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-subtle)',
+                              color: goal.priority === 0 ? '#ef4444' : goal.priority === 1 ? '#f59e0b' : 'var(--text-secondary)',
+                              border: `1px solid ${goal.priority === 0 ? '#ef444433' : goal.priority === 1 ? '#f59e0b33' : 'var(--border)'}`,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            {goal.priority === 0 ? 'P0 • High' : goal.priority === 1 ? 'P1 • Med' : 'P2 • Low'}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'var(--surface-subtle)',
+                              border: '1px solid var(--border)',
+                              color: isScheduled
+                                ? 'var(--text)'
+                                : isDeferred
+                                ? 'var(--text-muted)'
+                                : 'var(--text-secondary)',
+                              textTransform: 'uppercase',
+                              fontWeight: 600,
+                              letterSpacing: '0.04em',
+                              flexShrink: 0
+                            }}
+                          >
+                            {isScheduled ? 'Scheduled' : isDeferred ? 'Deferred' : 'Active'}
+                          </span>
+                        </div>
                       </div>
 
                       <div style={{ marginTop: '8px' }}>
