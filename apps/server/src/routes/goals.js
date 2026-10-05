@@ -5,8 +5,9 @@ import { Item } from '../models/Item.js';
 import { Transaction } from '../models/Transaction.js';
 import { BankAccount } from '../models/BankAccount.js';
 import { Wallet } from '../models/Wallet.js';
+import { Transfer } from '../models/Transfer.js';
 import { requireAuth } from '../middleware/auth.js';
-import { recommendPurchaseDate } from '@budget/engine';
+import { recommendPurchaseDate, evaluateGoalsWithReservation } from '@budget/engine';
 
 export const goalsRouter = express.Router();
 goalsRouter.use(requireAuth);
@@ -27,42 +28,36 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const [goals, items, transactions] = await Promise.all([
-      Goal.find({ userId: req.session.userId, monthId: month._id }).sort({ createdAt: -1 }),
+    const [goals, items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
+      Goal.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
       Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id })
+      Transaction.find({ userId: req.session.userId, monthId: month._id }),
+      Transfer.find({ userId: req.session.userId, monthId: month._id }),
+      BankAccount.find({ userId: req.session.userId, isArchived: false }),
+      Wallet.find({ userId: req.session.userId, isArchived: false })
     ]);
 
     const now = new Date();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : 0;
 
-    const evaluatedGoals = goals.map((goal) => {
-      const recommendation = recommendPurchaseDate(
-        {
-          openingBalance: month.openingBalance,
-          incomeAmount: month.incomeAmount,
-          incomeCreditDate: month.incomeCreditDate,
-          incomeCreditDay: month.incomeCreditDay,
-          safetyFloor: month.safetyFloor,
-          unplannedAllowance: month.unplannedAllowance || 0,
-          currentDay,
-          scale: 100
-        },
-        items,
-        { year, month: monthNum },
-        goal.targetAmount,
-        transactions
-      );
-
-      const obj = goal.toObject();
-      if (obj.status === 'evaluating') obj.status = 'active';
-      if (obj.status === 'ready') obj.status = 'scheduled';
-
-      return {
-        ...obj,
-        recommendation
-      };
+    const evaluatedGoals = evaluateGoalsWithReservation({
+      settings: {
+        openingBalance: month.openingBalance,
+        incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
+        incomeCreditDay: month.incomeCreditDay,
+        safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay,
+        scale: 100
+      },
+      items,
+      month: { year, month: monthNum },
+      goals,
+      transactions,
+      transfers,
+      accounts: [...bankAccounts, ...wallets]
     });
 
     return res.json(evaluatedGoals);
@@ -76,7 +71,7 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
   try {
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { name, targetAmount, fundingSourceType, fundingBankAccountId, fundingWalletId } = req.body;
+    const { name, targetAmount, priority = 0, fundingSourceType, fundingBankAccountId, fundingWalletId } = req.body;
 
     if (!name || !targetAmount || typeof Number(targetAmount) !== 'number') {
       return res.status(400).json({ error: 'Valid goal name and target amount required' });
@@ -111,29 +106,36 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
       }
     }
 
+    const parsedPriority = [0, 1, 2].includes(Number(priority)) ? Number(priority) : 0;
+
     const goal = await Goal.create({
       userId: req.session.userId,
       monthId: month._id,
       name: name.trim(),
       targetAmount: Math.round(Number(targetAmount)),
+      priority: parsedPriority,
       status: 'active',
       fundingSourceType: fType || null,
       fundingBankAccountId: fBankId || null,
       fundingWalletId: fWalletId || null
     });
 
-    // Evaluate recommendation immediately
-    const [items, transactions] = await Promise.all([
+    // Evaluate recommendation sequentially with other goals
+    const [allGoals, items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
+      Goal.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
       Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id })
+      Transaction.find({ userId: req.session.userId, monthId: month._id }),
+      Transfer.find({ userId: req.session.userId, monthId: month._id }),
+      BankAccount.find({ userId: req.session.userId, isArchived: false }),
+      Wallet.find({ userId: req.session.userId, isArchived: false })
     ]);
 
     const now = new Date();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : 0;
 
-    const recommendation = recommendPurchaseDate(
-      {
+    const evaluatedGoals = evaluateGoalsWithReservation({
+      settings: {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
         incomeCreditDate: month.incomeCreditDate,
@@ -144,15 +146,19 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
         scale: 100
       },
       items,
-      { year, month: monthNum },
-      goal.targetAmount,
-      transactions
-    );
-
-    return res.status(201).json({
-      ...goal.toObject(),
-      recommendation
+      month: { year, month: monthNum },
+      goals: allGoals,
+      transactions,
+      transfers,
+      accounts: [...bankAccounts, ...wallets]
     });
+
+    const targetGoal = evaluatedGoals.find((g) => String(g._id || g.id) === String(goal._id)) || {
+      ...goal.toObject(),
+      recommendation: null
+    };
+
+    return res.status(201).json(targetGoal);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to create goal' });
   }
@@ -230,7 +236,7 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
       name: goal.name,
       amount: goal.targetAmount,
       day: targetDay,
-      priority: 0,
+      priority: goal.priority ?? 0,
       accountType,
       bankAccountId: bankAccountId || undefined,
       walletId: walletId || undefined
@@ -242,6 +248,34 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
     return res.status(201).json({ item, goal });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to convert goal to item' });
+  }
+});
+
+// PUT /api/goals/:id (Update goal priority, name, or funding source)
+goalsRouter.put('/goals/:id', async (req, res) => {
+  try {
+    const goal = await Goal.findOne({
+      _id: req.params.id,
+      userId: req.session.userId
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    if (req.body.name !== undefined) goal.name = String(req.body.name).trim();
+    if (req.body.targetAmount !== undefined) goal.targetAmount = Math.round(Number(req.body.targetAmount));
+    if (req.body.priority !== undefined && [0, 1, 2].includes(Number(req.body.priority))) {
+      goal.priority = Number(req.body.priority);
+    }
+    if (req.body.fundingSourceType !== undefined) goal.fundingSourceType = req.body.fundingSourceType;
+    if (req.body.fundingBankAccountId !== undefined) goal.fundingBankAccountId = req.body.fundingBankAccountId;
+    if (req.body.fundingWalletId !== undefined) goal.fundingWalletId = req.body.fundingWalletId;
+
+    await goal.save();
+    return res.json(goal);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update goal' });
   }
 });
 
