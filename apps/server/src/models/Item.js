@@ -55,6 +55,15 @@ const itemSchema = new mongoose.Schema(
       min: 1,
       max: 31
     },
+    // Preserves initially planned day before marked paid or rolled forward
+    originalDay: {
+      type: Number,
+      default: null
+    },
+    originalDate: {
+      type: String,
+      default: null
+    },
     // For fuel-log items
     fuelStops: [
       {
