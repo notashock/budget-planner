@@ -85,24 +85,28 @@ export function recommendPurchaseDate(
     : 0;
   const effectiveBurnRate = Math.max(actualDailyBurnRate, plannedDailyRate);
 
-  // Pipeline Step 3: Identify heavy scheduled bills in the remainder of the month
+  // Pipeline Step 3: Identify heavy scheduled bills and compute daily planned load
   const heavyBillThreshold = settings.incomeAmount > 0
     ? Math.round(settings.incomeAmount * 0.15)
     : Math.max(cost, 10000);
 
   const heavyBillDays = new Set();
+  const dailyPlannedLoad = {};
   items.forEach((item) => {
+    let d = 1;
     if (item.type === 'recurring' || item.isFixed) {
-      const d = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
+      d = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
       if (d >= currentDay && Math.round(item.amount ?? 0) >= heavyBillThreshold) {
         heavyBillDays.add(d);
       }
     } else if (item.type === 'one-time') {
-      const d = clampDayToMonth(item.day ?? 1, daysInMonth);
+      d = clampDayToMonth(item.day ?? 1, daysInMonth);
       if (d >= currentDay && Math.round(item.amount ?? 0) >= heavyBillThreshold) {
         heavyBillDays.add(d);
       }
     }
+    const amt = Math.round(item.amount ?? 0);
+    dailyPlannedLoad[d] = (dailyPlannedLoad[d] || 0) + amt;
   });
 
   const latestHeavyBillDay = heavyBillDays.size > 0
@@ -184,13 +188,14 @@ export function recommendPurchaseDate(
         projectedLowestBalance: projectedLowest,
         savingsBuffer: buffer,
         paceBuffer,
+        existingDailyLoad: dailyPlannedLoad[d] || 0,
         isAfterHeavyBills: d >= latestHeavyBillDay,
         lowestDate: minPointDate
       });
     }
   }
 
-  // Pipeline Step 5: Decision & Selection
+  // Pipeline Step 5: Decision & Selection with Daily Outflow Smoothing
   if (safeCandidates.length > 0) {
     const preferredCandidates = safeCandidates.filter((c) => c.isAfterHeavyBills);
     const candidatePool = preferredCandidates.length > 0 ? preferredCandidates : safeCandidates;
@@ -199,9 +204,15 @@ export function recommendPurchaseDate(
     const activePool = paceSafeCandidates.length > 0 ? paceSafeCandidates : candidatePool;
 
     activePool.sort((a, b) => {
+      // 1. Primary: Daily Outflow Smoothing (lowest existing scheduled spend on that date)
+      if (a.existingDailyLoad !== b.existingDailyLoad) {
+        return a.existingDailyLoad - b.existingDailyLoad;
+      }
+      // 2. Secondary: Earliest day if pace-safe
       if (paceSafeCandidates.length > 0) {
         return a.day - b.day;
       }
+      // 3. Fallback: Highest savings buffer, then earliest day
       if (b.savingsBuffer !== a.savingsBuffer) {
         return b.savingsBuffer - a.savingsBuffer;
       }
