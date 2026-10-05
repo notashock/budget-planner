@@ -727,6 +727,28 @@ const handleRollover = async (req, res) => {
       }
     }
 
+    // Per ADR 0041: Copy unpaid one-time items if requested during rollover
+    const rolloverUnpaid = Boolean(req.body.rolloverUnpaidOneTimeItems);
+    if (rolloverUnpaid) {
+      const unpaidOneTimeItems = currentItems.filter((i) => i.type === 'one-time' && i.isPaid === false);
+      for (const item of unpaidOneTimeItems) {
+        itemsToInsert.push({
+          userId: req.session.userId,
+          monthId: nextMonth._id,
+          type: 'one-time',
+          name: item.name,
+          priority: item.priority,
+          amount: item.amount,
+          day: Math.min(28, item.day || 1),
+          isPaid: false,
+          originalDay: item.day || 1,
+          accountType: item.accountType || null,
+          bankAccountId: item.bankAccountId || null,
+          walletId: item.walletId || null
+        });
+      }
+    }
+
     if (itemsToInsert.length > 0) {
       await Item.insertMany(itemsToInsert);
     }
