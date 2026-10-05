@@ -389,20 +389,12 @@ export function PlanScreen({
           )}
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary desktop-only-btn"
             style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             onClick={() => onOpenUnifiedEntry?.('log')}
           >
             <PlusIcon size={14} />
             <span>New Entry</span>
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={onOpenReview}
-            style={{ padding: '6px 10px', fontSize: '12px' }}
-          >
-            Review
           </button>
         </div>
       </div>
@@ -418,7 +410,6 @@ export function PlanScreen({
             borderRadius: 'var(--radius)',
             background: 'var(--surface-subtle)',
             border: '1px solid var(--border)',
-            marginBottom: '12px',
             fontSize: '12px'
           }}
         >
@@ -486,6 +477,7 @@ export function PlanScreen({
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               currentDay={currentDay}
+              onOpenReview={onOpenReview}
             />
           </ErrorBoundary>
         </div>
