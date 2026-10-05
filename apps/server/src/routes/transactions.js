@@ -6,6 +6,7 @@ import { Goal } from '../models/Goal.js';
 import { Setting } from '../models/Setting.js';
 import { BankAccount } from '../models/BankAccount.js';
 import { Wallet } from '../models/Wallet.js';
+import { Transfer } from '../models/Transfer.js';
 import { requireAuth } from '../middleware/auth.js';
 import { recommendPurchaseDate } from '@budget/engine';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
@@ -287,10 +288,30 @@ transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res)
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const transactions = await Transaction.find({
+    const accountId = req.query.accountId;
+    const isAccountSpecific = Boolean(accountId && accountId !== 'all');
+
+    let targetAccount = null;
+    if (isAccountSpecific) {
+      targetAccount = await BankAccount.findOne({ _id: accountId, userId: req.session.userId })
+        || await Wallet.findOne({ _id: accountId, userId: req.session.userId });
+    }
+
+    const txQuery = {
       userId: req.session.userId,
       monthId: month._id
-    });
+    };
+    if (isAccountSpecific) {
+      txQuery.$or = [
+        { bankAccountId: accountId },
+        { walletId: accountId }
+      ];
+    }
+
+    const [transactions, transfers] = await Promise.all([
+      Transaction.find(txQuery),
+      Transfer.find({ userId: req.session.userId, monthId: month._id })
+    ]);
 
     const tagBreakdown = {
       Food: { count: 0, total: 0 },
@@ -301,8 +322,14 @@ transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res)
 
     let totalUnplannedActual = 0;
     let totalMatchedActual = 0;
+    let directIncome = 0;
 
     transactions.forEach((tx) => {
+      if (tx.isIncome) {
+        directIncome += tx.amount;
+        return;
+      }
+
       const tag = tx.tag || 'Other';
       if (!tagBreakdown[tag]) tagBreakdown[tag] = { count: 0, total: 0 };
       tagBreakdown[tag].count++;
@@ -315,11 +342,35 @@ transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res)
       }
     });
 
+    let totalTransferIn = 0;
+    let totalTransferOut = 0;
+
+    if (isAccountSpecific) {
+      transfers.forEach((tr) => {
+        const sBank = tr.sourceBankAccountId ? String(tr.sourceBankAccountId._id || tr.sourceBankAccountId) : null;
+        const sWall = tr.sourceWalletId ? String(tr.sourceWalletId._id || tr.sourceWalletId) : null;
+        const dBank = tr.destinationBankAccountId ? String(tr.destinationBankAccountId._id || tr.destinationBankAccountId) : null;
+        const dWall = tr.destinationWalletId ? String(tr.destinationWalletId._id || tr.destinationWalletId) : null;
+
+        if (sBank === String(accountId) || sWall === String(accountId)) {
+          totalTransferOut += tr.amount;
+        }
+        if (dBank === String(accountId) || dWall === String(accountId)) {
+          totalTransferIn += tr.amount;
+        }
+      });
+    }
+
+    const totalIncome = isAccountSpecific
+      ? (directIncome + totalTransferIn)
+      : (month.incomeAmount || 0) + directIncome;
+
+    const totalExpenses = totalUnplannedActual + totalMatchedActual + totalTransferOut;
+    const netCashflow = totalIncome - totalExpenses;
+
     // Plain arithmetic calculation for suggested next-month allowance:
-    // Suggests actual unplanned spend rounded up with a 10% safety buffer
     let suggestedAllowance = 0;
     if (totalUnplannedActual > 0) {
-      // Add 10% buffer and round to nearest 50 whole units (5000 minor units)
       const withBuffer = totalUnplannedActual * 1.1;
       suggestedAllowance = Math.ceil(withBuffer / 5000) * 5000;
     } else {
@@ -327,6 +378,17 @@ transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res)
     }
 
     const review = {
+      isAccountSpecific,
+      accountId: isAccountSpecific ? accountId : null,
+      accountName: targetAccount ? targetAccount.name : (isAccountSpecific ? 'Account' : 'Unified (All Accounts)'),
+      accountType: targetAccount ? (targetAccount.institution ? 'bank' : 'wallet') : null,
+      totalIncome,
+      directIncome,
+      totalTransferIn,
+      totalExpenses,
+      directExpenses: totalUnplannedActual + totalMatchedActual,
+      totalTransferOut,
+      netCashflow,
       unplannedAllowance: month.unplannedAllowance || 0,
       totalUnplannedActual,
       totalMatchedActual,
