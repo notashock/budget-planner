@@ -22,6 +22,7 @@ import {
 } from './Icons.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { DatePicker } from './DatePicker.jsx';
+import { CustomSelect } from './CustomSelect.jsx';
 import { api } from '../api.js';
 
 gsap.registerPlugin(useGSAP);
@@ -369,7 +370,7 @@ export function UnifiedEntryModal({
         gsap.fromTo(
           items,
           { opacity: 0, y: 10 },
-          { opacity: 1, y: 0, stagger: 0.02, duration: 0.22, delay: 0.04, ease: 'power2.out' }
+          { opacity: 1, y: 0, stagger: 0.02, duration: 0.22, delay: 0.04, ease: 'power2.out', clearProps: 'transform' }
         );
       }
     }
@@ -387,7 +388,7 @@ export function UnifiedEntryModal({
         gsap.fromTo(
           items,
           { opacity: 0, y: 8 },
-          { opacity: 1, y: 0, stagger: 0.02, duration: 0.2, ease: 'power2.out' }
+          { opacity: 1, y: 0, stagger: 0.02, duration: 0.2, ease: 'power2.out', clearProps: 'transform' }
         );
       }
     }
@@ -766,7 +767,7 @@ export function UnifiedEntryModal({
           </div>
 
           {/* Header & Mode Switcher */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div className="modal-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
             <div className="modal-tab-track">
               {!initialItem && (
                 <>
@@ -776,35 +777,43 @@ export function UnifiedEntryModal({
                     type="button"
                     className={`modal-tab-btn ${mode === 'log' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('log')}
+                    aria-label="Spending"
+                    title="Log Spending"
                   >
-                    <ZapIcon size={13} />
-                    <span>Log Spending</span>
+                    <ZapIcon size={12} />
+                    <span>Spending</span>
                   </button>
                   <button
                     ref={incomeBtnRef}
                     type="button"
                     className={`modal-tab-btn ${mode === 'income' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('income')}
+                    aria-label="Income"
+                    title="Log Income"
                   >
-                    <TrendingUpIcon size={13} />
-                    <span>Log Income</span>
+                    <TrendingUpIcon size={12} />
+                    <span>Income</span>
                   </button>
                   <button
                     ref={planBtnRef}
                     type="button"
                     className={`modal-tab-btn ${mode === 'plan' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('plan')}
+                    aria-label="Plan"
+                    title="Plan Budget Item"
                   >
-                    <PlusIcon size={13} />
-                    <span>Plan Budget Item</span>
+                    <PlusIcon size={12} />
+                    <span>Plan</span>
                   </button>
                   <button
                     ref={transferBtnRef}
                     type="button"
                     className={`modal-tab-btn ${mode === 'transfer' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('transfer')}
+                    aria-label="Transfer"
+                    title="Transfer Funds"
                   >
-                    <ArrowRightLeftIcon size={13} />
+                    <ArrowRightLeftIcon size={12} />
                     <span>Transfer</span>
                   </button>
                 </>
@@ -817,11 +826,13 @@ export function UnifiedEntryModal({
             </div>
             <button
               type="button"
-              className="btn-subtle"
+              className="btn-icon modal-close-btn"
               onClick={() => triggerExit()}
-              style={{ fontSize: '12px', padding: '4px 8px' }}
+              title="Close modal"
+              aria-label="Close"
+              style={{ fontSize: '13px', width: '28px', height: '28px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
             >
-              Close
+              ✕
             </button>
           </div>
 
@@ -910,7 +921,7 @@ export function UnifiedEntryModal({
                   <label className="form-label">Payment Account *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
                     {bankAccounts.length > 0 && wallets.length > 0 && (
-                      <select
+                      <CustomSelect
                         value={txAccountType}
                         onChange={(e) => {
                           const newType = e.target.value;
@@ -925,38 +936,40 @@ export function UnifiedEntryModal({
                             setTxBankAccountId('');
                           }
                         }}
-                      >
-                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
-                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
-                      </select>
+                        options={[
+                          { value: 'bank', label: 'Bank', icon: <BuildingLibraryIcon size={13} /> },
+                          { value: 'wallet', label: 'Wallet', icon: <WalletIcon size={13} /> }
+                        ]}
+                      />
                     )}
 
                     {txAccountType === 'bank' && (
-                      <select
+                      <CustomSelect
                         value={txBankAccountId}
                         onChange={(e) => setTxBankAccountId(e.target.value)}
-                        required
-                      >
-                        {bankAccounts.map((b) => (
-                          <option key={b._id || b.id} value={b._id || b.id}>
-                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Bank Account"
+                        options={bankAccounts.map((b) => ({
+                          value: b._id || b.id,
+                          label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                          icon: <BuildingLibraryIcon size={13} />,
+                          sublabel: formatCurrency(b.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
 
                     {txAccountType === 'wallet' && (
-                      <select
+                      <CustomSelect
                         value={txWalletId}
                         onChange={(e) => setTxWalletId(e.target.value)}
-                        required
-                      >
-                        {wallets.map((w) => (
-                          <option key={w._id || w.id} value={w._id || w.id}>
-                            {w.name} ({w.walletType})
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Wallet"
+                        options={wallets.map((w) => ({
+                          value: w._id || w.id,
+                          label: w.name,
+                          icon: <WalletIcon size={13} />,
+                          badge: w.walletType,
+                          sublabel: formatCurrency(w.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
                   </div>
                 </div>
@@ -1167,7 +1180,7 @@ export function UnifiedEntryModal({
                   <label className="form-label">Deposited To (Account) *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
                     {bankAccounts.length > 0 && wallets.length > 0 && (
-                      <select
+                      <CustomSelect
                         value={incAccountType}
                         onChange={(e) => {
                           const newType = e.target.value;
@@ -1182,38 +1195,40 @@ export function UnifiedEntryModal({
                             setIncBankAccountId('');
                           }
                         }}
-                      >
-                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
-                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
-                      </select>
+                        options={[
+                          { value: 'bank', label: 'Bank', icon: <BuildingLibraryIcon size={13} /> },
+                          { value: 'wallet', label: 'Wallet', icon: <WalletIcon size={13} /> }
+                        ]}
+                      />
                     )}
 
                     {incAccountType === 'bank' && (
-                      <select
+                      <CustomSelect
                         value={incBankAccountId}
                         onChange={(e) => setIncBankAccountId(e.target.value)}
-                        required
-                      >
-                        {bankAccounts.map((b) => (
-                          <option key={b._id || b.id} value={b._id || b.id}>
-                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Bank Account"
+                        options={bankAccounts.map((b) => ({
+                          value: b._id || b.id,
+                          label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                          icon: <BuildingLibraryIcon size={13} />,
+                          sublabel: formatCurrency(b.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
 
                     {incAccountType === 'wallet' && (
-                      <select
+                      <CustomSelect
                         value={incWalletId}
                         onChange={(e) => setIncWalletId(e.target.value)}
-                        required
-                      >
-                        {wallets.map((w) => (
-                          <option key={w._id || w.id} value={w._id || w.id}>
-                            {w.name} ({w.walletType})
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Wallet"
+                        options={wallets.map((w) => ({
+                          value: w._id || w.id,
+                          label: w.name,
+                          icon: <WalletIcon size={13} />,
+                          badge: w.walletType,
+                          sublabel: formatCurrency(w.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
                   </div>
                 </div>
@@ -1400,7 +1415,7 @@ export function UnifiedEntryModal({
                   <label className="form-label">Dedicated Account *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: (bankAccounts.length > 0 && wallets.length > 0) ? '120px 1fr' : '1fr', gap: '8px' }}>
                     {bankAccounts.length > 0 && wallets.length > 0 && (
-                      <select
+                      <CustomSelect
                         value={itemAccountType}
                         onChange={(e) => {
                           const newType = e.target.value;
@@ -1415,38 +1430,40 @@ export function UnifiedEntryModal({
                             setItemBankAccountId('');
                           }
                         }}
-                      >
-                        {bankAccounts.length > 0 && <option value="bank">Bank Account</option>}
-                        {wallets.length > 0 && <option value="wallet">Wallet / Cash</option>}
-                      </select>
+                        options={[
+                          { value: 'bank', label: 'Bank', icon: <BuildingLibraryIcon size={13} /> },
+                          { value: 'wallet', label: 'Wallet', icon: <WalletIcon size={13} /> }
+                        ]}
+                      />
                     )}
 
                     {itemAccountType === 'bank' && (
-                      <select
+                      <CustomSelect
                         value={itemBankAccountId}
                         onChange={(e) => setItemBankAccountId(e.target.value)}
-                        required
-                      >
-                        {bankAccounts.map((b) => (
-                          <option key={b._id || b.id} value={b._id || b.id}>
-                            {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Bank Account"
+                        options={bankAccounts.map((b) => ({
+                          value: b._id || b.id,
+                          label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                          icon: <BuildingLibraryIcon size={13} />,
+                          sublabel: formatCurrency(b.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
 
                     {itemAccountType === 'wallet' && (
-                      <select
+                      <CustomSelect
                         value={itemWalletId}
                         onChange={(e) => setItemWalletId(e.target.value)}
-                        required
-                      >
-                        {wallets.map((w) => (
-                          <option key={w._id || w.id} value={w._id || w.id}>
-                            {w.name} ({w.walletType})
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Wallet"
+                        options={wallets.map((w) => ({
+                          value: w._id || w.id,
+                          label: w.name,
+                          icon: <WalletIcon size={13} />,
+                          badge: w.walletType,
+                          sublabel: formatCurrency(w.openingBalance ?? 0, currencySymbol)
+                        }))}
+                      />
                     )}
                   </div>
                 </div>
@@ -1614,7 +1631,7 @@ export function UnifiedEntryModal({
               <div className="form-group">
                 <label className="form-label">Source Account (Outflow) *</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
-                  <select
+                  <CustomSelect
                     value={transferSourceType}
                     onChange={(e) => {
                       const newType = e.target.value;
@@ -1625,30 +1642,33 @@ export function UnifiedEntryModal({
                         setTransferSourceId(wallets[0]?._id || wallets[0]?.id || '');
                       }
                     }}
-                  >
-                    {bankAccounts.length > 0 && <option value="bank">Bank</option>}
-                    {wallets.length > 0 && <option value="wallet">Wallet</option>}
-                  </select>
+                    options={[
+                      ...(bankAccounts.length > 0 ? [{ value: 'bank', label: 'Bank', icon: <BuildingLibraryIcon size={13} /> }] : []),
+                      ...(wallets.length > 0 ? [{ value: 'wallet', label: 'Wallet', icon: <WalletIcon size={13} /> }] : [])
+                    ]}
+                  />
 
-                  <select
+                  <CustomSelect
                     value={transferSourceId}
                     onChange={(e) => setTransferSourceId(e.target.value)}
-                    required
-                  >
-                    {transferSourceType === 'bank' ? (
-                      bankAccounts.map((b) => (
-                        <option key={b._id || b.id} value={b._id || b.id}>
-                          {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
-                        </option>
-                      ))
+                    placeholder="Select Source Account"
+                    options={transferSourceType === 'bank' ? (
+                      bankAccounts.map((b) => ({
+                        value: b._id || b.id,
+                        label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                        icon: <BuildingLibraryIcon size={13} />,
+                        sublabel: formatCurrency(b.openingBalance ?? 0, currencySymbol)
+                      }))
                     ) : (
-                      wallets.map((w) => (
-                        <option key={w._id || w.id} value={w._id || w.id}>
-                          {w.name} ({w.walletType})
-                        </option>
-                      ))
+                      wallets.map((w) => ({
+                        value: w._id || w.id,
+                        label: w.name,
+                        icon: <WalletIcon size={13} />,
+                        badge: w.walletType,
+                        sublabel: formatCurrency(w.openingBalance ?? 0, currencySymbol)
+                      }))
                     )}
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -1656,7 +1676,7 @@ export function UnifiedEntryModal({
               <div className="form-group">
                 <label className="form-label">Destination Account (Inflow) *</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
-                  <select
+                  <CustomSelect
                     value={transferDestType}
                     onChange={(e) => {
                       const newType = e.target.value;
@@ -1667,30 +1687,33 @@ export function UnifiedEntryModal({
                         setTransferDestId(wallets[0]?._id || wallets[0]?.id || '');
                       }
                     }}
-                  >
-                    {wallets.length > 0 && <option value="wallet">Wallet</option>}
-                    {bankAccounts.length > 0 && <option value="bank">Bank</option>}
-                  </select>
+                    options={[
+                      ...(wallets.length > 0 ? [{ value: 'wallet', label: 'Wallet', icon: <WalletIcon size={13} /> }] : []),
+                      ...(bankAccounts.length > 0 ? [{ value: 'bank', label: 'Bank', icon: <BuildingLibraryIcon size={13} /> }] : [])
+                    ]}
+                  />
 
-                  <select
+                  <CustomSelect
                     value={transferDestId}
                     onChange={(e) => setTransferDestId(e.target.value)}
-                    required
-                  >
-                    {transferDestType === 'bank' ? (
-                      bankAccounts.map((b) => (
-                        <option key={b._id || b.id} value={b._id || b.id}>
-                          {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''}
-                        </option>
-                      ))
+                    placeholder="Select Destination Account"
+                    options={transferDestType === 'bank' ? (
+                      bankAccounts.map((b) => ({
+                        value: b._id || b.id,
+                        label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                        icon: <BuildingLibraryIcon size={13} />,
+                        sublabel: formatCurrency(b.openingBalance ?? 0, currencySymbol)
+                      }))
                     ) : (
-                      wallets.map((w) => (
-                        <option key={w._id || w.id} value={w._id || w.id}>
-                          {w.name} ({w.walletType})
-                        </option>
-                      ))
+                      wallets.map((w) => ({
+                        value: w._id || w.id,
+                        label: w.name,
+                        icon: <WalletIcon size={13} />,
+                        badge: w.walletType,
+                        sublabel: formatCurrency(w.openingBalance ?? 0, currencySymbol)
+                      }))
                     )}
-                  </select>
+                  />
                 </div>
               </div>
 
