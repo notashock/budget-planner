@@ -163,7 +163,7 @@ export function CreateMonthModal({
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3>Create budget month</h3>
-          <button type="button" className="btn-subtle" onClick={onClose}>Close</button>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
@@ -434,7 +434,7 @@ export function RolloverModal({
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3>Month rollover</h3>
-          <button type="button" className="btn-subtle" onClick={onClose}>Close</button>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
 
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
