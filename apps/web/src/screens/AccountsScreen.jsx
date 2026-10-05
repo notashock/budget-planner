@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
+import { CustomSelect } from '../components/CustomSelect.jsx';
 import {
   BuildingLibraryIcon,
   WalletIcon,
@@ -848,17 +849,17 @@ export function AccountsScreen({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label className="form-label" htmlFor="bank-type-select">Account Type</label>
-                  <select
+                  <CustomSelect
                     id="bank-type-select"
-                    className="input-field"
                     value={bankAccountType}
                     onChange={(e) => setBankAccountType(e.target.value)}
-                  >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="salary">Salary</option>
-                    <option value="other">Other</option>
-                  </select>
+                    options={[
+                      { value: 'checking', label: 'Checking' },
+                      { value: 'savings', label: 'Savings' },
+                      { value: 'salary', label: 'Salary' },
+                      { value: 'other', label: 'Other' }
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -959,15 +960,15 @@ export function AccountsScreen({
 
               <div>
                 <label className="form-label">Wallet Type</label>
-                <select
-                  className="input-field"
+                <CustomSelect
                   value={walletType}
                   onChange={(e) => setWalletType(e.target.value)}
-                >
-                  <option value="cash">Cash Envelope</option>
-                  <option value="digital">Digital Wallet</option>
-                  <option value="other">Other</option>
-                </select>
+                  options={[
+                    { value: 'cash', label: 'Cash Envelope' },
+                    { value: 'digital', label: 'Digital Wallet' },
+                    { value: 'other', label: 'Other' }
+                  ]}
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
