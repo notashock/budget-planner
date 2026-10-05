@@ -71,5 +71,70 @@ describe('SummaryCards components', () => {
 
       expect(screen.getByText('▲ BREACH')).toBeInTheDocument();
     });
+
+    it('renders credited badge and date subtext when salary is credited', () => {
+      const mockMonth = { year: 2026, month: 10, incomeCreditDay: 1 };
+
+      render(
+        <DetailedKpiGrid
+          incomeAmount={5000000}
+          incomeCreditDay={1}
+          currencySymbol="₹"
+          isSalaryCredited={true}
+          salaryCreditedDate="2026-10-01"
+          month={mockMonth}
+          canEditSalary={true}
+        />
+      );
+
+      expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+      expect(screen.getByText(/Credited on/i)).toBeInTheDocument();
+      expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
+      expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
+      expect(screen.queryByTitle(/mark salary as credited/i)).not.toBeInTheDocument();
+    });
+
+    it('treats previous month salary credited date as credited', () => {
+      const mockMonth = { year: 2026, month: 10, incomeCreditDay: 1 };
+
+      render(
+        <DetailedKpiGrid
+          incomeAmount={5000000}
+          incomeCreditDay={1}
+          currencySymbol="₹"
+          isSalaryCredited={false}
+          salaryCreditedDate="2026-09-30"
+          month={mockMonth}
+          canEditSalary={true}
+        />
+      );
+
+      // Previous month date is automatically treated as credited
+      expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+      expect(screen.getByText(/Credited on/i)).toBeInTheDocument();
+      expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
+      expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
+    });
+
+    it('hides edit button and credited tag when canEditSalary is false', () => {
+      const mockMonth = { year: 2026, month: 10, incomeCreditDay: 1 };
+
+      render(
+        <DetailedKpiGrid
+          incomeAmount={5000000}
+          incomeCreditDay={1}
+          currencySymbol="₹"
+          isSalaryCredited={true}
+          salaryCreditedDate="2026-10-01"
+          month={mockMonth}
+          canEditSalary={false}
+        />
+      );
+
+      expect(screen.queryByText('✓ Credited')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
+      expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
+      expect(screen.queryByTitle(/mark salary as credited/i)).not.toBeInTheDocument();
+    });
   });
 });
