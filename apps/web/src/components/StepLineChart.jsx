@@ -121,12 +121,12 @@ function getMonotoneCubicSplinePath(points) {
     const maxVal = Math.max(...balances, safetyFloor, 1000);
 
     // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
-    const width = isMobile ? 500 : 600;
-    const height = isMobile ? 220 : 175;
+    const width = isMobile ? 540 : 600;
+    const height = isMobile ? 260 : 175;
     const paddingLeft = isMobile ? 54 : 62;
     const paddingRight = 16;
-    const paddingTop = 16;
-    const paddingBottom = 26;
+    const paddingTop = 20;
+    const paddingBottom = 28;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
