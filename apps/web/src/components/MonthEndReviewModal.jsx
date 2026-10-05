@@ -12,7 +12,8 @@ export function MonthEndReviewModal({
   month,
   items = [],
   simulation = null,
-  currencySymbol = '₹'
+  currencySymbol = '₹',
+  accountId = 'all'
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const isClosingRef = useRef(false);
@@ -58,12 +59,12 @@ export function MonthEndReviewModal({
     if (isOpen && month) {
       setLoading(true);
       setError('');
-      api.getMonthEndReview(month.year, month.month)
+      api.getMonthEndReview(month.year, month.month, accountId)
         .then((data) => setReview(data))
         .catch((err) => setError(err.message || 'Failed to load review'))
         .finally(() => setLoading(false));
     }
-  }, [isOpen, month]);
+  }, [isOpen, month, accountId]);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
@@ -267,9 +268,31 @@ export function MonthEndReviewModal({
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Month Review</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+                  {review?.isAccountSpecific ? `Month Review: ${review.accountName}` : 'Month Review'}
+                </h3>
+                {review?.isAccountSpecific && (
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      padding: '1px 6px',
+                      borderRadius: '3px',
+                      background: 'var(--surface-subtle)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-secondary)',
+                      textTransform: 'uppercase',
+                      fontWeight: 600
+                    }}
+                  >
+                    {review.accountType === 'wallet' ? 'Wallet' : 'Bank Account'}
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Audit of planned baselines, recurring commitments, and dynamic survival cushion
+                {review?.isAccountSpecific
+                  ? `Isolated cashflow audit of income, spend, and transfers for ${review.accountName}`
+                  : 'Unified audit of planned baselines, recurring commitments, and dynamic survival cushion'}
               </span>
             </div>
             <button
@@ -296,49 +319,101 @@ export function MonthEndReviewModal({
             <div style={{ color: 'var(--danger)', fontSize: '13px', padding: '12px 0' }}>{error}</div>
           ) : review ? (
             <div ref={reviewBodyRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '4px' }}>
-              {/* Dynamic Survival Cushion vs Actual Spend */}
-              <div className="summary-grid">
-                <div className="summary-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="summary-label">Dynamic survival cushion</span>
-                    {paceStatus && (
-                      <span
-                        style={{
-                          fontSize: '9px',
-                          padding: '1px 5px',
-                          borderRadius: '3px',
-                          background: 'var(--surface-subtle)',
-                          color: 'var(--text-secondary)',
-                          textTransform: 'uppercase',
-                          fontWeight: 600
-                        }}
-                      >
-                        {paceStatus}
+              {/* Account-Specific View */}
+              {review.isAccountSpecific ? (
+                <>
+                  <div className="summary-grid">
+                    <div className="summary-card">
+                      <span className="summary-label">Account Inflows (Income)</span>
+                      <span className="summary-value" style={{ color: '#10b981' }}>
+                        {formatCurrency(review.totalIncome, currencySymbol)}
                       </span>
-                    )}
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        Direct: {formatCurrency(review.directIncome, currencySymbol)} • In: {formatCurrency(review.totalTransferIn, currencySymbol)}
+                      </span>
+                    </div>
+
+                    <div className="summary-card">
+                      <span className="summary-label">Account Outflows (Expenses)</span>
+                      <span className="summary-value" style={{ color: 'var(--text)' }}>
+                        {formatCurrency(review.totalExpenses, currencySymbol)}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        Direct: {formatCurrency(review.directExpenses, currencySymbol)} • Out: {formatCurrency(review.totalTransferOut, currencySymbol)}
+                      </span>
+                    </div>
                   </div>
-                  <span className="summary-value">
-                    {formatCurrency(survivalCushion, currencySymbol)}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {formatCurrency(safeVelocityPerDay, currencySymbol)}/day safe pace
-                  </span>
+
+                  <div className="summary-grid">
+                    <div className="summary-card">
+                      <span className="summary-label">Net Monthly Cashflow</span>
+                      <span
+                        className="summary-value"
+                        style={{ color: review.netCashflow >= 0 ? '#10b981' : 'var(--danger)' }}
+                      >
+                        {formatCurrency(review.netCashflow, currencySymbol)}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {review.netCashflow >= 0 ? 'Net positive accumulation' : 'Net deficit (drawdown)'}
+                      </span>
+                    </div>
+
+                    <div className="summary-card">
+                      <span className="summary-label">Unplanned Account Spend</span>
+                      <span className="summary-value">
+                        {formatCurrency(review.totalUnplannedActual, currencySymbol)}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        Matched bills: {formatCurrency(review.totalMatchedActual, currencySymbol)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Unified View */
+                <div className="summary-grid">
+                  <div className="summary-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="summary-label">Dynamic survival cushion</span>
+                      {paceStatus && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            background: 'var(--surface-subtle)',
+                            color: 'var(--text-secondary)',
+                            textTransform: 'uppercase',
+                            fontWeight: 600
+                          }}
+                        >
+                          {paceStatus}
+                        </span>
+                      )}
+                    </div>
+                    <span className="summary-value">
+                      {formatCurrency(survivalCushion, currencySymbol)}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {formatCurrency(safeVelocityPerDay, currencySymbol)}/day safe pace
+                    </span>
+                  </div>
+                  <div className="summary-card">
+                    <span className="summary-label">Actual unplanned spend</span>
+                    <span
+                      className="summary-value"
+                      style={{
+                        color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)'
+                      }}
+                    >
+                      {formatCurrency(review.totalUnplannedActual, currencySymbol)}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {review.totalUnplannedActual > survivalCushion ? 'Exceeded cushion' : 'Within survival limits'}
+                    </span>
+                  </div>
                 </div>
-                <div className="summary-card">
-                  <span className="summary-label">Actual unplanned spend</span>
-                  <span
-                    className="summary-value"
-                    style={{
-                      color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)'
-                    }}
-                  >
-                    {formatCurrency(review.totalUnplannedActual, currencySymbol)}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {review.totalUnplannedActual > survivalCushion ? 'Exceeded cushion' : 'Within survival limits'}
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Fixed & Recurring Commitments Section */}
               <div className="card">
