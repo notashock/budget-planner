@@ -56,7 +56,15 @@ export function SearchableItemPicker({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+    <div
+      ref={containerRef}
+      className={`searchable-item-picker-container ${isOpen ? 'is-open' : ''}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+        zIndex: isOpen ? 70 : 1
+      }}
+    >
       {/* Trigger Button */}
       <button
         type="button"
@@ -127,7 +135,7 @@ export function SearchableItemPicker({
             width: '100%',
             maxHeight: '260px',
             overflowY: 'auto',
-            zIndex: 100,
+            zIndex: 1000,
             padding: '6px',
             background: 'var(--bg)',
             border: '1px solid var(--border-strong)',
