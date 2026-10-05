@@ -35,7 +35,7 @@ goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
 
     const now = new Date();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : null;
+    const currentDay = isCurrentMonth ? now.getDate() : 0;
 
     const evaluatedGoals = goals.map((goal) => {
       const recommendation = recommendPurchaseDate(
@@ -130,7 +130,7 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
 
     const now = new Date();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : null;
+    const currentDay = isCurrentMonth ? now.getDate() : 0;
 
     const recommendation = recommendPurchaseDate(
       {
@@ -182,7 +182,7 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
 
     const now = new Date();
     const isCurrentMonth = Number(month.year) === now.getFullYear() && Number(month.month) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : null;
+    const currentDay = isCurrentMonth ? now.getDate() : 0;
 
     const recommendation = recommendPurchaseDate(
       {
