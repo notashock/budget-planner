@@ -806,8 +806,8 @@ export function simulate(
 
   let committedUpcomingItems = 0;
   events.forEach((evt) => {
-    // Per ADR 0041: Unpaid planned items are excluded from Safe Velocity committed deduction; strictly future events only
-    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0 && evt.isPaid !== false) {
+    // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
+    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0) {
       committedUpcomingItems += Math.abs(evt.amount);
     }
   });
@@ -910,8 +910,8 @@ export function simulate(
       }
       if (evt.amount < 0 && isSrc) {
         accExpenses += Math.abs(evt.amount);
-        // Per ADR 0041: Unpaid planned items are excluded from Safe Velocity committed deduction; strictly future events only
-        if (evt.day > effectiveDay && !evt.isActual && evt.isPaid !== false) {
+        // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
+        if (evt.day > effectiveDay && !evt.isActual) {
           accCommitted += Math.abs(evt.amount);
         }
       }
