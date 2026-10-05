@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
 import {
   PlusIcon,
@@ -12,7 +12,8 @@ import {
   SparklesIcon,
   WalletIcon,
   BuildingLibraryIcon,
-  LockIcon
+  LockIcon,
+  UserIcon
 } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
@@ -25,8 +26,7 @@ const NAV_TABS = [
   { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
   { id: 'items', label: 'Items', Icon: ListOrderedIcon },
   { id: 'goals', label: 'Goals', Icon: TargetIcon },
-  { id: 'accounts', label: 'Accounts', Icon: WalletIcon },
-  { id: 'assistant', label: 'Assistant', Icon: SparklesIcon }
+  { id: 'accounts', label: 'Accounts', Icon: WalletIcon }
 ];
 
 export function Header({
@@ -44,7 +44,28 @@ export function Header({
   activeTab = 'plan',
   onSelectTab
 }) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'month' | 'user' | null
+  const headerRef = useRef(null);
+
+  const monthDropdownOpen = activeDropdown === 'month';
+  const userMenuOpen = activeDropdown === 'user';
+
+  // Mutual collapse & outside click listener
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (headerRef.current && !headerRef.current.contains(e.target)) {
+        setActiveDropdown(null);
+      }
+    }
+    if (activeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [activeDropdown]);
 
   const monthLabel = currentMonth
     ? `${MONTH_NAMES[currentMonth.month - 1]} ${currentMonth.year}`
@@ -62,13 +83,13 @@ export function Header({
   }, [currentMonth]);
 
   return (
-    <header className="app-header">
+    <header ref={headerRef} className="app-header">
       <div className="app-header-inner">
         {/* Zone 1: Identity & Month Context */}
         <div className="app-header-left">
           <span className="app-brand">
             <AnimatedLogo size={24} />
-            <span>Budget Planner</span>
+            <span className="app-brand-text">Budget Planner</span>
             <span className="beta-badge">BETA</span>
           </span>
 
@@ -76,15 +97,16 @@ export function Header({
             <button
               type="button"
               className="month-picker-btn"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
+              onClick={() => setActiveDropdown((prev) => (prev === 'month' ? null : 'month'))}
               aria-label="Select month"
+              aria-expanded={monthDropdownOpen}
               style={{ fontSize: '14px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
             >
               <span>{monthLabel}</span>
-              <span style={{ fontSize: '11px', opacity: 0.6, transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▼</span>
+              <span style={{ fontSize: '11px', opacity: 0.6, transform: monthDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▼</span>
             </button>
 
-            {dropdownOpen && (
+            {monthDropdownOpen && (
               <div className="app-dropdown-menu">
                 {months.map((m) => {
                   const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
@@ -95,7 +117,7 @@ export function Header({
                       className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
                       onClick={() => {
                         onSelectMonth(m.year, m.month);
-                        setDropdownOpen(false);
+                        setActiveDropdown(null);
                       }}
                     >
                       <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
@@ -111,7 +133,7 @@ export function Header({
                   className="app-dropdown-item"
                   style={{ color: 'var(--text)', fontWeight: 600 }}
                   onClick={() => {
-                    setDropdownOpen(false);
+                    setActiveDropdown(null);
                     onOpenCreateMonth();
                   }}
                 >
@@ -125,7 +147,7 @@ export function Header({
                     className="app-dropdown-item"
                     style={{ fontSize: '12px' }}
                     onClick={() => {
-                      setDropdownOpen(false);
+                      setActiveDropdown(null);
                       onOpenRollover();
                     }}
                   >
@@ -175,8 +197,8 @@ export function Header({
               </span>
               <span className="header-floor-text">
                 {floorBreached
-                  ? `Floor Breached (-${formatCurrency(deficit, currencySymbol)})`
-                  : `Floor: ${formatCurrency(safetyFloor, currencySymbol)} Safe`}
+                  ? `-${formatCurrency(deficit, currencySymbol)}`
+                  : `Floor Safe`}
               </span>
             </div>
           )}
@@ -184,7 +206,7 @@ export function Header({
           {currentMonth && (
             <button
               type="button"
-              className="btn-subtle"
+              className="btn-subtle desktop-only-btn header-link-salary-btn"
               data-testid="link-salary-safeline-btn"
               disabled={salaryLockStatus.isLocked}
               style={{
@@ -227,18 +249,69 @@ export function Header({
             <span className="header-btn-text">{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
 
+          {/* User Settings Dropdown */}
           {user && (
-            <button
-              type="button"
-              className="btn-subtle header-action-btn"
-              onClick={onLogout}
-              title="Sign out"
-              aria-label="Sign out"
-              style={{ padding: '6px 9px', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}
-            >
-              <LogOutIcon size={14} />
-              <span className="header-btn-text">Sign out</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="header-avatar-btn"
+                onClick={() => setActiveDropdown((prev) => (prev === 'user' ? null : 'user'))}
+                title={`Account: ${user.name || user.email || 'User'}`}
+                aria-label="Account Settings"
+                aria-haspopup="true"
+                aria-expanded={userMenuOpen}
+              >
+                <UserIcon size={15} />
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  className="app-dropdown-menu"
+                  style={{ right: 0, left: 'auto', minWidth: '190px' }}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
+                      {user.name || 'User'}
+                    </div>
+                    {user.email && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {user.email}
+                      </div>
+                    )}
+                  </div>
+
+                  {currentMonth && (
+                    <button
+                      type="button"
+                      className="app-dropdown-item"
+                      disabled={salaryLockStatus.isLocked}
+                      style={{ fontSize: '12px', opacity: salaryLockStatus.isLocked ? 0.6 : 1 }}
+                      onClick={() => {
+                        if (!salaryLockStatus.isLocked) {
+                          onOpenSalarySafeline?.();
+                        }
+                      }}
+                    >
+                      {salaryLockStatus.isLocked ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
+                      <span>Link Salary & Safeline</span>
+                    </button>
+                  )}
+
+                  <div className="app-dropdown-divider" />
+
+                  <button
+                    type="button"
+                    className="app-dropdown-item"
+                    style={{ fontSize: '12px', color: 'var(--negative, #ef4444)' }}
+                    onClick={onLogout}
+                  >
+                    <LogOutIcon size={13} color="currentColor" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
