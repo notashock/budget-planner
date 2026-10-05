@@ -301,6 +301,10 @@ export function StepLineChart({
             <span style={{ width: '10px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
             Balance
           </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-secondary)', display: 'inline-block' }} />
+            Expenses
+          </span>
           <span>
             Floor: {formatCurrency(safetyFloor, currencySymbol)}
           </span>

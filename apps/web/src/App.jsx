@@ -538,16 +538,20 @@ export default function App() {
     }
   };
 
-  const handleSaveSalarySafeline = async ({ salaryBankAccountId, incomeAmount, salaryCreditedDate, isSalaryCredited }) => {
+  const handleSaveSalarySafeline = async ({ salaryBankAccountId, incomeAmount, salaryCreditedDate, isSalaryCredited, safetyFloor }) => {
     if (!currentMonth) return;
     try {
-      const updated = await api.updateMonth(currentMonth.year, currentMonth.month, {
+      const updates = {
         salaryBankAccountId,
         incomeAmount,
         salaryCreditedDate,
         incomeCreditDate: salaryCreditedDate,
         isSalaryCredited
-      });
+      };
+      if (safetyFloor !== undefined) {
+        updates.safetyFloor = safetyFloor;
+      }
+      const updated = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
       setCurrentMonth(updated.month);
       setItems(updated.items || []);
       setTransactions(updated.transactions || []);

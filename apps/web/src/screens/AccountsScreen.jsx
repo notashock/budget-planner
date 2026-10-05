@@ -410,42 +410,42 @@ export function AccountsScreen({
       )}
 
       {/* Aggregate Overview Cards */}
-      <div className="summary-cards-grid" style={{ marginTop: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="summary-card">
+      <div className="summary-cards-grid" style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <BuildingLibraryIcon size={14} />
             <span>Bank Liquidity</span>
           </div>
-          <div className="summary-card-value tabular-nums">
+          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
             {formatCurrency(totalBankBalance, currencySymbol)}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {bankAccounts.length} active {bankAccounts.length === 1 ? 'account' : 'accounts'}
           </div>
         </div>
 
-        <div className="summary-card">
+        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <WalletIcon size={14} />
             <span>Wallet Liquidity</span>
           </div>
-          <div className="summary-card-value tabular-nums">
+          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
             {formatCurrency(totalWalletBalance, currencySymbol)}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {wallets.length} active {wallets.length === 1 ? 'wallet' : 'wallets'}
           </div>
         </div>
 
-        <div className="summary-card">
+        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <ArrowRightLeftIcon size={14} />
             <span>Transfers Logged</span>
           </div>
-          <div className="summary-card-value tabular-nums">
+          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
             {transfers.length}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Zero-sum movements
           </div>
         </div>
@@ -502,7 +502,7 @@ export function AccountsScreen({
                 No bank accounts configured yet. Tap "Add Bank" to connect your checking, savings, or salary accounts.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
                 {bankAccounts.map((bank) => {
                   const key = String(bank._id || bank.id || '');
                   const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
@@ -517,232 +517,228 @@ export function AccountsScreen({
                   );
 
                   return (
-                    <div key={bank._id || bank.id} className="card account-card-anim" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, fontSize: '15px' }}>{bank.name}</span>
-                          {bank.isPrimary && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Primary
-                            </span>
-                          )}
-                          {isSalaryDepository && (
-                            <span
-                              data-testid="salary-depository-badge"
-                              style={{
-                                fontSize: '10px',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: 'var(--surface-subtle)',
-                                border: '1px solid var(--border-strong)',
-                                color: 'var(--text)',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.04em'
-                              }}
-                            >
-                              Salary Depository
-                            </span>
-                          )}
+                    <div key={bank._id || bank.id} className={`bento-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
+                      {/* Tier 1: Identity & Badges */}
+                      <div className="bento-card-header">
+                        <div className="bento-card-identity">
+                          <BuildingLibraryIcon size={16} />
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="bento-card-title">{bank.name}</span>
+                              {bank.isPrimary && (
+                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  Primary
+                                </span>
+                              )}
+                              {isSalaryDepository && (
+                                <span
+                                  data-testid="salary-depository-badge"
+                                  style={{
+                                    fontSize: '9px',
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    background: 'var(--surface-subtle)',
+                                    border: '1px solid var(--border-strong)',
+                                    color: 'var(--text)',
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase'
+                                  }}
+                                >
+                                  Salary
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• ${bank.accountNumberMasked}` : ''}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {bank.institution || 'Institutional Bank'} {bank.accountNumberMasked ? `• ${bank.accountNumberMasked}` : ''}
+
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => handleOpenEditBank(bank)}
+                            title="Edit Account"
+                            style={{ padding: '5px' }}
+                          >
+                            <EditIcon size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
+                            title="Archive Account"
+                            style={{ padding: '5px' }}
+                          >
+                            <TrashIcon size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tier 2: Hero Balance Metric */}
+                      <div className="bento-hero-metric">
+                        <span className="bento-hero-label">Current Balance</span>
+                        <span className="bento-hero-value tabular-nums">
+                          {formatCurrency(currentBal, currencySymbol)}
+                        </span>
+                      </div>
+
+                      {/* High-Contrast Breach Indicator if breached */}
+                      {hasBreach && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                          <AlertTriangleIcon size={13} />
+                          <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
+                        </div>
+                      )}
+
+                      {/* Tier 3: 2x2 Specs Grid */}
+                      <div className="bento-spec-grid">
+                        <div className="bento-spec-cell">
+                          <span className="bento-spec-label">Projected End</span>
+                          <span className="bento-spec-val tabular-nums">{formatCurrency(endingBal, currencySymbol)}</span>
+                        </div>
+                        <div className="bento-spec-cell">
+                          <span className="bento-spec-label">Safety Floor</span>
+                          <span className="bento-spec-val tabular-nums">{minBal > 0 ? formatCurrency(minBal, currencySymbol) : '₹0'}</span>
                         </div>
                         {isSalaryDepository && month?.incomeAmount > 0 && (
-                          <div style={{ fontSize: '11px', color: 'var(--text)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Payroll Inflow:</span>
-                            <span className="tabular-nums" style={{ fontWeight: 600 }}>+{formatCurrency(month.incomeAmount, currencySymbol)}</span>
-                            <span style={{ color: 'var(--text-secondary)' }}>on {month.incomeCreditDate ? formatDisplayDate(month.incomeCreditDate, true) : `Day ${month.incomeCreditDay || 1}`}</span>
+                          <div className="bento-spec-cell" style={{ gridColumn: '1 / -1' }}>
+                            <span className="bento-spec-label">Payroll Inflow</span>
+                            <span className="bento-spec-val tabular-nums" style={{ fontSize: '11px' }}>
+                              +{formatCurrency(month.incomeAmount, currencySymbol)} on {month.incomeCreditDate ? formatDisplayDate(month.incomeCreditDate, true) : `Day ${month.incomeCreditDay || 1}`}
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      {/* Action Button */}
+                      <div className="bento-actions-row">
                         <button
                           type="button"
-                          className="btn-icon"
-                          onClick={() => handleOpenEditBank(bank)}
-                          title="Edit Account"
-                          style={{ padding: '6px' }}
+                          className="btn-secondary"
+                          onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
+                          style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
-                          <EditIcon size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
-                          title="Archive Account"
-                          style={{ padding: '6px' }}
-                        >
-                          <TrashIcon size={14} />
+                          <ArrowRightLeftIcon size={13} />
+                          <span>Transfer from Account</span>
                         </button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
-                    {/* Balance Display */}
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Current Balance
-                      </div>
-                      <div className="tabular-nums" style={{ fontSize: '24px', fontWeight: 700, marginTop: '2px', color: currentBal < 0 ? 'var(--text-muted)' : 'var(--text)' }}>
-                        {formatCurrency(currentBal, currencySymbol)}
-                      </div>
-                    </div>
+        {/* Segment 2: Wallets */}
+        {activeSegment === 'wallets' && (
+          <div style={{ marginTop: '16px' }}>
+            {wallets.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
+                No wallets configured yet. Tap "Add Wallet" to track physical cash envelopes or digital wallets.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
+                {wallets.map((wallet) => {
+                  const key = String(wallet._id || wallet.id || '');
+                  const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
+                  const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
+                  const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
+                  const minBal = wallet.minimumBalance || 0;
+                  const hasBreach = (currentBal < minBal) || (simAcc && simAcc.floorBreached);
 
-                    {/* Low Balance Alert Pill */}
-                    {hasBreach && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
-                        <AlertTriangleIcon size={14} />
-                        <span>Projected to dip below min balance ({formatCurrency(minBal, currencySymbol)})</span>
-                      </div>
-                    )}
+                  return (
+                    <div key={wallet._id || wallet.id} className={`bento-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
+                      {/* Tier 1: Identity & Badges */}
+                      <div className="bento-card-header">
+                        <div className="bento-card-identity">
+                          <WalletIcon size={16} />
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="bento-card-title">{wallet.name}</span>
+                              {wallet.isPrimary && (
+                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  Primary
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                              {wallet.walletType} Wallet
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Metadata stats */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-                      <div>
-                        <span>Projected End: </span>
-                        <strong className="tabular-nums" style={{ color: 'var(--text)' }}>
-                          {formatCurrency(endingBal, currencySymbol)}
-                        </strong>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => handleOpenEditWallet(wallet)}
+                            title="Edit Wallet"
+                            style={{ padding: '5px' }}
+                          >
+                            <EditIcon size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
+                            title="Archive Wallet"
+                            style={{ padding: '5px' }}
+                          >
+                            <TrashIcon size={13} />
+                          </button>
+                        </div>
                       </div>
-                      {minBal > 0 && (
-                        <div>
-                          <span>Min: </span>
-                          <strong className="tabular-nums" style={{ color: 'var(--text)' }}>
-                            {formatCurrency(minBal, currencySymbol)}
-                          </strong>
+
+                      {/* Tier 2: Hero Balance Metric */}
+                      <div className="bento-hero-metric">
+                        <span className="bento-hero-label">Current Balance</span>
+                        <span className="bento-hero-value tabular-nums">
+                          {formatCurrency(currentBal, currencySymbol)}
+                        </span>
+                      </div>
+
+                      {/* High-Contrast Breach Indicator if breached */}
+                      {hasBreach && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                          <AlertTriangleIcon size={13} />
+                          <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
                         </div>
                       )}
-                    </div>
 
-                    {/* Action buttons */}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
-                      style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}
-                    >
-                      <ArrowRightLeftIcon size={13} />
-                      <span>Transfer from this account</span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Segment 2: Wallets */}
-      {activeSegment === 'wallets' && (
-        <div style={{ marginTop: '16px' }}>
-          {wallets.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
-              No wallets configured yet. Tap "Add Wallet" to track physical cash envelopes or digital wallets.
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
-              {wallets.map((wallet) => {
-                const key = String(wallet._id || wallet.id || '');
-                const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
-                const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
-                const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
-                const minBal = wallet.minimumBalance || 0;
-                const hasBreach = (currentBal < minBal) || (simAcc && simAcc.floorBreached);
-
-                return (
-                  <div key={wallet._id || wallet.id} className="card account-card-anim" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, fontSize: '15px' }}>{wallet.name}</span>
-                          {wallet.isPrimary && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Primary
-                            </span>
-                          )}
+                      {/* Tier 3: 2x2 Specs Grid */}
+                      <div className="bento-spec-grid">
+                        <div className="bento-spec-cell">
+                          <span className="bento-spec-label">Projected End</span>
+                          <span className="bento-spec-val tabular-nums">{formatCurrency(endingBal, currencySymbol)}</span>
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', textTransform: 'capitalize' }}>
-                          {wallet.walletType} Wallet
+                        <div className="bento-spec-cell">
+                          <span className="bento-spec-label">Safety Floor</span>
+                          <span className="bento-spec-val tabular-nums">{minBal > 0 ? formatCurrency(minBal, currencySymbol) : '₹0'}</span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      {/* Action Button */}
+                      <div className="bento-actions-row">
                         <button
                           type="button"
-                          className="btn-icon"
-                          onClick={() => handleOpenEditWallet(wallet)}
-                          title="Edit Wallet"
-                          style={{ padding: '6px' }}
+                          className="btn-secondary"
+                          onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
+                          style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
-                          <EditIcon size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
-                          title="Archive Wallet"
-                          style={{ padding: '6px' }}
-                        >
-                          <TrashIcon size={14} />
+                          <ArrowRightLeftIcon size={13} />
+                          <span>Transfer from Wallet</span>
                         </button>
                       </div>
                     </div>
-
-                    {/* Balance Display */}
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Current Balance
-                      </div>
-                      <div className="tabular-nums" style={{ fontSize: '24px', fontWeight: 700, marginTop: '2px', color: currentBal < minBal ? 'var(--text-muted)' : 'var(--text)' }}>
-                        {formatCurrency(currentBal, currencySymbol)}
-                      </div>
-                    </div>
-
-                    {/* Low Balance Alert Pill */}
-                    {hasBreach && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
-                        <AlertTriangleIcon size={14} />
-                        <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
-                      </div>
-                    )}
-
-                    {/* Metadata stats */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-                      <div>
-                        <span>Projected End: </span>
-                        <strong className="tabular-nums" style={{ color: 'var(--text)' }}>
-                          {formatCurrency(endingBal, currencySymbol)}
-                        </strong>
-                      </div>
-                      {minBal > 0 && (
-                        <div>
-                          <span>Min: </span>
-                          <strong className="tabular-nums" style={{ color: 'var(--text)' }}>
-                            {formatCurrency(minBal, currencySymbol)}
-                          </strong>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action buttons */}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
-                      style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}
-                    >
-                      <ArrowRightLeftIcon size={13} />
-                      <span>Transfer from this wallet</span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Segment 3: Transfers */}
       {activeSegment === 'transfers' && (

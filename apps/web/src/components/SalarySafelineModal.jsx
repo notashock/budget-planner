@@ -13,8 +13,11 @@ export function SalarySafelineModal({
 }) {
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [incomeAmount, setIncomeAmount] = useState('');
+  const [safetyFloor, setSafetyFloor] = useState('');
   const [salaryCreditedDate, setSalaryCreditedDate] = useState('');
   const [isSalaryCredited, setIsSalaryCredited] = useState(true);
+  const [dateDirty, setDateDirty] = useState(false);
+  const [creditedDirty, setCreditedDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -24,11 +27,14 @@ export function SalarySafelineModal({
       const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
       setSalaryBankAccountId(activeBankId || primaryBank?._id || primaryBank?.id || '');
       setIncomeAmount(month.incomeAmount ? (month.incomeAmount / 100).toString() : '0');
+      setSafetyFloor(month.safetyFloor !== undefined ? (month.safetyFloor / 100).toString() : '0');
       const defaultDate = month.salaryCreditedDate || month.incomeCreditDate || (
         `${month.year}-${String(month.month).padStart(2, '0')}-${String(Math.max(1, Math.min(31, month.incomeCreditDay || 1))).padStart(2, '0')}`
       );
       setSalaryCreditedDate(defaultDate);
       setIsSalaryCredited(month.isSalaryCredited !== undefined ? Boolean(month.isSalaryCredited) : true);
+      setDateDirty(false);
+      setCreditedDirty(false);
       setError(null);
     }
   }, [isOpen, month, bankAccounts]);
@@ -55,18 +61,27 @@ export function SalarySafelineModal({
 
     try {
       const parsedIncome = Math.round(Number(incomeAmount || 0) * 100);
+      const parsedSafetyFloor = Math.round(Number(safetyFloor || 0) * 100);
 
-      await onSave({
+      const payload = {
         salaryBankAccountId: salaryBankAccountId || null,
         incomeAmount: parsedIncome,
-        salaryCreditedDate: salaryCreditedDate || null,
-        incomeCreditDate: salaryCreditedDate || null,
-        isSalaryCredited
-      });
+        safetyFloor: parsedSafetyFloor
+      };
+      if (dateDirty) {
+        payload.salaryCreditedDate = salaryCreditedDate;
+        payload.incomeCreditDate = salaryCreditedDate;
+      }
+      if (creditedDirty) {
+        payload.isSalaryCredited = isSalaryCredited;
+      }
+
+      await onSave(payload);
+      if (typeof onClose === 'function') {
+        onClose();
+      }
       if (typeof requestClose === 'function') {
         requestClose();
-      } else {
-        onClose();
       }
     } catch (err) {
       setError(err.message || 'Failed to update salary details.');
@@ -89,7 +104,7 @@ export function SalarySafelineModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BuildingLibraryIcon size={18} />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
-                Log Salary
+                Link Salary & Safeline
               </h3>
             </div>
             <button type="button" className="btn-icon" onClick={() => requestClose()}>✕</button>
@@ -181,6 +196,23 @@ export function SalarySafelineModal({
             />
           </div>
 
+          {/* Overall Safeline Floor */}
+          <div>
+            <label className="form-label" htmlFor="safeline-floor-input">
+              Overall Safeline Floor ({currencySymbol}) *
+            </label>
+            <input
+              id="safeline-floor-input"
+              type="number"
+              step="0.01"
+              required
+              className="input-field tabular-nums"
+              placeholder="0.00"
+              value={safetyFloor}
+              onChange={(e) => setSafetyFloor(e.target.value)}
+            />
+          </div>
+
           {/* Date of Salary Credit */}
           <div>
             <label className="form-label" htmlFor="salary-credit-date-input">
@@ -195,6 +227,7 @@ export function SalarySafelineModal({
               value={salaryCreditedDate}
               onChange={(e) => {
                 setSalaryCreditedDate(e.target.value);
+                setDateDirty(true);
                 if (e.target.value) setIsSalaryCredited(true);
               }}
             />
@@ -209,7 +242,10 @@ export function SalarySafelineModal({
               id="salary-credited-checkbox"
               type="checkbox"
               checked={isSalaryCredited}
-              onChange={(e) => setIsSalaryCredited(e.target.checked)}
+              onChange={(e) => {
+                setIsSalaryCredited(e.target.checked);
+                setCreditedDirty(true);
+              }}
               style={{ width: '16px', height: '16px', cursor: 'pointer' }}
             />
             <label htmlFor="salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
@@ -231,7 +267,7 @@ export function SalarySafelineModal({
               className="btn-primary"
               disabled={loading || bankAccounts.length === 0 || salaryLockStatus.isLocked}
             >
-              {loading ? 'Saving...' : 'Log Salary'}
+              {loading ? 'Saving...' : 'Save Salary & Safeline'}
             </button>
           </div>
         </form>

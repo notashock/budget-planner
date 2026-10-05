@@ -146,7 +146,7 @@ export function ItemsScreen({
                   : { label: 'Low', bars: 1, color: 'var(--text-muted)' };
 
                 return (
-                  <div key={item._id} className="item-bento-card">
+                  <div key={item._id} className="item-bento-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px' }}>
                     {/* Bento Header: Title & Priority */}
                     <div>
                       <div className="item-bento-header">
@@ -175,7 +175,7 @@ export function ItemsScreen({
                         </span>
                       </div>
 
-                      <div className="item-bento-badges">
+                      <div className="item-bento-badges" style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span
                           style={{
                             fontSize: '10px',
@@ -213,9 +213,9 @@ export function ItemsScreen({
                           <span
                             style={{
                               fontSize: '10px',
-                              color: 'var(--accent)',
-                              background: 'var(--accent-subtle)',
-                              border: '1px solid var(--accent)',
+                              color: 'var(--text)',
+                              background: 'var(--surface-subtle)',
+                              border: '1px solid var(--border)',
                               padding: '1px 6px',
                               borderRadius: '4px',
                               fontWeight: 500
@@ -224,91 +224,76 @@ export function ItemsScreen({
                             Fixed
                           </span>
                         )}
-                        <div
-                          className="recurring-toggle-switch"
-                          onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
-                          title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              onTogglePaid?.(item._id, !item.isPaid);
-                            }
-                          }}
-                        >
-                          <div className={`recurring-toggle-track ${item.isPaid ? 'active' : ''}`}>
-                            <div className="recurring-toggle-thumb" />
-                          </div>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
-                            {item.isPaid ? 'Paid' : 'Pending'}
-                          </span>
-                        </div>
                         {hasRefund && (
                           <span
                             style={{
                               fontSize: '10px',
-                              color: 'var(--success)',
-                              background: 'var(--success-subtle)',
+                              color: 'var(--text)',
+                              background: 'var(--surface-subtle)',
+                              border: '1px solid var(--border)',
                               padding: '1px 6px',
                               borderRadius: '4px',
-                              fontWeight: 500
+                              fontWeight: 600
                             }}
                           >
-                            Net after refund
+                            Net Refund
                           </span>
                         )}
                       </div>
                     </div>
 
                     {/* Bento Body: Prominent Amount & Schedule */}
-                    <div className="item-bento-body">
-                      <div className="item-bento-amount">
+                    <div className="item-bento-body" style={{ margin: '4px 0' }}>
+                      <div className="item-bento-amount tabular-nums" style={{ fontSize: '20px', fontWeight: 700 }}>
                         {amountDisplay}
                       </div>
-                      <div className="item-bento-schedule">
+                      <div className="item-bento-schedule" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {details}
                       </div>
                       {hasRefund && (
-                        <div className="item-bento-refund">
+                        <div className="item-bento-refund tabular-nums" style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           Original: {formatCurrency(netInfo.originalAmount, currencySymbol)} (-{formatCurrency(netInfo.refundTotal, currencySymbol)})
                         </div>
                       )}
                     </div>
 
                     {/* Bento Footer: Status & Actions */}
-                    <div className="item-bento-footer">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            userSelect: 'none'
-                          }}
-                          onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
-                          title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
-                        >
-                          {item.type === 'recurring'
-                            ? (item.isPaid ? '✓ Billed this month' : '○ Unpaid this month')
-                            : (item.isPaid ? '✓ Paid' : '○ Pending')}
+                    <div className="item-bento-footer" style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div
+                        className="recurring-toggle-switch"
+                        onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
+                        title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onTogglePaid?.(item._id, !item.isPaid);
+                          }
+                        }}
+                      >
+                        <div className={`recurring-toggle-track ${item.isPaid ? 'active' : ''}`}>
+                          <div className="recurring-toggle-thumb" />
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                          {item.isPaid ? 'Paid' : 'Pending'}
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <button
                           type="button"
                           className="btn-subtle"
                           onClick={() => onEditItem(item)}
-                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                          style={{ padding: '3px 8px', fontSize: '11px' }}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
-                          className="btn-danger"
+                          className="btn-subtle"
                           onClick={() => onDeleteItem(item._id)}
-                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                          style={{ padding: '3px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
                         >
                           Delete
                         </button>

@@ -150,379 +150,345 @@ export function GoalsScreen({
 
   return (
     <div className="screen-content">
-      <h2>Goals & settings</h2>
-
-      {/* Purchase Goals Section */}
-      <div className="card">
-        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="card-title">Purchase goals</span>
-            <button
-              type="button"
-              className="btn-subtle"
-              onClick={() => setShowInfo(!showInfo)}
-              style={{
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                padding: 0,
-                fontSize: '11px',
-                fontWeight: 700,
-                lineHeight: 1,
-                border: '1px solid var(--border-strong)',
-                background: showInfo ? 'var(--surface-subtle)' : 'transparent',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer'
-              }}
-              title="Click to view explanation"
-              aria-label="Info about purchase goals"
-            >
-              i
-            </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+        <div>
+          <h2>Purchase goals</h2>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Plan non-essential purchases without violating your safety floor.
           </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-            Cushion: {formatCurrency(availableCushion, currencySymbol)}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span>Survival Cushion:</span>
+            <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(availableCushion, currencySymbol)}</strong>
           </span>
         </div>
+      </div>
 
-        {/* Collapsible Info Box */}
-        {showInfo && (
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: 'var(--radius)',
-              background: 'var(--surface-subtle)',
-              border: '1px solid var(--border)',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.4,
-              marginBottom: '12px'
-            }}
-          >
-            Set a target purchase for this month. The simulation calculates the safest date to buy so your cash reserves are maximized, or recommends waiting for next month if the price would breach your floor.
-          </div>
-        )}
+      <div className="goals-two-column-layout">
+        {/* Left Column: Target Purchase Input & Combinations */}
+        <div className="goals-input-panel">
+          <div className="card" style={{ padding: '16px' }}>
+            <div className="card-header" style={{ marginBottom: '12px' }}>
+              <span className="card-title">Set Target Purchase</span>
+            </div>
 
-        {/* Affordable Goal Combinations in place of paragraph */}
-        <div
-          style={{
-            padding: '10px 12px',
-            borderRadius: 'var(--radius)',
-            background: 'var(--surface-subtle)',
-            border: '1px solid var(--border)',
-            marginBottom: '14px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Affordable goal combinations this month
-            </span>
-            {affordableBundles.length > 0 && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  padding: '1px 6px',
-                  borderRadius: '3px',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  fontWeight: 600,
-                  textTransform: 'uppercase'
-                }}
+            <form onSubmit={handleAddGoal} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Goal Item</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Noise Cancelling Headphones, Laptop"
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Price ({currencySymbol})</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                  value={goalAmount}
+                  onChange={(e) => setGoalAmount(e.target.value)}
+                />
+              </div>
+
+              {(bankAccounts.length > 0 || wallets.length > 0) && (
+                <div className="form-group">
+                  <label className="form-label">Funding Account *</label>
+                  <select
+                    value={fundingSourceKey}
+                    onChange={(e) => setFundingSourceKey(e.target.value)}
+                    required
+                  >
+                    {bankAccounts.map((b) => (
+                      <option key={b._id || b.id} value={`bank_${b._id || b.id}`}>
+                        Bank: {b.name} {b.isPrimary ? '[Primary]' : ''}
+                      </option>
+                    ))}
+                    {wallets.map((w) => (
+                      <option key={w._id || w.id} value={`wallet_${w._id || w.id}`}>
+                        Wallet: {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ marginTop: '4px', padding: '8px 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                disabled={goalSubmitting || !goalName || !goalAmount}
               >
-                Safe to Buy
-              </span>
-            )}
+                <PlusIcon size={14} />
+                <span>{goalSubmitting ? 'Evaluating...' : 'Set purchase goal'}</span>
+              </button>
+            </form>
           </div>
 
-          {activeGoals.length === 0 ? (
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              No active goals logged yet. Add target purchases below to discover affordable combinations within your survival cushion.
-            </div>
-          ) : affordableBundles.length === 0 ? (
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Current cushion ({formatCurrency(availableCushion, currencySymbol)}) is insufficient for active goals without breaching your safety floor. Focus on a single goal or defer to next month.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {affordableBundles.map((bundle, bIdx) => (
-                <div
-                  key={bIdx}
+          {/* Affordable Combinations Card */}
+          <div className="card" style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Affordable Combinations
+              </span>
+              {affordableBundles.length > 0 && (
+                <span
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    background: 'var(--surface)',
-                    borderRadius: 'var(--radius)',
+                    fontSize: '9px',
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    background: 'var(--surface-subtle)',
                     border: '1px solid var(--border)',
-                    fontSize: '12px'
+                    color: 'var(--text)',
+                    fontWeight: 600,
+                    textTransform: 'uppercase'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        background: 'var(--surface-subtle)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text)',
-                        flexShrink: 0
-                      }}
-                    >
-                      {bundle.itemCount === 1 ? 'Single' : `${bundle.itemCount} Combo`}
-                    </span>
-                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {bundle.goals.map((g) => g.name).join(' + ')}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '8px' }}>
-                    <span style={{ fontWeight: 600 }}>
-                      {formatCurrency(bundle.totalCost, currencySymbol)}
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                      (+{formatCurrency(bundle.remainingCushion, currencySymbol)} buffer)
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  Safe to Buy
+                </span>
+              )}
             </div>
-          )}
-        </div>
 
-        <form onSubmit={handleAddGoal} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">Goal item</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Noise Cancelling Headphones, Laptop"
-                value={goalName}
-                onChange={(e) => setGoalName(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">Price ({currencySymbol})</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                required
-                placeholder="0.00"
-                value={goalAmount}
-                onChange={(e) => setGoalAmount(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {(bankAccounts.length > 0 || wallets.length > 0) && (
-            <div className="form-group">
-              <label className="form-label">Funding Account *</label>
-              <select
-                value={fundingSourceKey}
-                onChange={(e) => setFundingSourceKey(e.target.value)}
-                required
-              >
-                {bankAccounts.map((b) => (
-                  <option key={b._id || b.id} value={`bank_${b._id || b.id}`}>
-                    Bank: {b.name} {b.isPrimary ? '[Primary]' : ''}
-                  </option>
-                ))}
-                {wallets.map((w) => (
-                  <option key={w._id || w.id} value={`wallet_${w._id || w.id}`}>
-                    Wallet: {w.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="btn-primary"
-            style={{ alignSelf: 'flex-start', padding: '8px 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            disabled={goalSubmitting || !goalName || !goalAmount}
-          >
-            <PlusIcon size={14} />
-            <span>{goalSubmitting ? 'Evaluating...' : 'Set purchase goal'}</span>
-          </button>
-        </form>
-
-        {/* Grid of purchase goals */}
-        {evaluatedGoals.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            No purchase goals logged yet for this month.
-          </div>
-        ) : (
-          <div className="goals-grid">
-            {evaluatedGoals.map((goal) => {
-              const isActive = goal.status === 'active' || goal.status === 'evaluating';
-              const isScheduled = goal.status === 'scheduled' || goal.status === 'ready';
-              const isDeferred = goal.status === 'deferred';
-              const rec = goal.recommendation;
-
-              return (
-                <div key={goal._id} className="goal-card">
-                  {/* Card Header & Price */}
-                  <div>
-                    <div className="goal-card-header">
-                      <span className="goal-card-title" title={goal.name}>{goal.name}</span>
+            {activeGoals.length === 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                No active goals logged. Target purchases will be analyzed against your available cushion.
+              </div>
+            ) : affordableBundles.length === 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Cushion ({formatCurrency(availableCushion, currencySymbol)}) is currently insufficient for active goals without breaching your safety floor.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {affordableBundles.map((bundle, bIdx) => (
+                  <div
+                    key={bIdx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '7px 10px',
+                      background: 'var(--surface-subtle)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
                       <span
                         style={{
-                          fontSize: '10px',
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          background: 'var(--surface-subtle)',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: 'var(--surface)',
                           border: '1px solid var(--border)',
-                          color: isScheduled
-                            ? 'var(--text)'
-                            : isDeferred
-                            ? 'var(--text-muted)'
-                            : 'var(--text-secondary)',
-                          textTransform: 'uppercase',
-                          fontWeight: 600,
-                          letterSpacing: '0.04em',
+                          color: 'var(--text)',
                           flexShrink: 0
                         }}
                       >
-                        {isScheduled ? 'Scheduled' : isDeferred ? 'Deferred' : 'Active'}
+                        {bundle.itemCount === 1 ? 'Single' : `${bundle.itemCount} Combo`}
+                      </span>
+                      <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {bundle.goals.map((g) => g.name).join(' + ')}
                       </span>
                     </div>
 
-                    <div style={{ marginTop: '8px' }}>
-                      <div className="goal-card-amount">
-                        {formatCurrency(goal.targetAmount, currencySymbol)}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          Target purchase price
-                        </span>
-                        {/* Funding Account Badge */}
-                        {(() => {
-                          const linkedAccount = goal.fundingSourceType === 'wallet'
-                            ? wallets.find(w => (w._id || w.id) === (goal.fundingWalletId?._id || goal.fundingWalletId))
-                            : bankAccounts.find(b => (b._id || b.id) === (goal.fundingBankAccountId?._id || goal.fundingBankAccountId));
-                          if (!linkedAccount) return null;
-                          return (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', padding: '1px 6px', background: 'var(--surface-subtle)', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                              {goal.fundingSourceType === 'wallet' ? <WalletIcon size={10} /> : <BuildingLibraryIcon size={10} />}
-                              {linkedAccount.name}
-                            </span>
-                          );
-                        })()}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: '8px' }}>
+                      <span className="tabular-nums" style={{ fontWeight: 600 }}>
+                        {formatCurrency(bundle.totalCost, currencySymbol)}
+                      </span>
+                      <span className="tabular-nums" style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                        (+{formatCurrency(bundle.remainingCushion, currencySymbol)})
+                      </span>
                     </div>
                   </div>
-
-                  {/* Recommendation / Status Insight */}
-                  {isActive && rec && (
-                    <div
-                      className="goal-card-recommendation"
-                      style={{
-                        background: rec.feasible && rec.recommendedDate ? 'var(--surface-subtle)' : 'var(--surface)',
-                        borderColor: rec.feasible && rec.recommendedDate ? 'var(--border)' : 'var(--border-strong)'
-                      }}
-                    >
-                      {rec.feasible && rec.recommendedDate ? (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)' }}>
-                            <CalendarIcon size={13} />
-                            <span>Safe Date: {formatDisplayDate(rec.recommendedDate, true)}</span>
-                          </div>
-                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.3 }}>
-                            Preserves safe buffer of {formatCurrency(rec.savingsBuffer, currencySymbol)}.
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)' }}>
-                            <AlertTriangleIcon size={13} />
-                            <span>Floor breach risk</span>
-                          </div>
-                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.3 }}>
-                            Breaches floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
-                            {rec.lowestDate ? ` on ${formatDisplayDate(rec.lowestDate, true)}` : ''}.
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {isScheduled && (
-                    <div
-                      className="goal-card-recommendation"
-                      style={{ background: 'var(--surface-subtle)', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <CheckCircleIcon size={14} />
-                      <span style={{ color: 'var(--text)', fontWeight: 500 }}>Fitted into planned budget.</span>
-                    </div>
-                  )}
-
-                  {isDeferred && (
-                    <div
-                      className="goal-card-recommendation"
-                      style={{ background: 'var(--surface-subtle)' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                        <AlertTriangleIcon size={13} />
-                        <span>{goal.deferredReason || 'Deferred to next month.'}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Card Action Footer */}
-                  <div className="goal-card-footer">
-                    <div>
-                      {isActive && rec?.feasible && rec?.recommendedDate && (
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={{ padding: '4px 10px', fontSize: '11px' }}
-                          onClick={() => onConvertGoalToItem(goal._id)}
-                        >
-                          Schedule
-                        </button>
-                      )}
-                      {isActive && (!rec?.feasible || !rec?.recommendedDate) && (
-                        <button
-                          type="button"
-                          className="btn-subtle"
-                          style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                          onClick={() => onDeferGoal(goal._id)}
-                        >
-                          Defer
-                        </button>
-                      )}
-                      {isDeferred && onReactivateGoal && (
-                        <button
-                          type="button"
-                          className="btn-subtle"
-                          style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                          onClick={() => onReactivateGoal(goal._id)}
-                        >
-                          Reactivate
-                        </button>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="btn-subtle"
-                      style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
-                      onClick={() => onDeleteGoal(goal._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Right Column: Active Goals Bento Grid */}
+        <div className="goals-cards-panel">
+          {evaluatedGoals.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+              No purchase goals logged yet for this month. Set a target purchase on the left to simulate the safest purchase date.
+            </div>
+          ) : (
+            <div className="goals-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {evaluatedGoals.map((goal) => {
+                const isActive = goal.status === 'active' || goal.status === 'evaluating';
+                const isScheduled = goal.status === 'scheduled' || goal.status === 'ready';
+                const isDeferred = goal.status === 'deferred';
+                const rec = goal.recommendation;
+
+                return (
+                  <div key={goal._id} className="goal-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px' }}>
+                    {/* Card Header & Price */}
+                    <div>
+                      <div className="goal-card-header">
+                        <span className="goal-card-title" title={goal.name}>{goal.name}</span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'var(--surface-subtle)',
+                            border: '1px solid var(--border)',
+                            color: isScheduled
+                              ? 'var(--text)'
+                              : isDeferred
+                              ? 'var(--text-muted)'
+                              : 'var(--text-secondary)',
+                            textTransform: 'uppercase',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em',
+                            flexShrink: 0
+                          }}
+                        >
+                          {isScheduled ? 'Scheduled' : isDeferred ? 'Deferred' : 'Active'}
+                        </span>
+                      </div>
+
+                      <div style={{ marginTop: '8px' }}>
+                        <div className="goal-card-amount tabular-nums">
+                          {formatCurrency(goal.targetAmount, currencySymbol)}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            Target price
+                          </span>
+                          {/* Funding Account Badge */}
+                          {(() => {
+                            const linkedAccount = goal.fundingSourceType === 'wallet'
+                              ? wallets.find(w => (w._id || w.id) === (goal.fundingWalletId?._id || goal.fundingWalletId))
+                              : bankAccounts.find(b => (b._id || b.id) === (goal.fundingBankAccountId?._id || goal.fundingBankAccountId));
+                            if (!linkedAccount) return null;
+                            return (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', padding: '1px 6px', background: 'var(--surface-subtle)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                                {goal.fundingSourceType === 'wallet' ? <WalletIcon size={10} /> : <BuildingLibraryIcon size={10} />}
+                                {linkedAccount.name}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recommendation / Status Insight */}
+                    {isActive && rec && (
+                      <div
+                        className="goal-card-recommendation"
+                        style={{
+                          background: rec.feasible && rec.recommendedDate ? 'var(--surface-subtle)' : 'var(--surface)',
+                          borderColor: rec.feasible && rec.recommendedDate ? 'var(--border)' : 'var(--border-strong)',
+                          margin: 0
+                        }}
+                      >
+                        {rec.feasible && rec.recommendedDate ? (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: '12px' }}>
+                              <CalendarIcon size={13} />
+                              <span>Safe Date: {formatDisplayDate(rec.recommendedDate, true)}</span>
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
+                              Preserves safe buffer of <strong className="tabular-nums">{formatCurrency(rec.savingsBuffer, currencySymbol)}</strong>.
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: '12px' }}>
+                              <AlertTriangleIcon size={13} />
+                              <span>Floor breach risk</span>
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
+                              Breaches floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
+                              {rec.lowestDate ? ` on ${formatDisplayDate(rec.lowestDate, true)}` : ''}.
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {isScheduled && (
+                      <div
+                        className="goal-card-recommendation"
+                        style={{ background: 'var(--surface-subtle)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '12px' }}
+                      >
+                        <CheckCircleIcon size={14} />
+                        <span style={{ color: 'var(--text)', fontWeight: 500 }}>Fitted into planned budget.</span>
+                      </div>
+                    )}
+
+                    {isDeferred && (
+                      <div
+                        className="goal-card-recommendation"
+                        style={{ background: 'var(--surface-subtle)', margin: 0 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                          <AlertTriangleIcon size={13} />
+                          <span>{goal.deferredReason || 'Deferred to next month.'}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Card Action Footer */}
+                    <div className="goal-card-footer" style={{ marginTop: 'auto', paddingTop: '6px' }}>
+                      <div>
+                        {isActive && rec?.feasible && rec?.recommendedDate && (
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                            onClick={() => onConvertGoalToItem(goal._id)}
+                          >
+                            Schedule
+                          </button>
+                        )}
+                        {isActive && (!rec?.feasible || !rec?.recommendedDate) && (
+                          <button
+                            type="button"
+                            className="btn-subtle"
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                            onClick={() => onDeferGoal(goal._id)}
+                          >
+                            Defer
+                          </button>
+                        )}
+                        {isDeferred && onReactivateGoal && (
+                          <button
+                            type="button"
+                            className="btn-subtle"
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                            onClick={() => onReactivateGoal(goal._id)}
+                          >
+                            Reactivate
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-subtle"
+                        style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                        onClick={() => onDeleteGoal(goal._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
