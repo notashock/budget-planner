@@ -2363,13 +2363,15 @@ input[type="number"] {
 
   /* Mobile Chart Enlargement & Breathing Room */
   .dashboard-chart-panel .chart-container {
-    min-height: 155px;
+    min-height: 250px;
     display: flex;
     align-items: center;
+    justify-content: center;
   }
 
   .dashboard-chart-panel .chart-svg {
-    min-height: 155px;
+    width: 100%;
+    min-height: 240px;
     height: auto;
   }
 
