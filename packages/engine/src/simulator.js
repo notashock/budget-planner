@@ -579,6 +579,8 @@ export function simulate(
     }
 
     let accountBalanceAfter = null;
+    let sourceAccountBalanceAfter = null;
+    let destinationAccountBalanceAfter = null;
 
     if (evt.itemType === 'transfer') {
       const trAmt = evt.transferAmount;
@@ -590,19 +592,25 @@ export function simulate(
       // Debit source
       if (sBank && accountRunningBalances[sBank] !== undefined) {
         accountRunningBalances[sBank] -= trAmt;
+        sourceAccountBalanceAfter = accountRunningBalances[sBank];
       } else if (sWall && accountRunningBalances[sWall] !== undefined) {
         accountRunningBalances[sWall] -= trAmt;
+        sourceAccountBalanceAfter = accountRunningBalances[sWall];
       } else {
         unassignedRunningBalance -= trAmt;
+        sourceAccountBalanceAfter = unassignedRunningBalance;
       }
 
       // Credit destination
       if (dBank && accountRunningBalances[dBank] !== undefined) {
         accountRunningBalances[dBank] += trAmt;
+        destinationAccountBalanceAfter = accountRunningBalances[dBank];
       } else if (dWall && accountRunningBalances[dWall] !== undefined) {
         accountRunningBalances[dWall] += trAmt;
+        destinationAccountBalanceAfter = accountRunningBalances[dWall];
       } else {
         unassignedRunningBalance += trAmt;
+        destinationAccountBalanceAfter = unassignedRunningBalance;
       }
     } else {
       const bId = getCanonicalAccId(evt.bankAccountId);
@@ -647,6 +655,8 @@ export function simulate(
       amount: evt.amount,
       balanceAfter,
       accountBalanceAfter,
+      sourceAccountBalanceAfter,
+      destinationAccountBalanceAfter,
       itemType: evt.itemType,
       isSalary: Boolean(evt.isSalary),
       isIncome: Boolean(evt.isIncome || (evt.amount > 0 && evt.itemType === 'income')),
