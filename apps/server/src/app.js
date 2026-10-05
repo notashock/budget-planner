@@ -13,6 +13,9 @@ import { itemsRouter } from './routes/items.js';
 import { aiRouter } from './routes/ai.js';
 import { transactionsRouter } from './routes/transactions.js';
 import { goalsRouter } from './routes/goals.js';
+import { bankAccountsRouter } from './routes/bankAccounts.js';
+import { walletsRouter } from './routes/wallets.js';
+import { transfersRouter } from './routes/transfers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +83,9 @@ export function createApp(options = {}) {
   app.use('/api', itemsRouter);
   app.use('/api', transactionsRouter);
   app.use('/api', goalsRouter);
+  app.use('/api/bank-accounts', bankAccountsRouter);
+  app.use('/api/wallets', walletsRouter);
+  app.use('/api/transfers', transfersRouter);
 
   // Serve static web frontend if built (production Docker runtime)
   const webDistPath = path.resolve(__dirname, '../../web/dist');
