@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { formatCurrency } from '@budget/engine';
+import React, { useState, useMemo } from 'react';
+import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
 import {
   PlusIcon,
   RefreshIcon,
@@ -9,7 +9,10 @@ import {
   LayoutDashboardIcon,
   ListOrderedIcon,
   TargetIcon,
-  SparklesIcon
+  SparklesIcon,
+  WalletIcon,
+  BuildingLibraryIcon,
+  LockIcon
 } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
@@ -22,6 +25,7 @@ const NAV_TABS = [
   { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
   { id: 'items', label: 'Items', Icon: ListOrderedIcon },
   { id: 'goals', label: 'Goals', Icon: TargetIcon },
+  { id: 'accounts', label: 'Accounts', Icon: WalletIcon },
   { id: 'assistant', label: 'Assistant', Icon: SparklesIcon }
 ];
 
@@ -33,6 +37,7 @@ export function Header({
   onSelectMonth,
   onOpenCreateMonth,
   onOpenRollover,
+  onOpenSalarySafeline,
   onLogout,
   theme,
   onToggleTheme,
@@ -52,6 +57,10 @@ export function Header({
   const deficit = safetyFloor - lowestBalance;
   const margin = lowestBalance - safetyFloor;
 
+  const salaryLockStatus = useMemo(() => {
+    return getSalaryWindowStatus(currentMonth);
+  }, [currentMonth]);
+
   return (
     <header className="app-header">
       <div className="app-header-inner">
@@ -69,6 +78,40 @@ export function Header({
             >
               {monthLabel} ▾
             </button>
+
+            {currentMonth && (
+              <button
+                type="button"
+                className="btn-subtle"
+                data-testid="link-salary-safeline-btn"
+                disabled={salaryLockStatus.isLocked}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  padding: '5px 10px',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  background: salaryLockStatus.isLocked ? 'var(--surface-subtle)' : 'var(--surface)',
+                  cursor: salaryLockStatus.isLocked ? 'not-allowed' : 'pointer',
+                  opacity: salaryLockStatus.isLocked ? 0.65 : 1
+                }}
+                title={salaryLockStatus.tooltip || 'Log Salary'}
+                onClick={() => {
+                  if (!salaryLockStatus.isLocked) {
+                    onOpenSalarySafeline?.();
+                  }
+                }}
+              >
+                {salaryLockStatus.isLocked ? (
+                  <LockIcon size={13} />
+                ) : (
+                  <BuildingLibraryIcon size={13} />
+                )}
+                <span>Log Salary</span>
+              </button>
+            )}
 
             {currentMonth && safetyFloor > 0 && (
               <div

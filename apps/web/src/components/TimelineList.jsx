@@ -9,7 +9,9 @@ export function TimelineList({
   selectedDay = null,
   onSelectDay = null,
   currentDay = null,
-  month = null
+  month = null,
+  selectedAccountId = 'all',
+  onCreditSalary = null
 }) {
   const [filterType, setFilterType] = useState('all');
 
@@ -169,10 +171,24 @@ export function TimelineList({
                           Pending
                         </span>
                       )}
+                      {evt.isSalary && evt.isActual && (
+                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', fontWeight: 600 }}>
+                          ✓ Credited
+                        </span>
+                      )}
                     </div>
                     <span className="timeline-event-type">
-                      {evt.itemType} {evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : '• planned'}
-                      {evt.isFixed ? ' • fixed' : ''}
+                      {evt.itemType === 'transfer' ? (
+                        selectedAccountId === 'all'
+                          ? 'transfer • net 0 on total cash'
+                          : ((selectedAccountId === evt.sourceBankAccountId || selectedAccountId === evt.sourceWalletId)
+                              ? 'transfer • debit to destination'
+                              : 'transfer • credit from source')
+                      ) : evt.itemType === 'actual-income' ? (
+                        'income • actual credited'
+                      ) : (
+                        `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : '• planned'}${evt.isFixed ? ' • fixed' : ''}`
+                      )}
                     </span>
                   </div>
 
@@ -192,9 +208,21 @@ export function TimelineList({
 
                   <div className="timeline-event-numbers">
                     <span
-                      className={`timeline-event-amount tabular-nums ${isIncome ? 'positive' : ''}`}
+                      className={`timeline-event-amount tabular-nums ${
+                        evt.itemType === 'transfer'
+                          ? (selectedAccountId !== 'all' && (selectedAccountId === evt.destinationBankAccountId || selectedAccountId === evt.destinationWalletId) ? 'positive' : '')
+                          : (isIncome ? 'positive' : '')
+                      }`}
                     >
-                      {isIncome ? '+' : ''}{formatCurrency(evt.amount, currencySymbol)}
+                      {evt.itemType === 'transfer' ? (
+                        selectedAccountId === 'all'
+                          ? `⇄ ${formatCurrency(evt.transferAmount, currencySymbol)}`
+                          : ((selectedAccountId === evt.sourceBankAccountId || selectedAccountId === evt.sourceWalletId)
+                              ? `-${formatCurrency(evt.transferAmount, currencySymbol)}`
+                              : `+${formatCurrency(evt.transferAmount, currencySymbol)}`)
+                      ) : (
+                        `${isIncome ? '+' : ''}${formatCurrency(evt.amount, currencySymbol)}`
+                      )}
                     </span>
                     <span
                       className={`timeline-event-balance tabular-nums ${isBreach ? 'text-breached' : ''}`}

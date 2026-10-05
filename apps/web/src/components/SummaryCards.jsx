@@ -37,9 +37,9 @@ export function SafeVelocityCard({
         <span className="safe-velocity-meta-item">
           Committed bills: <strong className="tabular-nums">{formatCurrency(safeVelocity?.committedUpcomingItems || 0, currencySymbol)}</strong>
         </span>
-        {safeVelocity?.burnRatePerDay > 0 && (
+        {(safeVelocity?.burnRatePerDay !== undefined || safeVelocity?.burnRate !== undefined) && (
           <span className="safe-velocity-meta-item">
-            Burn pace: <strong className="tabular-nums">{formatCurrency(safeVelocity.burnRatePerDay, currencySymbol)}/day</strong>
+            Burn pace: <strong className="tabular-nums">{formatCurrency(safeVelocity.burnRatePerDay ?? safeVelocity.burnRate ?? 0, currencySymbol)}/day</strong>
           </span>
         )}
       </div>
@@ -51,28 +51,49 @@ export function DetailedKpiGrid({
   incomeAmount = 0,
   incomeCreditDay = 1,
   events = [],
+  totalExpenses,
   endingBalance = 0,
   todayBalance,
   lowestBalance = 0,
   lowestDate = '',
   safetyFloor = 0,
-  currencySymbol = '₹'
+  currencySymbol = '₹',
+  isSalaryCredited = false,
+  salaryCreditedDate = null,
+  month = null,
+  canEditSalary = false
 }) {
-  const totalOutflow = events
-    .filter((e) => e.amount < 0)
-    .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  const isCreditEffective = isSalaryCredited || Boolean(
+    salaryCreditedDate && month && salaryCreditedDate < `${month.year}-${String(month.month).padStart(2, '0')}-01`
+  );
+
+  const expenseEvents = events.filter((e) => e.amount < 0 && e.itemType !== 'transfer');
+  const totalOutflow = totalExpenses !== undefined
+    ? totalExpenses
+    : expenseEvents.reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
   const floorBreached = lowestBalance < safetyFloor;
 
   return (
     <div className="detailed-kpi-grid summary-grid">
       <div className="summary-card kpi-card">
-        <span className="summary-label">Monthly income</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="summary-label">Monthly income</span>
+          {canEditSalary && isCreditEffective && (
+            <span className="pace-status-badge" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
+              ✓ Credited
+            </span>
+          )}
+        </div>
+
         <span className="summary-value tabular-nums">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
+
         <span className="kpi-subtext">
-          Credited on day {incomeCreditDay}
+          {canEditSalary && isCreditEffective
+            ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
+            : `Credited on day ${incomeCreditDay}`}
         </span>
       </div>
 

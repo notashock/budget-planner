@@ -3,7 +3,8 @@ import {
   LayoutDashboardIcon,
   ListOrderedIcon,
   TargetIcon,
-  SparklesIcon
+  SparklesIcon,
+  WalletIcon
 } from './Icons.jsx';
 
 export function BottomNav({ activeTab, onSelectTab }) {
@@ -11,6 +12,7 @@ export function BottomNav({ activeTab, onSelectTab }) {
     { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
     { id: 'items', label: 'Items', Icon: ListOrderedIcon },
     { id: 'goals', label: 'Goals', Icon: TargetIcon },
+    { id: 'accounts', label: 'Accounts', Icon: WalletIcon },
     { id: 'assistant', label: 'Assistant', Icon: SparklesIcon }
   ];
 

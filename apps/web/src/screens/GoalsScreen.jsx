@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate, recommendPurchaseDate } from '@budget/engine';
-import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon } from '../components/Icons.jsx';
+import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 
 function computeAffordableGoalBundles(activeGoals, availableCushion) {
@@ -43,12 +43,13 @@ export function GoalsScreen({
   items = [],
   transactions = [],
   simulation = null,
+  bankAccounts = [],
+  wallets = [],
   onCreateGoal,
   onConvertGoalToItem,
   onDeferGoal,
   onReactivateGoal,
-  onDeleteGoal,
-  onSaveMonthSettings
+  onDeleteGoal
 }) {
   // Goal creation inputs
   const [goalName, setGoalName] = useState('');
@@ -56,12 +57,16 @@ export function GoalsScreen({
   const [goalSubmitting, setGoalSubmitting] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
-  // Current month settings state
-  const [isEditingSettings, setIsEditingSettings] = useState(false);
-  const [incomeAmount, setIncomeAmount] = useState('');
-  const [incomeCreditDate, setIncomeCreditDate] = useState('');
-  const [safetyFloor, setSafetyFloor] = useState('');
-  const [monthSaved, setMonthSaved] = useState(false);
+  const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+  const defaultSourceKey = primaryBank ? `bank_${primaryBank._id || primaryBank.id}` : (wallets[0] ? `wallet_${wallets[0]._id || wallets[0].id}` : '');
+  const [fundingSourceKey, setFundingSourceKey] = useState(defaultSourceKey);
+
+  useEffect(() => {
+    if (!fundingSourceKey && (bankAccounts.length > 0 || wallets.length > 0)) {
+      const pb = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+      setFundingSourceKey(pb ? `bank_${pb._id || pb.id}` : (wallets[0] ? `wallet_${wallets[0]._id || wallets[0].id}` : ''));
+    }
+  }, [bankAccounts, wallets]);
 
   const currencySymbol = month?.currencySymbol || '₹';
 
@@ -95,63 +100,6 @@ export function GoalsScreen({
     });
   }, [goals, month, items, transactions, simulation]);
 
-  useEffect(() => {
-    if (month) {
-      setIncomeAmount((month.incomeAmount / 100).toString());
-      if (month.incomeCreditDate) {
-        setIncomeCreditDate(month.incomeCreditDate);
-      } else {
-        const d = String(month.incomeCreditDay || 1).padStart(2, '0');
-        const m = String(month.month).padStart(2, '0');
-        setIncomeCreditDate(`${month.year}-${m}-${d}`);
-      }
-      setSafetyFloor((month.safetyFloor / 100).toString());
-    }
-  }, [month]);
-
-  const handleAddGoal = async (e) => {
-    e.preventDefault();
-    if (!goalName.trim() || !goalAmount || isNaN(Number(goalAmount))) return;
-    setGoalSubmitting(true);
-    try {
-      await onCreateGoal({
-        name: goalName.trim(),
-        targetAmount: Math.round(Number(goalAmount) * 100)
-      });
-      setGoalName('');
-      setGoalAmount('');
-    } finally {
-      setGoalSubmitting(false);
-    }
-  };
-
-  const handleSaveMonth = (e) => {
-    e.preventDefault();
-    onSaveMonthSettings({
-      incomeAmount: Math.round(Number(incomeAmount || 0) * 100),
-      incomeCreditDate: incomeCreditDate,
-      safetyFloor: Math.round(Number(safetyFloor || 0) * 100)
-    });
-    setIsEditingSettings(false);
-    setMonthSaved(true);
-    setTimeout(() => setMonthSaved(false), 2500);
-  };
-
-  const handleCancelEdit = () => {
-    if (month) {
-      setIncomeAmount((month.incomeAmount / 100).toString());
-      if (month.incomeCreditDate) {
-        setIncomeCreditDate(month.incomeCreditDate);
-      } else {
-        const d = String(month.incomeCreditDay || 1).padStart(2, '0');
-        const m = String(month.month).padStart(2, '0');
-        setIncomeCreditDate(`${month.year}-${m}-${d}`);
-      }
-      setSafetyFloor((month.safetyFloor / 100).toString());
-    }
-    setIsEditingSettings(false);
-  };
-
   // Available Survival Cushion for Goals
   const availableCushion = simulation?.safeVelocity?.freeSurplus ?? simulation?.allowanceLeft ?? 0;
   const activeGoals = useMemo(() => {
@@ -161,6 +109,44 @@ export function GoalsScreen({
   const affordableBundles = useMemo(() => {
     return computeAffordableGoalBundles(activeGoals, availableCushion);
   }, [activeGoals, availableCushion]);
+
+  const handleAddGoal = async (e) => {
+    e.preventDefault();
+    if (!goalName.trim() || !goalAmount || isNaN(Number(goalAmount))) return;
+    setGoalSubmitting(true);
+
+    let fundingSourceType = null;
+    let fundingBankAccountId = null;
+    let fundingWalletId = null;
+
+    if (fundingSourceKey) {
+      if (fundingSourceKey.startsWith('bank_')) {
+        fundingSourceType = 'bank';
+        fundingBankAccountId = fundingSourceKey.replace('bank_', '');
+      } else if (fundingSourceKey.startsWith('wallet_')) {
+        fundingSourceType = 'wallet';
+        fundingWalletId = fundingSourceKey.replace('wallet_', '');
+      }
+    }
+
+    try {
+      const payload = {
+        name: goalName.trim(),
+        targetAmount: Math.round(Number(goalAmount) * 100)
+      };
+      if (fundingSourceType) payload.fundingSourceType = fundingSourceType;
+      if (fundingBankAccountId) payload.fundingBankAccountId = fundingBankAccountId;
+      if (fundingWalletId) payload.fundingWalletId = fundingWalletId;
+
+      await onCreateGoal?.(payload);
+      setGoalName('');
+      setGoalAmount('');
+    } catch (err) {
+      alert(err.message || 'Failed to create goal');
+    } finally {
+      setGoalSubmitting(false);
+    }
+  };
 
   return (
     <div className="screen-content">
@@ -332,6 +318,29 @@ export function GoalsScreen({
               />
             </div>
           </div>
+
+          {(bankAccounts.length > 0 || wallets.length > 0) && (
+            <div className="form-group">
+              <label className="form-label">Funding Account *</label>
+              <select
+                value={fundingSourceKey}
+                onChange={(e) => setFundingSourceKey(e.target.value)}
+                required
+              >
+                {bankAccounts.map((b) => (
+                  <option key={b._id || b.id} value={`bank_${b._id || b.id}`}>
+                    Bank: {b.name} {b.isPrimary ? '[Primary]' : ''}
+                  </option>
+                ))}
+                {wallets.map((w) => (
+                  <option key={w._id || w.id} value={`wallet_${w._id || w.id}`}>
+                    Wallet: {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button
             type="submit"
             className="btn-primary"
@@ -388,8 +397,23 @@ export function GoalsScreen({
                       <div className="goal-card-amount">
                         {formatCurrency(goal.targetAmount, currencySymbol)}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Target purchase price
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          Target purchase price
+                        </span>
+                        {/* Funding Account Badge */}
+                        {(() => {
+                          const linkedAccount = goal.fundingSourceType === 'wallet'
+                            ? wallets.find(w => (w._id || w.id) === (goal.fundingWalletId?._id || goal.fundingWalletId))
+                            : bankAccounts.find(b => (b._id || b.id) === (goal.fundingBankAccountId?._id || goal.fundingBankAccountId));
+                          if (!linkedAccount) return null;
+                          return (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', padding: '1px 6px', background: 'var(--surface-subtle)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                              {goal.fundingSourceType === 'wallet' ? <WalletIcon size={10} /> : <BuildingLibraryIcon size={10} />}
+                              {linkedAccount.name}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -500,112 +524,6 @@ export function GoalsScreen({
           </div>
         )}
       </div>
-
-      {/* Month Specific Overrides */}
-      {month && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Current month settings ({month.month}/{month.year})</span>
-            {!isEditingSettings && (
-              <button
-                type="button"
-                className="btn-subtle"
-                style={{ fontSize: '12px', padding: '4px 10px', border: '1px solid var(--border)' }}
-                onClick={() => setIsEditingSettings(true)}
-              >
-                Edit settings
-              </button>
-            )}
-          </div>
-
-          {monthSaved && (
-            <div style={{ fontSize: '12px', color: 'var(--success)', marginBottom: '8px' }}>
-              Month settings updated successfully.
-            </div>
-          )}
-
-          {!isEditingSettings ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-              <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Monthly income</div>
-                <div style={{ fontSize: '15px', fontWeight: 600 }}>{formatCurrency(month.incomeAmount, currencySymbol)}</div>
-              </div>
-
-              <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Salary credit date</div>
-                <div style={{ fontSize: '15px', fontWeight: 600 }}>
-                  {month.incomeCreditDate ? formatDisplayDate(month.incomeCreditDate, true) : `Day ${month.incomeCreditDay || 1}`}
-                </div>
-              </div>
-
-              <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Safety floor threshold</div>
-                <div style={{ fontSize: '15px', fontWeight: 600 }}>{formatCurrency(month.safetyFloor, currencySymbol)}</div>
-              </div>
-
-              <div style={{ padding: '8px 10px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Dynamic survival cushion</div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-                  {formatCurrency(simulation?.safeVelocity?.freeSurplus ?? simulation?.allowanceLeft ?? 0, currencySymbol)}
-                </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                  Auto-derived from Safe Velocity
-                </div>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSaveMonth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Monthly income ({currencySymbol})</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    required
-                    value={incomeAmount}
-                    onChange={(e) => setIncomeAmount(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Salary credit date</label>
-                  <DatePicker
-                    value={incomeCreditDate}
-                    onChange={(d) => setIncomeCreditDate(d)}
-                    month={month}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Supports preceding month-end (e.g. Sept 30) for this month's budget.
-                  </span>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Safety floor threshold ({currencySymbol})</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  required
-                  value={safetyFloor}
-                  onChange={(e) => setSafetyFloor(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-                <button type="button" className="btn-subtle" onClick={handleCancelEdit}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Save month settings
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
     </div>
   );
 }

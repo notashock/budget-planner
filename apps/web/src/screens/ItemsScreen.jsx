@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import { PlusIcon } from '../components/Icons.jsx';
+import { PlusIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
 
 export function ItemsScreen({
   items = [],
   transactions = [],
   simulation = null,
   currencySymbol = '₹',
+  bankAccounts = [],
+  wallets = [],
   onOpenUnifiedEntry,
   onEditItem,
   onTogglePaid,
@@ -67,31 +69,43 @@ export function ItemsScreen({
               No transactions logged yet this month. Tap "New Entry" to log an expense or credit.
             </div>
           ) : (
-            transactions.map((tx) => (
-              <div key={tx._id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
-                    {tx.note || tx.tag}
+            transactions.map((tx) => {
+              const linkedAccount = tx.accountType === 'wallet'
+                ? wallets.find(w => (w._id || w.id) === (tx.walletId?._id || tx.walletId))
+                : bankAccounts.find(b => (b._id || b.id) === (tx.bankAccountId?._id || tx.bankAccountId));
+
+              return (
+                <div key={tx._id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      {tx.note || tx.tag}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                      <span className="tabular-nums">{formatDisplayDate(tx.date, true)}</span> • {tx.tag} {tx.plannedItemId ? '• matched planned item' : '• unexpected'}
+                      {linkedAccount && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', padding: '1px 5px', background: 'var(--surface-subtle)', borderRadius: '3px', border: '1px solid var(--border)' }}>
+                          {tx.accountType === 'wallet' ? <WalletIcon size={10} /> : <BuildingLibraryIcon size={10} />}
+                          {linkedAccount.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    <span className="tabular-nums">{formatDisplayDate(tx.date, true)}</span> • {tx.tag} {tx.plannedItemId ? '• matched planned item' : '• unexpected'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="tabular-nums" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
+                      {formatCurrency(tx.amount, currencySymbol)}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      style={{ padding: '3px 8px', fontSize: '11px' }}
+                      onClick={() => onDeleteTransaction(tx._id)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="tabular-nums" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
-                    {formatCurrency(tx.amount, currencySymbol)}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    style={{ padding: '3px 8px', fontSize: '11px' }}
-                    onClick={() => onDeleteTransaction(tx._id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -174,6 +188,27 @@ export function ItemsScreen({
                         >
                           {item.type}
                         </span>
+                        {(() => {
+                          const accId = item.bankAccountId?._id || item.bankAccountId || item.walletId?._id || item.walletId;
+                          const linkedAccount = simulation?.accounts?.[accId] || simulation?.accountsMap?.[accId];
+                          const linkedAccountName = linkedAccount ? linkedAccount.name : (item.bankAccountId ? 'Bank' : (item.walletId ? 'Wallet' : ''));
+                          if (!linkedAccountName) return null;
+                          return (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                color: 'var(--text-secondary)',
+                                background: 'var(--surface-subtle)',
+                                border: '1px solid var(--border)',
+                                padding: '1px 6px',
+                                borderRadius: '4px'
+                              }}
+                              title={`Drawn from: ${linkedAccountName}`}
+                            >
+                              {linkedAccountName}
+                            </span>
+                          );
+                        })()}
                         {item.type === 'recurring' && item.isFixed && (
                           <span
                             style={{

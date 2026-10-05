@@ -41,28 +41,9 @@ export function StepLineChart({
 
   // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
   const chartData = useMemo(() => {
-    // Compute cumulative expenses per day
-    const expenseEvents = (events || []).filter((e) => e.amount < 0);
-  const cumulativeExpensesMap = {};
-  let runningExpense = 0;
-
-  // Sort ascending by day to build cumulative totals reliably
-  const sortedDays = [...dailyBalances].sort((a, b) => a.day - b.day);
-  sortedDays.forEach((pt) => {
-    const dayExp = expenseEvents
-      .filter((e) => e.day === pt.day)
-      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
-    runningExpense += dayExp;
-    cumulativeExpensesMap[pt.day] = {
-      cumulative: runningExpense,
-      dayExpense: dayExp
-    };
-  });
-  const totalExpense = runningExpense;
-
-  const balances = dailyBalances.map((d) => d.balance);
-  const minVal = Math.min(0, ...balances, safetyFloor);
-  const maxVal = Math.max(...balances, safetyFloor, totalExpense > 0 ? totalExpense : 1000);
+    const balances = dailyBalances.map((d) => d.balance);
+    const minVal = Math.min(0, ...balances, safetyFloor);
+    const maxVal = Math.max(...balances, safetyFloor, 1000);
 
   // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
   const width = isMobile ? 500 : 600;
@@ -121,34 +102,6 @@ export function StepLineChart({
 
     const baselineY = height - paddingBottom;
     areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baselineY} L ${points[0].x.toFixed(1)} ${baselineY} Z`;
-  }
-
-  // Secondary Dotted Cumulative Expenses Curved Line
-  const expensePoints = dailyBalances.map((point) => ({
-    day: point.day,
-    x: getX(point.day),
-    y: getY(cumulativeExpensesMap[point.day]?.cumulative || 0),
-    val: cumulativeExpensesMap[point.day]?.cumulative || 0,
-    dayExpense: cumulativeExpensesMap[point.day]?.dayExpense || 0
-  }));
-
-  let expensePathD = '';
-  if (expensePoints.length > 0) {
-    expensePathD = `M ${expensePoints[0].x.toFixed(1)} ${expensePoints[0].y.toFixed(1)}`;
-    for (let i = 0; i < expensePoints.length - 1; i++) {
-      const p0 = expensePoints[Math.max(0, i - 1)];
-      const p1 = expensePoints[i];
-      const p2 = expensePoints[i + 1];
-      const p3 = expensePoints[Math.min(expensePoints.length - 1, i + 2)];
-
-      const tension = 0.2;
-      const cp1x = p1.x + (p2.x - p0.x) * tension;
-      const cp1y = p1.y + (p2.y - p0.y) * tension;
-      const cp2x = p2.x - (p3.x - p1.x) * tension;
-      const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-      expensePathD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-    }
   }
 
   const floorY = getY(safetyFloor);
@@ -245,14 +198,11 @@ export function StepLineChart({
       points,
       pathD,
       areaD,
-      expensePoints,
-      expensePathD,
       floorY,
       yTicks,
-      prunedXTicks,
-      cumulativeExpensesMap
+      prunedXTicks
     };
-  }, [dailyBalances, events, safetyFloor, currencySymbol, isMobile]);
+  }, [dailyBalances, safetyFloor, currencySymbol, isMobile]);
 
   const {
     minDay,
@@ -270,12 +220,9 @@ export function StepLineChart({
     points,
     pathD,
     areaD,
-    expensePoints,
-    expensePathD,
     floorY,
     yTicks,
-    prunedXTicks,
-    cumulativeExpensesMap
+    prunedXTicks
   } = chartData;
 
   // Active point for tooltip inspection
@@ -283,7 +230,6 @@ export function StepLineChart({
   const activePoint = activeDay !== null ? dailyBalances.find((p) => p.day === activeDay) : null;
   const activeIndex = activePoint ? dailyBalances.indexOf(activePoint) : -1;
   const prevPoint = activeIndex > 0 ? dailyBalances[activeIndex - 1] : null;
-  const activeExpense = activeDay !== null ? cumulativeExpensesMap[activeDay] : null;
   const isBreached = activePoint ? activePoint.balance < safetyFloor : false;
 
   // Tooltip geometry
@@ -354,10 +300,6 @@ export function StepLineChart({
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '10px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
             Balance
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '10px', height: '2px', borderTop: '2px dotted var(--text-secondary)', display: 'inline-block' }} />
-            Expenses
           </span>
           <span>
             Floor: {formatCurrency(safetyFloor, currencySymbol)}
@@ -478,47 +420,6 @@ export function StepLineChart({
               strokeWidth="1"
               strokeDasharray="2 2"
               opacity="0.6"
-            />
-          )}
-
-          {/* Secondary Dotted Cumulative Expenses Curved Line */}
-          {expensePathD && (
-            <path
-              d={expensePathD}
-              fill="none"
-              stroke="var(--text-secondary)"
-              strokeWidth="1.75"
-              strokeDasharray="4 3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.42"
-            />
-          )}
-
-          {/* Markers on days with expense activity */}
-          {expensePoints.filter((p) => p.dayExpense > 0).map((p) => (
-            <circle
-              key={`exp-${p.day}`}
-              cx={p.x}
-              cy={p.y}
-              r={activeDay === p.day ? 4 : 2}
-              fill="var(--surface)"
-              stroke="var(--text-secondary)"
-              strokeWidth="1.2"
-              opacity="0.5"
-            />
-          ))}
-
-          {/* Active expense circle highlight */}
-          {activeDay !== null && activeExpense && (
-            <circle
-              cx={getX(activeDay)}
-              cy={getY(activeExpense.cumulative)}
-              r="4"
-              fill="var(--text-secondary)"
-              stroke="var(--surface)"
-              strokeWidth="1.5"
-              opacity="0.75"
             />
           )}
 
@@ -646,23 +547,24 @@ export function StepLineChart({
               >
                 Bal: {formatCurrency(activePoint.balance, currencySymbol)}
               </text>
-              <text
-                x="8"
-                y="45"
-                fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 500 }}
-              >
-                Spent: {formatCurrency(activeExpense?.cumulative || 0, currencySymbol)}
-                {activeExpense?.dayExpense > 0 ? ` (-${formatCurrency(activeExpense.dayExpense, currencySymbol)})` : ''}
-              </text>
+              {prevPoint && (activePoint.balance - prevPoint.balance !== 0) && (
+                <text
+                  x="8"
+                  y="43"
+                  fill="var(--text-secondary)"
+                  style={{ fontSize: '9px', fontWeight: 500 }}
+                >
+                  Change: {activePoint.balance - prevPoint.balance > 0 ? '+' : ''}{formatCurrency(activePoint.balance - prevPoint.balance, currencySymbol)}
+                </text>
+              )}
               {isBreached && (
                 <text
                   x="8"
-                  y="55"
+                  y="53"
                   fill="var(--danger)"
                   style={{ fontSize: '9px', fontWeight: 600 }}
                 >
-                  Floor breached
+                  ▲ Floor breached
                 </text>
               )}
             </g>
