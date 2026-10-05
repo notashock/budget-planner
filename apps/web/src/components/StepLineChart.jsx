@@ -15,7 +15,8 @@ export function StepLineChart({
   lowestDate = '',
   selectedDay = null,
   onSelectDay = null,
-  currentDay = null
+  currentDay = null,
+  onOpenReview = null
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
@@ -296,7 +297,7 @@ export function StepLineChart({
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '10px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
             Balance
@@ -308,6 +309,26 @@ export function StepLineChart({
           <span>
             Floor: {formatCurrency(safetyFloor, currencySymbol)}
           </span>
+          {onOpenReview && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onOpenReview}
+              style={{
+                padding: '3px 9px',
+                fontSize: '11px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginLeft: '4px'
+              }}
+              title="Review Month Performance"
+            >
+              Review Month
+            </button>
+          )}
         </div>
       </div>
 
