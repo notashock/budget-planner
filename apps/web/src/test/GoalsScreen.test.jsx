@@ -44,10 +44,13 @@ describe('GoalsScreen', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(handleCreateGoal).toHaveBeenCalledWith({
-        name: 'Sony WH-1000XM5',
-        targetAmount: 25000
-      });
+      expect(handleCreateGoal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Sony WH-1000XM5',
+          targetAmount: 25000,
+          priority: 0
+        })
+      );
     });
   });
 });
