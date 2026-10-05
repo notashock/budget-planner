@@ -1,0 +1,3 @@
+# Separate Bank Account and Wallet Domain Models
+
+We decided to model Bank Accounts and Wallets as independent domain entities with dedicated schemas, separate API endpoints, and isolated UI screens, rather than merging them into a unified polymorphic account abstraction. This preserves the operational differences between formal banking (account numbers, routing/IFSC details, statements, interest, institutional reconciliation) and casual liquid wallets (cash envelopes, digital app wallets, quick top-ups), providing clean mental models and preventing leaky abstractions in transaction logging and balance tracking.

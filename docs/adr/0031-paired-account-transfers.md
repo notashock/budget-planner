@@ -1,0 +1,3 @@
+# Paired Account Transfers for Inter-Account Liquidity
+
+To support movements of money between Bank Accounts and Wallets (such as ATM cash withdrawals, wallet top-ups, and bank-to-bank reallocations) without distorting monthly budget metrics, we decided to model transfers as Paired Account Transfers. In the aggregate monthly simulation, transfers evaluate to zero net change ($0 delta to total cash), ensuring that safe velocity, safety floor alerts, and net monthly savings are never artificially inflated or deflated. At the individual account and wallet level, the source is debited and the target is credited accordingly.
