@@ -63,7 +63,23 @@ const itemSchema = new mongoose.Schema(
         fuelVolume: { type: Number, required: true },
         fuelCost: { type: Number, required: true }
       }
-    ]
+    ],
+    // Account Attribution
+    accountType: {
+      type: String,
+      enum: ['bank', 'wallet', null],
+      default: null
+    },
+    bankAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BankAccount',
+      default: null
+    },
+    walletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Wallet',
+      default: null
+    }
   },
   { timestamps: true }
 );

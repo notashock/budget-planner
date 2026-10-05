@@ -4,10 +4,13 @@ import { Transaction } from '../models/Transaction.js';
 import { Item } from '../models/Item.js';
 import { Goal } from '../models/Goal.js';
 import { Setting } from '../models/Setting.js';
+import { BankAccount } from '../models/BankAccount.js';
+import { Wallet } from '../models/Wallet.js';
 import { requireAuth } from '../middleware/auth.js';
 import { recommendPurchaseDate } from '@budget/engine';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
+import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 
 export const transactionsRouter = express.Router();
 transactionsRouter.use(requireAuth);
@@ -26,6 +29,12 @@ transactionsRouter.get('/months/:year/:month/transactions', async (req, res) => 
 
     if (!month) {
       return res.status(404).json({ error: 'Month not found' });
+    }
+
+    try {
+      await backfillUnassignedTransactions(req.session.userId);
+    } catch {
+      // non-fatal
     }
 
     const transactions = await Transaction.find({
@@ -81,7 +90,62 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
       }
     }
 
-    const validTag = ['Food', 'Travel', 'Health', 'Other'].includes(tag) ? tag : 'Other';
+    const validTag = ['Food', 'Travel', 'Health', 'Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].includes(tag) ? tag : 'Other';
+
+    // Resolve Account Attribution per ADR 0035 (mandatory):
+    if (req.body.accountType === 'unassigned') {
+      return res.status(400).json({ error: 'Account linking is required' });
+    }
+
+    let resolvedAccountType = ['bank', 'wallet'].includes(req.body.accountType) ? req.body.accountType : null;
+    let resolvedBankAccountId = req.body.bankAccountId || null;
+    let resolvedWalletId = req.body.walletId || null;
+
+    if (!resolvedBankAccountId && !resolvedWalletId) {
+      if (verifiedPlannedItemId) {
+        const item = await Item.findOne({ _id: verifiedPlannedItemId, userId: req.session.userId });
+        if (item && item.accountType && item.accountType !== 'unassigned') {
+          if (item.accountType === 'wallet' && item.walletId) {
+            resolvedAccountType = 'wallet';
+            resolvedWalletId = item.walletId;
+          } else if (item.bankAccountId) {
+            resolvedAccountType = 'bank';
+            resolvedBankAccountId = item.bankAccountId;
+          }
+        }
+      }
+
+      if (!resolvedBankAccountId && !resolvedWalletId) {
+        let primaryBank = await BankAccount.findOne({
+          userId: req.session.userId,
+          isArchived: { $ne: true }
+        }).sort({ isPrimary: -1, createdAt: 1 });
+
+        if (!primaryBank) {
+          const totalAccounts = (await BankAccount.countDocuments({ userId: req.session.userId })) +
+            (await Wallet.countDocuments({ userId: req.session.userId }));
+          if (totalAccounts === 0) {
+            primaryBank = await BankAccount.create({
+              userId: req.session.userId,
+              name: 'Primary Account',
+              institution: 'Default Bank',
+              accountType: 'checking',
+              isPrimary: true,
+              openingBalance: month.openingBalance || 0
+            });
+          }
+        }
+
+        if (primaryBank) {
+          resolvedAccountType = 'bank';
+          resolvedBankAccountId = primaryBank._id;
+        }
+      }
+    }
+
+    if (!resolvedBankAccountId && !resolvedWalletId) {
+      return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the transaction' });
+    }
 
     const transaction = await Transaction.create({
       userId: req.session.userId,
@@ -90,7 +154,12 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
       amount: Math.round(Number(amount)),
       tag: validTag,
       note: note ? String(note).trim() : '',
-      plannedItemId: verifiedPlannedItemId
+      plannedItemId: verifiedPlannedItemId,
+      accountType: resolvedAccountType,
+      bankAccountId: resolvedBankAccountId,
+      walletId: resolvedWalletId,
+      isIncome: Boolean(req.body.isIncome),
+      transferId: req.body.transferId || null
     });
 
     // Dynamic Goal Re-evaluation & Auto-Deferral:

@@ -3,6 +3,8 @@ import { Month } from '../models/Month.js';
 import { Goal } from '../models/Goal.js';
 import { Item } from '../models/Item.js';
 import { Transaction } from '../models/Transaction.js';
+import { BankAccount } from '../models/BankAccount.js';
+import { Wallet } from '../models/Wallet.js';
 import { requireAuth } from '../middleware/auth.js';
 import { recommendPurchaseDate } from '@budget/engine';
 
@@ -74,7 +76,7 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
   try {
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { name, targetAmount } = req.body;
+    const { name, targetAmount, fundingSourceType, fundingBankAccountId, fundingWalletId } = req.body;
 
     if (!name || !targetAmount || typeof Number(targetAmount) !== 'number') {
       return res.status(400).json({ error: 'Valid goal name and target amount required' });
@@ -90,12 +92,34 @@ goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
+    let fType = fundingSourceType;
+    let fBankId = fundingBankAccountId;
+    let fWalletId = fundingWalletId;
+
+    if (!fBankId && !fWalletId) {
+      const primaryBank = await BankAccount.findOne({ userId: req.session.userId, isPrimary: true, isArchived: false })
+        || await BankAccount.findOne({ userId: req.session.userId, isArchived: false });
+      if (primaryBank) {
+        fType = 'bank';
+        fBankId = primaryBank._id;
+      } else {
+        const firstWallet = await Wallet.findOne({ userId: req.session.userId, isArchived: false });
+        if (firstWallet) {
+          fType = 'wallet';
+          fWalletId = firstWallet._id;
+        }
+      }
+    }
+
     const goal = await Goal.create({
       userId: req.session.userId,
       monthId: month._id,
       name: name.trim(),
       targetAmount: Math.round(Number(targetAmount)),
-      status: 'active'
+      status: 'active',
+      fundingSourceType: fType || null,
+      fundingBankAccountId: fBankId || null,
+      fundingWalletId: fWalletId || null
     });
 
     // Evaluate recommendation immediately
@@ -179,6 +203,25 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
 
     const targetDay = recommendation.recommendedDay || 1;
 
+    let accountType = goal.fundingSourceType || 'bank';
+    let bankAccountId = goal.fundingBankAccountId;
+    let walletId = goal.fundingWalletId;
+
+    if (!bankAccountId && !walletId) {
+      const primaryBank = await BankAccount.findOne({ userId: req.session.userId, isPrimary: true, isArchived: false })
+        || await BankAccount.findOne({ userId: req.session.userId, isArchived: false });
+      if (primaryBank) {
+        accountType = 'bank';
+        bankAccountId = primaryBank._id;
+      } else {
+        const firstWallet = await Wallet.findOne({ userId: req.session.userId, isArchived: false });
+        if (firstWallet) {
+          accountType = 'wallet';
+          walletId = firstWallet._id;
+        }
+      }
+    }
+
     // Create scheduled one-time item
     const item = await Item.create({
       userId: req.session.userId,
@@ -187,7 +230,10 @@ goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
       name: goal.name,
       amount: goal.targetAmount,
       day: targetDay,
-      priority: 0
+      priority: 0,
+      accountType,
+      bankAccountId: bankAccountId || undefined,
+      walletId: walletId || undefined
     });
 
     goal.status = 'scheduled';

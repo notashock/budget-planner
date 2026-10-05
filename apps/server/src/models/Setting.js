@@ -31,6 +31,11 @@ const settingSchema = new mongoose.Schema(
       default: '₹',
       trim: true
     },
+    defaultSalaryBankAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BankAccount',
+      default: null
+    },
     aiAssistantEnabled: {
       type: Boolean,
       default: false // Strictly off by default

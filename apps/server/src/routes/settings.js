@@ -31,6 +31,7 @@ settingsRouter.put('/', async (req, res) => {
       defaultIncomeCreditDay,
       defaultSafetyFloor,
       currencySymbol,
+      defaultSalaryBankAccountId,
       aiAssistantEnabled
     } = req.body;
 
@@ -41,6 +42,9 @@ settingsRouter.put('/', async (req, res) => {
     }
     if (typeof defaultSafetyFloor === 'number') update.defaultSafetyFloor = Math.round(defaultSafetyFloor);
     if (typeof currencySymbol === 'string' && currencySymbol.trim()) update.currencySymbol = currencySymbol.trim();
+    if (defaultSalaryBankAccountId !== undefined) {
+      update.defaultSalaryBankAccountId = defaultSalaryBankAccountId || null;
+    }
     if (typeof aiAssistantEnabled === 'boolean') update.aiAssistantEnabled = aiAssistantEnabled;
 
     const settings = await Setting.findOneAndUpdate(

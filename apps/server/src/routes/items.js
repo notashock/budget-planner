@@ -1,6 +1,9 @@
 import express from 'express';
 import { Month } from '../models/Month.js';
 import { Item } from '../models/Item.js';
+import { Transaction } from '../models/Transaction.js';
+import { BankAccount } from '../models/BankAccount.js';
+import { Wallet } from '../models/Wallet.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const itemsRouter = express.Router();
@@ -58,6 +61,50 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
       itemData.isPaid = req.body.isPaid;
     }
 
+    // Resolve Account Attribution per ADR 0035 (mandatory):
+    if (req.body.accountType === 'unassigned') {
+      return res.status(400).json({ error: 'Account linking is required' });
+    }
+
+    let resolvedAccountType = ['bank', 'wallet'].includes(req.body.accountType) ? req.body.accountType : null;
+    let resolvedBankAccountId = req.body.bankAccountId || null;
+    let resolvedWalletId = req.body.walletId || null;
+
+    if (!resolvedBankAccountId && !resolvedWalletId) {
+      let primaryBank = await BankAccount.findOne({
+        userId: req.session.userId,
+        isArchived: { $ne: true }
+      }).sort({ isPrimary: -1, createdAt: 1 });
+
+      if (!primaryBank) {
+        const totalAccounts = (await BankAccount.countDocuments({ userId: req.session.userId })) +
+          (await Wallet.countDocuments({ userId: req.session.userId }));
+        if (totalAccounts === 0) {
+          primaryBank = await BankAccount.create({
+            userId: req.session.userId,
+            name: 'Primary Account',
+            institution: 'Default Bank',
+            accountType: 'checking',
+            isPrimary: true,
+            openingBalance: month.openingBalance || 0
+          });
+        }
+      }
+
+      if (primaryBank) {
+        resolvedAccountType = 'bank';
+        resolvedBankAccountId = primaryBank._id;
+      }
+    }
+
+    if (!resolvedBankAccountId && !resolvedWalletId) {
+      return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the planned item' });
+    }
+
+    itemData.accountType = resolvedAccountType;
+    itemData.bankAccountId = resolvedBankAccountId;
+    itemData.walletId = resolvedWalletId;
+
     const item = await Item.create(itemData);
     return res.status(201).json(item);
   } catch (err) {
@@ -68,7 +115,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 // Update item
 itemsRouter.put('/items/:id', async (req, res) => {
   try {
-    const { name, priority, amount, day, dayOfMonth, isFixed } = req.body;
+    const { name, priority, amount, day, dayOfMonth, isFixed, accountType, bankAccountId, walletId } = req.body;
 
     const item = await Item.findOne({
       _id: req.params.id,
@@ -104,7 +151,39 @@ itemsRouter.put('/items/:id', async (req, res) => {
       item.isPaid = req.body.isPaid;
     }
 
+    let accountUpdated = false;
+    if (accountType !== undefined) {
+      if (accountType === 'unassigned') {
+        return res.status(400).json({ error: 'Account linking is required' });
+      }
+      if (['bank', 'wallet'].includes(accountType)) {
+        item.accountType = accountType;
+        accountUpdated = true;
+      }
+    }
+    if (bankAccountId !== undefined) {
+      item.bankAccountId = bankAccountId || null;
+      accountUpdated = true;
+    }
+    if (walletId !== undefined) {
+      item.walletId = walletId || null;
+      accountUpdated = true;
+    }
+
     await item.save();
+
+    if (accountUpdated) {
+      // Synchronize any matched transactions per ADR 0035
+      await Transaction.updateMany(
+        { plannedItemId: item._id, userId: req.session.userId },
+        {
+          accountType: item.accountType,
+          bankAccountId: item.bankAccountId,
+          walletId: item.walletId
+        }
+      );
+    }
+
     return res.json(item);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update item' });

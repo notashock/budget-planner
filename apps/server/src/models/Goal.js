@@ -31,6 +31,22 @@ const goalSchema = new mongoose.Schema(
     deferredReason: {
       type: String,
       default: null
+    },
+    // Optional Goal Funding Source
+    fundingSourceType: {
+      type: String,
+      enum: ['bank', 'wallet', null],
+      default: null
+    },
+    fundingBankAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BankAccount',
+      default: null
+    },
+    fundingWalletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Wallet',
+      default: null
     }
   },
   { timestamps: true }

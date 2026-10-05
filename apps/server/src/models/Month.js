@@ -48,7 +48,39 @@ const monthSchema = new mongoose.Schema(
     currencySymbol: {
       type: String,
       default: '₹'
-    }
+    },
+    // Designated Salary Deposit Account
+    salaryBankAccountId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    isSalaryCredited: {
+      type: Boolean,
+      default: false
+    },
+    salaryCreditedDate: {
+      type: String,
+      default: null,
+      trim: true
+    },
+    // Per-Account Opening Balances breakdown
+    accountOpeningBalances: [
+      {
+        accountType: {
+          type: String,
+          enum: ['bank', 'wallet'],
+          required: true
+        },
+        accountId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true
+        },
+        amount: {
+          type: Number,
+          default: 0
+        }
+      }
+    ]
   },
   { timestamps: true }
 );

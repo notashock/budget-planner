@@ -3,8 +3,12 @@ import { Month } from '../models/Month.js';
 import { Item } from '../models/Item.js';
 import { Setting } from '../models/Setting.js';
 import { Transaction } from '../models/Transaction.js';
+import { BankAccount } from '../models/BankAccount.js';
+import { Wallet } from '../models/Wallet.js';
+import { Transfer } from '../models/Transfer.js';
 import { requireAuth } from '../middleware/auth.js';
 import { simulate, recommendPurchaseDate } from '@budget/engine';
+import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
@@ -32,7 +36,9 @@ monthsRouter.post('/', async (req, res) => {
       incomeCreditDay,
       safetyFloor,
       unplannedAllowance,
-      currencySymbol
+      currencySymbol,
+      salaryBankAccountId,
+      accountOpeningBalances
     } = req.body;
 
     if (!year || !month || month < 1 || month > 12) {
@@ -50,11 +56,16 @@ monthsRouter.post('/', async (req, res) => {
 
     const userSettings = await Setting.findOne({ userId: req.session.userId });
 
+    let finalOpening = typeof openingBalance === 'number' ? Math.round(openingBalance) : 0;
+    if (Array.isArray(accountOpeningBalances) && accountOpeningBalances.length > 0 && typeof openingBalance !== 'number') {
+      finalOpening = accountOpeningBalances.reduce((sum, a) => sum + (Math.round(Number(a.amount)) || 0), 0);
+    }
+
     const newMonth = await Month.create({
       userId: req.session.userId,
       year: Number(year),
       month: Number(month),
-      openingBalance: typeof openingBalance === 'number' ? Math.round(openingBalance) : 0,
+      openingBalance: finalOpening,
       incomeAmount: typeof incomeAmount === 'number'
         ? Math.round(incomeAmount)
         : (userSettings?.defaultIncomeAmount ?? 0),
@@ -70,7 +81,9 @@ monthsRouter.post('/', async (req, res) => {
       unplannedAllowance: typeof unplannedAllowance === 'number'
         ? Math.round(unplannedAllowance)
         : (userSettings?.defaultUnplannedAllowance ?? 0),
-      currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹'
+      currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹',
+      salaryBankAccountId: salaryBankAccountId || null,
+      accountOpeningBalances: Array.isArray(accountOpeningBalances) ? accountOpeningBalances : []
     });
 
     return res.status(201).json(newMonth);
@@ -79,14 +92,15 @@ monthsRouter.post('/', async (req, res) => {
   }
 });
 
-// Get single month with items, transactions, and computed simulation
+// Get single month with items, transactions, transfers, accounts, and computed simulation
 monthsRouter.get('/:year/:month', async (req, res) => {
   try {
+    const userId = req.session.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
 
     const month = await Month.findOne({
-      userId: req.session.userId,
+      userId,
       year,
       month: monthNum
     });
@@ -95,7 +109,78 @@ monthsRouter.get('/:year/:month', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const [items, transactions] = await Promise.all([
+    const [bankAccounts, wallets] = await Promise.all([
+      BankAccount.find({
+        userId: req.session.userId,
+        isArchived: { $ne: true }
+      }).sort({ isPrimary: -1, createdAt: 1 }),
+      Wallet.find({
+        userId: req.session.userId,
+        isArchived: { $ne: true }
+      }).sort({ isPrimary: -1, createdAt: 1 })
+    ]);
+
+    // If user has accounts, idempotently backfill all unassigned transactions and items to primary bank account
+    if (bankAccounts.length > 0) {
+      const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
+      const validBankIds = bankAccounts.map((b) => b._id);
+      const validWalletIds = wallets.map((w) => w._id);
+
+      try {
+        await backfillUnassignedTransactions(userId, primaryBank);
+        await Item.updateMany(
+          {
+            userId,
+            monthId: month._id,
+            $or: [
+              { bankAccountId: null },
+              { bankAccountId: { $exists: false } },
+              { bankAccountId: { $nin: validBankIds } },
+              { accountType: 'unassigned' },
+              { accountType: null },
+              { accountType: { $exists: false } }
+            ],
+            walletId: { $nin: validWalletIds }
+          },
+          {
+            $set: {
+              accountType: 'bank',
+              bankAccountId: primaryBank._id
+            }
+          }
+        );
+        await Transaction.updateMany(
+          {
+            userId,
+            monthId: month._id,
+            $or: [
+              { bankAccountId: null },
+              { bankAccountId: { $exists: false } },
+              { bankAccountId: { $nin: validBankIds } },
+              { accountType: 'unassigned' },
+              { accountType: null },
+              { accountType: { $exists: false } }
+            ],
+            walletId: { $nin: validWalletIds }
+          },
+          {
+            $set: {
+              accountType: 'bank',
+              bankAccountId: primaryBank._id
+            }
+          }
+        );
+
+        if (!month.salaryBankAccountId) {
+          month.salaryBankAccountId = primaryBank._id;
+          await Month.updateOne({ _id: month._id }, { $set: { salaryBankAccountId: primaryBank._id } });
+        }
+      } catch (backfillErr) {
+        console.error('Error during automatic month backfill:', backfillErr);
+      }
+    }
+
+    const [items, transactions, transfers] = await Promise.all([
       Item.find({
         userId: req.session.userId,
         monthId: month._id
@@ -103,12 +188,25 @@ monthsRouter.get('/:year/:month', async (req, res) => {
       Transaction.find({
         userId: req.session.userId,
         monthId: month._id
+      }).sort({ date: 1, createdAt: 1 }),
+      Transfer.find({
+        userId: req.session.userId,
+        monthId: month._id
       }).sort({ date: 1, createdAt: 1 })
     ]);
 
     const now = new Date();
-    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : null;
+    const currentYearMonth = now.getFullYear() * 12 + now.getMonth() + 1;
+    const viewingYearMonth = year * 12 + monthNum;
+
+    let currentDay = null;
+    if (viewingYearMonth === currentYearMonth) {
+      currentDay = now.getDate();
+    } else if (viewingYearMonth < currentYearMonth) {
+      currentDay = null; // Past month: completed, show ending balance
+    } else {
+      currentDay = 0; // Future month: show opening balance
+    }
 
     const simulation = simulate(
       {
@@ -116,20 +214,31 @@ monthsRouter.get('/:year/:month', async (req, res) => {
         incomeAmount: month.incomeAmount,
         incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
+        salaryBankAccountId: month.salaryBankAccountId,
+        isSalaryCredited: Boolean(month.isSalaryCredited),
+        salaryCreditedDate: month.salaryCreditedDate,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
         currentDay,
-        scale: 100
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: month.accountOpeningBalances || [],
+        transfers
       },
       items,
       { year, month: monthNum },
-      transactions
+      transactions,
+      [],
+      transfers
     );
 
     return res.json({
       month,
       items,
       transactions,
+      transfers,
+      bankAccounts,
+      wallets,
       simulation
     });
   } catch (err) {
@@ -149,11 +258,17 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       incomeCreditDay,
       safetyFloor,
       unplannedAllowance,
-      currencySymbol
+      currencySymbol,
+      salaryBankAccountId,
+      accountOpeningBalances
     } = req.body;
 
     const update = {};
-    if (typeof openingBalance === 'number') update.openingBalance = Math.round(openingBalance);
+    if (typeof openingBalance === 'number') {
+      update.openingBalance = Math.round(openingBalance);
+    } else if (Array.isArray(accountOpeningBalances)) {
+      update.openingBalance = accountOpeningBalances.reduce((sum, a) => sum + (Math.round(Number(a.amount)) || 0), 0);
+    }
     if (typeof incomeAmount === 'number') update.incomeAmount = Math.round(incomeAmount);
     if (typeof incomeCreditDate === 'string') {
       update.incomeCreditDate = incomeCreditDate.trim() || null;
@@ -164,6 +279,30 @@ monthsRouter.put('/:year/:month', async (req, res) => {
     if (typeof safetyFloor === 'number') update.safetyFloor = Math.round(safetyFloor);
     if (typeof unplannedAllowance === 'number') update.unplannedAllowance = Math.round(unplannedAllowance);
     if (typeof currencySymbol === 'string' && currencySymbol.trim()) update.currencySymbol = currencySymbol.trim();
+    if (salaryBankAccountId !== undefined) update.salaryBankAccountId = salaryBankAccountId || null;
+    if (typeof req.body.salaryCreditedDate === 'string') {
+      update.salaryCreditedDate = req.body.salaryCreditedDate.trim() || null;
+      update.incomeCreditDate = update.salaryCreditedDate;
+      if (update.salaryCreditedDate) {
+        update.isSalaryCredited = true;
+        const parts = update.salaryCreditedDate.split('-');
+        const parsedD = parseInt(parts[2], 10);
+        if (!isNaN(parsedD)) {
+          update.incomeCreditDay = Math.max(1, Math.min(31, parsedD));
+        }
+      }
+    }
+    if (typeof req.body.isSalaryCredited === 'boolean') {
+      update.isSalaryCredited = req.body.isSalaryCredited;
+      if (req.body.isSalaryCredited && !update.salaryCreditedDate) {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        update.salaryCreditedDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      } else if (!req.body.isSalaryCredited) {
+        update.salaryCreditedDate = null;
+      }
+    }
+    if (Array.isArray(accountOpeningBalances)) update.accountOpeningBalances = accountOpeningBalances;
 
     const month = await Month.findOneAndUpdate(
       { userId: req.session.userId, year, month: monthNum },
@@ -175,9 +314,79 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const [items, transactions] = await Promise.all([
-      Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id })
+    const activeBanks = await BankAccount.find({ userId: req.session.userId, isArchived: { $ne: true } });
+    const activeWallets = await Wallet.find({ userId: req.session.userId, isArchived: { $ne: true } });
+    const primaryBank = activeBanks.find((b) => b.isPrimary) || activeBanks[0];
+    const targetBankId = update.salaryBankAccountId || (primaryBank ? primaryBank._id : null);
+    const validBankIds = activeBanks.map((b) => b._id);
+    const validWalletIds = activeWallets.map((w) => w._id);
+
+    if (targetBankId) {
+      await Promise.all([
+        Item.updateMany(
+          {
+            userId: req.session.userId,
+            monthId: month._id,
+            $or: [
+              { bankAccountId: null },
+              { bankAccountId: { $exists: false } },
+              { bankAccountId: { $nin: validBankIds } },
+              { accountType: 'unassigned' },
+              { accountType: null },
+              { accountType: { $exists: false } }
+            ],
+            walletId: { $nin: validWalletIds }
+          },
+          {
+            $set: {
+              accountType: 'bank',
+              bankAccountId: targetBankId
+            }
+          }
+        ),
+        Transaction.updateMany(
+          {
+            userId: req.session.userId,
+            monthId: month._id,
+            $or: [
+              { bankAccountId: null },
+              { bankAccountId: { $exists: false } },
+              { bankAccountId: { $nin: validBankIds } },
+              { accountType: 'unassigned' },
+              { accountType: null },
+              { accountType: { $exists: false } }
+            ],
+            walletId: { $nin: validWalletIds }
+          },
+          {
+            $set: {
+              accountType: 'bank',
+              bankAccountId: targetBankId
+            }
+          }
+        )
+      ]);
+    }
+
+    if (update.salaryCreditedDate) {
+      await Transaction.updateMany(
+        {
+          userId: req.session.userId,
+          monthId: month._id,
+          $or: [{ isSalary: true }, { tag: 'Salary' }]
+        },
+        {
+          $set: { date: update.salaryCreditedDate }
+        }
+      );
+    }
+
+    const [items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
+      Item.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
+      Transaction.find({ userId: req.session.userId, monthId: month._id }).sort({ date: 1, createdAt: 1 }),
+      Transfer.find({ userId: req.session.userId, monthId: month._id }).sort({ date: 1, createdAt: 1 }),
+      BankAccount.find({ userId: req.session.userId, isArchived: { $ne: true } }),
+      Wallet.find({ userId: req.session.userId, isArchived: { $ne: true } })
     ]);
 
     const now = new Date();
@@ -188,20 +397,129 @@ monthsRouter.put('/:year/:month', async (req, res) => {
       {
         openingBalance: month.openingBalance,
         incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
+        salaryBankAccountId: month.salaryBankAccountId,
+        isSalaryCredited: Boolean(month.isSalaryCredited),
+        salaryCreditedDate: month.salaryCreditedDate,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
         currentDay,
-        scale: 100
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: month.accountOpeningBalances || [],
+        transfers
       },
       items,
       { year, month: monthNum },
-      transactions
+      transactions,
+      [],
+      transfers
     );
 
-    return res.json({ month, items, transactions, simulation });
+    return res.json({ month, items, transactions, transfers, bankAccounts, wallets, simulation });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update month' });
+  }
+});
+
+// Dedicated 1-click endpoint to credit salary
+monthsRouter.post('/:year/:month/credit-salary', async (req, res) => {
+  try {
+    const year = Number(req.params.year);
+    const monthNum = Number(req.params.month);
+    const month = await Month.findOne({ userId: req.session.userId, year, month: monthNum });
+    if (!month) return res.status(404).json({ error: 'Month not found' });
+
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    const [bankAccounts, wallets] = await Promise.all([
+      BankAccount.find({ userId: req.session.userId, isArchived: { $ne: true } }),
+      Wallet.find({ userId: req.session.userId, isArchived: { $ne: true } })
+    ]);
+
+    const targetBank = (month.salaryBankAccountId ? bankAccounts.find(b => String(b._id || b.id) === String(month.salaryBankAccountId)) : null) ||
+                       bankAccounts.find(b => b.isPrimary) ||
+                       bankAccounts[0];
+
+    const salaryAmt = Number(req.body.amount || month.incomeAmount || 0);
+    const creditDate = req.body.date || todayStr;
+
+    // Check if an existing salary transaction is present to avoid duplicate
+    let salaryTx = await Transaction.findOne({
+      userId: req.session.userId,
+      monthId: month._id,
+      $or: [
+        { isSalary: true },
+        { tag: 'Salary' }
+      ]
+    });
+
+    if (!salaryTx && salaryAmt > 0) {
+      salaryTx = new Transaction({
+        userId: req.session.userId,
+        monthId: month._id,
+        amount: salaryAmt,
+        date: creditDate,
+        note: 'Monthly Salary',
+        tag: 'Salary',
+        accountType: 'bank',
+        bankAccountId: targetBank ? targetBank._id : null,
+        isIncome: true
+      });
+      await salaryTx.save();
+    }
+
+    month.isSalaryCredited = true;
+    month.salaryCreditedDate = creditDate;
+    if (targetBank && !month.salaryBankAccountId) {
+      month.salaryBankAccountId = targetBank._id;
+    }
+    await month.save();
+
+    const [items, transactions, transfers] = await Promise.all([
+      Item.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
+      Transaction.find({ userId: req.session.userId, monthId: month._id }).sort({ date: 1, createdAt: 1 }),
+      Transfer.find({ userId: req.session.userId, monthId: month._id }).sort({ date: 1, createdAt: 1 })
+    ]);
+
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const viewingYearMonth = `${year}-${String(monthNum).padStart(2, '0')}`;
+    let currentDay;
+    if (viewingYearMonth === currentYearMonth) currentDay = now.getDate();
+    else if (viewingYearMonth < currentYearMonth) currentDay = null;
+    else currentDay = 0;
+
+    const simulation = simulate(
+      {
+        openingBalance: month.openingBalance,
+        incomeAmount: month.incomeAmount,
+        incomeCreditDate: month.incomeCreditDate,
+        incomeCreditDay: month.incomeCreditDay,
+        salaryBankAccountId: month.salaryBankAccountId,
+        isSalaryCredited: true,
+        salaryCreditedDate: month.salaryCreditedDate,
+        safetyFloor: month.safetyFloor,
+        unplannedAllowance: month.unplannedAllowance || 0,
+        currentDay,
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: month.accountOpeningBalances || [],
+        transfers
+      },
+      items,
+      { year, month: monthNum },
+      transactions,
+      [],
+      transfers
+    );
+
+    return res.json({ success: true, month, transaction: salaryTx, simulation, items, transactions, transfers, bankAccounts, wallets });
+  } catch (err) {
+    console.error('Error crediting salary:', err);
+    return res.status(500).json({ error: 'Failed to credit salary' });
   }
 });
 
@@ -210,7 +528,7 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
   try {
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { amount } = req.body;
+    const { amount, fundingSource } = req.body;
 
     if (!amount || typeof Number(amount) !== 'number') {
       return res.status(400).json({ error: 'Valid amount is required' });
@@ -226,9 +544,12 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const [items, transactions] = await Promise.all([
+    const [items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
       Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id })
+      Transaction.find({ userId: req.session.userId, monthId: month._id }),
+      Transfer.find({ userId: req.session.userId, monthId: month._id }),
+      BankAccount.find({ userId: req.session.userId, isArchived: { $ne: true } }),
+      Wallet.find({ userId: req.session.userId, isArchived: { $ne: true } })
     ]);
 
     const now = new Date();
@@ -241,29 +562,40 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
         incomeAmount: month.incomeAmount,
         incomeCreditDate: month.incomeCreditDate,
         incomeCreditDay: month.incomeCreditDay,
+        salaryBankAccountId: month.salaryBankAccountId,
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
         currentDay,
-        scale: 100
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: month.accountOpeningBalances || [],
+        transfers
       },
       items,
       { year, month: monthNum },
-      Math.round(Number(amount)),
-      transactions
+      Number(amount),
+      transactions,
+      [],
+      transfers,
+      fundingSource || null
     );
 
     return res.json(recommendation);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to compute purchase date recommendation' });
+    return res.status(500).json({ error: 'Failed to recommend purchase date' });
   }
 });
 
-// Month Rollover
-monthsRouter.post('/:year/:month/rollover', async (req, res) => {
+// Month rollover handler supporting /:year/:month/rollover and /rollover
+const handleRollover = async (req, res) => {
   try {
-    const currentYear = Number(req.params.year);
-    const currentMonthNum = Number(req.params.month);
-    const carryBalance = req.body.carryBalance !== false;
+    const currentYear = Number(req.params.year || req.body.currentYear);
+    const currentMonthNum = Number(req.params.month || req.body.currentMonthNum);
+    const carryBalance = req.body.carryBalance;
+
+    if (!currentYear || !currentMonthNum) {
+      return res.status(400).json({ error: 'currentYear and currentMonthNum are required' });
+    }
 
     const currentMonth = await Month.findOne({
       userId: req.session.userId,
@@ -272,12 +604,30 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
     });
 
     if (!currentMonth) {
-      return res.status(404).json({ error: 'Source month not found' });
+      return res.status(404).json({ error: 'Current month not found' });
     }
 
-    const [currentItems, currentTransactions] = await Promise.all([
-      Item.find({ userId: req.session.userId, monthId: currentMonth._id }),
-      Transaction.find({ userId: req.session.userId, monthId: currentMonth._id })
+    const [currentItems, currentTransactions, currentTransfers, bankAccounts, wallets] = await Promise.all([
+      Item.find({
+        userId: req.session.userId,
+        monthId: currentMonth._id
+      }),
+      Transaction.find({
+        userId: req.session.userId,
+        monthId: currentMonth._id
+      }),
+      Transfer.find({
+        userId: req.session.userId,
+        monthId: currentMonth._id
+      }),
+      BankAccount.find({
+        userId: req.session.userId,
+        isArchived: { $ne: true }
+      }),
+      Wallet.find({
+        userId: req.session.userId,
+        isArchived: { $ne: true }
+      })
     ]);
 
     const currentSimulation = simulate(
@@ -286,13 +636,19 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDate: currentMonth.incomeCreditDate,
         incomeCreditDay: currentMonth.incomeCreditDay,
+        salaryBankAccountId: currentMonth.salaryBankAccountId,
         safetyFloor: currentMonth.safetyFloor,
         unplannedAllowance: currentMonth.unplannedAllowance || 0,
-        scale: 100
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: currentMonth.accountOpeningBalances || [],
+        transfers: currentTransfers
       },
       currentItems,
       { year: currentYear, month: currentMonthNum },
-      currentTransactions
+      currentTransactions,
+      [],
+      currentTransfers
     );
 
     let nextYear = currentYear;
@@ -309,6 +665,13 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
     });
 
     const newOpeningBalance = carryBalance ? currentSimulation.endingBalance : 0;
+    const nextAccountOpeningBalances = (carryBalance && Array.isArray(currentSimulation.accountSummaries))
+      ? currentSimulation.accountSummaries.map((s) => ({
+          accountType: s.type,
+          accountId: s.id,
+          amount: s.endingBalance
+        }))
+      : [];
 
     if (!nextMonth) {
       nextMonth = await Month.create({
@@ -319,16 +682,22 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         incomeAmount: currentMonth.incomeAmount,
         incomeCreditDate: currentMonth.incomeCreditDate,
         incomeCreditDay: currentMonth.incomeCreditDay,
+        salaryBankAccountId: currentMonth.salaryBankAccountId || null,
         safetyFloor: currentMonth.safetyFloor,
         unplannedAllowance: currentMonth.unplannedAllowance || 0,
-        currencySymbol: currentMonth.currencySymbol
+        currencySymbol: currentMonth.currencySymbol,
+        accountOpeningBalances: nextAccountOpeningBalances
       });
     } else if (carryBalance) {
       nextMonth.openingBalance = newOpeningBalance;
+      nextMonth.accountOpeningBalances = nextAccountOpeningBalances;
+      if (currentMonth.salaryBankAccountId) {
+        nextMonth.salaryBankAccountId = currentMonth.salaryBankAccountId;
+      }
       await nextMonth.save();
     }
 
-    // Copy only FIXED recurring items to next month if they are not already copied
+    // Copy FIXED recurring items to next month with account attribution
     const recurringItems = currentItems.filter((i) => i.type === 'recurring' && i.isFixed === true);
     const existingNextItems = await Item.find({
       userId: req.session.userId,
@@ -350,7 +719,10 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
           amount: item.amount,
           dayOfMonth: item.dayOfMonth,
           isFixed: true,
-          isPaid: false
+          isPaid: false,
+          accountType: item.accountType || null,
+          bankAccountId: item.bankAccountId || null,
+          walletId: item.walletId || null
         });
       }
     }
@@ -369,12 +741,18 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
         openingBalance: nextMonth.openingBalance,
         incomeAmount: nextMonth.incomeAmount,
         incomeCreditDay: nextMonth.incomeCreditDay,
+        salaryBankAccountId: nextMonth.salaryBankAccountId,
         safetyFloor: nextMonth.safetyFloor,
         unplannedAllowance: nextMonth.unplannedAllowance || 0,
-        scale: 100
+        scale: 100,
+        accounts: { bankAccounts, wallets },
+        accountOpeningBalances: nextMonth.accountOpeningBalances || [],
+        transfers: []
       },
       allNextItems,
       { year: nextYear, month: nextMonthNum },
+      [],
+      [],
       []
     );
 
@@ -386,7 +764,10 @@ monthsRouter.post('/:year/:month/rollover', async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: 'Failed to perform month rollover' });
   }
-});
+};
+
+monthsRouter.post('/:year/:month/rollover', handleRollover);
+monthsRouter.post('/rollover', handleRollover);
 
 // Delete month and items and transactions
 monthsRouter.delete('/:year/:month', async (req, res) => {
@@ -406,7 +787,8 @@ monthsRouter.delete('/:year/:month', async (req, res) => {
 
     await Promise.all([
       Item.deleteMany({ userId: req.session.userId, monthId: month._id }),
-      Transaction.deleteMany({ userId: req.session.userId, monthId: month._id })
+      Transaction.deleteMany({ userId: req.session.userId, monthId: month._id }),
+      Transfer.deleteMany({ userId: req.session.userId, monthId: month._id })
     ]);
 
     return res.json({ message: 'Month deleted successfully' });

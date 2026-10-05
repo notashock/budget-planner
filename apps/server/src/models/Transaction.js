@@ -26,7 +26,7 @@ const transactionSchema = new mongoose.Schema(
     },
     tag: {
       type: String,
-      enum: ['Food', 'Travel', 'Health', 'Other'],
+      enum: ['Food', 'Travel', 'Health', 'Salary', 'Freelance', 'Bonus', 'Investment', 'Other'],
       default: 'Other'
     },
     note: {
@@ -39,6 +39,33 @@ const transactionSchema = new mongoose.Schema(
     plannedItemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Item',
+      default: null
+    },
+    // Account Attribution
+    accountType: {
+      type: String,
+      enum: ['bank', 'wallet', null],
+      default: null
+    },
+    bankAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BankAccount',
+      default: null
+    },
+    walletId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Wallet',
+      default: null
+    },
+    // If true, marks an ad-hoc income receipt credited to an account
+    isIncome: {
+      type: Boolean,
+      default: false
+    },
+    // Links to a Paired Account Transfer if generated from a transfer
+    transferId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Transfer',
       default: null
     }
   },
