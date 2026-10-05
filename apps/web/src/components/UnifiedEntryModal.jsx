@@ -634,7 +634,9 @@ export function UnifiedEntryModal({
     } catch (err) {
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
-      setItemDate(`${year}-${pad(monthNum)}-01`);
+      const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+      const safeFutureDay = isCurrentMonth ? Math.min(now.getDate() + 1, 28) : 1;
+      setItemDate(`${year}-${pad(monthNum)}-${pad(safeFutureDay)}`);
     } finally {
       setRecommending(false);
     }
@@ -661,12 +663,18 @@ export function UnifiedEntryModal({
         if (rec?.recommendedDate) {
           finalDate = rec.recommendedDate;
         } else {
+          const now = new Date();
           const pad = (n) => String(n).padStart(2, '0');
-          finalDate = `${year}-${pad(monthNum)}-01`;
+          const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+          const safeFutureDay = isCurrentMonth ? Math.min(now.getDate() + 1, 28) : 1;
+          finalDate = `${year}-${pad(monthNum)}-${pad(safeFutureDay)}`;
         }
       } catch (err) {
+        const now = new Date();
         const pad = (n) => String(n).padStart(2, '0');
-        finalDate = `${year}-${pad(monthNum)}-01`;
+        const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
+        const safeFutureDay = isCurrentMonth ? Math.min(now.getDate() + 1, 28) : 1;
+        finalDate = `${year}-${pad(monthNum)}-${pad(safeFutureDay)}`;
       }
     }
 
