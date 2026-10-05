@@ -40,96 +40,130 @@ export function StepLineChart({
     );
   }
 
+/**
+ * Computes a smooth monotonic cubic spline path (Fritsch-Carlson algorithm).
+ * Guarantees zero overshoot/undershoot on steep slopes, eliminating unnatural upward/downward bulges.
+ */
+function getMonotoneCubicSplinePath(points) {
+  const n = points.length;
+  if (n === 0) return '';
+  if (n === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  if (n === 2) {
+    return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`;
+  }
+
+  // 1. Calculate secant slopes
+  const dxs = [];
+  const dys = [];
+  const slopes = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    dxs.push(dx);
+    dys.push(dy);
+    slopes.push(dx === 0 ? 0 : dy / dx);
+  }
+
+  // 2. Initialize tangents
+  const m = new Array(n);
+  m[0] = slopes[0];
+  for (let i = 1; i < n - 1; i++) {
+    if (slopes[i - 1] * slopes[i] <= 0) {
+      m[i] = 0;
+    } else {
+      m[i] = (slopes[i - 1] + slopes[i]) / 2;
+    }
+  }
+  m[n - 1] = slopes[n - 2];
+
+  // 3. Fritsch-Carlson monotonicity check & scale
+  for (let i = 0; i < n - 1; i++) {
+    if (dys[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+    } else {
+      const alpha = m[i] / slopes[i];
+      const beta = m[i + 1] / slopes[i];
+      if (alpha < 0) m[i] = 0;
+      if (beta < 0) m[i + 1] = 0;
+      const s = alpha * alpha + beta * beta;
+      if (s > 9) {
+        const tau = 3 / Math.sqrt(s);
+        m[i] = tau * alpha * slopes[i];
+        m[i + 1] = tau * beta * slopes[i];
+      }
+    }
+  }
+
+  // 4. Build SVG Cubic Bezier Path
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const dx = dxs[i];
+
+    const cp1x = p1.x + dx / 3;
+    const cp1y = p1.y + (m[i] * dx) / 3;
+    const cp2x = p2.x - dx / 3;
+    const cp2y = p2.y - (m[i + 1] * dx) / 3;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+
+  return d;
+}
+
   // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
   const chartData = useMemo(() => {
     const balances = dailyBalances.map((d) => d.balance);
-    const minVal = Math.min(0, ...balances, safetyFloor);
+    const actualMin = Math.min(...balances, safetyFloor);
+    const minVal = actualMin < 0 ? actualMin : 0;
     const maxVal = Math.max(...balances, safetyFloor, 1000);
 
-  // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
-  const width = isMobile ? 500 : 600;
-  const height = isMobile ? 220 : 175;
-  const paddingLeft = isMobile ? 54 : 62;
-  const paddingRight = 16;
-  const paddingTop = 16;
-  const paddingBottom = 26;
+    // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
+    const width = isMobile ? 500 : 600;
+    const height = isMobile ? 220 : 175;
+    const paddingLeft = isMobile ? 54 : 62;
+    const paddingRight = 16;
+    const paddingTop = 16;
+    const paddingBottom = 26;
 
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+    const chartWidth = width - paddingLeft - paddingRight;
+    const chartHeight = height - paddingTop - paddingBottom;
 
-  // Range with breathing room
-  const range = maxVal - minVal || 1000;
-  const yMin = minVal - range * 0.05;
-  const yMax = maxVal + range * 0.05;
+    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0
+    const range = maxVal - minVal || 1000;
+    const yMin = minVal < 0 ? minVal - range * 0.05 : 0;
+    const yMax = maxVal + range * 0.08;
 
-  const minDay = dailyBalances[0].day;
-  const maxDay = dailyBalances[dailyBalances.length - 1].day;
-  const totalDaySpan = maxDay - minDay || 1;
+    const minDay = dailyBalances[0].day;
+    const maxDay = dailyBalances[dailyBalances.length - 1].day;
+    const totalDaySpan = maxDay - minDay || 1;
 
-  const getX = (day) => {
-    return paddingLeft + ((day - minDay) / totalDaySpan) * chartWidth;
-  };
+    const getX = (day) => {
+      return paddingLeft + ((day - minDay) / totalDaySpan) * chartWidth;
+    };
 
-  const getY = (val) => {
-    const norm = (val - yMin) / (yMax - yMin || 1);
-    return height - paddingBottom - norm * chartHeight;
-  };
+    const getY = (val) => {
+      const norm = (val - yMin) / (yMax - yMin || 1);
+      return height - paddingBottom - norm * chartHeight;
+    };
 
-  // Build smooth curved spline path using cubic Bézier
-  const points = dailyBalances.map((point) => ({
-    x: getX(point.day),
-    y: getY(point.balance)
-  }));
+    // Build smooth monotonic curved spline path with zero overshoot
+    const points = dailyBalances.map((point) => ({
+      x: getX(point.day),
+      y: getY(point.balance)
+    }));
 
-  let pathD = '';
-  let areaD = '';
+    const pathD = getMonotoneCubicSplinePath(points);
+    let areaD = '';
 
-  if (points.length > 0) {
-    pathD = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[Math.max(0, i - 1)];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[Math.min(points.length - 1, i + 2)];
-
-      const tension = 0.2;
-      const cp1x = p1.x + (p2.x - p0.x) * tension;
-      const cp1y = p1.y + (p2.y - p0.y) * tension;
-      const cp2x = p2.x - (p3.x - p1.x) * tension;
-      const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-      pathD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    if (points.length > 0) {
+      const baselineY = getY(yMin);
+      areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baselineY.toFixed(1)} L ${points[0].x.toFixed(1)} ${baselineY.toFixed(1)} Z`;
     }
 
-    const baselineY = height - paddingBottom;
-    areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baselineY} L ${points[0].x.toFixed(1)} ${baselineY} Z`;
-  }
-
-  const floorY = getY(safetyFloor);
-
-  // Mobile Touch Scrubbing: scrub across daily balance points with thumb
-  const handleTouch = (e) => {
-    if (!e.touches || e.touches.length === 0 || !containerRef.current) return;
-    const touch = e.touches[0];
-    const rect = containerRef.current.getBoundingClientRect();
-    if (!rect.width) return;
-    const touchX = touch.clientX - rect.left;
-    const relX = (touchX / rect.width) * width;
-
-    let closestDay = dailyBalances[0]?.day ?? 1;
-    let minDistance = Infinity;
-
-    dailyBalances.forEach((pt) => {
-      const px = getX(pt.day);
-      const dist = Math.abs(px - relX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestDay = pt.day;
-      }
-    });
-
-    setHoveredDay(closestDay);
-  };
+    const floorY = getY(safetyFloor);
 
   // Format y-axis tick values (top, middle, bottom)
   const yTicks = [
@@ -233,18 +267,41 @@ export function StepLineChart({
   const prevPoint = activeIndex > 0 ? dailyBalances[activeIndex - 1] : null;
   const isBreached = activePoint ? activePoint.balance < safetyFloor : false;
 
+  // Day calculations: opening balance, spending on that day, and closing balance
+  const closingBalance = activePoint ? activePoint.balance : 0;
+  const dayEvents = activePoint
+    ? (events || []).filter((e) => e.day === activePoint.day || e.date === activePoint.date)
+    : [];
+
+  const eventSpend = dayEvents.reduce((sum, e) => {
+    return e.amount < 0 ? sum + Math.abs(e.amount) : sum;
+  }, 0);
+
+  let openingBalance = closingBalance;
+  if (prevPoint) {
+    openingBalance = prevPoint.balance;
+  } else if (dayEvents.length > 0) {
+    const netChange = dayEvents.reduce((sum, e) => sum + (e.amount || 0), 0);
+    openingBalance = closingBalance - netChange;
+  }
+
+  let daySpend = eventSpend;
+  if (daySpend === 0 && prevPoint && prevPoint.balance > closingBalance) {
+    daySpend = prevPoint.balance - closingBalance;
+  }
+
   // Tooltip geometry
-  const tooltipWidth = 164;
-  const tooltipHeight = isBreached ? 58 : 48;
+  const tooltipWidth = 186;
+  const tooltipHeight = isBreached ? 90 : 76;
   let tooltipX = activePoint ? getX(activePoint.day) - tooltipWidth / 2 : 0;
   if (tooltipX < paddingLeft) tooltipX = paddingLeft;
   if (tooltipX + tooltipWidth > width - paddingRight) tooltipX = width - paddingRight - tooltipWidth;
 
-  let tooltipY = activePoint ? getY(activePoint.balance) - tooltipHeight - 10 : 0;
+  let tooltipY = activePoint ? getY(activePoint.balance) - tooltipHeight - 12 : 0;
   if (tooltipY < paddingTop) {
-    tooltipY = activePoint ? getY(activePoint.balance) + 10 : paddingTop;
+    tooltipY = activePoint ? getY(activePoint.balance) + 12 : paddingTop;
   }
-  if (tooltipY + tooltipHeight > height) {
+  if (tooltipY + tooltipHeight > height - 4) {
     tooltipY = height - tooltipHeight - 4;
   }
 
@@ -271,6 +328,7 @@ export function StepLineChart({
     });
 
     setHoveredDay(closestDay);
+    onSelectDay?.(closestDay);
   };
 
   return (
@@ -301,10 +359,6 @@ export function StepLineChart({
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '10px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
             Balance
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-secondary)', display: 'inline-block' }} />
-            Expenses
           </span>
           <span>
             Floor: {formatCurrency(safetyFloor, currencySymbol)}
@@ -385,7 +439,7 @@ export function StepLineChart({
             textAnchor="end"
             style={{ fontSize: '10px', fill: 'var(--text-secondary)', fontWeight: 600 }}
           >
-            Safety floor
+            {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
 
           {/* Defs for monochrome smooth curve area gradient */}
@@ -552,40 +606,85 @@ export function StepLineChart({
                 fill="var(--surface)"
                 stroke="var(--border-strong)"
                 strokeWidth="1"
-                filter="drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25))"
+                filter="drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35))"
               />
+              {/* Header: Date */}
               <text
-                x="8"
+                x="10"
                 y="15"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '10px', fontWeight: 500 }}
+                style={{ fontSize: '10px', fontWeight: 600 }}
               >
                 {activePoint.day < 0
                   ? `${formatDisplayDate(activePoint.date, true)} (Day ${activePoint.day})`
                   : formatDisplayDate(activePoint.date, true)}
               </text>
+
+              {/* Opening Balance */}
               <text
-                x="8"
+                x="10"
                 y="31"
-                fill="var(--text)"
-                style={{ fontSize: '12px', fontWeight: 700 }}
+                fill="var(--text-secondary)"
+                style={{ fontSize: '10px', fontWeight: 500 }}
               >
-                Bal: {formatCurrency(activePoint.balance, currencySymbol)}
+                Opening:
               </text>
-              {prevPoint && (activePoint.balance - prevPoint.balance !== 0) && (
-                <text
-                  x="8"
-                  y="43"
-                  fill="var(--text-secondary)"
-                  style={{ fontSize: '9px', fontWeight: 500 }}
-                >
-                  Change: {activePoint.balance - prevPoint.balance > 0 ? '+' : ''}{formatCurrency(activePoint.balance - prevPoint.balance, currencySymbol)}
-                </text>
-              )}
+              <text
+                x={tooltipWidth - 10}
+                y="31"
+                textAnchor="end"
+                className="tabular-nums"
+                fill="var(--text)"
+                style={{ fontSize: '11px', fontWeight: 600 }}
+              >
+                {formatCurrency(openingBalance, currencySymbol)}
+              </text>
+
+              {/* Day Spending */}
+              <text
+                x="10"
+                y="46"
+                fill="var(--text-secondary)"
+                style={{ fontSize: '10px', fontWeight: 500 }}
+              >
+                Spending:
+              </text>
+              <text
+                x={tooltipWidth - 10}
+                y="46"
+                textAnchor="end"
+                className="tabular-nums"
+                fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
+                style={{ fontSize: '11px', fontWeight: 600 }}
+              >
+                {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
+              </text>
+
+              {/* Closing Balance */}
+              <text
+                x="10"
+                y="61"
+                fill="var(--text-secondary)"
+                style={{ fontSize: '10px', fontWeight: 500 }}
+              >
+                Closing:
+              </text>
+              <text
+                x={tooltipWidth - 10}
+                y="61"
+                textAnchor="end"
+                className="tabular-nums"
+                fill="var(--text)"
+                style={{ fontSize: '11px', fontWeight: 700 }}
+              >
+                {formatCurrency(closingBalance, currencySymbol)}
+              </text>
+
+              {/* Floor Breached Warning */}
               {isBreached && (
                 <text
-                  x="8"
-                  y="53"
+                  x="10"
+                  y="77"
                   fill="var(--danger)"
                   style={{ fontSize: '9px', fontWeight: 600 }}
                 >
