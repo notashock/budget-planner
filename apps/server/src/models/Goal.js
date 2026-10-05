@@ -32,6 +32,11 @@ const goalSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    priority: {
+      type: Number,
+      enum: [0, 1, 2],
+      default: 0
+    },
     // Optional Goal Funding Source
     fundingSourceType: {
       type: String,
