@@ -483,6 +483,9 @@ export function PlanScreen({
           currentDay={currentDay}
           month={month}
           selectedAccountId={selectedAccountId}
+          selectedAccount={selectedAccount}
+          bankAccounts={bankAccounts}
+          wallets={wallets}
         />
       </div>
     </div>
