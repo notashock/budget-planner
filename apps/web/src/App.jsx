@@ -355,9 +355,9 @@ export default function App() {
     }
   };
 
-  const handleRollover = async (carryBalance) => {
+  const handleRollover = async (carryBalance, rolloverUnpaidOneTimeItems) => {
     try {
-      const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance);
+      const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance, rolloverUnpaidOneTimeItems);
       setRolloverOpen(false);
       await loadMonths(res.month.year, res.month.month);
     } catch (err) {
@@ -749,6 +749,7 @@ export default function App() {
         bankAccounts={bankAccounts}
         wallets={wallets}
         simulation={activeSimulation}
+        items={items}
         onClose={() => setRolloverOpen(false)}
         onConfirm={handleRollover}
       />
