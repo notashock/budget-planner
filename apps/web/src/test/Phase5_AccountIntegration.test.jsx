@@ -104,10 +104,10 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       fireEvent.click(bankPill);
 
       expect(screen.getByText(/Viewing isolated trajectory for/i)).toBeInTheDocument();
-      expect(screen.getByText('Reset to Unified')).toBeInTheDocument();
+      expect(screen.getByText('Reset')).toBeInTheDocument();
 
-      // Reset back to unified
-      fireEvent.click(screen.getByText('Reset to Unified'));
+      // Reset back to unified via Reset button
+      fireEvent.click(screen.getByText('Reset'));
       expect(screen.queryByText(/Viewing isolated trajectory for/i)).not.toBeInTheDocument();
     });
 
@@ -207,9 +207,9 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByRole('button', { name: /Spending/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Plan/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Transfer/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Spending$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Plan/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Transfer$/i })).toBeInTheDocument();
 
       // Payment Account selector exists in Log mode
       expect(screen.getByText(/Payment Account/)).toBeInTheDocument();
