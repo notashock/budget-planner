@@ -554,7 +554,8 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res) => {
 
     const now = new Date();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : null;
+    const clientDay = (typeof req.body?.currentDay === 'number' && req.body.currentDay >= 1) ? Math.floor(req.body.currentDay) : null;
+    const currentDay = clientDay !== null ? clientDay : (isCurrentMonth ? now.getDate() : 0);
 
     const recommendation = recommendPurchaseDate(
       {
