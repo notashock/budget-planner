@@ -157,8 +157,8 @@ export function CreateMonthModal({
         const val = parseFloat(accountBalances[`bank_${id}`]) || 0;
         compositeList.push({
           accountType: 'bank',
-          bankAccountId: id,
-          openingBalance: Math.round(val * 100)
+          accountId: id,
+          amount: Math.round(val * 100)
         });
       });
       wallets.forEach((w) => {
@@ -166,8 +166,8 @@ export function CreateMonthModal({
         const val = parseFloat(accountBalances[`wallet_${id}`]) || 0;
         compositeList.push({
           accountType: 'wallet',
-          walletId: id,
-          openingBalance: Math.round(val * 100)
+          accountId: id,
+          amount: Math.round(val * 100)
         });
       });
     }
