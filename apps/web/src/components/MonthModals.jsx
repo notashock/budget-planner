@@ -10,14 +10,16 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const EMPTY_ARRAY = [];
+
 export function CreateMonthModal({
   isOpen,
   onClose,
   onCreate,
   settings,
-  bankAccounts = [],
-  wallets = [],
-  months = [],
+  bankAccounts = EMPTY_ARRAY,
+  wallets = EMPTY_ARRAY,
+  months = EMPTY_ARRAY,
   currentMonth = null
 }) {
   const currentYear = new Date().getFullYear();
@@ -492,7 +494,7 @@ export function CreateMonthModal({
                   type="number"
                   step="0.01"
                   className="input-field tabular-nums"
-                  placeholder="0.00"
+                  placeholder="Default from settings"
                   value={incomeAmount}
                   onChange={(e) => setIncomeAmount(e.target.value)}
                 />
@@ -503,10 +505,11 @@ export function CreateMonthModal({
                   type="number"
                   step="0.01"
                   className="input-field tabular-nums"
-                  placeholder="0.00"
+                  placeholder="Default from settings"
                   value={safetyFloor}
                   onChange={(e) => setSafetyFloor(e.target.value)}
                 />
+              </div>
             </div>
           </div>
 
