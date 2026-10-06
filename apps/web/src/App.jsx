@@ -19,14 +19,43 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 
 export default function App() {
-  // Theme state
-  const [theme, setTheme] = useState(() => localStorage.getItem('budget_theme') || 'dark');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('budget_theme', theme);
-  }, [theme]);
+  // Theme state: system | light | dark
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('budget_theme') || 'system');
 
-  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  useEffect(() => {
+    localStorage.setItem('budget_theme', themeMode);
+
+    const applyResolvedTheme = () => {
+      let resolved = themeMode;
+      if (themeMode === 'system') {
+        const isDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        resolved = isDark ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', resolved);
+    };
+
+    applyResolvedTheme();
+
+    if (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applyResolvedTheme();
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', listener);
+        return () => mediaQuery.removeEventListener('change', listener);
+      } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(listener);
+        return () => mediaQuery.removeListener(listener);
+      }
+    }
+  }, [themeMode]);
+
+  const cycleTheme = () => {
+    setThemeMode((prev) => {
+      if (prev === 'system') return 'light';
+      if (prev === 'light') return 'dark';
+      return 'system';
+    });
+  };
 
   // Auth & Settings state
   const [user, setUser] = useState(null);
@@ -126,6 +155,19 @@ export default function App() {
       console.error('Failed to load month details:', err);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const [banks, wals] = await Promise.all([
+        api.getBankAccounts(),
+        api.getWallets()
+      ]);
+      setBankAccounts(banks || []);
+      setWallets(wals || []);
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
     }
   };
 
@@ -366,6 +408,32 @@ export default function App() {
     }
   };
 
+  const handleDeleteMonth = async (delYear, delMonth) => {
+    try {
+      await api.deleteMonth(delYear, delMonth);
+      const remaining = months.filter((m) => !(m.year === delYear && m.month === delMonth));
+      setMonths(remaining);
+
+      // If deleted month was currently viewed, transition to nearest remaining month
+      if (currentMonth && currentMonth.year === delYear && currentMonth.month === delMonth) {
+        if (remaining.length > 0) {
+          // Find closest month (prefer immediate preceding or remaining[0])
+          const target = remaining[0];
+          await loadMonthDetails(target.year, target.month);
+        } else {
+          setCurrentMonth(null);
+          setItems([]);
+          setTransactions([]);
+          setTransfers([]);
+          setGoals([]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete month:', err);
+      alert(err.message || 'Failed to delete month');
+    }
+  };
+
   const handleSaveMonthSettings = async (updates) => {
     try {
       const res = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
@@ -601,9 +669,10 @@ export default function App() {
         onOpenCreateMonth={() => setCreateMonthOpen(true)}
         onOpenRollover={() => setRolloverOpen(true)}
         onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
+        onDeleteMonth={handleDeleteMonth}
         onLogout={handleLogout}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        themeMode={themeMode}
+        onCycleTheme={cycleTheme}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
       />
@@ -741,6 +810,8 @@ export default function App() {
         settings={settings}
         bankAccounts={bankAccounts}
         wallets={wallets}
+        months={months}
+        currentMonth={currentMonth}
         onClose={() => setCreateMonthOpen(false)}
         onCreate={handleCreateMonth}
       />
