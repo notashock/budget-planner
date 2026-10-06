@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DatePicker } from './DatePicker.jsx';
 import { BuildingLibraryIcon, WalletIcon } from './Icons.jsx';
+import { CustomSelect } from './CustomSelect.jsx';
 import { formatCurrency } from '@budget/engine';
 
 const MONTH_NAMES = [
@@ -14,7 +15,9 @@ export function CreateMonthModal({
   onCreate,
   settings,
   bankAccounts = [],
-  wallets = []
+  wallets = [],
+  months = [],
+  currentMonth = null
 }) {
   const currentYear = new Date().getFullYear();
   const currentMonthNum = new Date().getMonth() + 1;
@@ -25,12 +28,8 @@ export function CreateMonthModal({
     `${currentYear}-${String(currentMonthNum).padStart(2, '0')}-01`
   );
   const [openingBalance, setOpeningBalance] = useState('');
-  const [incomeAmount, setIncomeAmount] = useState(
-    settings?.defaultIncomeAmount ? (settings.defaultIncomeAmount / 100).toString() : ''
-  );
-  const [safetyFloor, setSafetyFloor] = useState(
-    settings?.defaultSafetyFloor ? (settings.defaultSafetyFloor / 100).toString() : ''
-  );
+  const [incomeAmount, setIncomeAmount] = useState('0');
+  const [safetyFloor, setSafetyFloor] = useState('0');
 
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [isSalaryCredited, setIsSalaryCredited] = useState(true);
@@ -43,10 +42,36 @@ export function CreateMonthModal({
   const [freshBankAccountType, setFreshBankAccountType] = useState('checking');
   const [freshBankBalance, setFreshBankBalance] = useState('');
 
+  const updateDefaultsFromPredecessor = (targetY, targetM) => {
+    const pastMonths = (months || []).filter(
+      (m) => m.year < Number(targetY) || (m.year === Number(targetY) && m.month < Number(targetM))
+    );
+    let predecessor = null;
+    if (pastMonths.length > 0) {
+      pastMonths.sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+      });
+      predecessor = pastMonths[0];
+    } else if (currentMonth && (currentMonth.year < Number(targetY) || (currentMonth.year === Number(targetY) && currentMonth.month < Number(targetM)))) {
+      predecessor = currentMonth;
+    }
+
+    if (predecessor) {
+      setIncomeAmount(predecessor.incomeAmount != null ? (predecessor.incomeAmount / 100).toString() : '0');
+      setSafetyFloor(predecessor.safetyFloor != null ? (predecessor.safetyFloor / 100).toString() : '0');
+    } else {
+      setIncomeAmount('0');
+      setSafetyFloor('0');
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
       setSalaryBankAccountId(primaryBank?._id || primaryBank?.id || '');
+
+      updateDefaultsFromPredecessor(year, month);
 
       // Initialize composite account balances from account current opening balances
       const initialMap = {};
@@ -67,16 +92,18 @@ export function CreateMonthModal({
         setOpeningBalance((sum / 100).toString());
       }
     }
-  }, [isOpen, bankAccounts, wallets]);
+  }, [isOpen, bankAccounts, wallets, months, currentMonth]);
 
   const handleMonthChange = (newMonth) => {
     setMonth(newMonth);
     setIncomeCreditDate(`${year}-${String(newMonth).padStart(2, '0')}-01`);
+    updateDefaultsFromPredecessor(year, newMonth);
   };
 
   const handleYearChange = (newYear) => {
     setYear(newYear);
     setIncomeCreditDate(`${newYear}-${String(month).padStart(2, '0')}-01`);
+    updateDefaultsFromPredecessor(newYear, month);
   };
 
   const handleAccountBalanceChange = (key, val) => {
@@ -238,15 +265,18 @@ export function CreateMonthModal({
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Account Type</label>
-                  <select
+                  <label className="form-label" htmlFor="fresh-bank-account-type">Account Type</label>
+                  <CustomSelect
+                    id="fresh-bank-account-type"
                     value={freshBankAccountType}
                     onChange={(e) => setFreshBankAccountType(e.target.value)}
-                  >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="current">Current</option>
-                  </select>
+                    options={[
+                      { value: 'checking', label: 'Checking' },
+                      { value: 'savings', label: 'Savings' },
+                      { value: 'salary', label: 'Salary' },
+                      { value: 'other', label: 'Other' }
+                    ]}
+                  />
                 </div>
               </div>
 
