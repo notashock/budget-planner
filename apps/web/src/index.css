@@ -2134,6 +2134,84 @@ input[type="number"] {
   gap: 6px;
 }
 
+/* Create Month Modal Sheet & Mobile Bottom Sheet Layout */
+.create-month-modal-sheet {
+  max-width: 500px !important;
+  max-height: calc(100dvh - 20px);
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .create-month-modal-sheet {
+    max-height: min(88vh, 720px);
+    border-radius: var(--radius-lg) !important;
+  }
+}
+
+.create-month-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.create-month-modal-body {
+  padding: 16px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.create-month-actions-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .create-month-actions-footer {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+  }
+  .create-month-actions-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.create-month-bank-card {
+  padding: 14px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Modal Segmented Tab Track & Sliding Indicator */
 .modal-header-row {
   display: flex;

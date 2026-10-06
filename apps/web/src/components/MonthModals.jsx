@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DatePicker } from './DatePicker.jsx';
 import { BuildingLibraryIcon, WalletIcon } from './Icons.jsx';
 import { CustomSelect } from './CustomSelect.jsx';
+import { AnimatedModal } from './AnimatedModal.jsx';
 import { formatCurrency } from '@budget/engine';
 
 const MONTH_NAMES = [
@@ -30,6 +31,7 @@ export function CreateMonthModal({
   const [openingBalance, setOpeningBalance] = useState('');
   const [incomeAmount, setIncomeAmount] = useState('0');
   const [safetyFloor, setSafetyFloor] = useState('0');
+  const [predecessorInfo, setPredecessorInfo] = useState(null);
 
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [isSalaryCredited, setIsSalaryCredited] = useState(true);
@@ -60,9 +62,11 @@ export function CreateMonthModal({
     if (predecessor) {
       setIncomeAmount(predecessor.incomeAmount != null ? (predecessor.incomeAmount / 100).toString() : '0');
       setSafetyFloor(predecessor.safetyFloor != null ? (predecessor.safetyFloor / 100).toString() : '0');
+      setPredecessorInfo(`${MONTH_NAMES[predecessor.month - 1]} ${predecessor.year}`);
     } else {
       setIncomeAmount('0');
       setSafetyFloor('0');
+      setPredecessorInfo(null);
     }
   };
 
@@ -118,9 +122,7 @@ export function CreateMonthModal({
     setOpeningBalance(total.toFixed(2));
   };
 
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
+  const handleSubmit = (e, requestClose) => {
     e.preventDefault();
 
     if (bankAccounts.length === 0) {
@@ -147,6 +149,7 @@ export function CreateMonthModal({
           isSalaryDeposit: true
         }
       });
+      requestClose?.();
       return;
     }
 
@@ -183,262 +186,364 @@ export function CreateMonthModal({
       isSalaryCredited,
       accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
     });
+    requestClose?.();
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3>Create budget month</h3>
-          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Year</label>
-              <input
-                type="number"
-                required
-                value={year}
-                onChange={(e) => handleYearChange(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Month</label>
-              <select value={month} onChange={(e) => handleMonthChange(Number(e.target.value))}>
-                {MONTH_NAMES.map((name, idx) => (
-                  <option key={idx + 1} value={idx + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
+    <AnimatedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="500px"
+      className="create-month-modal-sheet"
+      dataTestId="create-month-modal"
+    >
+      {({ requestClose }) => (
+        <form
+          onSubmit={(e) => handleSubmit(e, requestClose)}
+          style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, margin: 0 }}
+        >
+          {/* Mobile grab zone & drag handle */}
+          <div className="modal-drag-zone">
+            <div className="modal-drag-handle" />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Salary credit date</label>
-            <DatePicker
-              value={incomeCreditDate}
-              onChange={(d) => setIncomeCreditDate(d)}
-              month={{ year, month }}
-              required
-            />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Supports preceding month-end (e.g. Sept 30 for Oct budget).
-            </span>
-          </div>
-
-          {/* Fresh User: Embedded Primary Bank Account Setup */}
-          {bankAccounts.length === 0 && (
-            <div style={{ padding: '12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          {/* Sticky Header */}
+          <div className="create-month-modal-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius)',
+                  background: 'var(--surface-subtle)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--accent)',
+                  flexShrink: 0
+                }}
+              >
                 <BuildingLibraryIcon size={16} />
-                <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Primary Bank Account Setup (Required)
-                </span>
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
-                In this banking-grade planner, bank accounts and wallets are the sole source of truth for all balances. Every transaction, planned item, and salary deposit is linked to an account. Please register your primary account below to initialize your budget.
-              </p>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, letterSpacing: '-0.01em' }}>
+                  Create budget month
+                </h3>
+                {predecessorInfo && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Defaults rolled from {predecessorInfo}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-icon modal-close-btn"
+              onClick={() => requestClose()}
+              title="Close modal"
+              aria-label="Close"
+              style={{
+                width: '28px',
+                height: '28px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px',
+                flexShrink: 0
+              }}
+            >
+              ✕
+            </button>
+          </div>
 
-              <div className="form-group" style={{ marginBottom: '8px' }}>
-                <label className="form-label">Account Name *</label>
+          {/* Scrollable Body */}
+          <div className="create-month-modal-body">
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="create-month-year">Year</label>
                 <input
-                  type="text"
+                  id="create-month-year"
+                  type="number"
                   required
-                  placeholder="e.g. Primary Checking, Salary Account"
-                  value={freshBankName}
-                  onChange={(e) => setFreshBankName(e.target.value)}
+                  className="input-field tabular-nums"
+                  value={year}
+                  onChange={(e) => handleYearChange(e.target.value)}
                 />
               </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="create-month-select">Month</label>
+                <CustomSelect
+                  id="create-month-select"
+                  value={month}
+                  onChange={(e) => handleMonthChange(Number(e.target.value))}
+                  options={MONTH_NAMES.map((name, idx) => ({
+                    value: idx + 1,
+                    label: name
+                  }))}
+                />
+              </div>
+            </div>
 
-              <div className="form-row" style={{ marginBottom: '8px' }}>
+            <div className="form-group">
+              <label className="form-label">Salary credit date</label>
+              <DatePicker
+                value={incomeCreditDate}
+                onChange={(d) => setIncomeCreditDate(d)}
+                month={{ year, month }}
+                required
+              />
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Supports preceding month-end (e.g. Sept 30 for Oct budget).
+              </span>
+            </div>
+
+            {/* Fresh User: Embedded Primary Bank Account Setup (Matches Add Bank modal style) */}
+            {bankAccounts.length === 0 && (
+              <div className="create-month-bank-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--accent)'
+                    }}
+                  >
+                    <BuildingLibraryIcon size={14} />
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Primary Bank Account Setup (Required)
+                  </span>
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                  In this banking-grade planner, accounts are the sole source of truth. Every transaction, planned item, and salary deposit links to an account.
+                </p>
+
                 <div className="form-group">
-                  <label className="form-label">Financial Institution *</label>
+                  <label className="form-label" htmlFor="fresh-bank-name">Account Name *</label>
                   <input
+                    id="fresh-bank-name"
                     type="text"
                     required
-                    placeholder="e.g. HDFC Bank, Chase"
-                    value={freshBankInstitution}
-                    onChange={(e) => setFreshBankInstitution(e.target.value)}
+                    className="input-field"
+                    placeholder="e.g. Primary Checking, Salary Account"
+                    value={freshBankName}
+                    onChange={(e) => setFreshBankName(e.target.value)}
                   />
                 </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="fresh-bank-institution">Financial Institution *</label>
+                    <input
+                      id="fresh-bank-institution"
+                      type="text"
+                      required
+                      className="input-field"
+                      placeholder="e.g. HDFC Bank, Chase"
+                      value={freshBankInstitution}
+                      onChange={(e) => setFreshBankInstitution(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="fresh-bank-account-type">Account Type</label>
+                    <CustomSelect
+                      id="fresh-bank-account-type"
+                      value={freshBankAccountType}
+                      onChange={(e) => setFreshBankAccountType(e.target.value)}
+                      options={[
+                        { value: 'checking', label: 'Checking' },
+                        { value: 'savings', label: 'Savings' },
+                        { value: 'salary', label: 'Salary' },
+                        { value: 'other', label: 'Other' }
+                      ]}
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label className="form-label" htmlFor="fresh-bank-account-type">Account Type</label>
-                  <CustomSelect
-                    id="fresh-bank-account-type"
-                    value={freshBankAccountType}
-                    onChange={(e) => setFreshBankAccountType(e.target.value)}
-                    options={[
-                      { value: 'checking', label: 'Checking' },
-                      { value: 'savings', label: 'Savings' },
-                      { value: 'salary', label: 'Salary' },
-                      { value: 'other', label: 'Other' }
-                    ]}
+                  <label className="form-label" htmlFor="fresh-bank-balance">Initial Opening Balance ({settings?.currencySymbol || '₹'}) *</label>
+                  <input
+                    id="fresh-bank-balance"
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    className="input-field tabular-nums"
+                    value={freshBankBalance}
+                    onChange={(e) => {
+                      setFreshBankBalance(e.target.value);
+                      setOpeningBalance(e.target.value);
+                    }}
                   />
                 </div>
               </div>
+            )}
 
+            {/* Salary Deposit Account Selector for users with existing accounts */}
+            {bankAccounts.length > 0 && (
               <div className="form-group">
-                <label className="form-label">Initial Opening Balance ({settings?.currencySymbol || '₹'}) *</label>
+                <label className="form-label" htmlFor="salary-bank-account-select">
+                  <span>Salary Deposit Account</span> <span style={{ color: 'var(--accent)' }}>*</span>
+                </label>
+                <CustomSelect
+                  id="salary-bank-account-select"
+                  value={salaryBankAccountId}
+                  onChange={(e) => setSalaryBankAccountId(e.target.value)}
+                  placeholder="Select Salary Deposit Account"
+                  options={bankAccounts.map((b) => ({
+                    value: b._id || b.id,
+                    label: b.name + (b.accountNumberMasked ? ` (••${b.accountNumberMasked})` : ''),
+                    icon: <BuildingLibraryIcon size={13} />,
+                    sublabel: formatCurrency(b.openingBalance ?? 0, settings?.currencySymbol || '₹'),
+                    badge: b.isPrimary ? 'Primary' : undefined
+                  }))}
+                />
+              </div>
+            )}
+
+            {/* Opening Balance with Composite Breakdown Toggle for users with accounts */}
+            {bankAccounts.length > 0 && (
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    Total Opening balance ({settings?.currencySymbol || '₹'})
+                  </label>
+                  {(bankAccounts.length > 0 || wallets.length > 0) && (
+                    <button
+                      type="button"
+                      className="btn-subtle"
+                      style={{ fontSize: '11px', padding: '2px 8px' }}
+                      onClick={() => setUseCompositeBalances((prev) => !prev)}
+                    >
+                      {useCompositeBalances ? 'Aggregate input' : 'Break down by account'}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="number"
                   step="0.01"
-                  required
                   placeholder="0.00"
-                  className="tabular-nums"
-                  value={freshBankBalance}
-                  onChange={(e) => {
-                    setFreshBankBalance(e.target.value);
-                    setOpeningBalance(e.target.value);
-                  }}
+                  value={openingBalance}
+                  readOnly={useCompositeBalances}
+                  onChange={(e) => setOpeningBalance(e.target.value)}
+                  className="input-field tabular-nums"
+                  style={{ fontWeight: 600 }}
+                />
+              </div>
+            )}
+
+            {/* Per-Account Opening Balances Breakdown */}
+            {bankAccounts.length > 0 && useCompositeBalances && (
+              <div style={{ padding: '12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Account-by-Account Opening Allocations
+                </span>
+                {bankAccounts.map((b) => {
+                  const id = b._id || b.id;
+                  return (
+                    <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                        <BuildingLibraryIcon size={13} />
+                        <span>{b.name}</span>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="input-field tabular-nums"
+                        style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
+                        value={accountBalances[`bank_${id}`] || ''}
+                        onChange={(e) => handleAccountBalanceChange(`bank_${id}`, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+                {wallets.map((w) => {
+                  const id = w._id || w.id;
+                  return (
+                    <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                        <WalletIcon size={13} />
+                        <span>{w.name}</span>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="input-field tabular-nums"
+                        style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
+                        value={accountBalances[`wallet_${id}`] || ''}
+                        onChange={(e) => handleAccountBalanceChange(`wallet_${id}`, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Income ({settings?.currencySymbol || '₹'})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input-field tabular-nums"
+                  placeholder="0.00"
+                  value={incomeAmount}
+                  onChange={(e) => setIncomeAmount(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Safety floor ({settings?.currencySymbol || '₹'})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input-field tabular-nums"
+                  placeholder="0.00"
+                  value={safetyFloor}
+                  onChange={(e) => setSafetyFloor(e.target.value)}
                 />
               </div>
             </div>
-          )}
 
-          {/* Salary Deposit Account Selector for users with existing accounts */}
-          {bankAccounts.length > 0 && (
-            <div className="form-group">
-              <label className="form-label">
-                <span>Salary Deposit Account</span> <span style={{ color: 'var(--accent)' }}>*</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <input
+                id="create-month-salary-credited-checkbox"
+                type="checkbox"
+                checked={isSalaryCredited}
+                onChange={(e) => setIsSalaryCredited(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <label htmlFor="create-month-salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
+                Salary already credited for this month
               </label>
-              <select
-                value={salaryBankAccountId}
-                onChange={(e) => setSalaryBankAccountId(e.target.value)}
-                required
-              >
-                {bankAccounts.map((b) => (
-                  <option key={b._id || b.id} value={b._id || b.id}>
-                    {b.name} {b.accountNumberMasked ? `(••${b.accountNumberMasked})` : ''} {b.isPrimary ? '[Primary]' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Opening Balance with Composite Breakdown Toggle for users with accounts */}
-          {bankAccounts.length > 0 && (
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label className="form-label" style={{ margin: 0 }}>
-                  Total Opening balance ({settings?.currencySymbol || '₹'})
-                </label>
-                {(bankAccounts.length > 0 || wallets.length > 0) && (
-                  <button
-                    type="button"
-                    className="btn-subtle"
-                    style={{ fontSize: '11px', padding: '2px 6px' }}
-                    onClick={() => setUseCompositeBalances((prev) => !prev)}
-                  >
-                    {useCompositeBalances ? 'Aggregate input' : 'Break down by account'}
-                  </button>
-                )}
-              </div>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={openingBalance}
-                readOnly={useCompositeBalances}
-                onChange={(e) => setOpeningBalance(e.target.value)}
-                className="tabular-nums"
-                style={{ fontWeight: 600 }}
-              />
-            </div>
-          )}
-
-          {/* Per-Account Opening Balances Breakdown */}
-          {bankAccounts.length > 0 && useCompositeBalances && (
-            <div style={{ padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Account-by-Account Opening Allocations
-              </span>
-              {bankAccounts.map((b) => {
-                const id = b._id || b.id;
-                return (
-                  <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                      <BuildingLibraryIcon size={13} />
-                      <span>{b.name}</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="tabular-nums"
-                      style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
-                      value={accountBalances[`bank_${id}`] || ''}
-                      onChange={(e) => handleAccountBalanceChange(`bank_${id}`, e.target.value)}
-                    />
-                  </div>
-                );
-              })}
-              {wallets.map((w) => {
-                const id = w._id || w.id;
-                return (
-                  <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                      <WalletIcon size={13} />
-                      <span>{w.name}</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="tabular-nums"
-                      style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
-                      value={accountBalances[`wallet_${id}`] || ''}
-                      onChange={(e) => handleAccountBalanceChange(`wallet_${id}`, e.target.value)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Income ({settings?.currencySymbol || '₹'})</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Default from settings"
-                value={incomeAmount}
-                onChange={(e) => setIncomeAmount(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Safety floor ({settings?.currencySymbol || '₹'})</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Default from settings"
-                value={safetyFloor}
-                onChange={(e) => setSafetyFloor(e.target.value)}
-              />
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '8px' }}>
-            <input
-              id="create-month-salary-credited-checkbox"
-              type="checkbox"
-              checked={isSalaryCredited}
-              onChange={(e) => setIsSalaryCredited(e.target.checked)}
-              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-            />
-            <label htmlFor="create-month-salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
-              Salary already credited for this month
-            </label>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-            <button type="button" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary">Create month</button>
+          {/* Sticky Actions Footer */}
+          <div className="create-month-actions-footer">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => requestClose()}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+            >
+              Create month
+            </button>
           </div>
         </form>
-      </div>
-    </div>
+      )}
+    </AnimatedModal>
   );
 }
 
