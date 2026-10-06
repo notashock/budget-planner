@@ -13,7 +13,9 @@ import {
   WalletIcon,
   BuildingLibraryIcon,
   LockIcon,
-  UserIcon
+  UserIcon,
+  TrashIcon,
+  MonitorIcon
 } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
@@ -38,9 +40,10 @@ export function Header({
   onOpenCreateMonth,
   onOpenRollover,
   onOpenSalarySafeline,
+  onDeleteMonth,
   onLogout,
-  theme,
-  onToggleTheme,
+  themeMode = 'system',
+  onCycleTheme,
   activeTab = 'plan',
   onSelectTab
 }) {
@@ -111,18 +114,68 @@ export function Header({
                 {months.map((m) => {
                   const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
                   return (
-                    <button
+                    <div
                       key={`${m.year}-${m.month}`}
-                      type="button"
-                      className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
-                      onClick={() => {
-                        onSelectMonth(m.year, m.month);
-                        setActiveDropdown(null);
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderRadius: 'var(--radius-sm)',
+                        transition: 'background 0.15s ease'
                       }}
+                      className={`app-dropdown-item-row ${isSelected ? 'active' : ''}`}
                     >
-                      <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
-                      {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
-                    </button>
+                      <button
+                        type="button"
+                        className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
+                        style={{
+                          flex: 1,
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingRight: '6px'
+                        }}
+                        onClick={() => {
+                          onSelectMonth(m.year, m.month);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                        {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
+                      </button>
+                      {onDeleteMonth && (
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          title={`Delete ${MONTH_NAMES[m.month - 1]} ${m.year}`}
+                          aria-label={`Delete ${MONTH_NAMES[m.month - 1]} ${m.year}`}
+                          style={{
+                            padding: '6px 8px',
+                            color: 'var(--text-muted)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--negative, #ef4444)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to delete ${MONTH_NAMES[m.month - 1]} ${m.year}? All items, transactions, and transfers for this month will be permanently deleted.`)) {
+                              onDeleteMonth(m.year, m.month);
+                              setActiveDropdown(null);
+                            }
+                          }}
+                        >
+                          <TrashIcon size={13} color="currentColor" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
 
@@ -203,50 +256,24 @@ export function Header({
             </div>
           )}
 
-          {currentMonth && (
-            <button
-              type="button"
-              className="btn-subtle desktop-only-btn header-link-salary-btn"
-              data-testid="link-salary-safeline-btn"
-              disabled={salaryLockStatus.isLocked}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '12px',
-                padding: '5px 9px',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)',
-                background: salaryLockStatus.isLocked ? 'var(--surface-subtle)' : 'var(--surface)',
-                cursor: salaryLockStatus.isLocked ? 'not-allowed' : 'pointer',
-                opacity: salaryLockStatus.isLocked ? 0.65 : 1
-              }}
-              title={salaryLockStatus.tooltip || 'Link Salary & Safeline'}
-              onClick={() => {
-                if (!salaryLockStatus.isLocked) {
-                  onOpenSalarySafeline?.();
-                }
-              }}
-            >
-              {salaryLockStatus.isLocked ? (
-                <LockIcon size={13} />
-              ) : (
-                <BuildingLibraryIcon size={13} />
-              )}
-              <span className="header-btn-text">Link Salary & Safeline</span>
-            </button>
-          )}
-
           <button
             type="button"
             className="btn-subtle header-action-btn"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={onCycleTheme}
+            title={`Theme: ${themeMode === 'system' ? 'System (Auto)' : themeMode === 'dark' ? 'Dark' : 'Light'}. Click to cycle.`}
+            aria-label={`Theme: ${themeMode}. Click to switch theme.`}
             style={{ padding: '6px 9px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
           >
-            {theme === 'dark' ? <SunIcon size={14} /> : <MoonIcon size={14} />}
-            <span className="header-btn-text">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            {themeMode === 'system' ? (
+              <MonitorIcon size={14} />
+            ) : themeMode === 'dark' ? (
+              <MoonIcon size={14} />
+            ) : (
+              <SunIcon size={14} />
+            )}
+            <span className="header-btn-text">
+              {themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Dark' : 'Light'}
+            </span>
           </button>
 
           {/* User Settings Dropdown */}
@@ -281,22 +308,26 @@ export function Header({
                     )}
                   </div>
 
-                  {currentMonth && (
-                    <button
-                      type="button"
-                      className="app-dropdown-item"
-                      disabled={salaryLockStatus.isLocked}
-                      style={{ fontSize: '12px', opacity: salaryLockStatus.isLocked ? 0.6 : 1 }}
-                      onClick={() => {
-                        if (!salaryLockStatus.isLocked) {
-                          onOpenSalarySafeline?.();
-                        }
-                      }}
-                    >
-                      {salaryLockStatus.isLocked ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
-                      <span>Link Salary & Safeline</span>
-                    </button>
-                  )}
+                  {currentMonth && (() => {
+                    const isSalaryLinkable = !salaryLockStatus.isLocked || !currentMonth.incomeAmount || Number(currentMonth.incomeAmount) <= 0;
+                    return (
+                      <button
+                        type="button"
+                        className="app-dropdown-item"
+                        data-testid="link-salary-safeline-btn"
+                        disabled={!isSalaryLinkable}
+                        style={{ fontSize: '12px', opacity: isSalaryLinkable ? 1 : 0.6 }}
+                        onClick={() => {
+                          if (isSalaryLinkable) {
+                            onOpenSalarySafeline?.();
+                          }
+                        }}
+                      >
+                        {!isSalaryLinkable ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
+                        <span>Link Salary & Safeline</span>
+                      </button>
+                    );
+                  })()}
 
                   <div className="app-dropdown-divider" />
 
