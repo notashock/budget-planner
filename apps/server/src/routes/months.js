@@ -869,6 +869,11 @@ monthsRouter.delete('/:year/:month', async (req, res) => {
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
 
+    const now = new Date();
+    if (year === now.getFullYear() && monthNum === (now.getMonth() + 1)) {
+      return res.status(400).json({ error: 'The current month cannot be deleted' });
+    }
+
     const month = await Month.findOneAndDelete({
       userId: req.session.userId,
       year,

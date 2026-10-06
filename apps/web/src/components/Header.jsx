@@ -113,6 +113,8 @@ export function Header({
               <div className="app-dropdown-menu">
                 {months.map((m) => {
                   const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
+                  const now = new Date();
+                  const isCurrentCalendarMonth = m.year === now.getFullYear() && m.month === (now.getMonth() + 1);
                   return (
                     <div
                       key={`${m.year}-${m.month}`}
@@ -143,10 +145,27 @@ export function Header({
                           setActiveDropdown(null);
                         }}
                       >
-                        <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                          {isCurrentCalendarMonth && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                background: 'var(--surface-subtle)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--accent)'
+                              }}
+                            >
+                              Current
+                            </span>
+                          )}
+                        </span>
                         {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
                       </button>
-                      {onDeleteMonth && (
+                      {onDeleteMonth && !isCurrentCalendarMonth && (
                         <button
                           type="button"
                           className="btn-icon"

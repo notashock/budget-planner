@@ -111,10 +111,16 @@ export default function App() {
       const list = await api.getMonths();
       setMonths(list);
       if (list.length > 0) {
-        let target = list[0];
+        let target = null;
         if (selectYear && selectMonth) {
-          const match = list.find((m) => m.year === selectYear && m.month === selectMonth);
-          if (match) target = match;
+          target = list.find((m) => m.year === selectYear && m.month === selectMonth);
+        }
+        if (!target) {
+          const now = new Date();
+          target = list.find((m) => m.year === now.getFullYear() && m.month === (now.getMonth() + 1));
+        }
+        if (!target) {
+          target = list[0];
         }
         await loadMonthDetails(target.year, target.month);
       } else {
@@ -409,6 +415,12 @@ export default function App() {
   };
 
   const handleDeleteMonth = async (delYear, delMonth) => {
+    const now = new Date();
+    if (delYear === now.getFullYear() && delMonth === (now.getMonth() + 1)) {
+      alert('The current month cannot be deleted.');
+      return;
+    }
+
     try {
       await api.deleteMonth(delYear, delMonth);
       const remaining = months.filter((m) => !(m.year === delYear && m.month === delMonth));
@@ -417,8 +429,9 @@ export default function App() {
       // If deleted month was currently viewed, transition to nearest remaining month
       if (currentMonth && currentMonth.year === delYear && currentMonth.month === delMonth) {
         if (remaining.length > 0) {
-          // Find closest month (prefer immediate preceding or remaining[0])
-          const target = remaining[0];
+          // Prefer current calendar month, else remaining[0]
+          const currentCal = remaining.find((m) => m.year === now.getFullYear() && m.month === (now.getMonth() + 1));
+          const target = currentCal || remaining[0];
           await loadMonthDetails(target.year, target.month);
         } else {
           setCurrentMonth(null);
