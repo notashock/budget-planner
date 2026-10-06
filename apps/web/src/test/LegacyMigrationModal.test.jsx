@@ -128,7 +128,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       vi.useRealTimers();
     });
 
-    it('renders Link Salary & Safeline button beside month in Header and opens modal on click', () => {
+    it('renders Link Salary & Safeline button in profile dropdown and opens modal on click', () => {
       const handleOpenSalarySafeline = vi.fn();
 
       render(
@@ -148,6 +148,10 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
           onSelectTab={vi.fn()}
         />
       );
+
+      // Open profile dropdown
+      const avatarBtn = screen.getByLabelText('Account Settings');
+      fireEvent.click(avatarBtn);
 
       const linkBtn = screen.getByTestId('link-salary-safeline-btn');
       expect(linkBtn).toBeInTheDocument();
