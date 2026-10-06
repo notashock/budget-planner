@@ -6,6 +6,7 @@ import { Transaction } from '../models/Transaction.js';
 import { BankAccount } from '../models/BankAccount.js';
 import { Wallet } from '../models/Wallet.js';
 import { Transfer } from '../models/Transfer.js';
+import { Goal } from '../models/Goal.js';
 import { requireAuth } from '../middleware/auth.js';
 import { simulate, recommendPurchaseDate } from '@budget/engine';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
@@ -24,7 +25,7 @@ monthsRouter.get('/', async (req, res) => {
   }
 });
 
-// Create month (or initialize from settings)
+// Create month (or initialize from settings / predecessor inheritance)
 monthsRouter.post('/', async (req, res) => {
   try {
     const {
@@ -56,6 +57,27 @@ monthsRouter.post('/', async (req, res) => {
 
     const userSettings = await Setting.findOne({ userId: req.session.userId });
 
+    // Predecessor Baseline Inheritance: resolve latest chronologically preceding month
+    let defaultIncome = 0;
+    let defaultFloor = 0;
+    let defaultCreditDay = 1;
+    let defaultSalaryBank = null;
+
+    const predecessor = await Month.findOne({
+      userId: req.session.userId,
+      $or: [
+        { year: { $lt: Number(year) } },
+        { year: Number(year), month: { $lt: Number(month) } }
+      ]
+    }).sort({ year: -1, month: -1 });
+
+    if (predecessor) {
+      defaultIncome = predecessor.incomeAmount ?? 0;
+      defaultFloor = predecessor.safetyFloor ?? 0;
+      defaultCreditDay = predecessor.incomeCreditDay ?? 1;
+      defaultSalaryBank = predecessor.salaryBankAccountId ?? null;
+    }
+
     let finalOpening = typeof openingBalance === 'number' ? Math.round(openingBalance) : 0;
     if (Array.isArray(accountOpeningBalances) && accountOpeningBalances.length > 0 && typeof openingBalance !== 'number') {
       finalOpening = accountOpeningBalances.reduce((sum, a) => sum + (Math.round(Number(a.amount)) || 0), 0);
@@ -68,27 +90,58 @@ monthsRouter.post('/', async (req, res) => {
       openingBalance: finalOpening,
       incomeAmount: typeof incomeAmount === 'number'
         ? Math.round(incomeAmount)
-        : (userSettings?.defaultIncomeAmount ?? 0),
+        : defaultIncome,
       incomeCreditDate: typeof incomeCreditDate === 'string' && incomeCreditDate.trim()
         ? incomeCreditDate.trim()
         : null,
       incomeCreditDay: typeof incomeCreditDay === 'number'
         ? Math.max(1, Math.min(31, Math.floor(incomeCreditDay)))
-        : (userSettings?.defaultIncomeCreditDay ?? 1),
+        : defaultCreditDay,
       safetyFloor: typeof safetyFloor === 'number'
         ? Math.round(safetyFloor)
-        : (userSettings?.defaultSafetyFloor ?? 0),
+        : defaultFloor,
       unplannedAllowance: typeof unplannedAllowance === 'number'
         ? Math.round(unplannedAllowance)
         : (userSettings?.defaultUnplannedAllowance ?? 0),
       currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹',
-      salaryBankAccountId: salaryBankAccountId || null,
+      salaryBankAccountId: salaryBankAccountId || defaultSalaryBank,
       accountOpeningBalances: Array.isArray(accountOpeningBalances) ? accountOpeningBalances : []
     });
 
     return res.status(201).json(newMonth);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to create month' });
+  }
+});
+
+// DELETE /api/months/:year/:month (Delete month cascade)
+monthsRouter.delete('/:year/:month', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const year = Number(req.params.year);
+    const monthNum = Number(req.params.month);
+
+    const month = await Month.findOne({ userId, year, month: monthNum });
+    if (!month) {
+      return res.status(404).json({ error: 'Month not found' });
+    }
+
+    // Cascade delete all associated entities for this month
+    await Promise.all([
+      Item.deleteMany({ monthId: month._id }),
+      Transaction.deleteMany({ monthId: month._id }),
+      Transfer.deleteMany({ monthId: month._id }),
+      Goal.deleteMany({ monthId: month._id }),
+      Month.findByIdAndDelete(month._id)
+    ]);
+
+    return res.json({
+      message: 'Month and all associated items deleted successfully',
+      deleted: { year, month: monthNum }
+    });
+  } catch (err) {
+    console.error('Failed to delete month:', err);
+    return res.status(500).json({ error: 'Failed to delete month' });
   }
 });
 
