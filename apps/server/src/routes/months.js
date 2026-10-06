@@ -78,9 +78,26 @@ monthsRouter.post('/', async (req, res) => {
       defaultSalaryBank = predecessor.salaryBankAccountId ?? null;
     }
 
+    let finalAccountOpenings = [];
+    if (Array.isArray(accountOpeningBalances)) {
+      finalAccountOpenings = accountOpeningBalances
+        .map((entry) => {
+          const id = entry.accountId || entry.bankAccountId || entry.walletId;
+          if (!id) return null;
+          return {
+            accountType: entry.accountType === 'wallet' ? 'wallet' : 'bank',
+            accountId: id,
+            amount: typeof entry.amount === 'number'
+              ? Math.round(entry.amount)
+              : (typeof entry.openingBalance === 'number' ? Math.round(entry.openingBalance) : 0)
+          };
+        })
+        .filter(Boolean);
+    }
+
     let finalOpening = typeof openingBalance === 'number' ? Math.round(openingBalance) : 0;
-    if (Array.isArray(accountOpeningBalances) && accountOpeningBalances.length > 0 && typeof openingBalance !== 'number') {
-      finalOpening = accountOpeningBalances.reduce((sum, a) => sum + (Math.round(Number(a.amount)) || 0), 0);
+    if (finalAccountOpenings.length > 0 && typeof openingBalance !== 'number') {
+      finalOpening = finalAccountOpenings.reduce((sum, a) => sum + (Math.round(Number(a.amount)) || 0), 0);
     }
 
     const newMonth = await Month.create({
@@ -105,12 +122,13 @@ monthsRouter.post('/', async (req, res) => {
         : (userSettings?.defaultUnplannedAllowance ?? 0),
       currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹',
       salaryBankAccountId: salaryBankAccountId || defaultSalaryBank,
-      accountOpeningBalances: Array.isArray(accountOpeningBalances) ? accountOpeningBalances : []
+      accountOpeningBalances: finalAccountOpenings
     });
 
     return res.status(201).json(newMonth);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to create month' });
+    console.error('Failed to create month:', err);
+    return res.status(500).json({ error: err.message || 'Failed to create month' });
   }
 });
 
