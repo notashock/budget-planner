@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BuildingLibraryIcon, ArrowRightLeftIcon, ShieldAlertIcon } from './Icons.jsx';
 import { formatCurrency } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
+import { CustomSelect } from './CustomSelect.jsx';
 
 export function TransferCalculationsModal({
   isOpen,
@@ -189,16 +190,17 @@ export function TransferCalculationsModal({
                 </div>
                 <div>
                   <label className="form-label" htmlFor="migration-bank-type">Account Type</label>
-                  <select
+                  <CustomSelect
                     id="migration-bank-type"
-                    className="input-field"
                     value={accountType}
                     onChange={(e) => setAccountType(e.target.value)}
-                  >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="current">Current</option>
-                  </select>
+                    options={[
+                      { value: 'checking', label: 'Checking' },
+                      { value: 'savings', label: 'Savings' },
+                      { value: 'salary', label: 'Salary' },
+                      { value: 'other', label: 'Other' }
+                    ]}
+                  />
                 </div>
               </div>
             </>
