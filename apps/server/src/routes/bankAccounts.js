@@ -82,10 +82,11 @@ bankAccountsRouter.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Account name is required' });
     }
 
+    const userId = req.session.userId;
     const isPrimaryBool = Boolean(isPrimary);
     if (isPrimaryBool) {
       await BankAccount.updateMany(
-        { userId: req.session.userId },
+        { userId },
         { $set: { isPrimary: false } }
       );
     }
@@ -93,26 +94,52 @@ bankAccountsRouter.post('/', async (req, res) => {
     const parsedOpening = parseCurrencyInt(openingBalance) ?? 0;
     const parsedMin = parseCurrencyInt(minimumBalance) ?? 0;
 
-    const bankAccount = await BankAccount.create({
-      userId: req.session.userId,
-      name: name.trim(),
-      institution: typeof institution === 'string' ? institution.trim() : '',
-      accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
-      accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
-      openingBalance: parsedOpening,
-      minimumBalance: parsedMin,
-      isPrimary: isPrimaryBool,
-      color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
-    });
+    let bankAccount;
+    try {
+      bankAccount = await BankAccount.create({
+        userId,
+        name: name.trim(),
+        institution: typeof institution === 'string' ? institution.trim() : '',
+        accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
+        accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
+        openingBalance: parsedOpening,
+        minimumBalance: parsedMin,
+        isPrimary: isPrimaryBool,
+        color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
+      });
+    } catch (createErr) {
+      // If a legacy stale unique index exists on MongoDB collection (e.g. name or accountNumberMasked), drop stale indexes and retry
+      if (createErr.code === 11000) {
+        console.warn('Duplicate key error on BankAccount creation. Syncing indexes to remove stale constraints and retrying...', createErr.message);
+        try {
+          await BankAccount.syncIndexes();
+          bankAccount = await BankAccount.create({
+            userId,
+            name: name.trim(),
+            institution: typeof institution === 'string' ? institution.trim() : '',
+            accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
+            accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
+            openingBalance: parsedOpening,
+            minimumBalance: parsedMin,
+            isPrimary: isPrimaryBool,
+            color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
+          });
+        } catch (retryErr) {
+          throw retryErr;
+        }
+      } else {
+        throw createErr;
+      }
+    }
 
-    const totalBanks = await BankAccount.countDocuments({ userId: req.session.userId, isArchived: { $ne: true } });
+    const totalBanks = await BankAccount.countDocuments({ userId, isArchived: { $ne: true } });
     if (isPrimaryBool || totalBanks === 1) {
       if (totalBanks === 1 && !isPrimaryBool) {
         bankAccount.isPrimary = true;
         await bankAccount.save();
       }
       try {
-        await backfillUnassignedTransactions(req.session.userId, bankAccount);
+        await backfillUnassignedTransactions(userId, bankAccount);
       } catch (backfillErr) {
         console.error('Failed to backfill transactions on bank account creation:', backfillErr);
       }
@@ -121,6 +148,12 @@ bankAccountsRouter.post('/', async (req, res) => {
     return res.status(201).json(bankAccount);
   } catch (err) {
     console.error('Failed to create bank account:', err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'A bank account with this name already exists' });
+    }
     return res.status(500).json({ error: err.message || 'Failed to create bank account' });
   }
 });
