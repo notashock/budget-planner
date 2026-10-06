@@ -44,6 +44,14 @@ _Avoid_: Formula item, mileage expense, dynamic bill.
 The process of creating the next calendar month, copying fixed recurring items, optionally rolling forward unpaid one-time items to their optimal dates, and carrying forward the ending balance as the new opening balance.
 _Avoid_: Month close, archive, reset.
 
+**Month Deletion Cascade**:
+The atomic removal of a specific budget month and all of its associated records (planned items, actual transactions, inter-account transfers, and purchase goals). Deletion requires an explicit confirmation step, disallows orphaned data, and when executed on the currently active month, automatically transitions the user to the nearest remaining budget month.
+_Avoid_: Orphaned transaction purge, unconfirmed month wipe, soft-delete zombie month.
+
+**Predecessor Baseline Inheritance**:
+The automatic resolution mechanism during manual month creation where default income (`incomeAmount`) and safety floor (`safetyFloor`) are populated from the latest existing month chronologically preceding the target year and month (falling back to the active month). If no predecessor month exists in the user's history, both values default strictly to zero ($0$).
+_Avoid_: Static arbitrary default, global settings hardcoding, phantom baseline.
+
 **Forward-Rolling Pending Item**:
 A planned budget item whose scheduled date has passed without payment settlement (`isPaid: false`). The system dynamically moves its scheduled date forward to the next recommended safe date within the current month, leveling daily outflows until the item is settled.
 _Avoid_: Expired item, overdue debt, frozen bill.
@@ -103,6 +111,10 @@ _Avoid_: Static buffer, opening balance margin.
 **Dynamic Goal Auto-Deferral**:
 An automated lifecycle transition that shifts an active purchase goal to deferred status when new actual expenses reduce the projected safety buffer below zero, safeguarding the safety floor.
 _Avoid_: Goal cancellation, manual deferral requirement.
+
+**Goal-Deferred Auto-Created Month**:
+A budget month provisioned automatically by the system when a purchase goal is deferred into the next calendar month and that month does not yet exist. It is initialized with zero opening balance, zero income (`incomeAmount: 0`), no salary deposit account (`salaryBankAccountId: null`), uncredited salary (`isSalaryCredited: false`, `salaryCreditedDate: null`), and inherits the previous month's safety floor to maintain baseline safety protection until salary is explicitly logged.
+_Avoid_: Prefilled salary month, synthetic payday clone.
 
 **Unified Entry Modal**:
 A single consolidated dialog with a top segmented switch to record actual spending transactions or schedule planned budget items from a single entry point.
