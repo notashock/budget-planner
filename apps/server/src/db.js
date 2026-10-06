@@ -6,6 +6,14 @@ export async function connectDB(uri = config.mongoUri) {
     return mongoose.connection;
   }
   await mongoose.connect(uri);
+
+  try {
+    const { BankAccount } = await import('./models/BankAccount.js');
+    await BankAccount.syncIndexes();
+  } catch (syncErr) {
+    console.warn('BankAccount syncIndexes notice:', syncErr.message);
+  }
+
   return mongoose.connection;
 }
 
