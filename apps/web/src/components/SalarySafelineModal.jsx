@@ -15,7 +15,7 @@ export function SalarySafelineModal({
   const [incomeAmount, setIncomeAmount] = useState('');
   const [safetyFloor, setSafetyFloor] = useState('');
   const [salaryCreditedDate, setSalaryCreditedDate] = useState('');
-  const [isSalaryCredited, setIsSalaryCredited] = useState(true);
+  const [isSalaryCredited, setIsSalaryCredited] = useState(false);
   const [dateDirty, setDateDirty] = useState(false);
   const [creditedDirty, setCreditedDirty] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export function SalarySafelineModal({
         `${month.year}-${String(month.month).padStart(2, '0')}-${String(Math.max(1, Math.min(31, month.incomeCreditDay || 1))).padStart(2, '0')}`
       );
       setSalaryCreditedDate(defaultDate);
-      setIsSalaryCredited(month.isSalaryCredited !== undefined ? Boolean(month.isSalaryCredited) : true);
+      setIsSalaryCredited(Boolean(month.isSalaryCredited));
       setDateDirty(false);
       setCreditedDirty(false);
       setError(null);

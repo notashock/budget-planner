@@ -34,7 +34,6 @@ export function CreateMonthModal({
   const [predecessorInfo, setPredecessorInfo] = useState(null);
 
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
-  const [isSalaryCredited, setIsSalaryCredited] = useState(true);
   const [useCompositeBalances, setUseCompositeBalances] = useState(false);
   const [accountBalances, setAccountBalances] = useState({});
 
@@ -139,7 +138,7 @@ export function CreateMonthModal({
         openingBalance: balInCents,
         incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
         safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
-        isSalaryCredited,
+        isSalaryCredited: false,
         newBankAccount: {
           name: freshBankName.trim(),
           institution: freshBankInstitution.trim(),
@@ -183,7 +182,7 @@ export function CreateMonthModal({
       incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
       safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
       salaryBankAccountId: salaryBankAccountId || undefined,
-      isSalaryCredited,
+      isSalaryCredited: false,
       accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
     });
     requestClose?.();
@@ -508,20 +507,6 @@ export function CreateMonthModal({
                   value={safetyFloor}
                   onChange={(e) => setSafetyFloor(e.target.value)}
                 />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <input
-                id="create-month-salary-credited-checkbox"
-                type="checkbox"
-                checked={isSalaryCredited}
-                onChange={(e) => setIsSalaryCredited(e.target.checked)}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <label htmlFor="create-month-salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
-                Salary already credited for this month
-              </label>
             </div>
           </div>
 

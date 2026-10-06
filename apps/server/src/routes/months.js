@@ -122,6 +122,7 @@ monthsRouter.post('/', async (req, res) => {
         : (userSettings?.defaultUnplannedAllowance ?? 0),
       currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹',
       salaryBankAccountId: salaryBankAccountId || defaultSalaryBank,
+      isSalaryCredited: false,
       accountOpeningBalances: finalAccountOpenings
     });
 
