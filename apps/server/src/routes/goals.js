@@ -315,10 +315,14 @@ goalsRouter.post('/goals/:id/defer', async (req, res) => {
         year: nextYear,
         month: nextMonthNum,
         openingBalance: 0,
-        incomeAmount: currentMonth.incomeAmount,
-        incomeCreditDay: currentMonth.incomeCreditDay,
+        incomeAmount: 0,
+        incomeCreditDay: null,
+        incomeCreditDate: null,
+        salaryBankAccountId: null,
+        isSalaryCredited: false,
+        salaryCreditedDate: null,
         safetyFloor: currentMonth.safetyFloor,
-        unplannedAllowance: currentMonth.unplannedAllowance || 0,
+        unplannedAllowance: 0,
         currencySymbol: currentMonth.currencySymbol
       });
     }
