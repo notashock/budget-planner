@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   calculateFuelEfficiency,
   formatCurrency,
@@ -29,6 +29,8 @@ export function ItemModal({
   const [isFixed, setIsFixed] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [recommending, setRecommending] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Fuel log fields: list of fuel stops
   const [fuelStops, setFuelStops] = useState([
@@ -135,6 +137,7 @@ export function ItemModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!name.trim()) return;
 
     let finalDate = date;
@@ -184,7 +187,16 @@ export function ItemModal({
       payload.fuelStops = parsedFuelStops;
     }
 
-    onSave(payload);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onSave(payload);
+    } catch (err) {
+      // Handled
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -482,8 +494,8 @@ export function ItemModal({
               <button type="button" onClick={onClose}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary">
-                {initialItem ? 'Update item' : 'Save item'}
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? (initialItem ? 'Updating...' : 'Saving...') : (initialItem ? 'Update item' : 'Save item')}
               </button>
             </div>
           </div>

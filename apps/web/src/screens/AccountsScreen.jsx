@@ -98,6 +98,12 @@ export function AccountsScreen({
   const [transferDestId, setTransferDestId] = useState('');
   const [transferNote, setTransferNote] = useState('');
   const [transferError, setTransferError] = useState('');
+  const [isSubmittingBank, setIsSubmittingBank] = useState(false);
+  const isSubmittingBankRef = useRef(false);
+  const [isSubmittingWallet, setIsSubmittingWallet] = useState(false);
+  const isSubmittingWalletRef = useRef(false);
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
+  const isSubmittingTransferRef = useRef(false);
 
   // Month baseline settings state
   // Lookup maps from simulation
@@ -142,26 +148,36 @@ export function AccountsScreen({
 
   const handleSaveBank = async (e, requestClose) => {
     e.preventDefault();
+    if (isSubmittingBankRef.current) return;
     if (!bankName.trim()) return;
 
-    const cleanOpening = String(bankOpeningBalance || '').replace(/[^0-9.-]+/g, '');
-    const cleanMin = String(bankMinimumBalance || '').replace(/[^0-9.-]+/g, '');
+    isSubmittingBankRef.current = true;
+    setIsSubmittingBank(true);
+    try {
+      const cleanOpening = String(bankOpeningBalance || '').replace(/[^0-9.-]+/g, '');
+      const cleanMin = String(bankMinimumBalance || '').replace(/[^0-9.-]+/g, '');
 
-    await onSaveBankAccount?.({
-      id: editingBank?._id || editingBank?.id,
-      name: bankName.trim(),
-      institution: bankInstitution.trim(),
-      accountType: bankAccountType,
-      accountNumberMasked: bankNumberMasked.trim(),
-      openingBalance: Math.round(Number(cleanOpening || 0) * 100),
-      minimumBalance: Math.round(Number(cleanMin || 0) * 100),
-      isPrimary: bankIsPrimary
-    });
+      await onSaveBankAccount?.({
+        id: editingBank?._id || editingBank?.id,
+        name: bankName.trim(),
+        institution: bankInstitution.trim(),
+        accountType: bankAccountType,
+        accountNumberMasked: bankNumberMasked.trim(),
+        openingBalance: Math.round(Number(cleanOpening || 0) * 100),
+        minimumBalance: Math.round(Number(cleanMin || 0) * 100),
+        isPrimary: bankIsPrimary
+      });
 
-    if (typeof requestClose === 'function') {
-      requestClose();
-    } else {
-      setBankModalOpen(false);
+      if (typeof requestClose === 'function') {
+        requestClose();
+      } else {
+        setBankModalOpen(false);
+      }
+    } catch (err) {
+      // Handled
+    } finally {
+      isSubmittingBankRef.current = false;
+      setIsSubmittingBank(false);
     }
   };
 
@@ -187,24 +203,34 @@ export function AccountsScreen({
 
   const handleSaveWallet = async (e, requestClose) => {
     e.preventDefault();
+    if (isSubmittingWalletRef.current) return;
     if (!walletName.trim()) return;
 
-    const cleanOpening = String(walletOpeningBalance || '').replace(/[^0-9.-]+/g, '');
-    const cleanMin = String(walletMinimumBalance || '').replace(/[^0-9.-]+/g, '');
+    isSubmittingWalletRef.current = true;
+    setIsSubmittingWallet(true);
+    try {
+      const cleanOpening = String(walletOpeningBalance || '').replace(/[^0-9.-]+/g, '');
+      const cleanMin = String(walletMinimumBalance || '').replace(/[^0-9.-]+/g, '');
 
-    await onSaveWallet?.({
-      id: editingWallet?._id || editingWallet?.id,
-      name: walletName.trim(),
-      walletType,
-      openingBalance: Math.round(Number(cleanOpening || 0) * 100),
-      minimumBalance: Math.round(Number(cleanMin || 0) * 100),
-      isPrimary: walletIsPrimary
-    });
+      await onSaveWallet?.({
+        id: editingWallet?._id || editingWallet?.id,
+        name: walletName.trim(),
+        walletType,
+        openingBalance: Math.round(Number(cleanOpening || 0) * 100),
+        minimumBalance: Math.round(Number(cleanMin || 0) * 100),
+        isPrimary: walletIsPrimary
+      });
 
-    if (typeof requestClose === 'function') {
-      requestClose();
-    } else {
-      setWalletModalOpen(false);
+      if (typeof requestClose === 'function') {
+        requestClose();
+      } else {
+        setWalletModalOpen(false);
+      }
+    } catch (err) {
+      // Handled
+    } finally {
+      isSubmittingWalletRef.current = false;
+      setIsSubmittingWallet(false);
     }
   };
 
@@ -236,6 +262,7 @@ export function AccountsScreen({
 
   const handleSaveTransfer = async (e, requestClose) => {
     e.preventDefault();
+    if (isSubmittingTransferRef.current) return;
     setTransferError('');
 
     const amt = Math.round(Number(transferAmount || 0) * 100);
@@ -254,6 +281,8 @@ export function AccountsScreen({
       return;
     }
 
+    isSubmittingTransferRef.current = true;
+    setIsSubmittingTransfer(true);
     try {
       await onCreateTransfer?.({
         date: transferDate,
@@ -273,6 +302,9 @@ export function AccountsScreen({
       }
     } catch (err) {
       setTransferError(err.message || 'Failed to record transfer');
+    } finally {
+      isSubmittingTransferRef.current = false;
+      setIsSubmittingTransfer(false);
     }
   };
 
@@ -921,8 +953,8 @@ export function AccountsScreen({
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingBank ? 'Save Changes' : 'Create Account'}
+                <button type="submit" className="btn-primary" disabled={isSubmittingBank}>
+                  {isSubmittingBank ? 'Saving...' : (editingBank ? 'Save Changes' : 'Create Account')}
                 </button>
               </div>
             </form>
@@ -1015,8 +1047,8 @@ export function AccountsScreen({
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingWallet ? 'Save Changes' : 'Create Wallet'}
+                <button type="submit" className="btn-primary" disabled={isSubmittingWallet}>
+                  {isSubmittingWallet ? 'Saving...' : (editingWallet ? 'Save Changes' : 'Create Wallet')}
                 </button>
               </div>
             </form>
@@ -1181,8 +1213,8 @@ export function AccountsScreen({
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  Record Transfer
+                <button type="submit" className="btn-primary" disabled={isSubmittingTransfer}>
+                  {isSubmittingTransfer ? 'Recording...' : 'Record Transfer'}
                 </button>
               </div>
             </form>

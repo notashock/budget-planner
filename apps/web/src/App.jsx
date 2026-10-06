@@ -302,8 +302,10 @@ export default function App() {
       setTransactions((prev) => [...prev, created]);
       setUnifiedEntryOpen(false);
       loadGoals(currentMonth.year, currentMonth.month);
+      return created;
     } catch (err) {
       alert(err.message || 'Failed to log transaction');
+      throw err;
     }
   };
 
@@ -321,30 +323,33 @@ export default function App() {
   // Item actions
   const handleSaveItem = async (itemData) => {
     try {
+      let result;
       if (editingItem) {
-        const updated = await api.updateItem(editingItem._id, itemData);
-        setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
+        result = await api.updateItem(editingItem._id, itemData);
+        setItems((prev) => prev.map((i) => (i._id === result._id ? result : i)));
         setTransactions((prev) =>
           prev.map((t) =>
-            String(t.plannedItemId) === String(updated._id)
+            String(t.plannedItemId) === String(result._id)
               ? {
                   ...t,
-                  accountType: updated.accountType,
-                  bankAccountId: updated.bankAccountId,
-                  walletId: updated.walletId
+                  accountType: result.accountType,
+                  bankAccountId: result.bankAccountId,
+                  walletId: result.walletId
                 }
               : t
           )
         );
       } else {
-        const created = await api.createItem(currentMonth.year, currentMonth.month, itemData);
-        setItems((prev) => [...prev, created]);
+        result = await api.createItem(currentMonth.year, currentMonth.month, itemData);
+        setItems((prev) => [...prev, result]);
       }
       setUnifiedEntryOpen(false);
       setEditingItem(null);
       loadGoals(currentMonth.year, currentMonth.month);
+      return result;
     } catch (err) {
       alert(err.message || 'Failed to save item');
+      throw err;
     }
   };
 
@@ -399,8 +404,10 @@ export default function App() {
       setCreateMonthOpen(false);
       await loadAccounts();
       await loadMonths(created.year, created.month);
+      return created;
     } catch (err) {
       alert(err.message || 'Failed to create month');
+      throw err;
     }
   };
 
@@ -409,8 +416,10 @@ export default function App() {
       const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance, rolloverUnpaidOneTimeItems);
       setRolloverOpen(false);
       await loadMonths(res.month.year, res.month.month);
+      return res;
     } catch (err) {
       alert(err.message || 'Failed to perform month rollover');
+      throw err;
     }
   };
 
@@ -533,6 +542,7 @@ export default function App() {
       return createdOrUpdated;
     } catch (err) {
       alert(err.message || 'Failed to save bank account');
+      throw err;
     }
   };
 
@@ -549,20 +559,23 @@ export default function App() {
   // Wallet handlers
   const handleSaveWallet = async (data) => {
     try {
+      let createdOrUpdated;
       if (data.id) {
-        const updated = await api.updateWallet(data.id, data);
+        createdOrUpdated = await api.updateWallet(data.id, data);
         setWallets((prev) =>
-          prev.map((w) => ((w._id || w.id) === data.id ? updated : (data.isPrimary ? { ...w, isPrimary: false } : w)))
+          prev.map((w) => ((w._id || w.id) === data.id ? createdOrUpdated : (data.isPrimary ? { ...w, isPrimary: false } : w)))
         );
       } else {
-        const created = await api.createWallet(data);
+        createdOrUpdated = await api.createWallet(data);
         setWallets((prev) => [
           ...prev.map((w) => (data.isPrimary ? { ...w, isPrimary: false } : w)),
-          created
+          createdOrUpdated
         ]);
       }
+      return createdOrUpdated;
     } catch (err) {
       alert(err.message || 'Failed to save wallet');
+      throw err;
     }
   };
 

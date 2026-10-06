@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DatePicker } from './DatePicker.jsx';
 import { BuildingLibraryIcon, WalletIcon } from './Icons.jsx';
 import { CustomSelect } from './CustomSelect.jsx';
@@ -38,6 +38,8 @@ export function CreateMonthModal({
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [useCompositeBalances, setUseCompositeBalances] = useState(false);
   const [accountBalances, setAccountBalances] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Fresh user primary bank account setup state
   const [freshBankName, setFreshBankName] = useState('Primary Checking');
@@ -123,8 +125,9 @@ export function CreateMonthModal({
     setOpeningBalance(total.toFixed(2));
   };
 
-  const handleSubmit = (e, requestClose) => {
+  const handleSubmit = async (e, requestClose) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
 
     if (bankAccounts.length === 0) {
       if (!freshBankName.trim() || !freshBankInstitution.trim()) {
@@ -133,24 +136,33 @@ export function CreateMonthModal({
       }
 
       const balInCents = freshBankBalance ? Math.round(Number(freshBankBalance) * 100) : (openingBalance ? Math.round(Number(openingBalance) * 100) : 0);
-      onCreate({
-        year: Number(year),
-        month: Number(month),
-        incomeCreditDate: incomeCreditDate || undefined,
-        openingBalance: balInCents,
-        incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
-        safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
-        isSalaryCredited: false,
-        newBankAccount: {
-          name: freshBankName.trim(),
-          institution: freshBankInstitution.trim(),
-          accountType: freshBankAccountType,
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+      try {
+        await onCreate({
+          year: Number(year),
+          month: Number(month),
+          incomeCreditDate: incomeCreditDate || undefined,
           openingBalance: balInCents,
-          isPrimary: true,
-          isSalaryDeposit: true
-        }
-      });
-      requestClose?.();
+          incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
+          safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
+          isSalaryCredited: false,
+          newBankAccount: {
+            name: freshBankName.trim(),
+            institution: freshBankInstitution.trim(),
+            accountType: freshBankAccountType,
+            openingBalance: balInCents,
+            isPrimary: true,
+            isSalaryDeposit: true
+          }
+        });
+        requestClose?.();
+      } catch (err) {
+        // Handled
+      } finally {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -176,18 +188,27 @@ export function CreateMonthModal({
       });
     }
 
-    onCreate({
-      year: Number(year),
-      month: Number(month),
-      incomeCreditDate: incomeCreditDate || undefined,
-      openingBalance: openingBalance ? Math.round(Number(openingBalance) * 100) : 0,
-      incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
-      safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
-      salaryBankAccountId: salaryBankAccountId || undefined,
-      isSalaryCredited: false,
-      accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
-    });
-    requestClose?.();
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onCreate({
+        year: Number(year),
+        month: Number(month),
+        incomeCreditDate: incomeCreditDate || undefined,
+        openingBalance: openingBalance ? Math.round(Number(openingBalance) * 100) : 0,
+        incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
+        safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
+        salaryBankAccountId: salaryBankAccountId || undefined,
+        isSalaryCredited: false,
+        accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
+      });
+      requestClose?.();
+    } catch (err) {
+      // Handled
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -525,8 +546,9 @@ export function CreateMonthModal({
             <button
               type="submit"
               className="btn-primary"
+              disabled={isSubmitting}
             >
-              Create month
+              {isSubmitting ? 'Creating...' : 'Create month'}
             </button>
           </div>
         </form>
@@ -549,6 +571,8 @@ export function RolloverModal({
 }) {
   const [carryBalance, setCarryBalance] = useState(true);
   const [rolloverUnpaid, setRolloverUnpaid] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   if (!isOpen || !currentMonth) return null;
 
@@ -644,9 +668,22 @@ export function RolloverModal({
           <button
             type="button"
             className="btn-primary"
-            onClick={() => onConfirm(carryBalance, rolloverUnpaid)}
+            disabled={isSubmitting}
+            onClick={async () => {
+              if (isSubmittingRef.current) return;
+              isSubmittingRef.current = true;
+              setIsSubmitting(true);
+              try {
+                await onConfirm(carryBalance, rolloverUnpaid);
+              } catch (err) {
+                // Handled
+              } finally {
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
+              }
+            }}
           >
-            Confirm rollover
+            {isSubmitting ? 'Rolling over...' : 'Confirm rollover'}
           </button>
         </div>
       </div>

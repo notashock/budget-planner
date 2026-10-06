@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { formatCurrency, formatDisplayDate, evaluateGoalsWithReservation } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
@@ -56,6 +56,9 @@ export function GoalsScreen({
   const [goalAmount, setGoalAmount] = useState('');
   const [priority, setPriority] = useState(0);
   const [goalSubmitting, setGoalSubmitting] = useState(false);
+  const goalSubmittingRef = useRef(false);
+  const [actingGoalId, setActingGoalId] = useState(null);
+  const actingGoalIdRef = useRef(null);
   const [showInfo, setShowInfo] = useState(false);
 
   const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
@@ -108,9 +111,22 @@ export function GoalsScreen({
     return computeAffordableGoalBundles(activeGoals, availableCushion);
   }, [activeGoals, availableCushion]);
 
+  const handleAction = async (actionFn, goalId) => {
+    if (actingGoalIdRef.current || !actionFn) return;
+    actingGoalIdRef.current = goalId;
+    setActingGoalId(goalId);
+    try {
+      await actionFn(goalId);
+    } finally {
+      actingGoalIdRef.current = null;
+      setActingGoalId(null);
+    }
+  };
+
   const handleAddGoal = async (e) => {
     e.preventDefault();
-    if (!goalName.trim() || !goalAmount || isNaN(Number(goalAmount))) return;
+    if (goalSubmittingRef.current || !goalName.trim() || !goalAmount || isNaN(Number(goalAmount))) return;
+    goalSubmittingRef.current = true;
     setGoalSubmitting(true);
 
     let fundingSourceType = null;
@@ -144,6 +160,7 @@ export function GoalsScreen({
     } catch (err) {
       alert(err.message || 'Failed to create goal');
     } finally {
+      goalSubmittingRef.current = false;
       setGoalSubmitting(false);
     }
   };
@@ -493,9 +510,10 @@ export function GoalsScreen({
                             type="button"
                             className="btn-primary"
                             style={{ padding: '4px 10px', fontSize: '11px' }}
-                            onClick={() => onConvertGoalToItem(goal._id)}
+                            onClick={() => handleAction(onConvertGoalToItem, goal._id)}
+                            disabled={actingGoalId === goal._id}
                           >
-                            Schedule
+                            {actingGoalId === goal._id ? 'Scheduling...' : 'Schedule'}
                           </button>
                         )}
                         {isActive && (!rec?.feasible || !rec?.recommendedDate) && (
@@ -503,9 +521,10 @@ export function GoalsScreen({
                             type="button"
                             className="btn-subtle"
                             style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                            onClick={() => onDeferGoal(goal._id)}
+                            onClick={() => handleAction(onDeferGoal, goal._id)}
+                            disabled={actingGoalId === goal._id}
                           >
-                            Defer
+                            {actingGoalId === goal._id ? 'Deferring...' : 'Defer'}
                           </button>
                         )}
                         {isDeferred && onReactivateGoal && (
@@ -513,9 +532,10 @@ export function GoalsScreen({
                             type="button"
                             className="btn-subtle"
                             style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                            onClick={() => onReactivateGoal(goal._id)}
+                            onClick={() => handleAction(onReactivateGoal, goal._id)}
+                            disabled={actingGoalId === goal._id}
                           >
-                            Reactivate
+                            {actingGoalId === goal._id ? 'Reactivating...' : 'Reactivate'}
                           </button>
                         )}
                       </div>

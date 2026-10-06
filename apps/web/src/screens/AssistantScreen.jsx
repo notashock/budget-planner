@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { api } from '../api.js';
 import { formatCurrency } from '@budget/engine';
 
@@ -16,6 +16,8 @@ export function AssistantScreen({
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
   const [draftItem, setDraftItem] = useState(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const isSavingDraftRef = useRef(false);
 
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState(null);
@@ -39,11 +41,18 @@ export function AssistantScreen({
     }
   };
 
-  const handleConfirmDraft = () => {
-    if (!draftItem) return;
-    onSaveParsedItem(draftItem);
-    setDraftItem(null);
-    setPromptText('');
+  const handleConfirmDraft = async () => {
+    if (isSavingDraftRef.current || !draftItem) return;
+    isSavingDraftRef.current = true;
+    setIsSavingDraft(true);
+    try {
+      await onSaveParsedItem(draftItem);
+      setDraftItem(null);
+      setPromptText('');
+    } finally {
+      isSavingDraftRef.current = false;
+      setIsSavingDraft(false);
+    }
   };
 
   const handleExplain = async () => {
@@ -189,8 +198,8 @@ export function AssistantScreen({
               <button type="button" onClick={() => setDraftItem(null)}>
                 Discard
               </button>
-              <button type="button" className="btn-primary" onClick={handleConfirmDraft}>
-                Confirm and save item
+              <button type="button" className="btn-primary" onClick={handleConfirmDraft} disabled={isSavingDraft}>
+                {isSavingDraft ? 'Saving...' : 'Confirm and save item'}
               </button>
             </div>
           </div>

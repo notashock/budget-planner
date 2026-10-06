@@ -44,7 +44,9 @@ export function UnifiedEntryModal({
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isClosingRef = useRef(false);
+  const isSubmittingRef = useRef(false);
 
   const containerRef = useRef(null);
   const overlayRef = useRef(null);
@@ -140,6 +142,8 @@ export function UnifiedEntryModal({
 
     setIsExpanded(false);
     setTransferError('');
+    isSubmittingRef.current = false;
+    setIsSubmitting(false);
 
     // Precalculate primary accounts
     const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
@@ -549,8 +553,9 @@ export function UnifiedEntryModal({
     }
   };
 
-  const handleTransactionSubmit = (e) => {
+  const handleTransactionSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!txAmount || isNaN(Number(txAmount))) return;
 
     const hasAccount = (txAccountType === 'bank' && txBankAccountId) || (txAccountType === 'wallet' && txWalletId);
@@ -562,20 +567,30 @@ export function UnifiedEntryModal({
     const baseAmount = Math.round(Math.abs(Number(txAmount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
 
-    onLogTransaction({
-      amount: finalAmount,
-      tag,
-      note: note.trim(),
-      date: txDate,
-      plannedItemId: matchedItemId || null,
-      accountType: txAccountType,
-      bankAccountId: txAccountType === 'bank' ? txBankAccountId : null,
-      walletId: txAccountType === 'wallet' ? txWalletId : null
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onLogTransaction({
+        amount: finalAmount,
+        tag,
+        note: note.trim(),
+        date: txDate,
+        plannedItemId: matchedItemId || null,
+        accountType: txAccountType,
+        bankAccountId: txAccountType === 'bank' ? txBankAccountId : null,
+        walletId: txAccountType === 'wallet' ? txWalletId : null
+      });
+    } catch (err) {
+      // Handled in parent
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
-  const handleIncomeSubmit = (e) => {
+  const handleIncomeSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!incAmount || isNaN(Number(incAmount)) || Number(incAmount) <= 0) {
       alert('Please enter a valid positive income amount');
       return;
@@ -589,17 +604,26 @@ export function UnifiedEntryModal({
 
     const baseAmount = Math.round(Math.abs(Number(incAmount)) * 100);
 
-    onLogTransaction({
-      amount: baseAmount,
-      isIncome: true,
-      tag: incTag,
-      note: incNote.trim(),
-      date: incDate,
-      plannedItemId: null,
-      accountType: incAccountType,
-      bankAccountId: incAccountType === 'bank' ? incBankAccountId : null,
-      walletId: incAccountType === 'wallet' ? incWalletId : null
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onLogTransaction({
+        amount: baseAmount,
+        isIncome: true,
+        tag: incTag,
+        note: incNote.trim(),
+        date: incDate,
+        plannedItemId: null,
+        accountType: incAccountType,
+        bankAccountId: incAccountType === 'bank' ? incBankAccountId : null,
+        walletId: incAccountType === 'wallet' ? incWalletId : null
+      });
+    } catch (err) {
+      // Handled in parent
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   const handleTogglePaidStatus = (newPaid) => {
@@ -638,6 +662,7 @@ export function UnifiedEntryModal({
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!itemName.trim()) return;
 
     const hasAccount = (itemAccountType === 'bank' && itemBankAccountId) || (itemAccountType === 'wallet' && itemWalletId);
@@ -693,11 +718,21 @@ export function UnifiedEntryModal({
       payload.isFixed = isFixed;
     }
 
-    onSaveItem(payload);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onSaveItem(payload);
+    } catch (err) {
+      // Handled in parent
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     setTransferError('');
 
     if (!transferAmount || Number(transferAmount) <= 0) {
@@ -715,6 +750,8 @@ export function UnifiedEntryModal({
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const payload = {
         date: transferDate,
@@ -734,6 +771,9 @@ export function UnifiedEntryModal({
       triggerExit();
     } catch (err) {
       setTransferError(err.message || 'Failed to record transfer.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1061,14 +1101,16 @@ export function UnifiedEntryModal({
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={bankAccounts.length === 0 && wallets.length === 0}
+                  disabled={(bankAccounts.length === 0 && wallets.length === 0) || isSubmitting}
                   style={{
                     padding: '10px 20px',
                     background: isRefund ? 'var(--success)' : undefined,
                     borderColor: isRefund ? 'var(--success)' : undefined
                   }}
                 >
-                  {isRefund ? 'Log credit inflow' : 'Log expense debit'}
+                  {isSubmitting
+                    ? 'Logging...'
+                    : (isRefund ? 'Log credit inflow' : 'Log expense debit')}
                 </button>
               </div>
             </form>
@@ -1292,14 +1334,14 @@ export function UnifiedEntryModal({
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={bankAccounts.length === 0 && wallets.length === 0}
+                  disabled={(bankAccounts.length === 0 && wallets.length === 0) || isSubmitting}
                   style={{
                     padding: '10px 20px',
                     background: 'var(--success)',
                     borderColor: 'var(--success)'
                   }}
                 >
-                  Record Income
+                  {isSubmitting ? 'Recording...' : 'Record Income'}
                 </button>
               </div>
             </form>
@@ -1588,10 +1630,12 @@ export function UnifiedEntryModal({
                   <button
                     type="submit"
                     className="btn-primary"
-                    disabled={bankAccounts.length === 0 && wallets.length === 0}
+                    disabled={(bankAccounts.length === 0 && wallets.length === 0) || isSubmitting}
                     style={{ padding: '8px 18px' }}
                   >
-                    {initialItem ? 'Update planned item' : 'Save planned item'}
+                    {isSubmitting
+                      ? (initialItem ? 'Updating...' : 'Saving...')
+                      : (initialItem ? 'Update planned item' : 'Save planned item')}
                   </button>
                 </div>
               </div>
@@ -1752,8 +1796,8 @@ export function UnifiedEntryModal({
                 <button type="button" onClick={() => triggerExit()}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  Record Transfer
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Recording...' : 'Record Transfer'}
                 </button>
               </div>
             </form>

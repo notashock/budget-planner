@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BuildingLibraryIcon, ArrowRightLeftIcon, ShieldAlertIcon } from './Icons.jsx';
 import { formatCurrency } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
@@ -21,6 +21,7 @@ export function TransferCalculationsModal({
     bankAccounts[0]?._id || bankAccounts[0]?.id || ''
   );
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
   const [error, setError] = useState(null);
 
   const openingBal = migrationStats?.currentOpeningBalance ?? month?.openingBalance ?? 0;
@@ -30,12 +31,15 @@ export function TransferCalculationsModal({
 
   const handleSubmit = async (e, requestClose) => {
     e.preventDefault();
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
       if (bankAccounts.length === 0) {
         if (!bankName.trim() || !bankInstitution.trim()) {
           setError('Please provide an account name and financial institution.');
+          loadingRef.current = false;
           setLoading(false);
           return;
         }
@@ -60,6 +64,7 @@ export function TransferCalculationsModal({
     } catch (err) {
       setError(err.message || 'Data transfer failed. Please try again.');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };

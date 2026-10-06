@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatCurrency, formatDisplayDate, getRelativeDay } from '@budget/engine';
 import { SearchableItemPicker } from './SearchableItemPicker';
 import { DatePicker } from './DatePicker';
@@ -17,6 +17,8 @@ export function QuickLogModal({
   const [note, setNote] = useState('');
   const [plannedItemId, setPlannedItemId] = useState('');
   const [date, setDate] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,6 +27,8 @@ export function QuickLogModal({
       setTag('Food');
       setNote('');
       setPlannedItemId('');
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
 
       // Always default date selector strictly to today's real-world date
       const now = new Date();
@@ -36,20 +40,28 @@ export function QuickLogModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!amount || isNaN(Number(amount))) return;
 
     const baseAmount = Math.round(Math.abs(Number(amount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
 
-    onLogTransaction({
-      amount: finalAmount,
-      tag,
-      note: note.trim(),
-      date,
-      plannedItemId: plannedItemId ? plannedItemId : null
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onLogTransaction({
+        amount: finalAmount,
+        tag,
+        note: note.trim(),
+        date,
+        plannedItemId: plannedItemId ? plannedItemId : null
+      });
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   // Filter planned items that are one-time or recurring
@@ -157,8 +169,8 @@ export function QuickLogModal({
             <button type="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" style={{ padding: '10px 18px' }}>
-              Log entry
+            <button type="submit" className="btn-primary" style={{ padding: '10px 18px' }} disabled={isSubmitting}>
+              {isSubmitting ? 'Logging...' : 'Log entry'}
             </button>
           </div>
         </form>

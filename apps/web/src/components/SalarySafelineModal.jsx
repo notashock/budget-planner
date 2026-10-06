@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BuildingLibraryIcon, ShieldAlertIcon, LockIcon } from './Icons.jsx';
 import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
@@ -19,10 +19,12 @@ export function SalarySafelineModal({
   const [dateDirty, setDateDirty] = useState(false);
   const [creditedDirty, setCreditedDirty] = useState(false);
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen && month) {
+      loadingRef.current = false;
       const activeBankId = month.salaryBankAccountId?._id || month.salaryBankAccountId || '';
       const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
       setSalaryBankAccountId(activeBankId || primaryBank?._id || primaryBank?.id || '');
@@ -52,10 +54,12 @@ export function SalarySafelineModal({
 
   const handleSubmit = async (e, requestClose) => {
     e.preventDefault();
+    if (loadingRef.current) return;
     if (salaryLockStatus.isLocked) {
       setError(salaryLockStatus.reason || 'Salary logging is currently locked.');
       return;
     }
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -86,6 +90,7 @@ export function SalarySafelineModal({
     } catch (err) {
       setError(err.message || 'Failed to update salary details.');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
