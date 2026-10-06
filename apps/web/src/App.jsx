@@ -375,8 +375,8 @@ export default function App() {
         accountOpenings = [
           {
             accountType: 'bank',
-            bankAccountId: bankId,
-            openingBalance: monthData.newBankAccount.openingBalance || 0
+            accountId: bankId,
+            amount: monthData.newBankAccount.openingBalance || 0
           }
         ];
         await loadAccounts();
