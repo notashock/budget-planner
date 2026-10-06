@@ -106,9 +106,9 @@ export function getSalaryWindowStatus(month, currentDate) {
     return { isLocked: false, isUnconfigured: true, tooltip: 'No active month' };
   }
 
-  // Initial configuration exemption: if salary is not configured yet, allow setup
+  // Initial configuration exemption: if salary is not configured yet (or income is 0), allow setup anytime
   const isConfigured = Boolean(
-    (month.incomeAmount && Number(month.incomeAmount) > 0) ||
+    month.incomeAmount && Number(month.incomeAmount) > 0 &&
     month.salaryBankAccountId
   );
   if (!isConfigured) {
