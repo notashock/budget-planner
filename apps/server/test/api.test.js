@@ -63,6 +63,36 @@ describe('Server API Endpoints', () => {
     expect(settingsRes.body.aiAssistantEnabled).toBe(false);
   });
 
+  it('proves a SuperTest agent can register and immediately invoke protected endpoints with session retention', async () => {
+    // 1. Unauthenticated request without session or token returns 401
+    const unauthRes = await request(app).get('/api/bank-accounts');
+    expect(unauthRes.status).toBe(401);
+    expect(unauthRes.body.error).toBe('Authentication required');
+
+    // 2. Fresh agent registers successfully
+    const freshAgent = request.agent(app);
+    const regRes = await freshAgent
+      .post('/api/auth/register')
+      .send({ email: 'regression_agent@example.com', password: 'password123' });
+
+    expect(regRes.status).toBe(201);
+    expect(regRes.headers['set-cookie']).toBeDefined();
+    expect(regRes.headers['set-cookie'][0]).toContain('connect.sid');
+
+    // 3. Protected endpoint responds with 200/201 (not 401) immediately afterward
+    const settingsRes = await freshAgent.get('/api/settings');
+    expect(settingsRes.status).toBe(200);
+    expect(settingsRes.body.userId).toBe(regRes.body.user.id);
+
+    const bankRes = await freshAgent.post('/api/bank-accounts').send({
+      name: 'Salary Account',
+      openingBalance: 100000,
+      isPrimary: true
+    });
+    expect(bankRes.status).toBe(201);
+    expect(bankRes.body.name).toBe('Salary Account');
+  });
+
   it('runs the acceptance fixture through month and items endpoints', async () => {
     const agent = request.agent(app);
     await agent

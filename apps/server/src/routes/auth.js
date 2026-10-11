@@ -14,6 +14,7 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
   message: { error: 'Too many login attempts. Please try again later.' }
 });
 
@@ -22,6 +23,7 @@ const registerLimiter = rateLimit({
   max: 2,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
   message: { error: 'Too many registrations from this IP. Please try again later.' }
 });
 
@@ -64,6 +66,12 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
 
     if (req.session) {
       req.session.userId = user._id.toString();
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
     }
 
     return res.status(201).json({
@@ -102,6 +110,12 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
     if (req.session) {
       req.session.userId = user._id.toString();
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
     }
 
     return res.json({
