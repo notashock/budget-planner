@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import {
@@ -85,6 +85,57 @@ export function UnifiedEntryModal({
   const [txAccountType, setTxAccountType] = useState('unassigned');
   const [txBankAccountId, setTxBankAccountId] = useState('');
   const [txWalletId, setTxWalletId] = useState('');
+  const [underSpendData, setUnderSpendData] = useState(null);
+
+  const eligiblePlannedItems = useMemo(
+    () => (plannedItems || []).filter((item) => item.type === 'one-time' || item.type === 'recurring'),
+    [plannedItems]
+  );
+
+  // Candidate match detection based on description/note, category tag, and amount against unpaid items
+  const candidateMatch = useMemo(() => {
+    if (mode !== 'log' || isRefund || matchedItemId || !eligiblePlannedItems.length) return null;
+
+    const cleanNote = (note || '').trim().toLowerCase();
+    const parsedAmount = txAmount ? Math.round(Math.abs(Number(txAmount)) * 100) : 0;
+    const unpaidItems = eligiblePlannedItems.filter((item) => !item.isPaid);
+
+    if (!unpaidItems.length) return null;
+
+    let bestItem = null;
+    let bestScore = 0;
+
+    for (const item of unpaidItems) {
+      const itemName = (item.name || '').toLowerCase();
+      let score = 0;
+
+      // 1. Text match (note vs item name)
+      if (cleanNote && (itemName.includes(cleanNote) || cleanNote.includes(itemName))) {
+        score += 5;
+      }
+
+      // 2. Tag match (if tag matches item name)
+      if (tag && itemName.includes(tag.toLowerCase())) {
+        score += 2;
+      }
+
+      // 3. Amount match: exact match = +6, spending less than planned = +2
+      if (parsedAmount > 0 && item.amount > 0) {
+        if (parsedAmount === item.amount) {
+          score += 6;
+        } else if (parsedAmount < item.amount) {
+          score += 2;
+        }
+      }
+
+      if (score > bestScore && score >= 4) {
+        bestScore = score;
+        bestItem = item;
+      }
+    }
+
+    return bestItem;
+  }, [mode, isRefund, matchedItemId, eligiblePlannedItems, note, tag, txAmount]);
 
   // --- Plan Item State ---
   const [itemType, setItemType] = useState('one-time');
@@ -142,6 +193,7 @@ export function UnifiedEntryModal({
 
     setIsExpanded(false);
     setTransferError('');
+    setUnderSpendData(null);
     isSubmittingRef.current = false;
     setIsSubmitting(false);
 
@@ -553,8 +605,8 @@ export function UnifiedEntryModal({
     }
   };
 
-  const handleTransactionSubmit = async (e) => {
-    e.preventDefault();
+  const handleTransactionSubmit = async (e, forcedUnderSpendAction = null) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!txAmount || isNaN(Number(txAmount))) return;
 
@@ -567,10 +619,24 @@ export function UnifiedEntryModal({
     const baseAmount = Math.round(Math.abs(Number(txAmount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
 
+    // Check under-spend when matched to a planned item
+    if (matchedItemId && !isRefund && !forcedUnderSpendAction) {
+      const linkedItem = eligiblePlannedItems.find((i) => (i._id || i.id) === matchedItemId);
+      if (linkedItem && baseAmount < linkedItem.amount) {
+        setUnderSpendData({
+          linkedItem,
+          spentAmt: baseAmount,
+          plannedAmt: linkedItem.amount,
+          diffAmt: linkedItem.amount - baseAmount
+        });
+        return; // Pause submit and prompt user for settlement choice
+      }
+    }
+
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onLogTransaction({
+      const txPayload = {
         amount: finalAmount,
         tag,
         note: note.trim(),
@@ -579,7 +645,13 @@ export function UnifiedEntryModal({
         accountType: txAccountType,
         bankAccountId: txAccountType === 'bank' ? txBankAccountId : null,
         walletId: txAccountType === 'wallet' ? txWalletId : null
-      });
+      };
+      if (forcedUnderSpendAction) {
+        await onLogTransaction(txPayload, forcedUnderSpendAction);
+      } else {
+        await onLogTransaction(txPayload);
+      }
+      setUnderSpendData(null);
     } catch (err) {
       // Handled in parent
     } finally {
@@ -778,10 +850,6 @@ export function UnifiedEntryModal({
   };
 
   if (!shouldRender) return null;
-
-  const eligiblePlannedItems = (plannedItems || []).filter(
-    (item) => item.type === 'one-time' || item.type === 'recurring'
-  );
 
   const currentYear = month?.year || new Date().getFullYear();
   const currentMonthNum = month?.month || (new Date().getMonth() + 1);
@@ -1058,6 +1126,45 @@ export function UnifiedEntryModal({
               {/* Match Planned Item */}
               <div className="form-group">
                 <label className="form-label">Match to planned item (optional)</label>
+                {candidateMatch && !matchedItemId && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      marginBottom: '8px',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                      <SparklesIcon size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                      <span style={{ color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Matches: <strong>{candidateMatch.name}</strong> ({formatCurrency(candidateMatch.amount, currencySymbol)})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-subtle"
+                      onClick={() => handleSelectMatchedItem(candidateMatch._id || candidateMatch.id)}
+                      style={{
+                        fontSize: '11px',
+                        padding: '4px 8px',
+                        height: 'auto',
+                        color: 'var(--primary)',
+                        borderColor: 'rgba(99, 102, 241, 0.4)',
+                        fontWeight: 600,
+                        flexShrink: 0
+                      }}
+                    >
+                      Link & Settle
+                    </button>
+                  </div>
+                )}
                 <SearchableItemPicker
                   items={eligiblePlannedItems}
                   selectedId={matchedItemId}
@@ -1803,6 +1910,127 @@ export function UnifiedEntryModal({
             </form>
           )}
         </div>
+
+        {/* Partial Under-Spend Settlement Dialog Overlay */}
+        {underSpendData && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                background: 'var(--surface, #1e293b)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '440px',
+                width: '100%',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <SparklesIcon size={18} style={{ color: 'var(--primary)' }} />
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-main)' }}>
+                    Settlement for {underSpendData.linkedItem.name}
+                  </h3>
+                </div>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  You logged spending of{' '}
+                  <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(underSpendData.spentAmt, currencySymbol)}</strong>,
+                  which is{' '}
+                  <strong style={{ color: 'var(--success)' }}>{formatCurrency(underSpendData.diffAmt, currencySymbol)}</strong>{' '}
+                  less than planned ({formatCurrency(underSpendData.plannedAmt, currencySymbol)}).
+                  How should the remaining amount be handled?
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    handleTransactionSubmit(null, {
+                      type: 'release',
+                      spentAmt: underSpendData.spentAmt,
+                      itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
+                    })
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '3px'
+                  }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    Release remaining {formatCurrency(underSpendData.diffAmt, currencySymbol)} to balance
+                  </span>
+                  <span style={{ fontSize: '11px', opacity: 0.85, fontWeight: 400 }}>
+                    Frees remaining money into your safe-to-spend allowance and marks item paid.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-subtle"
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    handleTransactionSubmit(null, {
+                      type: 'keep_remainder',
+                      spentAmt: underSpendData.spentAmt,
+                      remainderAmt: underSpendData.diffAmt,
+                      itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
+                    })
+                  }
+                  style={{
+                    padding: '12px 14px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '3px',
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                    Keep remainder scheduled ({formatCurrency(underSpendData.diffAmt, currencySymbol)})
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                    Marks spent amount paid and keeps a new pending item for the remaining expense.
+                  </span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  className="btn-subtle"
+                  disabled={isSubmitting}
+                  onClick={() => setUnderSpendData(null)}
+                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                >
+                  Back to editing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

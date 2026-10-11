@@ -296,10 +296,49 @@ export default function App() {
 
 
   // Transaction entry actions
-  const handleLogTransaction = async (txData) => {
+  const handleLogTransaction = async (txData, underSpendAction = null) => {
     try {
       const created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
       setTransactions((prev) => [...prev, created]);
+
+      if (underSpendAction && txData.plannedItemId) {
+        const targetItem = items.find((i) => i._id === txData.plannedItemId);
+        if (targetItem) {
+          if (underSpendAction.type === 'release') {
+            const updated = await api.updateItem(targetItem._id, {
+              amount: underSpendAction.spentAmt,
+              isPaid: true
+            });
+            setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
+          } else if (underSpendAction.type === 'keep_remainder') {
+            const updated = await api.updateItem(targetItem._id, {
+              amount: underSpendAction.spentAmt,
+              isPaid: true
+            });
+            const newItemData = {
+              type: targetItem.type,
+              name: `${targetItem.name} (Remainder)`,
+              amount: underSpendAction.remainderAmt,
+              priority: targetItem.priority,
+              isPaid: false,
+              accountType: targetItem.accountType,
+              bankAccountId: targetItem.bankAccountId?._id || targetItem.bankAccountId,
+              walletId: targetItem.walletId?._id || targetItem.walletId
+            };
+            if (targetItem.type === 'one-time') {
+              newItemData.day = targetItem.day;
+            } else if (targetItem.type === 'recurring') {
+              newItemData.dayOfMonth = targetItem.dayOfMonth;
+              newItemData.isFixed = targetItem.isFixed;
+            }
+            const remainderItem = await api.createItem(currentMonth.year, currentMonth.month, newItemData);
+            setItems((prev) => [...prev.map((i) => (i._id === updated._id ? updated : i)), remainderItem]);
+          }
+        }
+      } else if (txData.plannedItemId) {
+        setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
+      }
+
       setUnifiedEntryOpen(false);
       loadGoals(currentMonth.year, currentMonth.month);
       return created;
@@ -423,15 +462,9 @@ export default function App() {
     }
   };
 
-  const handleDeleteMonth = async (delYear, delMonth) => {
-    const now = new Date();
-    if (delYear === now.getFullYear() && delMonth === (now.getMonth() + 1)) {
-      alert('The current month cannot be deleted.');
-      return;
-    }
-
+  const handleDeleteMonth = async (delYear, delMonth, force = false) => {
     try {
-      await api.deleteMonth(delYear, delMonth);
+      await api.deleteMonth(delYear, delMonth, force);
       const remaining = months.filter((m) => !(m.year === delYear && m.month === delMonth));
       setMonths(remaining);
 

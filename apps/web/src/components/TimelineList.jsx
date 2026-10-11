@@ -300,8 +300,8 @@ export function TimelineList({
                   title="Click to focus this day on the balance chart"
                 >
                   <div className="timeline-event-info">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="timeline-event-label">{evt.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexWrap: 'wrap' }}>
+                      <span className="timeline-event-label" title={evt.label}>{evt.label}</span>
                       {evt.isPending && (
                         <span
                           className="pending-status-pill"
