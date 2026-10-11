@@ -1,14 +1,20 @@
 const BASE_API_URL = import.meta.env.VITE_API_URL || '';
+const TOKEN_STORAGE_KEY = 'budget_auth_token';
 
 async function request(url, options = {}) {
   const fullUrl = url.startsWith('http') ? url : `${BASE_API_URL}${url}`;
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(fullUrl, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    },
-    credentials: 'include'
+    headers
   });
 
   const data = await res.json().catch(() => ({}));
@@ -20,9 +26,29 @@ async function request(url, options = {}) {
 
 export const api = {
   // Auth
-  register: (email, password) => request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  login: (email, password) => request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  logout: () => request('/api/auth/logout', { method: 'POST' }),
+  register: async (email, password) => {
+    const data = await request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+    if (data && data.token && typeof localStorage !== 'undefined') {
+      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+    }
+    return data;
+  },
+  login: async (email, password) => {
+    const data = await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    if (data && data.token && typeof localStorage !== 'undefined') {
+      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+    }
+    return data;
+  },
+  logout: async () => {
+    try {
+      return await request('/api/auth/logout', { method: 'POST' });
+    } finally {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    }
+  },
   getMe: () => request('/api/auth/me'),
 
   // Settings
@@ -36,7 +62,7 @@ export const api = {
   updateMonth: (year, month, updates) => request(`/api/months/${year}/${month}`, { method: 'PUT', body: JSON.stringify(updates) }),
   creditSalary: (year, month, data = {}) => request(`/api/months/${year}/${month}/credit-salary`, { method: 'POST', body: JSON.stringify(data) }),
   rolloverMonth: (year, month, carryBalance = true, rolloverUnpaidOneTimeItems = false) => request(`/api/months/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance, rolloverUnpaidOneTimeItems }) }),
-  deleteMonth: (year, month) => request(`/api/months/${year}/${month}`, { method: 'DELETE' }),
+  deleteMonth: (year, month, force = false) => request(`/api/months/${year}/${month}${force ? '?force=true' : ''}`, { method: 'DELETE' }),
 
   // Items
   createItem: (year, month, item) => request(`/api/months/${year}/${month}/items`, { method: 'POST', body: JSON.stringify(item) }),

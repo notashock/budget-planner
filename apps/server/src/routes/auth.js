@@ -1,12 +1,32 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import { rateLimit } from 'express-rate-limit';
 import { User } from '../models/User.js';
 import { Setting } from '../models/Setting.js';
+import { config } from '../config.js';
+import { signToken } from '../utils/jwt.js';
+import { resolveAuthUser } from '../middleware/auth.js';
 
 export const authRouter = express.Router();
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 2,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registrations from this IP. Please try again later.' }
+});
+
 // Register new user
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', registerLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
@@ -36,9 +56,19 @@ authRouter.post('/register', async (req, res) => {
       aiAssistantEnabled: false
     });
 
-    req.session.userId = user._id.toString();
+    const token = signToken(
+      { userId: user._id.toString(), email: user.email },
+      config.jwtSecret,
+      config.sessionMaxAgeDays
+    );
+
+    if (req.session) {
+      req.session.userId = user._id.toString();
+    }
+
     return res.status(201).json({
-      user: { id: user._id, email: user.email }
+      user: { id: user._id, email: user.email },
+      token
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to register user' });
@@ -46,7 +76,7 @@ authRouter.post('/register', async (req, res) => {
 });
 
 // Login
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -64,9 +94,19 @@ authRouter.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    req.session.userId = user._id.toString();
+    const token = signToken(
+      { userId: user._id.toString(), email: user.email },
+      config.jwtSecret,
+      config.sessionMaxAgeDays
+    );
+
+    if (req.session) {
+      req.session.userId = user._id.toString();
+    }
+
     return res.json({
-      user: { id: user._id, email: user.email }
+      user: { id: user._id, email: user.email },
+      token
     });
   } catch (err) {
     return res.status(500).json({ error: 'Login failed' });
@@ -75,23 +115,22 @@ authRouter.post('/login', async (req, res) => {
 
 // Logout
 authRouter.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.clearCookie('connect.sid');
-    return res.json({ message: 'Logged out successfully' });
-  });
+  if (req.session && typeof req.session.destroy === 'function') {
+    req.session.destroy(() => {});
+  }
+  res.clearCookie('connect.sid');
+  return res.json({ message: 'Logged out successfully' });
 });
 
 // Current User & Settings
 authRouter.get('/me', async (req, res) => {
   try {
-    if (!req.session || !req.session.userId) {
+    const auth = resolveAuthUser(req);
+    if (!auth || !auth.userId) {
       return res.json({ user: null });
     }
 
-    const user = await User.findById(req.session.userId).select('-passwordHash');
+    const user = await User.findById(auth.userId).select('-passwordHash');
     if (!user) {
       return res.json({ user: null });
     }

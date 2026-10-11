@@ -29,46 +29,33 @@ export function createApp(options = {}) {
 
   const effectiveCorsOrigin = options.corsOrigin ?? (
     config.corsOrigin === '*'
-      ? true
+      ? '*'
       : (config.corsOrigin.includes(',') ? config.corsOrigin.split(',').map((s) => s.trim()) : config.corsOrigin)
   );
 
   app.use(cors({
-    origin: effectiveCorsOrigin,
-    credentials: true
+    origin: effectiveCorsOrigin
   }));
 
   app.use(express.json());
 
-  // Configure Session Store
-  const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
-  let store = options.sessionStore;
-  if (!store && options.useMongoStore !== false) {
-    try {
-      store = MongoStore.create({
-        mongoUrl: options.mongoUri || config.mongoUri,
-        ttl: sessionTtlSeconds
-      });
-    } catch (e) {
-      // MemoryStore fallback if MongoDB store creation fails
-      store = undefined;
-    }
+  // Optional legacy session middleware support (for backward compatibility in tests)
+  if (options.useSessionMiddleware === true) {
+    const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
+    app.use(
+      session({
+        secret: options.sessionSecret || config.sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+          secure: config.isProduction,
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: sessionTtlSeconds * 1000
+        }
+      })
+    );
   }
-
-  app.use(
-    session({
-      secret: options.sessionSecret || config.sessionSecret,
-      resave: false,
-      saveUninitialized: false,
-      store: store,
-      cookie: {
-        secure: config.isProduction,
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: sessionTtlSeconds * 1000
-      }
-    })
-  );
 
   // Health check endpoint (public, unauthenticated)
   app.get('/api/health', (req, res) => {
