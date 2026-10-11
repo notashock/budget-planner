@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { StepLineChart } from '../components/StepLineChart.jsx';
+import { StepLineChart, formatChartTick } from '../components/StepLineChart.jsx';
 
 const mockDailyBalances = [
   { day: 1, balance: 5000, date: '2026-10-01' },
@@ -135,5 +135,33 @@ describe('StepLineChart component', () => {
     expect(screen.getByText('₹50.00')).toBeInTheDocument();
     expect(screen.getByText('-₹5.00')).toBeInTheDocument();
     expect(screen.getByText('₹45.00')).toBeInTheDocument();
+  });
+
+  describe('formatChartTick (Y-axis label formatting)', () => {
+    it('formats numbers under 10k as plain whole values with symbol (10, 100, 1000)', () => {
+      // Input values are in minor units (paisa: 100 = 1 unit)
+      expect(formatChartTick(0, '₹')).toBe('₹0');
+      expect(formatChartTick(1000, '₹')).toBe('₹10');
+      expect(formatChartTick(10000, '₹')).toBe('₹100');
+      expect(formatChartTick(100000, '₹')).toBe('₹1000');
+      expect(formatChartTick(950000, '₹')).toBe('₹9500');
+    });
+
+    it('formats values at and above 10k using "k" suffix (10k, 100k)', () => {
+      expect(formatChartTick(1000000, '₹')).toBe('₹10k');
+      expect(formatChartTick(5000000, '₹')).toBe('₹50k');
+      expect(formatChartTick(10000000, '₹')).toBe('₹100k');
+      expect(formatChartTick(15500000, '₹')).toBe('₹155k');
+    });
+
+    it('formats values at and above 1m using "m" suffix', () => {
+      expect(formatChartTick(100000000, '₹')).toBe('₹1m');
+      expect(formatChartTick(250000000, '₹')).toBe('₹2.5m');
+    });
+
+    it('correctly handles negative values', () => {
+      expect(formatChartTick(-2500000, '₹')).toBe('-₹25k');
+      expect(formatChartTick(-50000, '₹')).toBe('-₹500');
+    });
   });
 });

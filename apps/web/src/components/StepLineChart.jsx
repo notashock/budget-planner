@@ -2,45 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 /**
- * Interactive SVG Step Line Balance Chart.
- * Displays daily running balance across the month, supports relative negative pre-month days (-1, -2),
- * and provides interactive tooltips synchronized with timeline selection.
- */
-export function StepLineChart({
-  dailyBalances = [],
-  events = [],
-  safetyFloor = 0,
-  currencySymbol = '₹',
-  floorBreached = false,
-  lowestDate = '',
-  selectedDay = null,
-  onSelectDay = null,
-  currentDay = null,
-  onOpenReview = null
-}) {
-  const [hoveredDay, setHoveredDay] = useState(null);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => {
-      const mobile = window.innerWidth < 640;
-      setIsMobile((prev) => (prev !== mobile ? mobile : prev));
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  if (!dailyBalances || dailyBalances.length === 0) {
-    return (
-      <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        No balance history available for this month.
-      </div>
-    );
-  }
-
-/**
  * Computes a smooth monotonic cubic spline path (Fritsch-Carlson algorithm).
  * Guarantees zero overshoot/undershoot on steep slopes, eliminating unnatural upward/downward bulges.
  */
@@ -113,6 +74,60 @@ function getMonotoneCubicSplinePath(points) {
   return d;
 }
 
+export function formatChartTick(val, symbol) {
+  const major = Math.abs(val) / 100;
+  const sign = val < 0 ? '-' : '';
+
+  if (major >= 1000000) {
+    const formatted = (major / 1000000).toFixed(1).replace(/\.0$/, '');
+    return `${sign}${symbol}${formatted}m`;
+  }
+  if (major >= 10000) {
+    const formatted = (major / 1000).toFixed(1).replace(/\.0$/, '');
+    return `${sign}${symbol}${formatted}k`;
+  }
+  return `${sign}${symbol}${Math.round(major)}`;
+}
+
+/**
+ * Interactive SVG Step Line Balance Chart.
+ * Displays daily running balance across the month, supports relative negative pre-month days (-1, -2),
+ * and provides interactive tooltips synchronized with timeline selection.
+ */
+export function StepLineChart({
+  dailyBalances = [],
+  events = [],
+  safetyFloor = 0,
+  currencySymbol = '₹',
+  floorBreached = false,
+  lowestDate = '',
+  selectedDay = null,
+  onSelectDay = null,
+  currentDay = null,
+  onOpenReview = null
+}) {
+  const [hoveredDay, setHoveredDay] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile((prev) => (prev !== mobile ? mobile : prev));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  if (!dailyBalances || dailyBalances.length === 0) {
+    return (
+      <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        No balance history available for this month.
+      </div>
+    );
+  }
+
   // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
   const chartData = useMemo(() => {
     const balances = dailyBalances.map((d) => d.balance);
@@ -120,22 +135,33 @@ function getMonotoneCubicSplinePath(points) {
     const minVal = actualMin < 0 ? actualMin : 0;
     const maxVal = Math.max(...balances, safetyFloor, 1000);
 
+    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0.
+    // Tight yMax margin removes dead space above the highest curve peak.
+    const range = maxVal - minVal || 1000;
+    const yMin = minVal < 0 ? minVal - range * 0.03 : 0;
+    const yMax = maxVal + range * 0.02;
+
+    // Format y-axis tick values (top, middle, bottom)
+    const yTicks = [
+      { val: yMax, label: formatChartTick(yMax, currencySymbol) },
+      { val: (yMax + yMin) / 2, label: formatChartTick((yMax + yMin) / 2, currencySymbol) },
+      { val: yMin, label: formatChartTick(yMin, currencySymbol) }
+    ];
+
+    // Dynamically calculate left padding based on longest tick label length
+    const maxTickLen = Math.max(...yTicks.map((t) => t.label.length), 4);
+    const basePadding = isMobile ? 56 : 64;
+    const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 7.5 + 16));
+
     // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
     const width = isMobile ? 540 : 600;
     const height = isMobile ? 260 : 175;
-    const paddingLeft = isMobile ? 58 : 66;
     const paddingRight = 16;
     const paddingTop = 14;
     const paddingBottom = 26;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
-
-    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0.
-    // Tight yMax margin removes dead space above the highest curve peak.
-    const range = maxVal - minVal || 1000;
-    const yMin = minVal < 0 ? minVal - range * 0.03 : 0;
-    const yMax = maxVal + range * 0.02;
 
     const minDay = dailyBalances[0].day;
     const maxDay = dailyBalances[dailyBalances.length - 1].day;
@@ -165,13 +191,6 @@ function getMonotoneCubicSplinePath(points) {
     }
 
     const floorY = getY(safetyFloor);
-
-  // Format y-axis tick values (top, middle, bottom)
-  const yTicks = [
-    { val: yMax, label: formatCurrency(yMax, currencySymbol) },
-    { val: (yMax + yMin) / 2, label: formatCurrency((yMax + yMin) / 2, currencySymbol) },
-    { val: yMin, label: formatCurrency(yMin, currencySymbol) }
-  ];
 
   // Adaptive X Ticks with Collision Pruning
   // Prioritizes: pre-month day (if any), Day 1 (month start), and maxDay (month end)

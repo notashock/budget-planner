@@ -45,8 +45,16 @@ The process of creating the next calendar month, copying fixed recurring items, 
 _Avoid_: Month close, archive, reset.
 
 **Month Deletion Cascade**:
-The atomic removal of a specific budget month and all of its associated records (planned items, actual transactions, inter-account transfers, and purchase goals). Deletion requires an explicit confirmation step, disallows orphaned data, and when executed on the currently active month, automatically transitions the user to the nearest remaining budget month.
+The atomic removal of a specific budget month and all of its associated records (planned items, actual transactions, inter-account transfers, and purchase goals). Deletion of past or future months requires user confirmation; deletion of the active current calendar month strictly requires an explicit force parameter (`?force=true`) to guard against active cycle data loss. When executed on the currently viewed month, the dashboard automatically transitions the user to the nearest remaining budget month.
 _Avoid_: Orphaned transaction purge, unconfirmed month wipe, soft-delete zombie month.
+
+**Account Opening Breakdown**:
+The itemized distribution of starting cash across a user's active bank accounts and wallets on Day 1 of a specific budget month (`accountOpeningBalances`), mathematically summing to the month's total opening balance and strictly capped to registered user accounts.
+_Avoid_: Multi-month history list, cumulative account record, unbounded opening list.
+
+**Bearer Token Authentication**:
+The decoupled authorization protocol where clients transmit a signed JSON Web Token (JWT) in the `Authorization: Bearer <token>` header on each request, eliminating ambient browser cookie dependencies, CSRF risks, and credentialed CORS origin reflection.
+_Avoid_: Session cookie, connect.sid, ambient session.
 
 **Predecessor Baseline Inheritance**:
 The automatic resolution mechanism during manual month creation where default income (`incomeAmount`) and safety floor (`safetyFloor`) are populated from the latest existing month chronologically preceding the target year and month (falling back to the active month). If no predecessor month exists in the user's history, both values default strictly to zero ($0$).
@@ -470,6 +478,28 @@ Salary details and date logging (`Log Salary`) are strictly governed by an expec
 2. Inside `SalarySafelineModal`, a prominent lock banner informs the user of the locked status, and form submission is disabled to prevent out-of-window mutations.
 3. Unconfigured Month Exemption: If a month has no configured salary details yet (`!incomeAmount && !salaryBankAccountId`), the window lock is suspended (`isUnconfigured: true`, `isLocked: false`) allowing initial setup anytime; once configured, the 10-day window locking strictly takes effect.
 _Avoid_: Arbitrary year-round salary modification, abrupt lockouts without countdown tooltips or lock icons, hardcoded month offsets vulnerable to timezone shifting.
+
+**Sectioned Mixed Feed & Paid Item Edit Lock**:
+In the Items screen `all` filter, items and transactions are presented in two dedicated visual sections: "Active & Pending Budget Items" (`!isPaid`, fully editable and togglable) and "Logged Transactions & Paid Items" (`isPaid === true` and logged transactions). Paid items have the edit action disabled (`🔒 Paid`) to guarantee alignment with linked ledger transaction actuals.
+_Avoid_: Permitting arbitrary edits to settled budget items while leaving actual ledger entries orphaned or desynchronized.
+
+**Two-Line Card Clamping & Flexible Container Hardening**:
+All item cards and timeline event rows enforce `-webkit-line-clamp: 2` with `overflow: hidden`, `text-overflow: ellipsis`, and `min-width: 0` on flex children to prevent horizontal blowout and maintain uniform card heights across mobile and desktop. Complete notes are revealed via hover tooltips.
+_Avoid_: Arbitrary line expansion in cards, flex containers lacking `min-width: 0` that stretch the viewport horizontally on long notes.
+
+**Dynamic Chart Y-Axis Scale**:
+SVG balance charts dynamically scale left padding (`paddingLeft`) proportional to the maximum character width of the formatted currency tick labels, using compact metric formatting (`k`/`L`) when values exceed 6 digits to eliminate left digit clipping while preserving graph width.
+_Avoid_: Fixed static left margins on charts with large monetary values that clip leading currency symbols or digits.
+
+**Under-Spend Settlement & Remainder Release**:
+When logging a spending transaction matching a planned expense for an amount less than planned, the settlement modal prompts the user to either release the difference into overall cash balance (by adjusting planned amount down to actual spent) or retain the remainder as a new pending scheduled item.
+_Avoid_: Silent assumption of remainder disposition when settling under-budget spending.
+
+**Compact Chart Y-Axis Formatting & Items Screen Chronological Sorting**:
+The SVG Step Line Chart formats Y-axis tick values with the currency symbol and threshold-based compact metric notation: values below 10,000 render as full numbers (e.g. ₹0, ₹100, ₹1000, ₹9500), values from 10,000 to 999,999 use `k` notation (e.g. ₹10k, ₹100k), and values 1,000,000+ use `m` notation (e.g. ₹1m, ₹2.5m). In `ItemsScreen`, planned items and logged transactions are organized chronologically descending (newest / highest day first: Day 31 down to Day 1), and card action buttons replace plain text with accessible SVG icon controls (`EditIcon` and `TrashIcon`).
+_Avoid_: Inconsistent number abbreviations, clipping axis labels, unsorted budget item lists, plain text action buttons cluttering compact mobile cards.
+
+
 
 
 
