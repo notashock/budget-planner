@@ -94,43 +94,17 @@ bankAccountsRouter.post('/', async (req, res) => {
     const parsedOpening = parseCurrencyInt(openingBalance) ?? 0;
     const parsedMin = parseCurrencyInt(minimumBalance) ?? 0;
 
-    let bankAccount;
-    try {
-      bankAccount = await BankAccount.create({
-        userId,
-        name: name.trim(),
-        institution: typeof institution === 'string' ? institution.trim() : '',
-        accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
-        accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
-        openingBalance: parsedOpening,
-        minimumBalance: parsedMin,
-        isPrimary: isPrimaryBool,
-        color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
-      });
-    } catch (createErr) {
-      // If a legacy stale unique index exists on MongoDB collection (e.g. name or accountNumberMasked), drop stale indexes and retry
-      if (createErr.code === 11000) {
-        console.warn('Duplicate key error on BankAccount creation. Syncing indexes to remove stale constraints and retrying...', createErr.message);
-        try {
-          await BankAccount.syncIndexes();
-          bankAccount = await BankAccount.create({
-            userId,
-            name: name.trim(),
-            institution: typeof institution === 'string' ? institution.trim() : '',
-            accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
-            accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
-            openingBalance: parsedOpening,
-            minimumBalance: parsedMin,
-            isPrimary: isPrimaryBool,
-            color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
-          });
-        } catch (retryErr) {
-          throw retryErr;
-        }
-      } else {
-        throw createErr;
-      }
-    }
+    const bankAccount = await BankAccount.create({
+      userId,
+      name: name.trim(),
+      institution: typeof institution === 'string' ? institution.trim() : '',
+      accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
+      accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
+      openingBalance: parsedOpening,
+      minimumBalance: parsedMin,
+      isPrimary: isPrimaryBool,
+      color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
+    });
 
     const totalBanks = await BankAccount.countDocuments({ userId, isArchived: { $ne: true } });
     if (isPrimaryBool || totalBanks === 1) {

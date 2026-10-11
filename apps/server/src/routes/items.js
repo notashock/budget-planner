@@ -5,6 +5,7 @@ import { Transaction } from '../models/Transaction.js';
 import { BankAccount } from '../models/BankAccount.js';
 import { Wallet } from '../models/Wallet.js';
 import { requireAuth } from '../middleware/auth.js';
+import { validateUserAccount } from '../services/accountValidation.js';
 
 export const itemsRouter = express.Router();
 itemsRouter.use(requireAuth);
@@ -99,6 +100,20 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 
     if (!resolvedBankAccountId && !resolvedWalletId) {
       return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the planned item' });
+    }
+
+    if (resolvedBankAccountId) {
+      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: resolvedBankAccountId });
+      if (!valid) {
+        return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
+      }
+    }
+
+    if (resolvedWalletId) {
+      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: resolvedWalletId });
+      if (!valid) {
+        return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
+      }
     }
 
     itemData.accountType = resolvedAccountType;
@@ -199,10 +214,22 @@ itemsRouter.put('/items/:id', async (req, res) => {
       }
     }
     if (bankAccountId !== undefined) {
+      if (bankAccountId) {
+        const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: bankAccountId });
+        if (!valid) {
+          return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
+        }
+      }
       item.bankAccountId = bankAccountId || null;
       accountUpdated = true;
     }
     if (walletId !== undefined) {
+      if (walletId) {
+        const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: walletId });
+        if (!valid) {
+          return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
+        }
+      }
       item.walletId = walletId || null;
       accountUpdated = true;
     }

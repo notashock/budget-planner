@@ -165,7 +165,7 @@ export function Header({
                         </span>
                         {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
                       </button>
-                      {onDeleteMonth && !isCurrentCalendarMonth && (
+                      {onDeleteMonth && (
                         <button
                           type="button"
                           className="btn-icon"
@@ -185,9 +185,17 @@ export function Header({
                           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to delete ${MONTH_NAMES[m.month - 1]} ${m.year}? All items, transactions, and transfers for this month will be permanently deleted.`)) {
-                              onDeleteMonth(m.year, m.month);
-                              setActiveDropdown(null);
+                            if (isCurrentCalendarMonth) {
+                              const confirmMsg = `WARNING: You are deleting the ACTIVE current calendar month (${MONTH_NAMES[m.month - 1]} ${m.year}).\n\nAll planned items, daily transactions, and transfers for this active cycle will be permanently deleted.\n\nAre you sure you want to proceed?`;
+                              if (window.confirm(confirmMsg)) {
+                                onDeleteMonth(m.year, m.month, true);
+                                setActiveDropdown(null);
+                              }
+                            } else {
+                              if (window.confirm(`Are you sure you want to delete ${MONTH_NAMES[m.month - 1]} ${m.year}? All items, transactions, and transfers for this month will be permanently deleted.`)) {
+                                onDeleteMonth(m.year, m.month, false);
+                                setActiveDropdown(null);
+                              }
                             }
                           }}
                         >

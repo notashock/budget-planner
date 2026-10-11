@@ -2,6 +2,7 @@ import express from 'express';
 import { Transfer } from '../models/Transfer.js';
 import { Month } from '../models/Month.js';
 import { requireAuth } from '../middleware/auth.js';
+import { validateUserAccount } from '../services/accountValidation.js';
 
 export const transfersRouter = express.Router();
 transfersRouter.use(requireAuth);
@@ -54,9 +55,22 @@ transfersRouter.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Source and destination accounts must be different' });
     }
 
+    const userId = req.userId || req.session?.userId;
+    const sourceAccountId = sourceType === 'bank' ? sourceBankAccountId : sourceWalletId;
+    const destAccountId = destinationType === 'bank' ? destinationBankAccountId : destinationWalletId;
+
+    const [validSource, validDest] = await Promise.all([
+      validateUserAccount({ userId, accountType: sourceType, accountId: sourceAccountId }),
+      validateUserAccount({ userId, accountType: destinationType, accountId: destAccountId })
+    ]);
+
+    if (!validSource || !validDest) {
+      return res.status(400).json({ error: 'Source or destination account is invalid or not owned by user' });
+    }
+
     const month = await Month.findOne({
       _id: monthId,
-      userId: req.session.userId
+      userId
     });
 
     if (!month) {

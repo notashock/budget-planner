@@ -10,6 +10,7 @@ import { Goal } from '../models/Goal.js';
 import { requireAuth } from '../middleware/auth.js';
 import { simulate, recommendPurchaseDate } from '@budget/engine';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
+import { validateUserAccount } from '../services/accountValidation.js';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
@@ -78,6 +79,21 @@ monthsRouter.post('/', async (req, res) => {
       defaultSalaryBank = predecessor.salaryBankAccountId ?? null;
     }
 
+    if (Array.isArray(accountOpeningBalances) && accountOpeningBalances.length > 10) {
+      return res.status(400).json({ error: 'accountOpeningBalances cannot exceed 10 accounts per month' });
+    }
+
+    if (salaryBankAccountId) {
+      const validSalaryBank = await validateUserAccount({
+        userId: req.session.userId,
+        accountType: 'bank',
+        accountId: salaryBankAccountId
+      });
+      if (!validSalaryBank) {
+        return res.status(400).json({ error: 'salaryBankAccountId is invalid or not owned by user' });
+      }
+    }
+
     let finalAccountOpenings = [];
     if (Array.isArray(accountOpeningBalances)) {
       finalAccountOpenings = accountOpeningBalances
@@ -93,6 +109,17 @@ monthsRouter.post('/', async (req, res) => {
           };
         })
         .filter(Boolean);
+
+      for (const entry of finalAccountOpenings) {
+        const valid = await validateUserAccount({
+          userId: req.session.userId,
+          accountType: entry.accountType,
+          accountId: entry.accountId
+        });
+        if (!valid) {
+          return res.status(400).json({ error: `Account ${entry.accountId} in accountOpeningBalances is invalid or not owned by user` });
+        }
+      }
     }
 
     let finalOpening = typeof openingBalance === 'number' ? Math.round(openingBalance) : 0;
@@ -139,6 +166,14 @@ monthsRouter.delete('/:year/:month', async (req, res) => {
     const userId = req.session.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
+
+    const now = new Date();
+    const isCurrentMonth = year === now.getFullYear() && monthNum === (now.getMonth() + 1);
+    if (isCurrentMonth && req.query.force !== 'true') {
+      return res.status(400).json({
+        error: 'Deleting the current active month requires explicit confirmation (?force=true)'
+      });
+    }
 
     const month = await Month.findOne({ userId, year, month: monthNum });
     if (!month) {
@@ -351,7 +386,19 @@ monthsRouter.put('/:year/:month', async (req, res) => {
     if (typeof safetyFloor === 'number') update.safetyFloor = Math.round(safetyFloor);
     if (typeof unplannedAllowance === 'number') update.unplannedAllowance = Math.round(unplannedAllowance);
     if (typeof currencySymbol === 'string' && currencySymbol.trim()) update.currencySymbol = currencySymbol.trim();
-    if (salaryBankAccountId !== undefined) update.salaryBankAccountId = salaryBankAccountId || null;
+    if (salaryBankAccountId !== undefined) {
+      if (salaryBankAccountId) {
+        const validSalary = await validateUserAccount({
+          userId: req.session.userId,
+          accountType: 'bank',
+          accountId: salaryBankAccountId
+        });
+        if (!validSalary) {
+          return res.status(400).json({ error: 'salaryBankAccountId is invalid or not owned by user' });
+        }
+      }
+      update.salaryBankAccountId = salaryBankAccountId || null;
+    }
     if (typeof req.body.salaryCreditedDate === 'string') {
       update.salaryCreditedDate = req.body.salaryCreditedDate.trim() || null;
       update.incomeCreditDate = update.salaryCreditedDate;
@@ -374,7 +421,24 @@ monthsRouter.put('/:year/:month', async (req, res) => {
         update.salaryCreditedDate = null;
       }
     }
-    if (Array.isArray(accountOpeningBalances)) update.accountOpeningBalances = accountOpeningBalances;
+    if (Array.isArray(accountOpeningBalances)) {
+      if (accountOpeningBalances.length > 10) {
+        return res.status(400).json({ error: 'accountOpeningBalances cannot exceed 10 accounts per month' });
+      }
+      for (const entry of accountOpeningBalances) {
+        const id = entry.accountId || entry.bankAccountId || entry.walletId;
+        const type = entry.accountType === 'wallet' ? 'wallet' : 'bank';
+        const valid = await validateUserAccount({
+          userId: req.session.userId,
+          accountType: type,
+          accountId: id
+        });
+        if (!valid) {
+          return res.status(400).json({ error: `Account ${id} in accountOpeningBalances is invalid or not owned by user` });
+        }
+      }
+      update.accountOpeningBalances = accountOpeningBalances;
+    }
 
     const month = await Month.findOneAndUpdate(
       { userId: req.session.userId, year, month: monthNum },
@@ -864,35 +928,4 @@ const handleRollover = async (req, res) => {
 monthsRouter.post('/:year/:month/rollover', handleRollover);
 monthsRouter.post('/rollover', handleRollover);
 
-// Delete month and items and transactions
-monthsRouter.delete('/:year/:month', async (req, res) => {
-  try {
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
 
-    const now = new Date();
-    if (year === now.getFullYear() && monthNum === (now.getMonth() + 1)) {
-      return res.status(400).json({ error: 'The current month cannot be deleted' });
-    }
-
-    const month = await Month.findOneAndDelete({
-      userId: req.session.userId,
-      year,
-      month: monthNum
-    });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    await Promise.all([
-      Item.deleteMany({ userId: req.session.userId, monthId: month._id }),
-      Transaction.deleteMany({ userId: req.session.userId, monthId: month._id }),
-      Transfer.deleteMany({ userId: req.session.userId, monthId: month._id })
-    ]);
-
-    return res.json({ message: 'Month deleted successfully' });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to delete month' });
-  }
-});

@@ -12,6 +12,7 @@ import { recommendPurchaseDate } from '@budget/engine';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
+import { validateUserAccount } from '../services/accountValidation.js';
 
 export const transactionsRouter = express.Router();
 transactionsRouter.use(requireAuth);
@@ -146,6 +147,20 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res) =>
 
     if (!resolvedBankAccountId && !resolvedWalletId) {
       return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the transaction' });
+    }
+
+    if (resolvedBankAccountId) {
+      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: resolvedBankAccountId });
+      if (!valid) {
+        return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
+      }
+    }
+
+    if (resolvedWalletId) {
+      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: resolvedWalletId });
+      if (!valid) {
+        return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
+      }
     }
 
     const transaction = await Transaction.create({
