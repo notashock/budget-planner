@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "test": "npm run test:all",
-    "test:engine": "npm run test --workspace=@budget/engine",
+    "test:engine": "vitest run --pool=threads packages/engine",
     "test:server": "npm run test --workspace=@budget/server",
     "test:web": "npm run test --workspace=@budget/web",
     "test:all": "npm run test:engine && npm run test:server && npm run test:web",

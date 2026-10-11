@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run --pool=threads"
   },
   "devDependencies": {
     "vitest": "^3.0.0"
