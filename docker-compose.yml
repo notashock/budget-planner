@@ -9,7 +9,7 @@ services:
       - NODE_ENV=production
       - PORT=${PORT:-4000}
       - MONGODB_URI=mongodb://mongodb:27017/budget_planner
-      - SESSION_SECRET=${SESSION_SECRET:-dev_session_secret_change_in_production}
+      - JWT_SECRET=${JWT_SECRET:-}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     depends_on:
