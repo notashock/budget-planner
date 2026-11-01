@@ -198,7 +198,11 @@ export function CreateMonthModal({
         openingBalance: openingBalance ? Math.round(Number(openingBalance) * 100) : 0,
         incomeAmount: incomeAmount ? Math.round(Number(incomeAmount) * 100) : undefined,
         safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
-        salaryBankAccountId: salaryBankAccountId || undefined,
+        salaryBankAccountId: (
+          bankAccounts.some((b) => String(b._id || b.id) === String(salaryBankAccountId))
+            ? salaryBankAccountId
+            : (bankAccounts.find((b) => b.isPrimary)?._id || bankAccounts[0]?._id || undefined)
+        ),
         isSalaryCredited: false,
         accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
       });

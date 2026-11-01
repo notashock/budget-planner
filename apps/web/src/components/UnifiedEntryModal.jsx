@@ -69,7 +69,7 @@ export function UnifiedEntryModal({
   // --- Income State ---
   const [incAmount, setIncAmount] = useState('');
   const [incDate, setIncDate] = useState('');
-  const [incTag, setIncTag] = useState('Salary');
+  const [incTag, setIncTag] = useState('Bonus');
   const [incNote, setIncNote] = useState('');
   const [incAccountType, setIncAccountType] = useState('bank');
   const [incBankAccountId, setIncBankAccountId] = useState('');
@@ -286,7 +286,7 @@ export function UnifiedEntryModal({
       // Income defaults
       setIncAmount('');
       setIncDate(todayStr);
-      setIncTag('Salary');
+      setIncTag('Bonus');
       setIncNote('');
       const salaryBankId = month?.salaryBankAccountId?._id || month?.salaryBankAccountId;
       if (salaryBankId && bankAccounts.some((b) => (b._id || b.id) === salaryBankId)) {
@@ -1393,7 +1393,7 @@ export function UnifiedEntryModal({
               <div className="form-group">
                 <label className="form-label">Income Category / Source</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].map((t) => (
+                  {['Bonus', 'Freelance', 'Investment', 'Other'].map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -1410,6 +1410,9 @@ export function UnifiedEntryModal({
                     </button>
                   ))}
                 </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
+                  Note: Your primary monthly salary is managed via Link Salary & Safeline. Use this form to record ad-hoc earnings, bonuses, or side income.
+                </span>
               </div>
 
               {/* Date */}

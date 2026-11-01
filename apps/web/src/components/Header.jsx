@@ -335,26 +335,20 @@ export function Header({
                     )}
                   </div>
 
-                  {currentMonth && (() => {
-                    const isSalaryLinkable = !salaryLockStatus.isLocked || !currentMonth.incomeAmount || Number(currentMonth.incomeAmount) <= 0;
-                    return (
-                      <button
-                        type="button"
-                        className="app-dropdown-item"
-                        data-testid="link-salary-safeline-btn"
-                        disabled={!isSalaryLinkable}
-                        style={{ fontSize: '12px', opacity: isSalaryLinkable ? 1 : 0.6 }}
-                        onClick={() => {
-                          if (isSalaryLinkable) {
-                            onOpenSalarySafeline?.();
-                          }
-                        }}
-                      >
-                        {!isSalaryLinkable ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
-                        <span>Link Salary & Safeline</span>
-                      </button>
-                    );
-                  })()}
+                  {currentMonth && (
+                    <button
+                      type="button"
+                      className="app-dropdown-item"
+                      data-testid="link-salary-safeline-btn"
+                      style={{ fontSize: '12px' }}
+                      onClick={() => {
+                        onOpenSalarySafeline?.();
+                      }}
+                    >
+                      {salaryLockStatus.isLocked ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
+                      <span>Link Salary & Safeline</span>
+                    </button>
+                  )}
 
                   <div className="app-dropdown-divider" />
 

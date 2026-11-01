@@ -113,9 +113,13 @@ export function TimelineList({
           const bId = evt.bankAccountId ? String(evt.bankAccountId._id || evt.bankAccountId.id || evt.bankAccountId) : '';
           const wId = evt.walletId ? String(evt.walletId._id || evt.walletId.id || evt.walletId) : '';
           const acctName = accountMap.get(bId || wId);
+          const isSalaryEvt = Boolean(evt.isSalary || evt.itemType === 'salary');
+          const salaryTypeDesc = evt.isActual ? 'salary • credited' : 'salary • planned';
           const baseType = evt.itemType === 'actual-income'
             ? 'income • actual credited'
-            : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
+            : isSalaryEvt
+              ? salaryTypeDesc
+              : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
           transferDetail = acctName ? `${baseType} • ${acctName}` : baseType;
         }
       }
@@ -328,7 +332,9 @@ export function TimelineList({
                       {evt.transferDetail || (
                         evt.itemType === 'actual-income'
                           ? 'income • actual credited'
-                          : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
+                          : (evt.isSalary || evt.itemType === 'salary')
+                            ? (evt.isActual ? 'salary • credited' : 'salary • planned')
+                            : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
                       )}
                     </span>
                   </div>

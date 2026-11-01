@@ -18,16 +18,18 @@ export function SalarySafelineModal({
   const [isSalaryCredited, setIsSalaryCredited] = useState(false);
   const [dateDirty, setDateDirty] = useState(false);
   const [creditedDirty, setCreditedDirty] = useState(false);
-  const [loading, setLoading] = useState(false);
+      const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen && month) {
       loadingRef.current = false;
-      const activeBankId = month.salaryBankAccountId?._id || month.salaryBankAccountId || '';
       const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
-      setSalaryBankAccountId(activeBankId || primaryBank?._id || primaryBank?.id || '');
+      const rawBankId = month.salaryBankAccountId?._id || month.salaryBankAccountId || '';
+      const matchingBank = bankAccounts.find((b) => String(b._id || b.id) === String(rawBankId));
+      const activeBankId = matchingBank ? (matchingBank._id || matchingBank.id) : (primaryBank?._id || primaryBank?.id || '');
+      setSalaryBankAccountId(activeBankId);
       setIncomeAmount(month.incomeAmount ? (month.incomeAmount / 100).toString() : '0');
       setSafetyFloor(month.safetyFloor !== undefined ? (month.safetyFloor / 100).toString() : '0');
       const defaultDate = month.salaryCreditedDate || month.incomeCreditDate || (
@@ -37,7 +39,7 @@ export function SalarySafelineModal({
       setIsSalaryCredited(Boolean(month.isSalaryCredited));
       setDateDirty(false);
       setCreditedDirty(false);
-      setError(null);
+                  setError(null);
     }
   }, [isOpen, month, bankAccounts]);
 
@@ -55,29 +57,36 @@ export function SalarySafelineModal({
   const handleSubmit = async (e, requestClose) => {
     e.preventDefault();
     if (loadingRef.current) return;
-    if (salaryLockStatus.isLocked) {
-      setError(salaryLockStatus.reason || 'Salary logging is currently locked.');
-      return;
-    }
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      const parsedIncome = Math.round(Number(incomeAmount || 0) * 100);
       const parsedSafetyFloor = Math.round(Number(safetyFloor || 0) * 100);
 
-      const payload = {
-        salaryBankAccountId: salaryBankAccountId || null,
-        incomeAmount: parsedIncome,
-        safetyFloor: parsedSafetyFloor
-      };
-      if (dateDirty) {
-        payload.salaryCreditedDate = salaryCreditedDate;
-        payload.incomeCreditDate = salaryCreditedDate;
-      }
-      if (creditedDirty) {
-        payload.isSalaryCredited = isSalaryCredited;
+      let payload;
+      if (salaryLockStatus.isLocked) {
+        payload = {
+          safetyFloor: parsedSafetyFloor
+        };
+      } else {
+        const parsedIncome = Math.round(Number(incomeAmount || 0) * 100);
+        const selectedBankId = salaryBankAccountId
+          ? (typeof salaryBankAccountId === 'object' ? (salaryBankAccountId._id || salaryBankAccountId.id) : String(salaryBankAccountId))
+          : null;
+
+        payload = {
+          salaryBankAccountId: selectedBankId || null,
+          incomeAmount: parsedIncome,
+          safetyFloor: parsedSafetyFloor
+        };
+        if (dateDirty) {
+          payload.salaryCreditedDate = salaryCreditedDate;
+          payload.incomeCreditDate = salaryCreditedDate;
+        }
+        if (creditedDirty) {
+          payload.isSalaryCredited = isSalaryCredited;
+        }
       }
 
       await onSave(payload);
@@ -136,7 +145,28 @@ export function SalarySafelineModal({
             data-testid="salary-lock-banner"
           >
             <LockIcon size={14} />
-            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason}</span>
+            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason} Safeline floor remains editable.</span>
+          </div>
+        )}
+
+        {salaryLockStatus.isMidMonthSetup && !salaryLockStatus.isLocked && (
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius)',
+              background: 'rgba(234, 179, 8, 0.1)',
+              border: '1px solid rgba(234, 179, 8, 0.3)',
+              fontSize: '12px',
+              marginBottom: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: 'var(--text-primary)'
+            }}
+            data-testid="mid-month-warning-banner"
+          >
+            <ShieldAlertIcon size={14} />
+            <span><strong>Notice:</strong> Because today is outside the 10-day rollover window (Day -4 to Day 5), this initial salary setup will lock immediately upon saving until next month-end.</span>
           </div>
         )}
 
@@ -173,6 +203,7 @@ export function SalarySafelineModal({
                 className="input-field"
                 value={salaryBankAccountId}
                 onChange={(e) => setSalaryBankAccountId(e.target.value)}
+                disabled={salaryLockStatus.isLocked}
                 required
               >
                 {bankAccounts.map((b) => (
@@ -198,6 +229,7 @@ export function SalarySafelineModal({
               placeholder="0.00"
               value={incomeAmount}
               onChange={(e) => setIncomeAmount(e.target.value)}
+              disabled={salaryLockStatus.isLocked}
             />
           </div>
 
@@ -229,11 +261,15 @@ export function SalarySafelineModal({
               max={maxDate}
               required
               className="input-field tabular-nums"
+              disabled={salaryLockStatus.isLocked}
               value={salaryCreditedDate}
               onChange={(e) => {
                 setSalaryCreditedDate(e.target.value);
                 setDateDirty(true);
-                if (e.target.value) setIsSalaryCredited(true);
+                if (e.target.value) {
+                  setIsSalaryCredited(true);
+                  setCreditedDirty(true);
+                }
               }}
             />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
@@ -247,11 +283,12 @@ export function SalarySafelineModal({
               id="salary-credited-checkbox"
               type="checkbox"
               checked={isSalaryCredited}
+              disabled={salaryLockStatus.isLocked}
               onChange={(e) => {
                 setIsSalaryCredited(e.target.checked);
                 setCreditedDirty(true);
               }}
-              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              style={{ width: '16px', height: '16px', cursor: salaryLockStatus.isLocked ? 'not-allowed' : 'pointer' }}
             />
             <label htmlFor="salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
               Salary already credited for this month
@@ -270,9 +307,11 @@ export function SalarySafelineModal({
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading || bankAccounts.length === 0 || salaryLockStatus.isLocked}
+              disabled={loading || (!salaryLockStatus.isLocked && bankAccounts.length === 0)}
             >
-              {loading ? 'Saving...' : 'Save Salary & Safeline'}
+              {salaryLockStatus.isLocked
+                ? (loading ? 'Updating...' : 'Update Safeline Floor')
+                : (loading ? 'Saving...' : 'Save Salary & Safeline')}
             </button>
           </div>
         </form>

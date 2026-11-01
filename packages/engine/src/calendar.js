@@ -103,43 +103,16 @@ export function getDateFromRelativeDay(relativeDay, year, monthNum) {
  */
 export function getSalaryWindowStatus(month, currentDate) {
   if (!month || !month.year || !month.month) {
-    return { isLocked: false, isUnconfigured: true, tooltip: 'No active month' };
-  }
-
-  // Initial configuration exemption: if salary is not configured yet (or income is 0), allow setup anytime
-  const isConfigured = Boolean(
-    month.incomeAmount && Number(month.incomeAmount) > 0 &&
-    month.salaryBankAccountId
-  );
-  if (!isConfigured) {
-    return {
-      isLocked: false,
-      isUnconfigured: true,
-      status: 'unconfigured',
-      reason: 'Configure monthly salary',
-      tooltip: 'Configure monthly salary'
-    };
+    return { isLocked: false, isUnconfigured: true, isMidMonthSetup: false, tooltip: 'No active month' };
   }
 
   const year = month.year;
   const monthNum = month.month; // 1-indexed
 
-  let expectedDay = 1;
-  if (month.incomeCreditDay && !isNaN(Number(month.incomeCreditDay))) {
-    expectedDay = Math.max(1, Math.min(31, Number(month.incomeCreditDay)));
-  } else if (month.salaryCreditedDate) {
-    const parts = String(month.salaryCreditedDate).split('-');
-    if (parts.length === 3) expectedDay = parseInt(parts[2], 10) || 1;
-  }
-
-  // Pure UTC / ISO date math to avoid any local timezone drift
-  const expectedDate = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
-
-  const windowStart = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
-  windowStart.setUTCDate(windowStart.getUTCDate() - 5);
-
-  const windowEnd = new Date(Date.UTC(year, monthNum - 1, expectedDay, 23, 59, 59, 999));
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 4);
+  // Strict 10-day rollover window:
+  // 5 days before Day 1 of target month through Day 5 of target month
+  const windowStart = new Date(Date.UTC(year, monthNum - 1, 1 - 5, 0, 0, 0, 0));
+  const windowEnd = new Date(Date.UTC(year, monthNum - 1, 5, 23, 59, 59, 999));
 
   // Parse comparison date
   let now;
@@ -161,7 +134,6 @@ export function getSalaryWindowStatus(month, currentDate) {
 
   const startStr = formatDate(windowStart.getUTCFullYear(), windowStart.getUTCMonth() + 1, windowStart.getUTCDate());
   const endStr = formatDate(windowEnd.getUTCFullYear(), windowEnd.getUTCMonth() + 1, windowEnd.getUTCDate());
-  const expStr = formatDate(expectedDate.getUTCFullYear(), expectedDate.getUTCMonth() + 1, expectedDate.getUTCDate());
 
   const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const formatFriendly = (d) => `${monthsShort[d.getUTCMonth()]} ${d.getUTCDate()}`;
@@ -169,16 +141,39 @@ export function getSalaryWindowStatus(month, currentDate) {
   const friendlyStart = formatFriendly(windowStart);
   const friendlyEnd = formatFriendly(windowEnd);
 
+  // Initial configuration exemption: if salary is not configured yet (or income is 0), allow setup anytime
+  const isConfigured = Boolean(
+    month.incomeAmount && Number(month.incomeAmount) > 0 &&
+    month.salaryBankAccountId
+  );
+
+  if (!isConfigured) {
+    const isMidMonthSetup = now.getTime() > windowEnd.getTime();
+    const tooltip = isMidMonthSetup
+      ? `Configure monthly salary (mid-month setup will lock immediately until next month-end)`
+      : `Configure monthly salary`;
+    return {
+      isLocked: false,
+      isUnconfigured: true,
+      isMidMonthSetup,
+      status: 'unconfigured',
+      reason: tooltip,
+      windowStartDate: startStr,
+      windowEndDate: endStr,
+      tooltip
+    };
+  }
+
   if (now.getTime() < windowStart.getTime()) {
-    const tooltip = `Unlocks on ${friendlyStart} — 5 days before expected salary credit`;
+    const tooltip = `Unlocks on ${friendlyStart} — 5 days before month start`;
     return {
       isLocked: true,
       isUnconfigured: false,
+      isMidMonthSetup: false,
       status: 'before_window',
       reason: tooltip,
       windowStartDate: startStr,
       windowEndDate: endStr,
-      expectedDate: expStr,
       tooltip
     };
   }
@@ -188,11 +183,11 @@ export function getSalaryWindowStatus(month, currentDate) {
     return {
       isLocked: true,
       isUnconfigured: false,
+      isMidMonthSetup: false,
       status: 'after_window',
       reason: tooltip,
       windowStartDate: startStr,
       windowEndDate: endStr,
-      expectedDate: expStr,
       tooltip
     };
   }
@@ -201,11 +196,11 @@ export function getSalaryWindowStatus(month, currentDate) {
   return {
     isLocked: false,
     isUnconfigured: false,
+    isMidMonthSetup: false,
     status: 'in_window',
     reason: tooltip,
     windowStartDate: startStr,
     windowEndDate: endStr,
-    expectedDate: expStr,
     tooltip
   };
 }
