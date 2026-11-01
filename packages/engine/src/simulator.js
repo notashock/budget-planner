@@ -167,7 +167,10 @@ export function simulate(
   const isSalaryMarkedCredited = Boolean(settings.isSalaryCredited || month.isSalaryCredited);
   const salaryTx = (transactions || []).find((tx) => {
     if (tx.isSalary) return true;
-    if (tx.isIncome && (String(tx.tag || '').toLowerCase() === 'salary' || String(tx.note || '').toLowerCase().includes('salary'))) return true;
+    if (settings.salaryTransactionId && String(tx._id || tx.id) === String(settings.salaryTransactionId)) return true;
+    if (month?.salaryTransactionId && String(tx._id || tx.id) === String(month.salaryTransactionId)) return true;
+    if (tx.isIncome && String(tx.note || '').toLowerCase() === 'monthly salary') return true;
+    if (tx.isIncome && String(tx.tag || '').toLowerCase() === 'salary' && incomeAmount > 0 && Math.round(Number(tx.amount)) === incomeAmount) return true;
     return false;
   });
 
@@ -179,7 +182,9 @@ export function simulate(
   if (effectiveSalaryAmount > 0) {
     let incomeDay = 1;
     let incomeDate = formatDate(year, monthNum, 1);
-    let incomeLabel = 'Income';
+    const hasSalaryContext = Boolean(salaryBankAccountId || settings.salaryCreditedDate || settings.incomeCreditDate || isSalaryMarkedCredited || salaryTx);
+    const defaultSalaryLabel = hasSalaryContext ? 'Salary' : 'Income';
+    let incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
     const isActualSalary = Boolean(salaryTx || isSalaryMarkedCredited);
 
     if (salaryTx) {
@@ -191,7 +196,7 @@ export function simulate(
       incomeDate = settings.salaryCreditedDate.trim();
       const relDay = getRelativeDay(incomeDate, year, monthNum);
       incomeDay = relDay > 0 ? clampDayToMonth(relDay, daysInMonth) : relDay;
-      incomeLabel = relDay <= 0 ? `Salary (credited ${incomeDate})` : (isSalaryMarkedCredited ? 'Salary (Credited)' : 'Income');
+      incomeLabel = relDay <= 0 ? `Salary (credited ${incomeDate})` : (isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel);
     } else if (settings.incomeCreditDate && typeof settings.incomeCreditDate === 'string' && settings.incomeCreditDate.trim()) {
       const parsedDate = settings.incomeCreditDate.trim();
       const firstOfMonth = formatDate(year, monthNum, 1);
@@ -202,18 +207,18 @@ export function simulate(
       } else if (parsedDate === firstOfMonth) {
         incomeDay = 1;
         incomeDate = firstOfMonth;
-        incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : 'Income';
+        incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
       } else {
         const parts = parsedDate.split('-');
         const parsedD = parseInt(parts[2], 10);
         incomeDay = clampDayToMonth(isNaN(parsedD) ? 1 : parsedD, daysInMonth);
         incomeDate = formatDate(year, monthNum, incomeDay);
-        incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : 'Income';
+        incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
       }
     } else {
       incomeDay = clampDayToMonth(incomeCreditDay, daysInMonth);
       incomeDate = formatDate(year, monthNum, incomeDay);
-      if (isSalaryMarkedCredited) incomeLabel = 'Salary (Credited)';
+      incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
     }
 
     const salaryBankTarget = salaryTx?.bankAccountId
@@ -227,7 +232,7 @@ export function simulate(
       amount: effectiveSalaryAmount,
       priority: -Infinity,
       sourceIndex: -1,
-      itemType: 'income',
+      itemType: 'salary',
       isActual: isActualSalary,
       isSalary: true,
       transactionId: salaryTx ? (salaryTx.id || salaryTx._id || null) : null,
@@ -659,7 +664,7 @@ export function simulate(
       destinationAccountBalanceAfter,
       itemType: evt.itemType,
       isSalary: Boolean(evt.isSalary),
-      isIncome: Boolean(evt.isIncome || (evt.amount > 0 && evt.itemType === 'income')),
+      isIncome: Boolean(evt.isIncome || (evt.amount > 0 && (evt.itemType === 'income' || evt.itemType === 'salary'))),
       isFixed: evt.isFixed,
       isPaid: evt.isPaid,
       isPending: evt.isPending,
@@ -907,7 +912,7 @@ export function simulate(
       const isTransferSrc = matchesThisAcc(sBank) || matchesThisAcc(sWall);
       const isTransferDst = matchesThisAcc(dBank) || matchesThisAcc(dWall);
 
-      const isSalaryTarget = (evt.isSalary || evt.itemType === 'income') && isDesignatedSalaryBank;
+      const isSalaryTarget = (evt.isSalary || evt.itemType === 'income' || evt.itemType === 'salary') && isDesignatedSalaryBank;
       const isUnassignedExpense = (!evtBank || accountRunningBalances[evtBank] === undefined) &&
                                   (!evtWall || accountRunningBalances[evtWall] === undefined) &&
                                   !sBank && !sWall && isDesignatedSalaryBank;

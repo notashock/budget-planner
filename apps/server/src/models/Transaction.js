@@ -62,6 +62,11 @@ const transactionSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    // If true, marks the primary monthly salary deposit transaction
+    isSalary: {
+      type: Boolean,
+      default: false
+    },
     // Links to a Paired Account Transfer if generated from a transfer
     transferId: {
       type: mongoose.Schema.Types.ObjectId,

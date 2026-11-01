@@ -69,7 +69,7 @@ export function UnifiedEntryModal({
   // --- Income State ---
   const [incAmount, setIncAmount] = useState('');
   const [incDate, setIncDate] = useState('');
-  const [incTag, setIncTag] = useState('Salary');
+  const [incTag, setIncTag] = useState('Bonus');
   const [incNote, setIncNote] = useState('');
   const [incAccountType, setIncAccountType] = useState('bank');
   const [incBankAccountId, setIncBankAccountId] = useState('');
@@ -286,7 +286,7 @@ export function UnifiedEntryModal({
       // Income defaults
       setIncAmount('');
       setIncDate(todayStr);
-      setIncTag('Salary');
+      setIncTag('Bonus');
       setIncNote('');
       const salaryBankId = month?.salaryBankAccountId?._id || month?.salaryBankAccountId;
       if (salaryBankId && bankAccounts.some((b) => (b._id || b.id) === salaryBankId)) {

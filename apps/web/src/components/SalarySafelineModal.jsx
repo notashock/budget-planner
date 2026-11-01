@@ -18,7 +18,7 @@ export function SalarySafelineModal({
   const [isSalaryCredited, setIsSalaryCredited] = useState(false);
   const [dateDirty, setDateDirty] = useState(false);
   const [creditedDirty, setCreditedDirty] = useState(false);
-  const [loading, setLoading] = useState(false);
+      const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
   const [error, setError] = useState(null);
 
@@ -37,7 +37,7 @@ export function SalarySafelineModal({
       setIsSalaryCredited(Boolean(month.isSalaryCredited));
       setDateDirty(false);
       setCreditedDirty(false);
-      setError(null);
+                  setError(null);
     }
   }, [isOpen, month, bankAccounts]);
 
@@ -79,7 +79,6 @@ export function SalarySafelineModal({
       if (creditedDirty) {
         payload.isSalaryCredited = isSalaryCredited;
       }
-
       await onSave(payload);
       if (typeof onClose === 'function') {
         onClose();
@@ -233,7 +232,10 @@ export function SalarySafelineModal({
               onChange={(e) => {
                 setSalaryCreditedDate(e.target.value);
                 setDateDirty(true);
-                if (e.target.value) setIsSalaryCredited(true);
+                if (e.target.value) {
+                  setIsSalaryCredited(true);
+                  setCreditedDirty(true);
+                }
               }}
             />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>

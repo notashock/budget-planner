@@ -589,7 +589,8 @@ monthsRouter.post('/:year/:month/credit-salary', async (req, res) => {
       monthId: month._id,
       $or: [
         { isSalary: true },
-        { tag: 'Salary' }
+        { note: 'Monthly Salary' },
+        { tag: 'Salary', amount: salaryAmt }
       ]
     });
 
@@ -603,7 +604,8 @@ monthsRouter.post('/:year/:month/credit-salary', async (req, res) => {
         tag: 'Salary',
         accountType: 'bank',
         bankAccountId: targetBank ? targetBank._id : null,
-        isIncome: true
+        isIncome: true,
+        isSalary: true
       });
       await salaryTx.save();
     }

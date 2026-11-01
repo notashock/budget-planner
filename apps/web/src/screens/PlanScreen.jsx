@@ -446,9 +446,13 @@ export function PlanScreen({
             lowestDate={isFilteringAccount ? (activeAccountSummary?.lowestDate || activeLowestPt.date) : (simulation?.lowestDate || activeLowestPt.date)}
             safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
-            isSalaryCredited={isSalaryAccount ? Boolean(activeAccountSummary?.isSalaryCredited) : false}
-            salaryCreditedDate={isSalaryAccount ? (activeAccountSummary?.salaryCreditedDate || null) : null}
-            canEditSalary={isSalaryAccount}
+            isSalaryCredited={isSalaryAccount
+              ? Boolean(activeAccountSummary?.isSalaryCredited)
+              : Boolean(simulation?.isSalaryCredited || month?.isSalaryCredited)}
+            salaryCreditedDate={isSalaryAccount
+              ? (activeAccountSummary?.salaryCreditedDate || null)
+              : (simulation?.salaryCreditedDate || month?.salaryCreditedDate || month?.incomeCreditDate || null)}
+            canEditSalary={isSalaryAccount || !isFilteringAccount}
             month={month}
           />
         </div>
