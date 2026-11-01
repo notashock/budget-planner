@@ -8,7 +8,7 @@ import { Wallet } from '../models/Wallet.js';
 import { Transfer } from '../models/Transfer.js';
 import { Goal } from '../models/Goal.js';
 import { requireAuth } from '../middleware/auth.js';
-import { simulate, recommendPurchaseDate } from '@budget/engine';
+import { simulate, recommendPurchaseDate, getSalaryWindowStatus } from '@budget/engine';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 
@@ -438,6 +438,30 @@ monthsRouter.put('/:year/:month', async (req, res) => {
         }
       }
       update.accountOpeningBalances = accountOpeningBalances;
+    }
+
+    const existingMonth = await Month.findOne({ userId: req.session.userId, year, month: monthNum });
+    if (!existingMonth) {
+      return res.status(404).json({ error: 'Month not found' });
+    }
+
+    const mutatingSalary = (
+      (typeof incomeAmount === 'number' && incomeAmount !== existingMonth.incomeAmount) ||
+      (salaryBankAccountId !== undefined && String(salaryBankAccountId || '') !== String(existingMonth.salaryBankAccountId || '')) ||
+      (typeof req.body.salaryCreditedDate === 'string' && req.body.salaryCreditedDate.trim() !== (existingMonth.salaryCreditedDate || '')) ||
+      (typeof req.body.isSalaryCredited === 'boolean' && req.body.isSalaryCredited !== Boolean(existingMonth.isSalaryCredited))
+    );
+
+    if (mutatingSalary) {
+      const windowStatus = getSalaryWindowStatus(existingMonth);
+      if (windowStatus.isLocked) {
+        return res.status(403).json({
+          error: 'Salary modification is locked outside the 10-day rollover window.',
+          reason: windowStatus.reason,
+          windowStartDate: windowStatus.windowStartDate,
+          windowEndDate: windowStatus.windowEndDate
+        });
+      }
     }
 
     const month = await Month.findOneAndUpdate(

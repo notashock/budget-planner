@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DetailedKpiGrid } from '../components/SummaryCards.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { SalarySafelineModal } from '../components/SalarySafelineModal.jsx';
+import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 import { simulate } from '@budget/engine';
 
 describe('Salary Linking and Income Logging Integration', () => {
@@ -146,5 +147,112 @@ describe('Salary Linking and Income Logging Integration', () => {
       });
       expect(handleClose).toHaveBeenCalled();
     });
+  });
+  it('allows editing safeline floor while locking salary fields when outside 10-day window', async () => {
+    // Month 9 of 2026 is completely past and locked on 2026-11-01
+    const lockedMonth = {
+      ...mockMonth,
+      _id: 'month-locked',
+      year: 2026,
+      month: 9
+    };
+
+    const handleSave = vi.fn().mockResolvedValue({});
+    const handleClose = vi.fn();
+
+    render(
+      <SalarySafelineModal
+        isOpen={true}
+        onClose={handleClose}
+        month={lockedMonth}
+        bankAccounts={[mockBank]}
+        currencySymbol="₹"
+        onSave={handleSave}
+      />
+    );
+
+    // Verify lock banner
+    expect(screen.getByTestId('salary-lock-banner')).toBeInTheDocument();
+    expect(screen.getByText(/safeline floor remains editable/i)).toBeInTheDocument();
+
+    // Verify salary fields are disabled
+    expect(screen.getByLabelText(/salary credited account/i)).toBeDisabled();
+    expect(screen.getByLabelText(/monthly salary amount/i)).toBeDisabled();
+    expect(screen.getByLabelText(/date of salary credit/i)).toBeDisabled();
+    expect(screen.getByLabelText(/salary already credited for this month/i)).toBeDisabled();
+
+    // Verify safeline floor input is enabled
+    const safelineInput = screen.getByLabelText(/overall safeline floor/i);
+    expect(safelineInput).toBeEnabled();
+
+    // Verify submit button label
+    const submitBtn = screen.getByRole('button', { name: /update safeline floor/i });
+    expect(submitBtn).toBeEnabled();
+
+    // Edit safeline floor and submit
+    fireEvent.change(safelineInput, { target: { value: '8000' } });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith({
+        safetyFloor: 800000
+      });
+      expect(handleClose).toHaveBeenCalled();
+    });
+  });
+
+  it('displays mid-month notice when creating/configuring salary mid-month for unconfigured month', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-15T12:00:00Z'));
+
+    const unconfiguredMonth = {
+      _id: 'month-unconfigured',
+      year: 2026,
+      month: 11,
+      incomeAmount: 0,
+      salaryBankAccountId: null,
+      safetyFloor: 0
+    };
+
+    render(
+      <SalarySafelineModal
+        isOpen={true}
+        onClose={vi.fn()}
+        month={unconfiguredMonth}
+        bankAccounts={[mockBank]}
+        currencySymbol="₹"
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('mid-month-warning-banner')).toBeInTheDocument();
+    expect(screen.getByText(/this initial salary setup will lock immediately upon saving until next month-end/i)).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('excludes Salary from ad-hoc income categories and renders link salary guidance in UnifiedEntryModal', () => {
+    render(
+      <UnifiedEntryModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentMonth={mockMonth}
+        bankAccounts={[mockBank]}
+        wallets={[]}
+        plannedItems={[]}
+        currencySymbol="₹"
+        initialMode="income"
+      />
+    );
+
+    // Verify category buttons
+    expect(screen.getByRole('button', { name: 'Bonus' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Freelance' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Investment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Other' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salary' })).not.toBeInTheDocument();
+
+    // Verify sole truth helper guidance text
+    expect(screen.getByText(/your primary monthly salary is managed via link salary & safeline/i)).toBeInTheDocument();
   });
 });
