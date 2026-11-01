@@ -24,12 +24,22 @@ const itemSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    category: {
+      type: String,
+      trim: true,
+      default: 'General'
+    },
     priority: {
       type: Number,
       default: 0
     },
     // If true, automatically carries forward to the next month on rollover
     isFixed: {
+      type: Boolean,
+      default: false
+    },
+    // If true, represents an income item rather than an expense
+    isIncome: {
       type: Boolean,
       default: false
     },

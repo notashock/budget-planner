@@ -96,7 +96,14 @@ export function recommendPurchaseDate(
 
   // Pipeline Step 2: Analyse spending velocity / daily burn rate from logged transactions
   const unexpectedSpend = (transactions || [])
-    .filter((tx) => !tx.plannedItemId && !tx.isIncome && Number(tx.amount) > 0)
+    .filter((tx) => {
+      if (tx.isIncome) return false;
+      if (Number(tx.amount) <= 0) return false;
+      if (tx.status && tx.status !== 'successful') return false;
+      if (tx.origin === 'spot') return true;
+      if (!tx.plannedItemId && tx.origin !== 'planned' && tx.origin !== 'goal') return true;
+      return false;
+    })
     .reduce((sum, tx) => sum + Math.round(Number(tx.amount)), 0);
 
   const daysPassed = Math.max(1, currentDay);
@@ -114,19 +121,22 @@ export function recommendPurchaseDate(
   const heavyBillDays = new Set();
   const dailyPlannedLoad = {};
   items.forEach((item) => {
+    if (item.status && item.status !== 'planned') return;
     let d = 1;
-    if (item.type === 'recurring' || item.isFixed) {
+    if (item.date || item.plannedDate) {
+      const parts = (item.plannedDate || item.date).split('-');
+      if (parts.length === 3) {
+        d = clampDayToMonth(parseInt(parts[2], 10), daysInMonth);
+      }
+    } else if (item.type === 'recurring' || item.isFixed || item.dayOfMonth) {
       d = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
-      if (d >= currentDay && Math.round(item.amount ?? 0) >= heavyBillThreshold) {
-        heavyBillDays.add(d);
-      }
-    } else if (item.type === 'one-time') {
+    } else {
       d = clampDayToMonth(item.day ?? 1, daysInMonth);
-      if (d >= currentDay && Math.round(item.amount ?? 0) >= heavyBillThreshold) {
-        heavyBillDays.add(d);
-      }
     }
-    const amt = Math.round(item.amount ?? 0);
+    const amt = Math.round(item.plannedAmount ?? item.amount ?? 0);
+    if (d >= currentDay && amt >= heavyBillThreshold) {
+      heavyBillDays.add(d);
+    }
     dailyPlannedLoad[d] = (dailyPlannedLoad[d] || 0) + amt;
   });
 

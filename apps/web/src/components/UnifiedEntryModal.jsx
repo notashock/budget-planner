@@ -18,7 +18,8 @@ import {
   ArrowRightLeftIcon,
   BuildingLibraryIcon,
   WalletIcon,
-  TrendingUpIcon
+  TrendingUpIcon,
+  XIcon
 } from './Icons.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { DatePicker } from './DatePicker.jsx';
@@ -774,6 +775,7 @@ export function UnifiedEntryModal({
       name: itemName.trim(),
       priority: Number(priority) || 0,
       isPaid,
+      isFixed,
       accountType: itemAccountType,
       bankAccountId: itemAccountType === 'bank' ? itemBankAccountId : null,
       walletId: itemAccountType === 'wallet' ? itemWalletId : null
@@ -787,7 +789,6 @@ export function UnifiedEntryModal({
     } else if (itemType === 'recurring') {
       payload.amount = Math.round(Number(itemAmount || 0) * 100);
       payload.dayOfMonth = Number(dayOfMonth) || 1;
-      payload.isFixed = isFixed;
     }
 
     isSubmittingRef.current = true;
@@ -911,8 +912,8 @@ export function UnifiedEntryModal({
                     type="button"
                     className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
                     onClick={() => handleSwitchMode('plan')}
-                    aria-label="Plan Budget Item"
-                    title="Plan Budget Item"
+                    aria-label="Plan Transaction"
+                    title="Plan Transaction"
                     style={{ flex: 1, justifyContent: 'center' }}
                   >
                     <PlusIcon size={14} />
@@ -934,7 +935,7 @@ export function UnifiedEntryModal({
               )}
               {initialItem && (
                 <span style={{ fontSize: '13px', fontWeight: 600, padding: '4px 8px' }}>
-                  Edit Planned Item
+                  Edit Planned Transaction
                 </span>
               )}
             </div>
@@ -944,9 +945,9 @@ export function UnifiedEntryModal({
               onClick={() => triggerExit()}
               title="Close modal"
               aria-label="Close"
-              style={{ fontSize: '13px', width: '28px', height: '28px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
+              style={{ width: '28px', height: '28px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}
             >
-              ✕
+              <XIcon size={14} />
             </button>
           </div>
 
@@ -1461,9 +1462,9 @@ export function UnifiedEntryModal({
               onSubmit={handleItemSubmit}
               style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
             >
-              {/* Item Type Switcher: 2-way toggle */}
+              {/* Transaction Type Switcher: 2-way toggle */}
               <div className="form-group">
-                <label className="form-label">Item type</label>
+                <label className="form-label">Type</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
                   {[
                     { id: 'one-time', label: 'One-Time' },
@@ -1550,7 +1551,7 @@ export function UnifiedEntryModal({
                     Bank Account Required
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    You must register a bank account before scheduling planned items.
+                    You must register a bank account before scheduling planned transactions.
                   </div>
                   <button
                     type="button"
@@ -1671,29 +1672,38 @@ export function UnifiedEntryModal({
                       onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
                     />
                   </div>
-
-                  <div
-                    style={{
-                      padding: '10px 12px',
-                      background: isFixed ? 'var(--surface)' : 'var(--surface-subtle)',
-                      borderRadius: 'var(--radius)',
-                      border: isFixed ? '1px solid var(--text)' : '1px solid var(--border)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={isFixed}
-                        onChange={(e) => setIsFixed(e.target.checked)}
-                      />
-                      <span style={{ fontSize: '13px', fontWeight: 500 }}>
-                        Fixed recurring (auto-carry forward on month rollover)
-                      </span>
-                    </label>
-                  </div>
                 </>
               )}
+
+              {/* Variable or Fixed Expense Toggle Switch */}
+              <div
+                style={{
+                  padding: '10px 12px',
+                  background: isFixed ? 'var(--surface)' : 'var(--surface-subtle)',
+                  borderRadius: 'var(--radius)',
+                  border: isFixed ? '1px solid var(--text)' : '1px solid var(--border)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', margin: 0 }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                      {isFixed ? 'Fixed expense (auto-carry forward)' : 'Variable expense (flexible)'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {isFixed
+                        ? 'Carries forward to next month automatically on rollover.'
+                        : 'Flexible variable expense specific to this cycle.'}
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isFixed}
+                    onChange={(e) => setIsFixed(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
 
               {/* Modal Footer with Payment Status on Left Corner and Actions on Right */}
               <div
@@ -1742,7 +1752,7 @@ export function UnifiedEntryModal({
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Saving...')
-                      : (initialItem ? 'Update planned item' : 'Save planned item')}
+                      : (initialItem ? 'Update planned transaction' : 'Save planned transaction')}
                   </button>
                 </div>
               </div>

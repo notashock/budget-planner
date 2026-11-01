@@ -1,378 +1,119 @@
 import express from 'express';
-import { Month } from '../models/Month.js';
-import { Goal } from '../models/Goal.js';
-import { Item } from '../models/Item.js';
-import { Transaction } from '../models/Transaction.js';
-import { BankAccount } from '../models/BankAccount.js';
-import { Wallet } from '../models/Wallet.js';
-import { Transfer } from '../models/Transfer.js';
 import { requireAuth } from '../middleware/auth.js';
-import { recommendPurchaseDate, evaluateGoalsWithReservation } from '@budget/engine';
+import { BudgetExecution } from '../domain/budgetExecution.js';
 
 export const goalsRouter = express.Router();
 goalsRouter.use(requireAuth);
 
 // GET /api/months/:year/:month/goals
-goalsRouter.get('/months/:year/:month/goals', async (req, res) => {
+goalsRouter.get('/months/:year/:month/goals', async (req, res, next) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
-    });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    const [goals, items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
-      Goal.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
-      Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id }),
-      Transfer.find({ userId: req.session.userId, monthId: month._id }),
-      BankAccount.find({ userId: req.session.userId, isArchived: false }),
-      Wallet.find({ userId: req.session.userId, isArchived: false })
-    ]);
-
-    const now = new Date();
-    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : 0;
-
-    const evaluatedGoals = evaluateGoalsWithReservation({
-      settings: {
-        openingBalance: month.openingBalance,
-        incomeAmount: month.incomeAmount,
-        incomeCreditDate: month.incomeCreditDate,
-        incomeCreditDay: month.incomeCreditDay,
-        safetyFloor: month.safetyFloor,
-        unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay,
-        scale: 100
-      },
-      items,
-      month: { year, month: monthNum },
-      goals,
-      transactions,
-      transfers,
-      accounts: [...bankAccounts, ...wallets]
-    });
-
-    return res.json(evaluatedGoals);
+    const evaluatedGoals = await BudgetExecution.listGoals(userId, year, monthNum);
+    return res.success(evaluatedGoals);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch goals' });
+    next(err);
   }
 });
 
 // POST /api/months/:year/:month/goals
-goalsRouter.post('/months/:year/:month/goals', async (req, res) => {
+goalsRouter.post('/months/:year/:month/goals', async (req, res, next) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { name, targetAmount, priority = 0, fundingSourceType, fundingBankAccountId, fundingWalletId } = req.body;
-
-    if (!name || !targetAmount || typeof Number(targetAmount) !== 'number') {
-      return res.status(400).json({ error: 'Valid goal name and target amount required' });
-    }
-
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
-    });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    let fType = fundingSourceType;
-    let fBankId = fundingBankAccountId;
-    let fWalletId = fundingWalletId;
-
-    if (!fBankId && !fWalletId) {
-      const primaryBank = await BankAccount.findOne({ userId: req.session.userId, isPrimary: true, isArchived: false })
-        || await BankAccount.findOne({ userId: req.session.userId, isArchived: false });
-      if (primaryBank) {
-        fType = 'bank';
-        fBankId = primaryBank._id;
-      } else {
-        const firstWallet = await Wallet.findOne({ userId: req.session.userId, isArchived: false });
-        if (firstWallet) {
-          fType = 'wallet';
-          fWalletId = firstWallet._id;
-        }
-      }
-    }
-
-    const parsedPriority = [0, 1, 2].includes(Number(priority)) ? Number(priority) : 0;
-
-    const goal = await Goal.create({
-      userId: req.session.userId,
-      monthId: month._id,
-      name: name.trim(),
-      targetAmount: Math.round(Number(targetAmount)),
-      priority: parsedPriority,
-      status: 'active',
-      fundingSourceType: fType || null,
-      fundingBankAccountId: fBankId || null,
-      fundingWalletId: fWalletId || null
-    });
-
-    // Evaluate recommendation sequentially with other goals
-    const [allGoals, items, transactions, transfers, bankAccounts, wallets] = await Promise.all([
-      Goal.find({ userId: req.session.userId, monthId: month._id }).sort({ priority: 1, createdAt: 1 }),
-      Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id }),
-      Transfer.find({ userId: req.session.userId, monthId: month._id }),
-      BankAccount.find({ userId: req.session.userId, isArchived: false }),
-      Wallet.find({ userId: req.session.userId, isArchived: false })
-    ]);
-
-    const now = new Date();
-    const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : 0;
-
-    const evaluatedGoals = evaluateGoalsWithReservation({
-      settings: {
-        openingBalance: month.openingBalance,
-        incomeAmount: month.incomeAmount,
-        incomeCreditDate: month.incomeCreditDate,
-        incomeCreditDay: month.incomeCreditDay,
-        safetyFloor: month.safetyFloor,
-        unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay,
-        scale: 100
-      },
-      items,
-      month: { year, month: monthNum },
-      goals: allGoals,
-      transactions,
-      transfers,
-      accounts: [...bankAccounts, ...wallets]
-    });
-
-    const targetGoal = evaluatedGoals.find((g) => String(g._id || g.id) === String(goal._id)) || {
-      ...goal.toObject(),
-      recommendation: null
-    };
-
-    return res.status(201).json(targetGoal);
+    const goal = await BudgetExecution.createGoal(userId, year, monthNum, req.body);
+    return res.success(goal, 201);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to create goal' });
+    next(err);
   }
 });
 
-// POST /api/goals/:id/convert-to-item (1-tap convert goal into planned item)
-goalsRouter.post('/goals/:id/convert-to-item', async (req, res) => {
+// POST /api/goals/:id/schedule
+goalsRouter.post('/goals/:id/schedule', async (req, res, next) => {
   try {
-    const goal = await Goal.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!goal) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    const month = await Month.findById(goal.monthId);
-    if (!month) {
-      return res.status(404).json({ error: 'Associated month not found' });
-    }
-
-    const [items, transactions] = await Promise.all([
-      Item.find({ userId: req.session.userId, monthId: month._id }),
-      Transaction.find({ userId: req.session.userId, monthId: month._id })
-    ]);
-
-    const now = new Date();
-    const isCurrentMonth = Number(month.year) === now.getFullYear() && Number(month.month) === (now.getMonth() + 1);
-    const currentDay = isCurrentMonth ? now.getDate() : 0;
-
-    const recommendation = recommendPurchaseDate(
-      {
-        openingBalance: month.openingBalance,
-        incomeAmount: month.incomeAmount,
-        incomeCreditDate: month.incomeCreditDate,
-        incomeCreditDay: month.incomeCreditDay,
-        safetyFloor: month.safetyFloor,
-        unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay,
-        scale: 100
-      },
-      items,
-      { year: month.year, month: month.month },
-      goal.targetAmount,
-      transactions
-    );
-
-    const targetDay = recommendation.recommendedDay || 1;
-
-    let accountType = goal.fundingSourceType || 'bank';
-    let bankAccountId = goal.fundingBankAccountId;
-    let walletId = goal.fundingWalletId;
-
-    if (!bankAccountId && !walletId) {
-      const primaryBank = await BankAccount.findOne({ userId: req.session.userId, isPrimary: true, isArchived: false })
-        || await BankAccount.findOne({ userId: req.session.userId, isArchived: false });
-      if (primaryBank) {
-        accountType = 'bank';
-        bankAccountId = primaryBank._id;
-      } else {
-        const firstWallet = await Wallet.findOne({ userId: req.session.userId, isArchived: false });
-        if (firstWallet) {
-          accountType = 'wallet';
-          walletId = firstWallet._id;
-        }
-      }
-    }
-
-    // Create scheduled one-time item
-    const item = await Item.create({
-      userId: req.session.userId,
-      monthId: month._id,
-      type: 'one-time',
-      name: goal.name,
-      amount: goal.targetAmount,
-      day: targetDay,
-      priority: goal.priority ?? 0,
-      accountType,
-      bankAccountId: bankAccountId || undefined,
-      walletId: walletId || undefined
-    });
-
-    goal.status = 'scheduled';
-    await goal.save();
-
-    return res.status(201).json({ item, goal });
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const result = await BudgetExecution.scheduleGoal(userId, goalId, req.body);
+    return res.success(result, 201);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to convert goal to item' });
+    next(err);
   }
 });
 
-// PUT /api/goals/:id (Update goal priority, name, or funding source)
-goalsRouter.put('/goals/:id', async (req, res) => {
+// POST /api/goals/:id/convert-to-item (Legacy alias)
+goalsRouter.post('/goals/:id/convert-to-item', async (req, res, next) => {
   try {
-    const goal = await Goal.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!goal) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    if (req.body.name !== undefined) goal.name = String(req.body.name).trim();
-    if (req.body.targetAmount !== undefined) goal.targetAmount = Math.round(Number(req.body.targetAmount));
-    if (req.body.priority !== undefined && [0, 1, 2].includes(Number(req.body.priority))) {
-      goal.priority = Number(req.body.priority);
-    }
-    if (req.body.fundingSourceType !== undefined) goal.fundingSourceType = req.body.fundingSourceType;
-    if (req.body.fundingBankAccountId !== undefined) goal.fundingBankAccountId = req.body.fundingBankAccountId;
-    if (req.body.fundingWalletId !== undefined) goal.fundingWalletId = req.body.fundingWalletId;
-
-    await goal.save();
-    return res.json(goal);
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const result = await BudgetExecution.scheduleGoal(userId, goalId, req.body);
+    return res.success(result, 201);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to update goal' });
+    next(err);
   }
 });
 
-// POST /api/goals/:id/defer (Defer goal to next month)
-goalsRouter.post('/goals/:id/defer', async (req, res) => {
+// PUT /api/goals/:id
+goalsRouter.put('/goals/:id', async (req, res, next) => {
   try {
-    const goal = await Goal.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!goal) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    const currentMonth = await Month.findById(goal.monthId);
-    if (!currentMonth) {
-      return res.status(404).json({ error: 'Current month not found' });
-    }
-
-    let nextYear = currentMonth.year;
-    let nextMonthNum = currentMonth.month + 1;
-    if (nextMonthNum > 12) {
-      nextMonthNum = 1;
-      nextYear += 1;
-    }
-
-    let nextMonth = await Month.findOne({
-      userId: req.session.userId,
-      year: nextYear,
-      month: nextMonthNum
-    });
-
-    if (!nextMonth) {
-      nextMonth = await Month.create({
-        userId: req.session.userId,
-        year: nextYear,
-        month: nextMonthNum,
-        openingBalance: 0,
-        incomeAmount: 0,
-        incomeCreditDay: null,
-        incomeCreditDate: null,
-        salaryBankAccountId: null,
-        isSalaryCredited: false,
-        salaryCreditedDate: null,
-        safetyFloor: currentMonth.safetyFloor,
-        unplannedAllowance: 0,
-        currencySymbol: currentMonth.currencySymbol
-      });
-    }
-
-    goal.monthId = nextMonth._id;
-    goal.status = 'deferred';
-    await goal.save();
-
-    return res.json({ message: 'Goal deferred to next month', goal, nextMonth });
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const updated = await BudgetExecution.updateGoal(userId, goalId, req.body);
+    return res.success(updated);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to defer goal' });
+    next(err);
   }
 });
 
-// POST /api/goals/:id/reactivate (Reactivate deferred goal)
-goalsRouter.post('/goals/:id/reactivate', async (req, res) => {
+// POST /api/goals/:id/defer
+goalsRouter.post('/goals/:id/defer', async (req, res, next) => {
   try {
-    const goal = await Goal.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!goal) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    goal.status = 'active';
-    goal.deferredReason = null;
-    await goal.save();
-
-    return res.json({ message: 'Goal reactivated successfully', goal });
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const result = await BudgetExecution.deferGoal(userId, goalId);
+    return res.success(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to reactivate goal' });
+    next(err);
+  }
+});
+
+// POST /api/goals/:id/reactivate
+goalsRouter.post('/goals/:id/reactivate', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const result = await BudgetExecution.reactivateGoal(userId, goalId);
+    return res.success(result);
+  } catch (err) {
+    next(err);
   }
 });
 
 // DELETE /api/goals/:id
-goalsRouter.delete('/goals/:id', async (req, res) => {
+goalsRouter.delete('/goals/:id', async (req, res, next) => {
   try {
-    const goal = await Goal.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!goal) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    return res.json({ message: 'Goal deleted successfully' });
+    const userId = req.userId || req.session?.userId;
+    const goalId = req.params.id;
+    const result = await BudgetExecution.deleteGoal(userId, goalId);
+    return res.success(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to delete goal' });
+    next(err);
+  }
+});
+
+// POST /api/months/:year/:month/goals/recommend-date
+goalsRouter.post('/months/:year/:month/goals/recommend-date', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const year = Number(req.params.year);
+    const monthNum = Number(req.params.month);
+    const amount = req.body.amount || req.body.targetAmount;
+    const fundingSource = req.body.fundingSource || req.body.fundingAccountId;
+    const rec = await BudgetExecution.recommendGoalDate(userId, year, monthNum, amount, fundingSource);
+    return res.success(rec);
+  } catch (err) {
+    next(err);
   }
 });

@@ -45,6 +45,7 @@ export function GoalsScreen({
   simulation = null,
   bankAccounts = [],
   wallets = [],
+  isReviewMode = false,
   onCreateGoal,
   onConvertGoalToItem,
   onDeferGoal,
@@ -168,13 +169,13 @@ export function GoalsScreen({
   return (
     <div className="screen-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-        <div>
-          <h2>Purchase goals</h2>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Plan non-essential purchases without violating your safety floor.
-          </div>
-        </div>
+        <h2>Purchase goals</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isReviewMode && (
+            <span className="review-badge-tag" style={{ fontSize: '11px', padding: '3px 8px' }}>
+              Review Archive
+            </span>
+          )}
           <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <span>Survival Cushion:</span>
             <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(availableCushion, currencySymbol)}</strong>
@@ -185,99 +186,128 @@ export function GoalsScreen({
       <div className="goals-two-column-layout">
         {/* Left Column: Target Purchase Input & Combinations */}
         <div className="goals-input-panel">
-          <div className="card" style={{ padding: '16px' }}>
-            <div className="card-header" style={{ marginBottom: '12px' }}>
-              <span className="card-title">Set Target Purchase</span>
+          {isReviewMode ? (
+            <div className="card" style={{ padding: '16px' }}>
+              <div className="card-header" style={{ marginBottom: '8px' }}>
+                <span className="card-title">Goal Scorecard (Archive)</span>
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
+                You are reviewing goals evaluated during this closed cycle. New goals and scheduling actions are locked in review mode.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Total Evaluated</span>
+                  <span className="tabular-nums" style={{ fontWeight: 600 }}>{goals.length}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Scheduled / Ready</span>
+                  <span className="tabular-nums" style={{ fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                    {goals.filter(g => g.status === 'scheduled' || g.status === 'ready').length}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Deferred</span>
+                  <span className="tabular-nums" style={{ fontWeight: 600 }}>
+                    {goals.filter(g => g.status === 'deferred').length}
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <form onSubmit={handleAddGoal} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div className="form-group">
-                <label className="form-label">Goal Item</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Noise Cancelling Headphones, Laptop"
-                  value={goalName}
-                  onChange={(e) => setGoalName(e.target.value)}
-                />
+          ) : (
+            <div className="card" style={{ padding: '16px' }}>
+              <div className="card-header" style={{ marginBottom: '12px' }}>
+                <span className="card-title">Set Target Purchase</span>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Price ({currencySymbol})</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={goalAmount}
-                  onChange={(e) => setGoalAmount(e.target.value)}
-                />
-              </div>
-
-              {(bankAccounts.length > 0 || wallets.length > 0) && (
+              <form onSubmit={handleAddGoal} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div className="form-group">
-                  <label className="form-label">Funding Account *</label>
-                  <select
-                    value={fundingSourceKey}
-                    onChange={(e) => setFundingSourceKey(e.target.value)}
+                  <label className="form-label">Goal Item</label>
+                  <input
+                    type="text"
                     required
-                  >
-                    {bankAccounts.map((b) => (
-                      <option key={b._id || b.id} value={`bank_${b._id || b.id}`}>
-                        Bank: {b.name} {b.isPrimary ? '[Primary]' : ''}
-                      </option>
-                    ))}
-                    {wallets.map((w) => (
-                      <option key={w._id || w.id} value={`wallet_${w._id || w.id}`}>
-                        Wallet: {w.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="e.g. Noise Cancelling Headphones, Laptop"
+                    value={goalName}
+                    onChange={(e) => setGoalName(e.target.value)}
+                  />
                 </div>
-              )}
 
-              <div className="form-group">
-                <label className="form-label">Priority</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  <button
-                    type="button"
-                    className={`timeline-filter-btn ${priority === 0 ? 'active' : ''}`}
-                    onClick={() => setPriority(0)}
-                    style={{ justifyContent: 'center' }}
-                  >
-                    High (P0)
-                  </button>
-                  <button
-                    type="button"
-                    className={`timeline-filter-btn ${priority === 1 ? 'active' : ''}`}
-                    onClick={() => setPriority(1)}
-                    style={{ justifyContent: 'center' }}
-                  >
-                    Medium (P1)
-                  </button>
-                  <button
-                    type="button"
-                    className={`timeline-filter-btn ${priority === 2 ? 'active' : ''}`}
-                    onClick={() => setPriority(2)}
-                    style={{ justifyContent: 'center' }}
-                  >
-                    Low (P2)
-                  </button>
+                <div className="form-group">
+                  <label className="form-label">Price ({currencySymbol})</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={goalAmount}
+                    onChange={(e) => setGoalAmount(e.target.value)}
+                  />
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="btn-primary"
-                style={{ marginTop: '4px', padding: '8px 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                disabled={goalSubmitting || !goalName || !goalAmount}
-              >
-                <PlusIcon size={14} />
-                <span>{goalSubmitting ? 'Evaluating...' : 'Set purchase goal'}</span>
-              </button>
-            </form>
-          </div>
+                {(bankAccounts.length > 0 || wallets.length > 0) && (
+                  <div className="form-group">
+                    <label className="form-label">Funding Account *</label>
+                    <select
+                      value={fundingSourceKey}
+                      onChange={(e) => setFundingSourceKey(e.target.value)}
+                      required
+                    >
+                      {bankAccounts.map((b) => (
+                        <option key={b._id || b.id} value={`bank_${b._id || b.id}`}>
+                          Bank: {b.name} {b.isPrimary ? '[Primary]' : ''}
+                        </option>
+                      ))}
+                      {wallets.map((w) => (
+                        <option key={w._id || w.id} value={`wallet_${w._id || w.id}`}>
+                          Wallet: {w.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Priority</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className={`timeline-filter-btn ${priority === 0 ? 'active' : ''}`}
+                      onClick={() => setPriority(0)}
+                      style={{ justifyContent: 'center' }}
+                    >
+                      High (P0)
+                    </button>
+                    <button
+                      type="button"
+                      className={`timeline-filter-btn ${priority === 1 ? 'active' : ''}`}
+                      onClick={() => setPriority(1)}
+                      style={{ justifyContent: 'center' }}
+                    >
+                      Medium (P1)
+                    </button>
+                    <button
+                      type="button"
+                      className={`timeline-filter-btn ${priority === 2 ? 'active' : ''}`}
+                      onClick={() => setPriority(2)}
+                      style={{ justifyContent: 'center' }}
+                    >
+                      Low (P2)
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ marginTop: '4px', padding: '8px 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  disabled={goalSubmitting || !goalName || !goalAmount}
+                >
+                  <PlusIcon size={14} />
+                  <span>{goalSubmitting ? 'Evaluating...' : 'Set purchase goal'}</span>
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Affordable Combinations Card */}
           <div className="card" style={{ padding: '14px 16px' }}>
@@ -305,11 +335,11 @@ export function GoalsScreen({
 
             {activeGoals.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                No active goals logged. Target purchases will be analyzed against your available cushion.
+                No active goals
               </div>
             ) : affordableBundles.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Cushion ({formatCurrency(availableCushion, currencySymbol)}) is currently insufficient for active goals without breaching your safety floor.
+                Cushion insufficient for current goals
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -365,8 +395,8 @@ export function GoalsScreen({
         {/* Right Column: Active Goals Bento Grid */}
         <div className="goals-cards-panel">
           {evaluatedGoals.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-              No purchase goals logged yet for this month. Set a target purchase on the left to simulate the safest purchase date.
+            <div className="card" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              No purchase goals this month
             </div>
           ) : (
             <div className="goals-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
@@ -503,52 +533,54 @@ export function GoalsScreen({
                     )}
 
                     {/* Card Action Footer */}
-                    <div className="goal-card-footer" style={{ marginTop: 'auto', paddingTop: '6px' }}>
-                      <div>
-                        {isActive && rec?.feasible && rec?.recommendedDate && (
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            style={{ padding: '4px 10px', fontSize: '11px' }}
-                            onClick={() => handleAction(onConvertGoalToItem, goal._id)}
-                            disabled={actingGoalId === goal._id}
-                          >
-                            {actingGoalId === goal._id ? 'Scheduling...' : 'Schedule'}
-                          </button>
-                        )}
-                        {isActive && (!rec?.feasible || !rec?.recommendedDate) && (
-                          <button
-                            type="button"
-                            className="btn-subtle"
-                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                            onClick={() => handleAction(onDeferGoal, goal._id)}
-                            disabled={actingGoalId === goal._id}
-                          >
-                            {actingGoalId === goal._id ? 'Deferring...' : 'Defer'}
-                          </button>
-                        )}
-                        {isDeferred && onReactivateGoal && (
-                          <button
-                            type="button"
-                            className="btn-subtle"
-                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
-                            onClick={() => handleAction(onReactivateGoal, goal._id)}
-                            disabled={actingGoalId === goal._id}
-                          >
-                            {actingGoalId === goal._id ? 'Reactivating...' : 'Reactivate'}
-                          </button>
-                        )}
-                      </div>
+                    {!isReviewMode && (
+                      <div className="goal-card-footer" style={{ marginTop: 'auto', paddingTop: '6px' }}>
+                        <div>
+                          {isActive && rec?.feasible && rec?.recommendedDate && (
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              style={{ padding: '4px 10px', fontSize: '11px' }}
+                              onClick={() => handleAction(onConvertGoalToItem, goal._id)}
+                              disabled={actingGoalId === goal._id}
+                            >
+                              {actingGoalId === goal._id ? 'Scheduling...' : 'Schedule'}
+                            </button>
+                          )}
+                          {isActive && (!rec?.feasible || !rec?.recommendedDate) && (
+                            <button
+                              type="button"
+                              className="btn-subtle"
+                              style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                              onClick={() => handleAction(onDeferGoal, goal._id)}
+                              disabled={actingGoalId === goal._id}
+                            >
+                              {actingGoalId === goal._id ? 'Deferring...' : 'Defer'}
+                            </button>
+                          )}
+                          {isDeferred && onReactivateGoal && (
+                            <button
+                              type="button"
+                              className="btn-subtle"
+                              style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                              onClick={() => handleAction(onReactivateGoal, goal._id)}
+                              disabled={actingGoalId === goal._id}
+                            >
+                              {actingGoalId === goal._id ? 'Reactivating...' : 'Reactivate'}
+                            </button>
+                          )}
+                        </div>
 
-                      <button
-                        type="button"
-                        className="btn-subtle"
-                        style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
-                        onClick={() => onDeleteGoal(goal._id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          className="btn-subtle"
+                          style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                          onClick={() => onDeleteGoal(goal._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

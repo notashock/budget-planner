@@ -11,8 +11,9 @@ All financial calculations live in a pure deterministic simulation engine. The o
 The project is structured as an npm workspaces monorepo:
 
 - `packages/engine`: Pure, zero-dependency calculation engine shared by both client and server. Operates on integer minor units to eliminate floating-point errors.
-- `apps/server`: Express backend with MongoDB persistence (Mongoose), session cookies, rate limiting, and an optional AI assistant adapter.
+- `apps/server`: Express backend with MongoDB persistence (Mongoose), stateless JWT bearer authentication, rate limiting, and an optional AI assistant adapter.
 - `apps/web`: React with Vite mobile-first Progressive Web App (PWA). Imports `@budget/engine` directly so What-If exploration recomputes instantly in the browser without network requests.
+- `apps/mobile`: Cross-platform Flutter mobile application. Implements a 1:1 Dart port of the deterministic engine for zero-latency 60fps projections on physical hardware and communicates seamlessly with the backend API.
 
 ---
 

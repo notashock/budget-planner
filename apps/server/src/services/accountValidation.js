@@ -1,33 +1,33 @@
-import { BankAccount } from '../models/BankAccount.js';
-import { Wallet } from '../models/Wallet.js';
+import { eq, and } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import * as s from '../db/schema.js';
 
 /**
  * Validates that a specified financial account (Bank Account or Wallet) belongs to the authenticated user.
  * 
  * @param {object} params
- * @param {string|import('mongoose').Types.ObjectId} params.userId - Authenticated user ID
+ * @param {string} params.userId - Authenticated user ID
  * @param {'bank'|'wallet'} [params.accountType] - Financial entity discriminator
- * @param {string|import('mongoose').Types.ObjectId} params.accountId - Financial account ID to validate
- * @returns {Promise<object|null>} Account document if valid and owned by user, otherwise null
+ * @param {string} params.accountId - Financial account ID to validate
+ * @returns {Promise<object|null>} Account record if valid and owned by user, otherwise null
  */
 export async function validateUserAccount({ userId, accountType, accountId }) {
-  if (!accountId) {
+  if (!accountId || !userId) {
     return null;
   }
 
-  if (accountType === 'wallet') {
-    return await Wallet.findOne({ _id: accountId, userId });
+  const conditions = [
+    eq(s.accounts.id, accountId),
+    eq(s.accounts.userId, userId)
+  ];
+
+  if (accountType === 'wallet' || accountType === 'bank') {
+    conditions.push(eq(s.accounts.type, accountType));
   }
 
-  if (accountType === 'bank') {
-    return await BankAccount.findOne({ _id: accountId, userId });
-  }
+  const account = await db.query.accounts.findFirst({
+    where: and(...conditions)
+  });
 
-  // If accountType is not explicitly provided, probe BankAccount first, then Wallet
-  const bank = await BankAccount.findOne({ _id: accountId, userId });
-  if (bank) {
-    return bank;
-  }
-
-  return await Wallet.findOne({ _id: accountId, userId });
+  return account || null;
 }

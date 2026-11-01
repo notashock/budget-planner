@@ -7,9 +7,43 @@ import {
 } from './calendar.js';
 
 /**
+ * Computes derived transaction status based on scheduled date vs today's date.
+ * Never stored; computed dynamically.
+ * 
+ * @param {object} tx - Transaction record
+ * @param {string} todayStr - Local calendar date 'YYYY-MM-DD'
+ * @param {number} [dueWindowDays=3] - Days window within which a planned transaction is 'due'
+ * @returns {'planned' | 'due' | 'overdue' | 'successful' | 'cancelled'}
+ */
+export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
+  if (!tx) return 'planned';
+  const status = tx.status || 'planned';
+  if (status !== 'planned') {
+    return status;
+  }
+  const txDate = tx.plannedDate || tx.date;
+  if (!txDate || !todayStr) {
+    return 'planned';
+  }
+  if (txDate < todayStr) {
+    return 'overdue';
+  }
+  const [tY, tM, tD] = todayStr.split('-').map(Number);
+  const [pY, pM, pD] = txDate.split('-').map(Number);
+  const todayUtc = Date.UTC(tY, tM - 1, tD);
+  const targetUtc = Date.UTC(pY, pM - 1, pD);
+  const diffDays = Math.round((targetUtc - todayUtc) / (1000 * 60 * 60 * 24));
+
+  if (diffDays >= 0 && diffDays <= dueWindowDays) {
+    return 'due';
+  }
+  return 'planned';
+}
+
+/**
  * Pure simulation engine.
  * Computes deterministic running balance timeline, safety floor breaches,
- * real-world transactions, today's balance, net item refunds,
+ * real-world transactions, today's balance, net transaction refunds,
  * per-account balance trajectories, and Paired Account Transfers.
  * 
  * @param {object} settings
@@ -26,9 +60,9 @@ import {
  * @param {Array<object>} [settings.accounts=[]] - List of bank accounts and wallets
  * @param {Array<object>} [settings.transfers=[]] - Logged Paired Account Transfers
  * 
- * @param {Array<object>} items - List of planned items for the month
+ * @param {Array<object>} items - List of transactions or planned records for the month
  * @param {object} month - { year, month } (month 1 - 12)
- * @param {Array<object>} [transactions=[]] - Logged real-world transactions
+ * @param {Array<object>} [transactions=[]] - Logged transactions
  * @param {Array<object>} [goals=[]] - Active purchase goals
  * @param {Array<object>} [transfers=[]] - Optional direct transfers parameter
  * @param {Array<object>|object} [accounts=[]] - Optional direct accounts parameter
@@ -256,19 +290,45 @@ export function simulate(
     }
   });
 
-  // 3. Generate Expense Events from Unfulfilled Planned Items
+  // Combine items and planned transactions (excluding cancelled and strictly deduplicating against transactions)
+  const plannedRecords = [
+    ...(transactions || []).filter((tx) => tx.status === 'planned'),
+    ...(items || []).filter((it) => {
+      if (it.status === 'cancelled') return false;
+      const itId = it.id ? String(it.id) : (it._id ? String(it._id) : null);
+      // Skip if this item is already represented as a planned or successful transaction
+      if (itId && (transactions || []).some((tx) => {
+        const txId = tx.id ? String(tx.id) : (tx._id ? String(tx._id) : null);
+        const legId = tx.legacyItemId ? String(tx.legacyItemId) : null;
+        const planId = tx.plannedItemId ? String(tx.plannedItemId) : null;
+        return txId === itId || legId === itId || planId === itId;
+      })) {
+        return false;
+      }
+      // If it is marked paid and already has a matching transaction by name/amount, skip
+      if (it.isPaid && (transactions || []).some((tx) => tx.name === it.name && Math.abs(Number(tx.amount)) === Math.abs(Number(it.amount)))) {
+        return false;
+      }
+      return true;
+    })
+  ];
+
+  // 3. Generate Expense Events from Unfulfilled Planned Records
   // Pre-calculate future scheduled load per day for forward-rolling overdue pending items
   const forwardRollDayMap = {};
   const rollStartDay = typeof currentDay === 'number' && currentDay >= 1 ? Math.min(daysInMonth, currentDay + 1) : 1;
   for (let d = rollStartDay; d <= daysInMonth; d++) {
     forwardRollDayMap[d] = 0;
   }
-  items.forEach((it) => {
+  plannedRecords.forEach((it) => {
     let td = 1;
-    if (it.type === 'recurring') td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
-    else if (it.type === 'one-time') td = clampDayToMonth(it.day ?? 1, daysInMonth);
+    if (it.date || it.plannedDate) {
+      const parts = (it.plannedDate || it.date).split('-');
+      if (parts.length === 3) td = clampDayToMonth(parseInt(parts[2], 10), daysInMonth);
+    } else if (it.type === 'recurring' || it.dayOfMonth) td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
+    else if (it.type === 'one-time' || it.day) td = clampDayToMonth(it.day ?? 1, daysInMonth);
     if (td >= rollStartDay) {
-      forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.amount ?? 0));
+      forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.plannedAmount ?? it.amount ?? 0));
     }
   });
 
@@ -286,14 +346,14 @@ export function simulate(
     return chosenDay;
   };
 
-  items.forEach((item, index) => {
+  plannedRecords.forEach((item, index) => {
     const itemIdStr = String(item.id || item._id || '');
     if (fulfilledItemIds.has(itemIdStr)) {
       return;
     }
 
     const priority = typeof item.priority === 'number' ? item.priority : 0;
-    const rawBankId = normalizeId(item.bankAccountId);
+    const rawBankId = normalizeId(item.bankAccountId || item.accountId);
     const rawWallId = normalizeId(item.walletId);
     const isKnownBank = rawBankId && normalizedAccounts.some((a) => a.id === rawBankId || a.altId === rawBankId);
     const isKnownWall = rawWallId && normalizedAccounts.some((a) => a.id === rawWallId || a.altId === rawWallId);
@@ -301,39 +361,46 @@ export function simulate(
     const wallId = isKnownWall ? rawWallId : null;
     const acctType = item.accountType || (bankId ? 'bank' : (wallId ? 'wallet' : null));
 
-    if (item.type === 'one-time') {
+    if (item.type === 'one-time' || item.status === 'planned') {
+      const isPlannedTx = item.status === 'planned';
+      const dateVal = isPlannedTx ? (item.plannedDate || item.date) : item.date;
       let targetDay = 1;
       let targetDate = '';
       if (typeof item.day === 'number') {
         if (item.day < 0) {
           targetDay = item.day;
-          targetDate = item.date || getDateFromRelativeDay(item.day, year, monthNum);
+          targetDate = dateVal || getDateFromRelativeDay(item.day, year, monthNum);
         } else {
           targetDay = clampDayToMonth(item.day, daysInMonth);
-          targetDate = item.date || formatDate(year, monthNum, targetDay);
+          targetDate = dateVal || formatDate(year, monthNum, targetDay);
         }
-      } else if (item.date) {
-        targetDay = getRelativeDay(item.date, year, monthNum);
-        targetDate = item.date;
+      } else if (dateVal) {
+        targetDay = getRelativeDay(dateVal, year, monthNum);
+        if (targetDay > 0) targetDay = clampDayToMonth(targetDay, daysInMonth);
+        targetDate = dateVal;
       } else {
         targetDay = 1;
         targetDate = formatDate(year, monthNum, 1);
       }
 
-      const amount = Math.round(item.amount ?? 0);
+      const rawAmount = isPlannedTx && item.plannedAmount !== undefined && item.plannedAmount !== null
+        ? item.plannedAmount
+        : (item.amount ?? 0);
+      const amount = Math.round(rawAmount);
+
       let effectiveDay = targetDay;
       if (item.isPaid === true) {
         if (currentDay !== null && currentDay !== undefined && currentDay >= 1) {
           effectiveDay = Math.min(targetDay, currentDay);
         }
-      } else if (item.isPaid === false) {
+      } else if (item.isPaid === false || isPlannedTx) {
         if (currentDay !== null && currentDay !== undefined && targetDay < currentDay) {
           effectiveDay = getNextRecommendedDayForPending(Math.abs(amount));
         }
       }
-      const isPastDueUnpaid = item.isPaid === false && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
+      const isPastDueUnpaid = (item.isPaid === false || isPlannedTx) && currentDay !== null && currentDay !== undefined && targetDay < currentDay;
       const effectiveDate = effectiveDay < 0
-        ? (item.date || getDateFromRelativeDay(effectiveDay, year, monthNum))
+        ? (dateVal || getDateFromRelativeDay(effectiveDay, year, monthNum))
         : formatDate(year, monthNum, effectiveDay);
 
       rawEvents.push({
@@ -342,14 +409,19 @@ export function simulate(
         originalDay: (typeof item.originalDay === 'number') ? item.originalDay : targetDay,
         originalDate: item.originalDate || targetDate,
         label: item.name,
+        name: item.name,
+        category: item.category || item.tag || 'General',
+        description: item.name,
         amount: -Math.abs(amount),
         priority,
         sourceIndex: index,
-        itemType: 'one-time',
+        itemType: isPlannedTx ? 'planned-transaction' : 'one-time',
+        isPlannedTransaction: isPlannedTx,
         isPaid: Boolean(item.isPaid),
         isPending: Boolean(isPastDueUnpaid),
         isActual: false,
         itemId: item.id || item._id || null,
+        transactionId: isPlannedTx ? (item.id || item._id || null) : null,
         accountType: acctType,
         bankAccountId: bankId,
         walletId: wallId
@@ -379,6 +451,9 @@ export function simulate(
         originalDay: (typeof item.originalDay === 'number') ? item.originalDay : targetDay,
         originalDate: item.originalDate || targetDate,
         label: item.name,
+        name: item.name,
+        category: item.category || item.tag || 'General',
+        description: item.name,
         amount: -Math.abs(amount),
         priority,
         sourceIndex: index,
@@ -425,10 +500,66 @@ export function simulate(
   // 4. Generate Events from Logged Transactions (Actuals)
   let totalUnplannedSpent = 0;
   (transactions || []).forEach((tx, txIndex) => {
+    // Skip cancelled transactions and planned transactions (handled in plannedRecords)
+    if (tx.status === 'cancelled' || tx.status === 'planned') {
+      return;
+    }
     // If this transaction was already fulfilled as the main salary event, skip to avoid double counting
     if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
       return;
     }
+    if (tx.origin === 'transfer') {
+      let txDay = 1;
+      let txDate = tx.date || formatDate(year, monthNum, 1);
+      if (tx.date) {
+        txDay = getRelativeDay(tx.date, year, monthNum);
+        if (txDay > 0) txDay = clampDayToMonth(txDay, daysInMonth);
+        txDate = tx.date;
+      }
+      const txAmount = Math.abs(Math.round(Number(tx.amount) || 0));
+      if (txAmount <= 0) return;
+
+      const sAccId = normalizeId(tx.accountId || tx.sourceAccountId || tx.sourceBankAccountId || tx.sourceWalletId);
+      const dAccId = normalizeId(tx.destinationAccountId || tx.destinationBankAccountId || tx.destinationWalletId);
+
+      const eventLabel = tx.note ? `Transfer: ${tx.note}` : (tx.name || 'Inter-Account Transfer');
+
+      // If simulating an isolated single account, transfer is cash inflow (+txAmount) or outflow (-txAmount)
+      const isSingleAccount = normalizedAccounts.length === 1;
+      let eventAmount = 0;
+      if (isSingleAccount) {
+        const singleAccId = String(normalizedAccounts[0].id);
+        const isDst = dAccId && String(dAccId) === singleAccId;
+        const isSrc = sAccId && String(sAccId) === singleAccId;
+        if (isDst) eventAmount = txAmount;
+        else if (isSrc) eventAmount = -txAmount;
+      }
+
+      rawEvents.push({
+        day: txDay,
+        date: txDate,
+        label: eventLabel,
+        name: tx.name || eventLabel,
+        category: 'Transfer',
+        tag: 'Transfer',
+        description: tx.note || eventLabel,
+        amount: eventAmount, // Zero-sum on aggregate, +/- for single account
+        priority: 0,
+        sourceIndex: 1000 + txIndex,
+        itemType: 'transfer',
+        isActual: true,
+        transactionId: tx.id || tx._id || null,
+        transferId: tx.transferId ? String(tx.transferId) : (tx.id || tx._id ? String(tx.id || tx._id) : null),
+        transferAmount: txAmount,
+        sourceBankAccountId: sAccId,
+        sourceAccountId: sAccId,
+        destinationBankAccountId: dAccId,
+        destinationAccountId: dAccId,
+        origin: 'transfer'
+      });
+      return;
+    }
+
     let txDay = 1;
     let txDate = tx.date || formatDate(year, monthNum, 1);
     if (tx.date) {
@@ -460,7 +591,7 @@ export function simulate(
       ? `${labelPrefix}${tx.note} (${tx.tag || (isIncomeTx ? 'Income' : 'Expense')})`
       : `${labelPrefix}${tx.tag || (txAmount < 0 ? 'Refund' : (isIncomeTx ? 'Income' : 'Unplanned expense'))}`;
 
-    const rawTxBankId = normalizeId(tx.bankAccountId);
+    const rawTxBankId = normalizeId(tx.bankAccountId || tx.accountId);
     const rawTxWallId = normalizeId(tx.walletId);
     const isKnownTxBank = rawTxBankId && normalizedAccounts.some((a) => a.id === rawTxBankId || a.altId === rawTxBankId);
     const isKnownTxWall = rawTxWallId && normalizedAccounts.some((a) => a.id === rawTxWallId || a.altId === rawTxWallId);
@@ -472,6 +603,10 @@ export function simulate(
       day: txDay,
       date: txDate,
       label: eventLabel,
+      name: tx.note || tx.description || tx.name || eventLabel,
+      category: tx.category || tx.tag || (isIncomeTx ? 'Income' : 'General'),
+      tag: tx.tag || tx.category || (isIncomeTx ? 'Income' : 'General'),
+      description: tx.note || tx.description || tx.name || eventLabel,
       amount: eventAmount,
       priority: isIncomeTx ? -Infinity : 0,
       sourceIndex: 1000 + txIndex,
@@ -489,6 +624,10 @@ export function simulate(
 
   // 5. Generate Events from Paired Account Transfers (Zero-sum on aggregate)
   (transfersInput || []).forEach((tr, trIndex) => {
+    const trId = tr.id ? String(tr.id) : (tr._id ? String(tr._id) : null);
+    if (trId && rawEvents.some((e) => e.itemType === 'transfer' && (String(e.transferId) === trId || String(e.transactionId) === trId))) {
+      return;
+    }
     let trDay = 1;
     let trDate = tr.date || formatDate(year, monthNum, 1);
     if (tr.date) {
@@ -500,18 +639,48 @@ export function simulate(
     const trAmount = Math.round(Number(tr.amount) || 0);
     if (trAmount <= 0) return;
 
-    const sBankId = tr.sourceBankAccountId ? String(tr.sourceBankAccountId._id || tr.sourceBankAccountId) : null;
-    const sWalletId = tr.sourceWalletId ? String(tr.sourceWalletId._id || tr.sourceWalletId) : null;
-    const dBankId = tr.destinationBankAccountId ? String(tr.destinationBankAccountId._id || tr.destinationBankAccountId) : null;
-    const dWalletId = tr.destinationWalletId ? String(tr.destinationWalletId._id || tr.destinationWalletId) : null;
+    const sAccId = tr.sourceAccountId
+      ? String(tr.sourceAccountId._id || tr.sourceAccountId.id || tr.sourceAccountId)
+      : (tr.fromAccountId ? String(tr.fromAccountId) : null);
+    const dAccId = tr.destinationAccountId
+      ? String(tr.destinationAccountId._id || tr.destinationAccountId.id || tr.destinationAccountId)
+      : (tr.toAccountId ? String(tr.toAccountId) : null);
+
+    const sBankId = tr.sourceBankAccountId
+      ? String(tr.sourceBankAccountId._id || tr.sourceBankAccountId.id || tr.sourceBankAccountId)
+      : ((tr.sourceType === 'bank' || !tr.sourceType) && sAccId ? sAccId : null);
+    const sWalletId = tr.sourceWalletId
+      ? String(tr.sourceWalletId._id || tr.sourceWalletId.id || tr.sourceWalletId)
+      : (tr.sourceType === 'wallet' && sAccId ? sAccId : null);
+    const dBankId = tr.destinationBankAccountId
+      ? String(tr.destinationBankAccountId._id || tr.destinationBankAccountId.id || tr.destinationBankAccountId)
+      : ((tr.destinationType === 'bank' || !tr.destinationType) && dAccId ? dAccId : null);
+    const dWalletId = tr.destinationWalletId
+      ? String(tr.destinationWalletId._id || tr.destinationWalletId.id || tr.destinationWalletId)
+      : (tr.destinationType === 'wallet' && dAccId ? dAccId : null);
 
     const eventLabel = tr.note ? `Transfer: ${tr.note}` : 'Paired Account Transfer';
+
+    // If simulating an isolated single account, transfer is an actual cash inflow (+trAmount) or outflow (-trAmount)
+    const isSingleAccount = normalizedAccounts.length === 1;
+    let eventAmount = 0;
+    if (isSingleAccount) {
+      const singleAccId = String(normalizedAccounts[0].id);
+      const isDst = (dBankId && String(dBankId) === singleAccId) ||
+                    (dWalletId && String(dWalletId) === singleAccId) ||
+                    (dAccId && String(dAccId) === singleAccId);
+      const isSrc = (sBankId && String(sBankId) === singleAccId) ||
+                    (sWalletId && String(sWalletId) === singleAccId) ||
+                    (sAccId && String(sAccId) === singleAccId);
+      if (isDst) eventAmount = trAmount;
+      else if (isSrc) eventAmount = -trAmount;
+    }
 
     rawEvents.push({
       day: trDay,
       date: trDate,
       label: eventLabel,
-      amount: 0, // Zero-sum on aggregate running balance
+      amount: eventAmount, // Zero-sum on aggregate, but +/- for single isolated account simulation
       priority: 0,
       sourceIndex: 2000 + trIndex,
       itemType: 'transfer',
@@ -584,9 +753,9 @@ export function simulate(
 
     if (evt.itemType === 'transfer') {
       const trAmt = evt.transferAmount;
-      const sBank = getCanonicalAccId(evt.sourceBankAccountId);
+      const sBank = getCanonicalAccId(evt.sourceBankAccountId || evt.sourceAccountId);
       const sWall = getCanonicalAccId(evt.sourceWalletId);
-      const dBank = getCanonicalAccId(evt.destinationBankAccountId);
+      const dBank = getCanonicalAccId(evt.destinationBankAccountId || evt.destinationAccountId);
       const dWall = getCanonicalAccId(evt.destinationWalletId);
 
       // Debit source
@@ -652,6 +821,10 @@ export function simulate(
       originalDay: evt.originalDay ?? evt.day,
       originalDate: evt.originalDate ?? evt.date,
       label: evt.label,
+      name: evt.name || evt.label || '',
+      description: evt.description || evt.note || evt.label || '',
+      category: evt.category || evt.tag || (evt.isSalary ? 'Salary' : (evt.amount > 0 ? 'Income' : 'General')),
+      tag: evt.tag || evt.category || (evt.isSalary ? 'Salary' : (evt.amount > 0 ? 'Income' : 'General')),
       amount: evt.amount,
       balanceAfter,
       accountBalanceAfter,
@@ -673,11 +846,15 @@ export function simulate(
       transferId: evt.transferId || null,
       transferAmount: evt.transferAmount || null,
       sourceType: evt.sourceType || null,
+      sourceAccountId: evt.sourceAccountId || evt.sourceBankAccountId || null,
       sourceBankAccountId: evt.sourceBankAccountId || null,
       sourceWalletId: evt.sourceWalletId || null,
       destinationType: evt.destinationType || null,
+      destinationAccountId: evt.destinationAccountId || evt.destinationBankAccountId || null,
       destinationBankAccountId: evt.destinationBankAccountId || null,
-      destinationWalletId: evt.destinationWalletId || null
+      destinationWalletId: evt.destinationWalletId || null,
+      origin: evt.origin || null,
+      accountBalances: { ...accountRunningBalances }
     };
   });
 
@@ -714,9 +891,11 @@ export function simulate(
     if (d === 0) continue; // Calendar skips Day 0 between Day -1 and Day 1
 
     const dateStr = getDateFromRelativeDay(d, year, monthNum);
+    const dayEventsList = [];
     while (eventIdx < events.length && events[eventIdx].day === d) {
       const e = events[eventIdx];
       dayBalance = e.balanceAfter;
+      dayEventsList.push(e);
 
       if (e.itemType === 'transfer') {
         const trAmt = e.transferAmount;
@@ -764,7 +943,8 @@ export function simulate(
     dailyBalances.push({
       day: d,
       date: dateStr,
-      balance: dayBalance
+      balance: dayBalance,
+      intradayEvents: dayEventsList
     });
 
     normalizedAccounts.forEach((acc) => {
@@ -1084,16 +1264,52 @@ export function simulate(
     ? (aggLowestBalance < safetyFloor)
     : floorBreached;
 
+  // 12. Build rich normalized days array for graph & interactive timeline parity
+  let prevBal = effectiveOpeningBalance;
+  const days = dailyBalances.map((pt) => {
+    const dayEvts = events.filter((e) => e.day === pt.day);
+    let dayInflow = 0;
+    let dayOutflow = 0;
+    dayEvts.forEach((e) => {
+      if (e.amount > 0) dayInflow += e.amount;
+      if (e.amount < 0) dayOutflow += Math.abs(e.amount);
+    });
+    const dayObj = {
+      day: pt.day,
+      date: pt.date,
+      balance: pt.balance,
+      openingBalance: prevBal,
+      closingBalance: pt.balance,
+      totalInflow: dayInflow,
+      totalOutflow: dayOutflow,
+      events: dayEvts,
+      hasBreach: pt.balance < safetyFloor
+    };
+    prevBal = pt.balance;
+    return dayObj;
+  });
+
   return {
     events,
+    allEvents: events,
     dailyBalances,
+    days,
     endingBalance,
     todayBalance,
+    todaysBalance: todayBalance,
+    openingBalance: effectiveOpeningBalance,
     lowestBalance: aggLowestBalance,
     lowestDate,
+    lowestBalanceDay: (() => {
+      const match = days.find((d) => d.date === lowestDate || d.closingBalance === aggLowestBalance);
+      return match ? match.day : 1;
+    })(),
     safetyFloor,
     floorBreached: aggFloorBreached,
+    totalIncome: totalSimIncome,
     incomeAmount: totalSimIncome,
+    totalPlannedExpenses: totalSimExpenses,
+    totalActualExpenses: 0,
     totalExpenses: totalSimExpenses,
     isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
     salaryCreditedDate: salaryTx ? salaryTx.date : (settings.salaryCreditedDate || (isSalaryMarkedCredited ? formatDate(year, monthNum, 1) : null)),

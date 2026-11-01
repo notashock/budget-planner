@@ -4,16 +4,17 @@ import { simulate } from '@budget/engine';
 import { Header } from './components/Header.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
+import { TransactionsScreen } from './screens/TransactionsScreen.jsx';
 import { ItemsScreen } from './screens/ItemsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AccountsScreen } from './screens/AccountsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
 import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
-import { CreateMonthModal, RolloverModal } from './components/MonthModals.jsx';
 import { SalarySafelineModal } from './components/SalarySafelineModal.jsx';
 import { TransferCalculationsModal } from './components/TransferCalculationsModal.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
+import { OnboardingModal } from './components/OnboardingModal.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
@@ -71,6 +72,7 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [wallets, setWallets] = useState([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [transfers, setTransfers] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
@@ -82,10 +84,37 @@ export default function App() {
   const [autoOpenAddBank, setAutoOpenAddBank] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewAccountId, setReviewAccountId] = useState('all');
-  const [createMonthOpen, setCreateMonthOpen] = useState(false);
-  const [rolloverOpen, setRolloverOpen] = useState(false);
   const [isSalarySafelineOpen, setIsSalarySafelineOpen] = useState(false);
   const [migrationModalOpen, setMigrationModalOpen] = useState(false);
+
+  // Review mode & active cycle derivation
+  const isReviewMode = useMemo(() => {
+    if (!currentMonth) return false;
+    // Requirement: The review should strictly only be applicable for previous months and not the active months.
+    // If any active month is ongoing, it should not offer the read-only review.
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isOngoingOrFuture = currentMonth.endDate
+      ? currentMonth.endDate >= todayIso
+      : (currentMonth.year > now.getFullYear() || (currentMonth.year === now.getFullYear() && currentMonth.month >= (now.getMonth() + 1)));
+
+    if (isOngoingOrFuture) {
+      return false;
+    }
+
+    return Boolean(currentMonth.isClosed);
+  }, [currentMonth]);
+
+  const activePlanningMonth = useMemo(() => {
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return months.find((m) => {
+      const isOngoingOrFuture = m.endDate
+        ? m.endDate >= todayIso
+        : (m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month >= (now.getMonth() + 1)));
+      return isOngoingOrFuture || !m.isClosed;
+    }) || null;
+  }, [months]);
 
   // Migration state
   const [migrationEligible, setMigrationEligible] = useState(false);
@@ -115,10 +144,22 @@ export default function App() {
         if (selectYear && selectMonth) {
           target = list.find((m) => m.year === selectYear && m.month === selectMonth);
         }
+        const now = new Date();
+        const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        // 1. Prefer ongoing active cycle containing today
         if (!target) {
-          const now = new Date();
+          target = list.find((m) => m.startDate && m.endDate && m.startDate <= todayIso && m.endDate >= todayIso);
+        }
+        // 2. Next check current calendar month
+        if (!target) {
           target = list.find((m) => m.year === now.getFullYear() && m.month === (now.getMonth() + 1));
         }
+        // 3. Next prefer any active (unclosed) planning month
+        if (!target) {
+          target = list.find((m) => !m.isClosed);
+        }
+        // 4. Fallback to first available month
         if (!target) {
           target = list[0];
         }
@@ -126,9 +167,13 @@ export default function App() {
       } else {
         setCurrentMonth(null);
         setItems([]);
-        setTransactions([]);
         setGoals([]);
-        setCreateMonthOpen(true);
+        try {
+          const globalTxs = await api.getGlobalTransactions();
+          setTransactions(globalTxs || []);
+        } catch (_) {
+          setTransactions([]);
+        }
       }
     } catch (err) {
       console.error('Failed to load months:', err);
@@ -146,6 +191,23 @@ export default function App() {
     }
   };
 
+  const [serverSimulation, setServerSimulation] = useState(() => {
+    try {
+      const cached = localStorage.getItem('budget_cached_simulation');
+      return cached ? JSON.parse(cached) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+  const [serverAccountSimulations, setServerAccountSimulations] = useState(() => {
+    try {
+      const cached = localStorage.getItem('budget_cached_acc_simulations');
+      return cached ? JSON.parse(cached) : {};
+    } catch (_) {
+      return {};
+    }
+  });
+
   const loadMonthDetails = async (year, monthNum) => {
     setDataLoading(true);
     try {
@@ -156,6 +218,20 @@ export default function App() {
       setTransfers(res.transfers || []);
       setBankAccounts(res.bankAccounts || []);
       setWallets(res.wallets || []);
+
+      if (res.simulation) {
+        setServerSimulation(res.simulation);
+        try {
+          localStorage.setItem('budget_cached_simulation', JSON.stringify(res.simulation));
+        } catch (_) {}
+      }
+      if (res.accountSimulations) {
+        setServerAccountSimulations(res.accountSimulations);
+        try {
+          localStorage.setItem('budget_cached_acc_simulations', JSON.stringify(res.accountSimulations));
+        } catch (_) {}
+      }
+
       await loadGoals(year, monthNum);
     } catch (err) {
       console.error('Failed to load month details:', err);
@@ -172,8 +248,10 @@ export default function App() {
       ]);
       setBankAccounts(banks || []);
       setWallets(wals || []);
+      setAccountsLoaded(true);
     } catch (err) {
       console.error('Failed to load accounts:', err);
+      setAccountsLoaded(true);
     }
   };
 
@@ -213,13 +291,17 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
+      loadAccounts();
       loadMonths();
       checkMigrationEligibility();
     }
   }, [user]);
 
-  // Pure in-browser simulation calculation with accounts, transfers, and actual transactions
+  // Server-Authoritative simulation calculation with offline fallback
   const activeSimulation = useMemo(() => {
+    if (serverSimulation) {
+      return serverSimulation;
+    }
     if (!currentMonth) return null;
 
     const now = new Date();
@@ -230,9 +312,9 @@ export default function App() {
     if (viewingYearMonth === currentYearMonth) {
       currentDay = now.getDate();
     } else if (viewingYearMonth < currentYearMonth) {
-      currentDay = null; // Past month: completed, show ending balance
+      currentDay = null;
     } else {
-      currentDay = 0; // Future month: show opening balance
+      currentDay = 0;
     }
 
     return simulate(
@@ -250,7 +332,7 @@ export default function App() {
         accountOpeningBalances: currentMonth.accountOpeningBalances || [],
         transfers
       },
-      items,
+      [], // Unified transactions is the sole source of truth
       { year: currentMonth.year, month: currentMonth.month },
       transactions,
       goals,
@@ -260,7 +342,7 @@ export default function App() {
         ...wallets.map((w) => ({ ...w, type: 'wallet' }))
       ]
     );
-  }, [currentMonth, items, transactions, goals, transfers, bankAccounts, wallets]);
+  }, [serverSimulation, currentMonth, items, transactions, goals, transfers, bankAccounts, wallets]);
 
   // Auth actions
   const handleLogin = async (email, password) => {
@@ -286,6 +368,7 @@ export default function App() {
     setTransactions([]);
     setBankAccounts([]);
     setWallets([]);
+    setAccountsLoaded(false);
     setGoals([]);
     setTransfers([]);
     setMigrationEligible(false);
@@ -298,10 +381,15 @@ export default function App() {
   // Transaction entry actions
   const handleLogTransaction = async (txData, underSpendAction = null) => {
     try {
-      const created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
+      let created;
+      if (currentMonth) {
+        created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
+      } else {
+        created = await api.createGlobalTransaction(txData);
+      }
       setTransactions((prev) => [...prev, created]);
 
-      if (underSpendAction && txData.plannedItemId) {
+      if (underSpendAction && txData.plannedItemId && currentMonth) {
         const targetItem = items.find((i) => i._id === txData.plannedItemId);
         if (targetItem) {
           if (underSpendAction.type === 'release') {
@@ -335,12 +423,18 @@ export default function App() {
             setItems((prev) => [...prev.map((i) => (i._id === updated._id ? updated : i)), remainderItem]);
           }
         }
-      } else if (txData.plannedItemId) {
+      } else if (txData.plannedItemId && currentMonth) {
         setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
       }
 
       setUnifiedEntryOpen(false);
-      loadGoals(currentMonth.year, currentMonth.month);
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      } else {
+        const globalTxs = await api.getGlobalTransactions();
+        setTransactions(globalTxs || []);
+      }
+      await loadAccounts();
       return created;
     } catch (err) {
       alert(err.message || 'Failed to log transaction');
@@ -352,10 +446,49 @@ export default function App() {
     if (!window.confirm('Delete this transaction?')) return;
     try {
       await api.deleteTransaction(id);
-      setTransactions((prev) => prev.filter((t) => t._id !== id));
-      loadGoals(currentMonth.year, currentMonth.month);
+      setTransactions((prev) => prev.filter((t) => (t.id || t._id) !== id));
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      } else {
+        const globalTxs = await api.getGlobalTransactions();
+        setTransactions(globalTxs || []);
+      }
+      await loadAccounts();
     } catch (err) {
       alert(err.message || 'Failed to delete transaction');
+    }
+  };
+
+  const handlePayTransaction = async (txId, payData) => {
+    try {
+      await api.payTransaction(txId, payData);
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+        await loadGoals(currentMonth.year, currentMonth.month);
+      } else {
+        const globalTxs = await api.getGlobalTransactions();
+        setTransactions(globalTxs || []);
+      }
+      await loadAccounts();
+    } catch (err) {
+      alert(err.message || 'Failed to settle transaction');
+      throw err;
+    }
+  };
+
+  const handleCancelTransaction = async (txId, cancelData) => {
+    try {
+      await api.cancelTransaction(txId, cancelData);
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+        await loadGoals(currentMonth.year, currentMonth.month);
+      } else {
+        const globalTxs = await api.getGlobalTransactions();
+        setTransactions(globalTxs || []);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to cancel transaction');
+      throw err;
     }
   };
 
@@ -365,26 +498,29 @@ export default function App() {
       let result;
       if (editingItem) {
         result = await api.updateItem(editingItem._id, itemData);
-        setItems((prev) => prev.map((i) => (i._id === result._id ? result : i)));
-        setTransactions((prev) =>
-          prev.map((t) =>
-            String(t.plannedItemId) === String(result._id)
-              ? {
-                  ...t,
-                  accountType: result.accountType,
-                  bankAccountId: result.bankAccountId,
-                  walletId: result.walletId
-                }
-              : t
-          )
-        );
-      } else {
+      } else if (currentMonth) {
         result = await api.createItem(currentMonth.year, currentMonth.month, itemData);
-        setItems((prev) => [...prev, result]);
+      } else {
+        const txData = {
+          title: itemData.name || itemData.title,
+          amount: itemData.amount,
+          direction: itemData.direction || (itemData.isIncome ? 'income' : 'expense'),
+          status: 'planned',
+          date: itemData.date || new Date().toISOString().split('T')[0],
+          accountType: itemData.accountType || 'bank',
+          bankAccountId: itemData.bankAccountId,
+          walletId: itemData.walletId,
+          category: itemData.category || itemData.name
+        };
+        result = await api.createGlobalTransaction(txData);
+        const globalTxs = await api.getGlobalTransactions();
+        setTransactions(globalTxs || []);
       }
       setUnifiedEntryOpen(false);
       setEditingItem(null);
-      loadGoals(currentMonth.year, currentMonth.month);
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
       return result;
     } catch (err) {
       alert(err.message || 'Failed to save item');
@@ -397,7 +533,7 @@ export default function App() {
     try {
       await api.deleteItem(id);
       setItems((prev) => prev.filter((i) => i._id !== id));
-      loadGoals(currentMonth.year, currentMonth.month);
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to delete item');
     }
@@ -406,59 +542,9 @@ export default function App() {
   const handleTogglePaid = async (id, isPaid) => {
     try {
       const updated = await api.updateItem(id, { isPaid });
-      setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to update payment status');
-    }
-  };
-
-  // Month actions
-  const handleCreateMonth = async (monthData) => {
-    try {
-      let salaryBankId = monthData.salaryBankAccountId;
-      let accountOpenings = monthData.accountOpeningBalances;
-
-      if (monthData.newBankAccount) {
-        const createdBank = await api.createBankAccount(monthData.newBankAccount);
-        const bankId = createdBank._id || createdBank.id;
-        salaryBankId = bankId;
-        accountOpenings = [
-          {
-            accountType: 'bank',
-            accountId: bankId,
-            amount: monthData.newBankAccount.openingBalance || 0
-          }
-        ];
-        await loadAccounts();
-      }
-
-      const payload = {
-        ...monthData,
-        salaryBankAccountId: salaryBankId,
-        accountOpeningBalances: accountOpenings
-      };
-      delete payload.newBankAccount;
-
-      const created = await api.createMonth(payload);
-      setCreateMonthOpen(false);
-      await loadAccounts();
-      await loadMonths(created.year, created.month);
-      return created;
-    } catch (err) {
-      alert(err.message || 'Failed to create month');
-      throw err;
-    }
-  };
-
-  const handleRollover = async (carryBalance, rolloverUnpaidOneTimeItems) => {
-    try {
-      const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance, rolloverUnpaidOneTimeItems);
-      setRolloverOpen(false);
-      await loadMonths(res.month.year, res.month.month);
-      return res;
-    } catch (err) {
-      alert(err.message || 'Failed to perform month rollover');
-      throw err;
     }
   };
 
@@ -492,11 +578,11 @@ export default function App() {
   const handleSaveMonthSettings = async (updates) => {
     try {
       const res = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
-      setCurrentMonth(res.month);
-      loadGoals(res.month.year, res.month.month);
       if (updates.salaryBankAccountId !== undefined) {
         api.updateSettings({ defaultSalaryBankAccountId: updates.salaryBankAccountId }).catch(() => {});
       }
+      await loadMonthDetails(res.month.year, res.month.month);
+      await loadAccounts();
     } catch (err) {
       alert(err.message || 'Failed to update month settings');
     }
@@ -520,13 +606,22 @@ export default function App() {
     }
   };
 
-  const handleConvertGoalToItem = async (goalId) => {
+  const handleScheduleGoal = async (goalId, scheduledDate) => {
     try {
-      await api.convertGoalToItem(goalId);
-      await loadMonthDetails(currentMonth.year, currentMonth.month);
+      await api.scheduleGoal(goalId, scheduledDate ? { scheduledDate } : {});
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+        await loadAccounts();
+        await loadGoals(currentMonth.year, currentMonth.month);
+      }
     } catch (err) {
-      alert(err.message || 'Failed to schedule goal purchase');
+      alert(err.message || 'Failed to schedule goal');
+      throw err;
     }
+  };
+
+  const handleConvertGoalToItem = async (goalId) => {
+    return handleScheduleGoal(goalId);
   };
 
   const handleDeferGoal = async (goalId) => {
@@ -562,15 +657,12 @@ export default function App() {
       let createdOrUpdated;
       if (data.id) {
         createdOrUpdated = await api.updateBankAccount(data.id, data);
-        setBankAccounts((prev) =>
-          prev.map((b) => ((b._id || b.id) === data.id ? createdOrUpdated : (data.isPrimary ? { ...b, isPrimary: false } : b)))
-        );
       } else {
         createdOrUpdated = await api.createBankAccount(data);
-        setBankAccounts((prev) => [
-          ...prev.map((b) => (data.isPrimary ? { ...b, isPrimary: false } : b)),
-          createdOrUpdated
-        ]);
+      }
+      await loadAccounts();
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
       }
       return createdOrUpdated;
     } catch (err) {
@@ -583,7 +675,10 @@ export default function App() {
     if (!window.confirm('Are you sure you want to archive this bank account? Historical records will be preserved.')) return;
     try {
       await api.deleteBankAccount(id);
-      setBankAccounts((prev) => prev.filter((b) => (b._id || b.id) !== id));
+      await loadAccounts();
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
     } catch (err) {
       alert(err.message || 'Failed to archive bank account');
     }
@@ -595,15 +690,12 @@ export default function App() {
       let createdOrUpdated;
       if (data.id) {
         createdOrUpdated = await api.updateWallet(data.id, data);
-        setWallets((prev) =>
-          prev.map((w) => ((w._id || w.id) === data.id ? createdOrUpdated : (data.isPrimary ? { ...w, isPrimary: false } : w)))
-        );
       } else {
         createdOrUpdated = await api.createWallet(data);
-        setWallets((prev) => [
-          ...prev.map((w) => (data.isPrimary ? { ...w, isPrimary: false } : w)),
-          createdOrUpdated
-        ]);
+      }
+      await loadAccounts();
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
       }
       return createdOrUpdated;
     } catch (err) {
@@ -616,7 +708,10 @@ export default function App() {
     if (!window.confirm('Are you sure you want to archive this wallet? Historical records will be preserved.')) return;
     try {
       await api.deleteWallet(id);
-      setWallets((prev) => prev.filter((w) => (w._id || w.id) !== id));
+      await loadAccounts();
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
     } catch (err) {
       alert(err.message || 'Failed to archive wallet');
     }
@@ -629,7 +724,9 @@ export default function App() {
         ...transferData,
         monthId: currentMonth._id
       });
-      setTransfers((prev) => [...prev, created]);
+      await loadAccounts();
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
+      return created;
     } catch (err) {
       throw err;
     }
@@ -639,19 +736,22 @@ export default function App() {
     if (!window.confirm('Are you sure you want to delete this transfer?')) return;
     try {
       await api.deleteTransfer(id);
-      setTransfers((prev) => prev.filter((t) => (t._id || t.id) !== id));
+      await loadAccounts();
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
     } catch (err) {
       alert(err.message || 'Failed to delete transfer');
     }
   };
 
   const handleOpenUnifiedEntry = (mode = 'log') => {
+    if (isReviewMode) return;
     setEditingItem(null);
     setUnifiedEntryMode(mode);
     setUnifiedEntryOpen(true);
   };
 
   const handleEditItem = (item) => {
+    if (isReviewMode) return;
     setEditingItem(item);
     setUnifiedEntryMode('plan');
     setUnifiedEntryOpen(true);
@@ -694,6 +794,25 @@ export default function App() {
   };
 
 
+  const pendingSalaryTx = useMemo(() => {
+    return transactions.find((t) => t.direction === 'income' && t.origin === 'salary' && t.status === 'planned');
+  }, [transactions]);
+
+  const handleConfirmSalary = async (tx) => {
+    try {
+      await handlePayTransaction(tx._id || tx.id, {
+        amount: tx.amount,
+        actualDate: new Date().toISOString().split('T')[0],
+        destinationAccountId: tx.bankAccountId || tx.accountId
+      });
+    } catch (err) {
+      console.error('Failed to confirm salary:', err);
+    }
+  };
+
+  const hasAccounts = (bankAccounts && bankAccounts.length > 0) || (wallets && wallets.length > 0);
+  const showOnboarding = user && accountsLoaded && !hasAccounts;
+
   if (authLoading) {
     return (
       <div className="app-splash-screen">
@@ -712,6 +831,22 @@ export default function App() {
     return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
+  if (showOnboarding) {
+    return (
+      <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)' }}>
+        <OnboardingModal
+          currencySymbol={settings?.currencySymbol || '₹'}
+          onCompleted={async () => {
+            await loadAccounts();
+            const updatedSettings = await api.getSettings();
+            setSettings(updatedSettings);
+            await loadMonths();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       {dataLoading && (
@@ -725,8 +860,7 @@ export default function App() {
         currentMonth={currentMonth}
         simulation={activeSimulation}
         onSelectMonth={(y, m) => loadMonthDetails(y, m)}
-        onOpenCreateMonth={() => setCreateMonthOpen(true)}
-        onOpenRollover={() => setRolloverOpen(true)}
+        isReviewMode={isReviewMode}
         onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
         onDeleteMonth={handleDeleteMonth}
         onLogout={handleLogout}
@@ -737,6 +871,68 @@ export default function App() {
       />
 
       <div className="app-container">
+        {/* Continuous Tracking: Read-Only Period Review Banner */}
+        {isReviewMode && (
+          <div className="review-mode-banner">
+            <div className="review-mode-banner-content">
+              <span className="review-mode-icon">👁️</span>
+              <div className="review-mode-text">
+                <div className="review-mode-title">
+                  Reviewing {currentMonth ? `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth.month - 1]} ${currentMonth.year}` : 'Archive'} (Read-Only Scorecard)
+                </div>
+                <div className="review-mode-subtext">
+                  This historical period is completed and closed. Figures and account closing balances are strictly snapshotted.
+                </div>
+              </div>
+            </div>
+            {activePlanningMonth && (
+              <button
+                type="button"
+                className="review-mode-return-btn"
+                onClick={() => loadMonthDetails(activePlanningMonth.year, activePlanningMonth.month)}
+              >
+                Return to Active Plan →
+              </button>
+            )}
+          </div>
+        )}
+
+        {pendingSalaryTx && (
+          <div style={{
+            margin: '12px 16px 0 16px',
+            padding: '12px 16px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05))',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px' }}>💰</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+                  Salary Deposit Scheduled: {pendingSalaryTx.title} ({currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}{pendingSalaryTx.amount})
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Expected credit on {pendingSalaryTx.date}. Confirm deposit once received.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handleConfirmSalary(pendingSalaryTx)}
+                className="btn btn-primary"
+                style={{ fontSize: '12px', padding: '6px 14px', background: '#10b981', borderColor: '#10b981' }}
+              >
+                Confirm Deposit
+              </button>
+            </div>
+          </div>
+        )}
 
       <main style={{ flex: 1 }}>
         <ErrorBoundary title="Screen rendering error">
@@ -744,31 +940,37 @@ export default function App() {
             <PlanScreen
               month={currentMonth}
               items={items}
+              transactions={transactions}
+              settings={settings}
               simulation={activeSimulation}
+              accountSimulations={serverAccountSimulations}
               bankAccounts={bankAccounts}
               wallets={wallets}
               migrationEligible={migrationEligible}
+              isReviewMode={isReviewMode}
               onOpenMigration={() => setMigrationModalOpen(true)}
               onOpenUnifiedEntry={handleOpenUnifiedEntry}
+              onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
               onOpenReview={(accId) => {
                 setReviewAccountId(accId || 'all');
                 setReviewOpen(true);
               }}
+              onPayTransaction={handlePayTransaction}
+              onEditTransaction={handleEditItem}
             />
           )}
 
-          {activeTab === 'items' && (
-            <ItemsScreen
-              items={items}
+          {(activeTab === 'transactions' || activeTab === 'items') && (
+            <TransactionsScreen
               transactions={transactions}
-              simulation={activeSimulation}
               currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
               bankAccounts={bankAccounts}
               wallets={wallets}
+              isReviewMode={isReviewMode}
               onOpenUnifiedEntry={handleOpenUnifiedEntry}
-              onEditItem={handleEditItem}
-              onTogglePaid={handleTogglePaid}
-              onDeleteItem={handleDeleteItem}
+              onEditTransaction={handleEditItem}
+              onPayTransaction={handlePayTransaction}
+              onCancelTransaction={handleCancelTransaction}
               onDeleteTransaction={handleDeleteTransaction}
             />
           )}
@@ -782,8 +984,10 @@ export default function App() {
               simulation={activeSimulation}
               bankAccounts={bankAccounts}
               wallets={wallets}
+              isReviewMode={isReviewMode}
               onCreateGoal={handleCreateGoal}
-              onConvertGoalToItem={handleConvertGoalToItem}
+              onConvertGoalToItem={handleScheduleGoal}
+              onScheduleGoal={handleScheduleGoal}
               onDeferGoal={handleDeferGoal}
               onReactivateGoal={handleReactivateGoal}
               onDeleteGoal={handleDeleteGoal}
@@ -797,6 +1001,7 @@ export default function App() {
               transfers={transfers}
               simulation={activeSimulation}
               currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
+              isReviewMode={isReviewMode}
               onSaveBankAccount={handleSaveBankAccount}
               onSaveWallet={handleSaveWallet}
               onArchiveBankAccount={handleArchiveBankAccount}
@@ -827,6 +1032,7 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onOpenUnifiedEntry={handleOpenUnifiedEntry}
+        isReviewMode={isReviewMode}
       />
 
       {/* Unified Entry Modal: Single Component & Button for Logging & Planning */}
@@ -861,32 +1067,6 @@ export default function App() {
         currencySymbol={currentMonth?.currencySymbol || '₹'}
         accountId={reviewAccountId}
         onClose={() => setReviewOpen(false)}
-      />
-
-      {/* Create Month Modal */}
-      <CreateMonthModal
-        isOpen={createMonthOpen}
-        settings={settings}
-        bankAccounts={bankAccounts}
-        wallets={wallets}
-        months={months}
-        currentMonth={currentMonth}
-        onClose={() => setCreateMonthOpen(false)}
-        onCreate={handleCreateMonth}
-      />
-
-      {/* Rollover Modal */}
-      <RolloverModal
-        isOpen={rolloverOpen}
-        currentMonth={currentMonth}
-        endingBalance={activeSimulation?.endingBalance || 0}
-        currencySymbol={currentMonth?.currencySymbol || '₹'}
-        bankAccounts={bankAccounts}
-        wallets={wallets}
-        simulation={activeSimulation}
-        items={items}
-        onClose={() => setRolloverOpen(false)}
-        onConfirm={handleRollover}
       />
 
       {/* Salary & Safeline Linking Modal */}

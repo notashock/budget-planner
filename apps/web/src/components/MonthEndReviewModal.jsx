@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { api } from '../api.js';
 import { formatCurrency } from '@budget/engine';
+import { XIcon } from './Icons.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -328,7 +329,7 @@ export function MonthEndReviewModal({
                 marginLeft: '12px'
               }}
             >
-              ✕
+              <XIcon size={14} />
             </button>
           </div>
 

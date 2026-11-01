@@ -13,30 +13,23 @@ export function validateDraftItemSchema(data) {
     throw new Error("Model output must contain a non-empty string 'name'");
   }
 
-  if (!['one-time', 'recurring', 'fuel-log'].includes(type)) {
-    throw new Error(`Invalid item type '${type}'. Must be 'one-time', 'recurring', or 'fuel-log'`);
-  }
+  const resolvedType = (type === 'recurring') ? 'recurring' : 'one-time';
 
   const sanitized = {
     name: name.trim(),
-    type,
+    type: resolvedType,
     priority: typeof data.priority === 'number' ? data.priority : 0
   };
 
-  if (type === 'one-time') {
-    if (typeof data.amount !== 'number') {
-      throw new Error("One-time item must contain a numeric 'amount' (in minor units)");
-    }
-    sanitized.amount = Math.round(data.amount);
+  if (typeof data.amount !== 'number') {
+    throw new Error("Draft item must contain a numeric 'amount' (in minor units)");
+  }
+  sanitized.amount = Math.round(data.amount);
+
+  if (resolvedType === 'one-time') {
     sanitized.day = typeof data.day === 'number' ? Math.max(1, Math.min(31, Math.floor(data.day))) : 1;
-  } else if (type === 'recurring') {
-    if (typeof data.amount !== 'number') {
-      throw new Error("Recurring item must contain a numeric 'amount' (in minor units)");
-    }
-    sanitized.amount = Math.round(data.amount);
+  } else {
     sanitized.dayOfMonth = typeof data.dayOfMonth === 'number' ? Math.max(1, Math.min(31, Math.floor(data.dayOfMonth))) : 1;
-  } else if (type === 'fuel-log') {
-    sanitized.fuelStops = Array.isArray(data.fuelStops) ? data.fuelStops : [];
   }
 
   return sanitized;

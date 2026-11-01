@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DatePicker } from './DatePicker.jsx';
-import { BuildingLibraryIcon, WalletIcon } from './Icons.jsx';
+import { BuildingLibraryIcon, WalletIcon, XIcon } from './Icons.jsx';
 import { CustomSelect } from './CustomSelect.jsx';
 import { AnimatedModal } from './AnimatedModal.jsx';
 import { formatCurrency } from '@budget/engine';
@@ -34,6 +34,7 @@ export function CreateMonthModal({
   const [incomeAmount, setIncomeAmount] = useState('0');
   const [safetyFloor, setSafetyFloor] = useState('0');
   const [predecessorInfo, setPredecessorInfo] = useState(null);
+  const [carryoverBalance, setCarryoverBalance] = useState(false);
 
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [useCompositeBalances, setUseCompositeBalances] = useState(false);
@@ -200,6 +201,7 @@ export function CreateMonthModal({
         safetyFloor: safetyFloor ? Math.round(Number(safetyFloor) * 100) : undefined,
         salaryBankAccountId: salaryBankAccountId || undefined,
         isSalaryCredited: false,
+        carryoverBalance: Boolean(carryoverBalance),
         accountOpeningBalances: compositeList.length > 0 ? compositeList : undefined
       });
       requestClose?.();
@@ -275,7 +277,7 @@ export function CreateMonthModal({
                 flexShrink: 0
               }}
             >
-              ✕
+              <XIcon size={14} />
             </button>
           </div>
 
@@ -458,6 +460,17 @@ export function CreateMonthModal({
                   className="input-field tabular-nums"
                   style={{ fontWeight: 600 }}
                 />
+                {predecessorInfo && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      style={{ width: 'auto' }}
+                      checked={carryoverBalance}
+                      onChange={(e) => setCarryoverBalance(e.target.checked)}
+                    />
+                    <span>Reconcile ending balance from {predecessorInfo}</span>
+                  </label>
+                )}
               </div>
             )}
 
@@ -585,7 +598,9 @@ export function RolloverModal({
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3>Month rollover</h3>
-          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">
+            <XIcon size={14} />
+          </button>
         </div>
 
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>

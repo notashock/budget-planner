@@ -15,7 +15,10 @@ import {
   LockIcon,
   UserIcon,
   TrashIcon,
-  MonitorIcon
+  MonitorIcon,
+  ChevronDownIcon,
+  CheckCircleIcon,
+  AlertTriangleIcon
 } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
@@ -26,7 +29,7 @@ const MONTH_NAMES = [
 
 const NAV_TABS = [
   { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
-  { id: 'items', label: 'Items', Icon: ListOrderedIcon },
+  { id: 'transactions', label: 'Transactions', Icon: ListOrderedIcon },
   { id: 'goals', label: 'Goals', Icon: TargetIcon },
   { id: 'accounts', label: 'Accounts', Icon: WalletIcon }
 ];
@@ -37,8 +40,7 @@ export function Header({
   currentMonth,
   simulation,
   onSelectMonth,
-  onOpenCreateMonth,
-  onOpenRollover,
+  isReviewMode = false,
   onOpenSalarySafeline,
   onDeleteMonth,
   onLogout,
@@ -71,7 +73,7 @@ export function Header({
   }, [activeDropdown]);
 
   const monthLabel = currentMonth
-    ? `${MONTH_NAMES[currentMonth.month - 1]} ${currentMonth.year}`
+    ? (currentMonth.name || (currentMonth.month ? `${MONTH_NAMES[currentMonth.month - 1]} ${currentMonth.year}` : 'Select month'))
     : 'Select month';
 
   const safetyFloor = currentMonth?.safetyFloor ?? 0;
@@ -84,6 +86,28 @@ export function Header({
   const salaryLockStatus = useMemo(() => {
     return getSalaryWindowStatus(currentMonth);
   }, [currentMonth]);
+
+  const activePlanningMonths = useMemo(() => {
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return months.filter((m) => {
+      const isOngoingOrFuture = m.endDate
+        ? m.endDate >= todayIso
+        : (m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month >= (now.getMonth() + 1)));
+      return isOngoingOrFuture || !m.isClosed;
+    });
+  }, [months]);
+
+  const reviewArchiveMonths = useMemo(() => {
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return months.filter((m) => {
+      const isHistoricalPast = m.endDate
+        ? m.endDate < todayIso
+        : (m.year < now.getFullYear() || (m.year === now.getFullYear() && m.month < (now.getMonth() + 1)));
+      return isHistoricalPast && m.isClosed;
+    });
+  }, [months]);
 
   return (
     <header ref={headerRef} className="app-header">
@@ -103,137 +127,128 @@ export function Header({
               onClick={() => setActiveDropdown((prev) => (prev === 'month' ? null : 'month'))}
               aria-label="Select month"
               aria-expanded={monthDropdownOpen}
-              style={{ fontSize: '14px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              style={{ fontSize: '14px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
               <span>{monthLabel}</span>
-              <span style={{ fontSize: '11px', opacity: 0.6, transform: monthDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▼</span>
+              {isReviewMode ? (
+                <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                  Review Archive
+                </span>
+              ) : (
+                <span className="active-cycle-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                  Active
+                </span>
+              )}
+              <span style={{ display: 'inline-flex', opacity: 0.6, transform: monthDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>
+                <ChevronDownIcon size={12} />
+              </span>
             </button>
 
             {monthDropdownOpen && (
-              <div className="app-dropdown-menu">
-                {months.map((m) => {
-                  const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
-                  const now = new Date();
-                  const isCurrentCalendarMonth = m.year === now.getFullYear() && m.month === (now.getMonth() + 1);
-                  return (
-                    <div
-                      key={`${m.year}-${m.month}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderRadius: 'var(--radius-sm)',
-                        transition: 'background 0.15s ease'
-                      }}
-                      className={`app-dropdown-item-row ${isSelected ? 'active' : ''}`}
-                    >
-                      <button
-                        type="button"
-                        className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
+              <div className="app-dropdown-menu" style={{ minWidth: '240px' }}>
+                {/* Active Cycles Section */}
+                <div style={{ padding: '6px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Active Planning Cycle
+                </div>
+                {activePlanningMonths.length === 0 ? (
+                  <div style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>No active planning cycle</div>
+                ) : (
+                  activePlanningMonths.map((m) => {
+                    const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
+                    return (
+                      <div
+                        key={`active-${m.year}-${m.month}`}
                         style={{
-                          flex: 1,
-                          border: 'none',
-                          background: 'transparent',
-                          textAlign: 'left',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          paddingRight: '6px'
+                          borderRadius: 'var(--radius-sm)',
+                          transition: 'background 0.15s ease'
                         }}
-                        onClick={() => {
-                          onSelectMonth(m.year, m.month);
-                          setActiveDropdown(null);
-                        }}
+                        className={`app-dropdown-item-row ${isSelected ? 'active' : ''}`}
                       >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
-                          {isCurrentCalendarMonth && (
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: '3px',
-                                background: 'var(--surface-subtle)',
-                                border: '1px solid var(--border)',
-                                color: 'var(--accent)'
-                              }}
-                            >
-                              Current
-                            </span>
-                          )}
-                        </span>
-                        {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
-                      </button>
-                      {onDeleteMonth && (
                         <button
                           type="button"
-                          className="btn-icon"
-                          title={`Delete ${MONTH_NAMES[m.month - 1]} ${m.year}`}
-                          aria-label={`Delete ${MONTH_NAMES[m.month - 1]} ${m.year}`}
+                          className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
                           style={{
-                            padding: '6px 8px',
-                            color: 'var(--text-muted)',
-                            background: 'transparent',
+                            flex: 1,
                             border: 'none',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
+                            background: 'transparent',
+                            textAlign: 'left',
+                            display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'space-between',
+                            paddingRight: '6px'
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--negative, #ef4444)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isCurrentCalendarMonth) {
-                              const confirmMsg = `WARNING: You are deleting the ACTIVE current calendar month (${MONTH_NAMES[m.month - 1]} ${m.year}).\n\nAll planned items, daily transactions, and transfers for this active cycle will be permanently deleted.\n\nAre you sure you want to proceed?`;
-                              if (window.confirm(confirmMsg)) {
-                                onDeleteMonth(m.year, m.month, true);
-                                setActiveDropdown(null);
-                              }
-                            } else {
-                              if (window.confirm(`Are you sure you want to delete ${MONTH_NAMES[m.month - 1]} ${m.year}? All items, transactions, and transfers for this month will be permanently deleted.`)) {
-                                onDeleteMonth(m.year, m.month, false);
-                                setActiveDropdown(null);
-                              }
-                            }
+                          onClick={() => {
+                            onSelectMonth(m.year, m.month);
+                            setActiveDropdown(null);
                           }}
                         >
-                          <TrashIcon size={13} color="currentColor" />
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                            <span className="active-cycle-tag" style={{ fontSize: '9px', padding: '0 4px' }}>
+                              Current
+                            </span>
+                          </span>
+                          {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
                         </button>
-                      )}
+                      </div>
+                    );
+                  })
+                )}
+
+                {/* Closed Review Periods Archive Section */}
+                {reviewArchiveMonths.length > 0 && (
+                  <>
+                    <div className="app-dropdown-divider" />
+                    <div style={{ padding: '6px 12px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>Review Archive (Read-Only)</span>
                     </div>
-                  );
-                })}
-
-                <div className="app-dropdown-divider" />
-
-                <button
-                  type="button"
-                  className="app-dropdown-item"
-                  style={{ color: 'var(--text)', fontWeight: 600 }}
-                  onClick={() => {
-                    setActiveDropdown(null);
-                    onOpenCreateMonth();
-                  }}
-                >
-                  <PlusIcon size={14} color="currentColor" />
-                  <span>Create new month</span>
-                </button>
-
-                {currentMonth && (
-                  <button
-                    type="button"
-                    className="app-dropdown-item"
-                    style={{ fontSize: '12px' }}
-                    onClick={() => {
-                      setActiveDropdown(null);
-                      onOpenRollover();
-                    }}
-                  >
-                    <RefreshIcon size={13} />
-                    <span>Rollover to next month</span>
-                  </button>
+                    {reviewArchiveMonths.map((m) => {
+                      const isSelected = currentMonth?.year === m.year && currentMonth?.month === m.month;
+                      return (
+                        <div
+                          key={`review-${m.year}-${m.month}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            borderRadius: 'var(--radius-sm)',
+                            transition: 'background 0.15s ease'
+                          }}
+                          className={`app-dropdown-item-row ${isSelected ? 'active' : ''}`}
+                        >
+                          <button
+                            type="button"
+                            className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
+                            style={{
+                              flex: 1,
+                              border: 'none',
+                              background: 'transparent',
+                              textAlign: 'left',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingRight: '6px'
+                            }}
+                            onClick={() => {
+                              onSelectMonth(m.year, m.month);
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{MONTH_NAMES[m.month - 1]} {m.year}</span>
+                              <span className="review-badge-tag" style={{ fontSize: '9px', padding: '0 4px' }}>
+                                Closed
+                              </span>
+                            </span>
+                            {isSelected && <span style={{ fontSize: '11px', color: 'var(--text)' }}>●</span>}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </div>
             )}
@@ -272,8 +287,8 @@ export function Header({
                   : `Safety floor maintained (+${formatCurrency(margin, currencySymbol)} cushion). Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
               }
             >
-              <span className={`floor-indicator-glyph ${floorBreached ? 'breached' : 'safe'}`}>
-                {floorBreached ? '▲' : '✓'}
+              <span className={`floor-indicator-glyph ${floorBreached ? 'breached' : 'safe'}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {floorBreached ? <AlertTriangleIcon size={11} /> : <CheckCircleIcon size={11} />}
               </span>
               <span className="header-floor-text">
                 {floorBreached

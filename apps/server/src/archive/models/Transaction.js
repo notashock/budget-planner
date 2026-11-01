@@ -26,7 +26,11 @@ const transactionSchema = new mongoose.Schema(
     },
     tag: {
       type: String,
-      enum: ['Food', 'Travel', 'Health', 'Salary', 'Freelance', 'Bonus', 'Investment', 'Other'],
+      default: 'Other'
+    },
+    category: {
+      type: String,
+      trim: true,
       default: 'Other'
     },
     note: {

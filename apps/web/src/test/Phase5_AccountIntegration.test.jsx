@@ -239,12 +239,12 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const logSubmitBtn = screen.getByRole('button', { name: /Log expense debit/i });
       expect(logSubmitBtn).toBeDisabled();
 
-      // Switch to Plan Budget Item mode
-      const planTabBtn = screen.getByRole('button', { name: /Plan Budget Item/i });
+      // Switch to Plan mode
+      const planTabBtn = screen.getByRole('button', { name: /Plan Transaction/i });
       fireEvent.click(planTabBtn);
 
       expect(screen.getByText(/Bank Account Required/i)).toBeInTheDocument();
-      const planSubmitBtn = screen.getByRole('button', { name: /Save planned item/i });
+      const planSubmitBtn = screen.getByRole('button', { name: /Save planned/i });
       expect(planSubmitBtn).toBeDisabled();
     });
 
@@ -352,7 +352,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '120.00' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Save planned item/i });
+      const submitBtn = screen.getByRole('button', { name: /Save planned/i });
       fireEvent.click(submitBtn);
 
       await waitFor(() => {

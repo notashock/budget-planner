@@ -1,11 +1,13 @@
 import express from 'express';
 import session from 'express-session';
-import MongoStore from 'connect-mongo';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
+import { defenseFirewall } from './middleware/defense.js';
+import { responseEnvelope } from './middleware/envelope.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -16,6 +18,7 @@ import { goalsRouter } from './routes/goals.js';
 import { bankAccountsRouter } from './routes/bankAccounts.js';
 import { walletsRouter } from './routes/wallets.js';
 import { transfersRouter } from './routes/transfers.js';
+import { salaryTemplatesRouter } from './routes/salaryTemplates.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,27 +36,29 @@ export function createApp(options = {}) {
       : (config.corsOrigin.includes(',') ? config.corsOrigin.split(',').map((s) => s.trim()) : config.corsOrigin)
   );
 
+  // High-resolution request execution timer for turnaround calculation
+  app.use((req, res, next) => {
+    req._startTime = process.hrtime.bigint();
+    next();
+  });
+
   app.use(cors({
     origin: effectiveCorsOrigin,
     credentials: true
   }));
 
-  app.use(express.json());
+  // Strict request body limit (100KB)
+  app.use(express.json({ limit: '100kb' }));
 
-  // Configure Session Store
+  // Defensive Security Firewall (Sanitizes inputs, enforces security headers, blocks attacks)
+  app.use(defenseFirewall);
+
+  // Standardized Response Envelope Decorator
+  app.use(responseEnvelope);
+
+  // Configure Session Store (MemoryStore or options.sessionStore)
   const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
-  let store = options.sessionStore;
-  if (!store && options.useMongoStore !== false) {
-    try {
-      store = MongoStore.create({
-        mongoUrl: options.mongoUri || config.mongoUri,
-        ttl: sessionTtlSeconds
-      });
-    } catch (e) {
-      // MemoryStore fallback if MongoDB store creation fails
-      store = undefined;
-    }
-  }
+  const store = options.sessionStore;
 
   app.use(
     session({
@@ -72,7 +77,7 @@ export function createApp(options = {}) {
 
   // Health check endpoint (public, unauthenticated)
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.success({ status: 'ok', serverTime: new Date().toISOString() });
   });
 
   // Mount API routers
@@ -84,8 +89,10 @@ export function createApp(options = {}) {
   app.use('/api', transactionsRouter);
   app.use('/api', goalsRouter);
   app.use('/api/bank-accounts', bankAccountsRouter);
+  app.use('/api/accounts', bankAccountsRouter);
   app.use('/api/wallets', walletsRouter);
   app.use('/api/transfers', transfersRouter);
+  app.use('/api/salary-templates', salaryTemplatesRouter);
 
   // Serve static web frontend if built (production Docker runtime)
   const webDistPath = path.resolve(__dirname, '../../web/dist');
@@ -98,6 +105,9 @@ export function createApp(options = {}) {
       res.sendFile(path.join(webDistPath, 'index.html'));
     });
   }
+
+  // Centralized Error Handling Middleware (Catches AppError, PostgreSQL errors, and uncaught exceptions)
+  app.use(errorHandler);
 
   return app;
 }

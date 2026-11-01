@@ -1,11 +1,11 @@
 import { config } from './config.js';
-import { connectDB } from './db.js';
+import { runMigrations } from './db/index.js';
 import { createApp } from './app.js';
 
 async function main() {
   try {
-    await connectDB(config.mongoUri);
-    console.log(`Connected to MongoDB at ${config.mongoUri}`);
+    console.log('Ensuring PostgreSQL database migrations are applied...');
+    await runMigrations();
 
     const app = createApp();
     app.listen(config.port, '0.0.0.0', () => {

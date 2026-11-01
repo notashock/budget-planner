@@ -7,10 +7,10 @@ import {
   PlusIcon
 } from './Icons.jsx';
 
-export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry }) {
+export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry, isReviewMode = false }) {
   const leftTabs = [
     { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
-    { id: 'items', label: 'Items', Icon: ListOrderedIcon }
+    { id: 'transactions', label: 'Transactions', Icon: ListOrderedIcon }
   ];
 
   const rightTabs = [
@@ -40,17 +40,19 @@ export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry }) {
         })}
 
         {/* Central Symmetrical Quick-Action (+) Button */}
-        <div className="nav-action-wrapper">
-          <button
-            type="button"
-            className="bottom-nav-action-btn"
-            onClick={() => onOpenUnifiedEntry?.('log')}
-            title="Log or Plan Entry"
-            aria-label="Quick Add Entry"
-          >
-            <PlusIcon size={19} color="currentColor" strokeWidth={2.4} />
-          </button>
-        </div>
+        {!isReviewMode && (
+          <div className="nav-action-wrapper">
+            <button
+              type="button"
+              className="bottom-nav-action-btn"
+              onClick={() => onOpenUnifiedEntry?.('log')}
+              title="Log or Plan Entry"
+              aria-label="Quick Add Entry"
+            >
+              <PlusIcon size={19} color="currentColor" strokeWidth={2.4} />
+            </button>
+          </div>
+        )}
 
         {rightTabs.map((tab) => {
           const IconComponent = tab.Icon;

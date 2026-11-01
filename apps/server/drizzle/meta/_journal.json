@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792328088271,
+      "tag": "0000_bumpy_devos",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792328397968,
+      "tag": "0001_dizzy_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792778800000,
+      "tag": "0002_curious_transfer_transactions",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,448 +1,146 @@
 import express from 'express';
-import { Month } from '../models/Month.js';
-import { Transaction } from '../models/Transaction.js';
-import { Item } from '../models/Item.js';
-import { Goal } from '../models/Goal.js';
-import { Setting } from '../models/Setting.js';
-import { BankAccount } from '../models/BankAccount.js';
-import { Wallet } from '../models/Wallet.js';
-import { Transfer } from '../models/Transfer.js';
 import { requireAuth } from '../middleware/auth.js';
-import { recommendPurchaseDate } from '@budget/engine';
+import { BudgetExecution } from '../domain/budgetExecution.js';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
-import { backfillUnassignedTransactions } from '../services/accountMigration.js';
-import { validateUserAccount } from '../services/accountValidation.js';
+import { ValidationError } from '../utils/errors.js';
 
 export const transactionsRouter = express.Router();
 transactionsRouter.use(requireAuth);
 
-// GET /api/months/:year/:month/transactions
-transactionsRouter.get('/months/:year/:month/transactions', async (req, res) => {
+// GET /api/transactions (Global / Period-Free Transactions List)
+transactionsRouter.get('/transactions', async (req, res, next) => {
   try {
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
-    });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    try {
-      await backfillUnassignedTransactions(req.session.userId);
-    } catch {
-      // non-fatal
-    }
-
-    const transactions = await Transaction.find({
-      userId: req.session.userId,
-      monthId: month._id
-    }).sort({ date: 1, createdAt: 1 });
-
-    return res.json(transactions);
+    const userId = req.userId || req.session?.userId;
+    const transactions = await BudgetExecution.listAllTransactions(userId, req.query);
+    return res.success(transactions);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch transactions' });
+    next(err);
   }
 });
 
-// POST /api/months/:year/:month/transactions (3-tap quick log)
-transactionsRouter.post('/months/:year/:month/transactions', async (req, res) => {
+// POST /api/transactions (Global / Period-Free Transaction Creation)
+transactionsRouter.post('/transactions', async (req, res, next) => {
   try {
+    const userId = req.userId || req.session?.userId;
+    const transaction = await BudgetExecution.recordGlobalTransaction(userId, req.body);
+    return res.success(transaction, 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/reports/irregular (Irregular income analytics: trailing 12M, smoothed income, runway, quarters, years)
+transactionsRouter.get('/reports/irregular', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const reports = await BudgetExecution.getIrregularReports(userId, req.query);
+    return res.success(reports);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/months/:year/:month/transactions
+transactionsRouter.get('/months/:year/:month/transactions', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { amount, tag, note, date, plannedItemId } = req.body;
-
-    if (amount === undefined || amount === null || typeof Number(amount) !== 'number') {
-      return res.status(400).json({ error: 'Valid amount is required' });
-    }
-
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
-    });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    // Default date to today formatted as YYYY-MM-DD if not provided
-    let txDate = date;
-    if (!txDate) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      txDate = `${year}-${pad(monthNum)}-${pad(now.getDate())}`;
-    }
-
-    // Validate plannedItemId if provided
-    let verifiedPlannedItemId = null;
-    if (plannedItemId) {
-      const item = await Item.findOne({
-        _id: plannedItemId,
-        userId: req.session.userId,
-        monthId: month._id
-      });
-      if (item) {
-        verifiedPlannedItemId = item._id;
-      }
-    }
-
-    const validTag = ['Food', 'Travel', 'Health', 'Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].includes(tag) ? tag : 'Other';
-
-    // Resolve Account Attribution per ADR 0035 (mandatory):
-    if (req.body.accountType === 'unassigned') {
-      return res.status(400).json({ error: 'Account linking is required' });
-    }
-
-    let resolvedAccountType = ['bank', 'wallet'].includes(req.body.accountType) ? req.body.accountType : null;
-    let resolvedBankAccountId = req.body.bankAccountId || null;
-    let resolvedWalletId = req.body.walletId || null;
-
-    if (!resolvedBankAccountId && !resolvedWalletId) {
-      if (verifiedPlannedItemId) {
-        const item = await Item.findOne({ _id: verifiedPlannedItemId, userId: req.session.userId });
-        if (item && item.accountType && item.accountType !== 'unassigned') {
-          if (item.accountType === 'wallet' && item.walletId) {
-            resolvedAccountType = 'wallet';
-            resolvedWalletId = item.walletId;
-          } else if (item.bankAccountId) {
-            resolvedAccountType = 'bank';
-            resolvedBankAccountId = item.bankAccountId;
-          }
-        }
-      }
-
-      if (!resolvedBankAccountId && !resolvedWalletId) {
-        let primaryBank = await BankAccount.findOne({
-          userId: req.session.userId,
-          isArchived: { $ne: true }
-        }).sort({ isPrimary: -1, createdAt: 1 });
-
-        if (!primaryBank) {
-          const totalAccounts = (await BankAccount.countDocuments({ userId: req.session.userId })) +
-            (await Wallet.countDocuments({ userId: req.session.userId }));
-          if (totalAccounts === 0) {
-            primaryBank = await BankAccount.create({
-              userId: req.session.userId,
-              name: 'Primary Account',
-              institution: 'Default Bank',
-              accountType: 'checking',
-              isPrimary: true,
-              openingBalance: month.openingBalance || 0
-            });
-          }
-        }
-
-        if (primaryBank) {
-          resolvedAccountType = 'bank';
-          resolvedBankAccountId = primaryBank._id;
-        }
-      }
-    }
-
-    if (!resolvedBankAccountId && !resolvedWalletId) {
-      return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the transaction' });
-    }
-
-    if (resolvedBankAccountId) {
-      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: resolvedBankAccountId });
-      if (!valid) {
-        return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
-      }
-    }
-
-    if (resolvedWalletId) {
-      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: resolvedWalletId });
-      if (!valid) {
-        return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
-      }
-    }
-
-    const transaction = await Transaction.create({
-      userId: req.session.userId,
-      monthId: month._id,
-      date: txDate,
-      amount: Math.round(Number(amount)),
-      tag: validTag,
-      note: note ? String(note).trim() : '',
-      plannedItemId: verifiedPlannedItemId,
-      accountType: resolvedAccountType,
-      bankAccountId: resolvedBankAccountId,
-      walletId: resolvedWalletId,
-      isIncome: Boolean(req.body.isIncome),
-      transferId: req.body.transferId || null
-    });
-
-    // Dynamic Goal Re-evaluation & Auto-Deferral:
-    // If an expense purchase compromises the safety buffer of any active goal,
-    // automatically transition that goal to deferred status.
-    if (transaction.amount > 0) {
-      if (verifiedPlannedItemId) {
-        await Item.updateOne({ _id: verifiedPlannedItemId }, { $set: { isPaid: true } });
-      }
-
-      try {
-        const activeGoals = await Goal.find({
-          userId: req.session.userId,
-          monthId: month._id,
-          status: { $in: ['active', 'evaluating'] }
-        });
-
-        if (activeGoals.length > 0) {
-          const [items, allTransactions] = await Promise.all([
-            Item.find({ userId: req.session.userId, monthId: month._id }),
-            Transaction.find({ userId: req.session.userId, monthId: month._id })
-          ]);
-
-          const now = new Date();
-          const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
-          const currentDay = isCurrentMonth ? now.getDate() : null;
-
-          for (const goal of activeGoals) {
-            const rec = recommendPurchaseDate(
-              {
-                openingBalance: month.openingBalance,
-                incomeAmount: month.incomeAmount,
-                incomeCreditDate: month.incomeCreditDate,
-                incomeCreditDay: month.incomeCreditDay,
-                safetyFloor: month.safetyFloor,
-                unplannedAllowance: month.unplannedAllowance || 0,
-                currentDay,
-                scale: 100
-              },
-              items,
-              { year, month: monthNum },
-              goal.targetAmount,
-              allTransactions
-            );
-
-            if (!rec.feasible) {
-              goal.status = 'deferred';
-              goal.deferredReason = 'Auto-deferred: recent purchase compromised safety buffer';
-
-              let nextYear = month.year;
-              let nextMonthNum = month.month + 1;
-              if (nextMonthNum > 12) {
-                nextMonthNum = 1;
-                nextYear += 1;
-              }
-
-              let nextMonth = await Month.findOne({
-                userId: req.session.userId,
-                year: nextYear,
-                month: nextMonthNum
-              });
-
-              if (!nextMonth) {
-                nextMonth = await Month.create({
-                  userId: req.session.userId,
-                  year: nextYear,
-                  month: nextMonthNum,
-                  openingBalance: 0,
-                  incomeAmount: 0,
-                  incomeCreditDay: null,
-                  incomeCreditDate: null,
-                  salaryBankAccountId: null,
-                  isSalaryCredited: false,
-                  salaryCreditedDate: null,
-                  safetyFloor: month.safetyFloor,
-                  unplannedAllowance: 0,
-                  currencySymbol: month.currencySymbol
-                });
-              }
-
-              goal.monthId = nextMonth._id;
-              await goal.save();
-            }
-          }
-        }
-      } catch (goalEvalErr) {
-        console.error('Goal auto-deferral evaluation error:', goalEvalErr);
-      }
-    }
-
-    return res.status(201).json(transaction);
+    const transactions = await BudgetExecution.listTransactions(userId, year, monthNum, req.query);
+    return res.success(transactions);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to log transaction' });
+    next(err);
+  }
+});
+
+// POST /api/months/:year/:month/transactions
+transactionsRouter.post('/months/:year/:month/transactions', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const year = Number(req.params.year);
+    const monthNum = Number(req.params.month);
+    const transaction = await BudgetExecution.recordTransaction(userId, year, monthNum, req.body);
+    return res.success(transaction, 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/transactions/:id/pay (One-tap Mark as Paid with actual confirmation)
+transactionsRouter.patch('/transactions/:id/pay', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const txId = req.params.id;
+    const result = await BudgetExecution.markTransactionPaid(userId, txId, req.body);
+    return res.success(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/transactions/:id/cancel (Cancel planned transaction with goal prompt action)
+transactionsRouter.patch('/transactions/:id/cancel', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const txId = req.params.id;
+    const result = await BudgetExecution.cancelTransaction(userId, txId, req.body);
+    return res.success(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/transactions/:id
+transactionsRouter.put('/transactions/:id', async (req, res, next) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const txId = req.params.id;
+    const result = await BudgetExecution.updateTransaction(userId, txId, req.body);
+    return res.success(result);
+  } catch (err) {
+    next(err);
   }
 });
 
 // DELETE /api/transactions/:id
-transactionsRouter.delete('/transactions/:id', async (req, res) => {
+transactionsRouter.delete('/transactions/:id', async (req, res, next) => {
   try {
-    const tx = await Transaction.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
-
-    if (!tx) {
-      return res.status(404).json({ error: 'Transaction not found' });
-    }
-
-    return res.json({ message: 'Transaction deleted successfully' });
+    const userId = req.userId || req.session?.userId;
+    const txId = req.params.id;
+    const result = await BudgetExecution.deleteTransaction(userId, txId);
+    return res.success(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to delete transaction' });
+    next(err);
   }
 });
 
 // GET /api/months/:year/:month/month-end-review
-transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res) => {
+transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res, next) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
+    const review = await BudgetExecution.getMonthEndReview(userId, year, monthNum, {
+      accountId: req.query.accountId
     });
-
-    if (!month) {
-      return res.status(404).json({ error: 'Month not found' });
-    }
-
-    const accountId = req.query.accountId;
-    const isAccountSpecific = Boolean(accountId && accountId !== 'all');
-
-    let targetAccount = null;
-    if (isAccountSpecific) {
-      targetAccount = await BankAccount.findOne({ _id: accountId, userId: req.session.userId })
-        || await Wallet.findOne({ _id: accountId, userId: req.session.userId });
-    }
-
-    const txQuery = {
-      userId: req.session.userId,
-      monthId: month._id
-    };
-    if (isAccountSpecific) {
-      txQuery.$or = [
-        { bankAccountId: accountId },
-        { walletId: accountId }
-      ];
-    }
-
-    const [transactions, transfers] = await Promise.all([
-      Transaction.find(txQuery),
-      Transfer.find({ userId: req.session.userId, monthId: month._id })
-    ]);
-
-    const tagBreakdown = {
-      Food: { count: 0, total: 0 },
-      Travel: { count: 0, total: 0 },
-      Health: { count: 0, total: 0 },
-      Other: { count: 0, total: 0 }
-    };
-
-    let totalUnplannedActual = 0;
-    let totalMatchedActual = 0;
-    let directIncome = 0;
-
-    transactions.forEach((tx) => {
-      if (tx.isIncome) {
-        directIncome += tx.amount;
-        return;
-      }
-
-      const tag = tx.tag || 'Other';
-      if (!tagBreakdown[tag]) tagBreakdown[tag] = { count: 0, total: 0 };
-      tagBreakdown[tag].count++;
-      tagBreakdown[tag].total += tx.amount;
-
-      if (!tx.plannedItemId) {
-        totalUnplannedActual += tx.amount;
-      } else {
-        totalMatchedActual += tx.amount;
-      }
-    });
-
-    let totalTransferIn = 0;
-    let totalTransferOut = 0;
-
-    if (isAccountSpecific) {
-      transfers.forEach((tr) => {
-        const sBank = tr.sourceBankAccountId ? String(tr.sourceBankAccountId._id || tr.sourceBankAccountId) : null;
-        const sWall = tr.sourceWalletId ? String(tr.sourceWalletId._id || tr.sourceWalletId) : null;
-        const dBank = tr.destinationBankAccountId ? String(tr.destinationBankAccountId._id || tr.destinationBankAccountId) : null;
-        const dWall = tr.destinationWalletId ? String(tr.destinationWalletId._id || tr.destinationWalletId) : null;
-
-        if (sBank === String(accountId) || sWall === String(accountId)) {
-          totalTransferOut += tr.amount;
-        }
-        if (dBank === String(accountId) || dWall === String(accountId)) {
-          totalTransferIn += tr.amount;
-        }
-      });
-    }
-
-    const totalIncome = isAccountSpecific
-      ? (directIncome + totalTransferIn)
-      : (month.incomeAmount || 0) + directIncome;
-
-    const totalExpenses = totalUnplannedActual + totalMatchedActual + totalTransferOut;
-    const netCashflow = totalIncome - totalExpenses;
-
-    // Plain arithmetic calculation for suggested next-month allowance:
-    let suggestedAllowance = 0;
-    if (totalUnplannedActual > 0) {
-      const withBuffer = totalUnplannedActual * 1.1;
-      suggestedAllowance = Math.ceil(withBuffer / 5000) * 5000;
-    } else {
-      suggestedAllowance = month.unplannedAllowance || 10000;
-    }
-
-    const review = {
-      isAccountSpecific,
-      accountId: isAccountSpecific ? accountId : null,
-      accountName: targetAccount ? targetAccount.name : (isAccountSpecific ? 'Account' : 'Unified (All Accounts)'),
-      accountType: targetAccount ? (targetAccount.institution ? 'bank' : 'wallet') : null,
-      totalIncome,
-      directIncome,
-      totalTransferIn,
-      totalExpenses,
-      directExpenses: totalUnplannedActual + totalMatchedActual,
-      totalTransferOut,
-      netCashflow,
-      unplannedAllowance: month.unplannedAllowance || 0,
-      totalUnplannedActual,
-      totalMatchedActual,
-      variance: (month.unplannedAllowance || 0) - totalUnplannedActual,
-      tagBreakdown,
-      suggestedNextMonthAllowance: suggestedAllowance,
-      aiExplanation: null
-    };
-
-    // If AI assistant is enabled, obtain optional pattern explanation
-    const setting = await Setting.findOne({ userId: req.session.userId });
-    if (setting?.aiAssistantEnabled) {
-      try {
-        const adapter = new GeminiAssistantAdapter(config.geminiApiKey);
-        const explanation = await adapter.explainTimeline(
-          {
-            floorBreached: false,
-            lowestBalance: 0,
-            lowestDate: '',
-            endingBalance: 0,
-            events: Object.entries(tagBreakdown).map(([tag, data]) => ({
-              date: `${year}-${String(monthNum).padStart(2, '0')}`,
-              label: tag,
-              amount: -data.total
-            }))
-          },
-          month.safetyFloor
-        );
-        review.aiExplanation = explanation.summary;
-      } catch (e) {
-        // Fail silently if AI provider is unavailable
-      }
-    }
-
-    return res.json(review);
+    return res.success(review);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to generate month-end review' });
+    next(err);
+  }
+});
+
+// POST /api/transactions/classify (Gemini AI transaction note classification)
+transactionsRouter.post('/transactions/classify', async (req, res, next) => {
+  try {
+    const { note } = req.body;
+    if (!note || typeof note !== 'string') {
+      throw new ValidationError('Transaction note string is required');
+    }
+    const adapter = new GeminiAssistantAdapter(config.geminiApiKey);
+    const category = await adapter.classifyExpenseNote(note);
+    return res.success({ category });
+  } catch (err) {
+    next(err);
   }
 });

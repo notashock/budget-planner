@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BuildingLibraryIcon, ShieldAlertIcon, LockIcon } from './Icons.jsx';
+import { BuildingLibraryIcon, ShieldAlertIcon, LockIcon, XIcon } from './Icons.jsx';
 import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
 
@@ -112,7 +112,9 @@ export function SalarySafelineModal({
                 Link Salary & Safeline
               </h3>
             </div>
-            <button type="button" className="btn-icon" onClick={() => requestClose()}>✕</button>
+            <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
+              <XIcon size={14} />
+            </button>
           </div>
 
           <p style={{ margin: '0 0 16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>

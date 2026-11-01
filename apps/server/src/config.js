@@ -11,23 +11,21 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
+const DEFAULT_JWT_SECRET = 'budget_planner_persistent_jwt_secret_key_2026_super_secure';
+
 function resolveSecret() {
   const envSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET;
-  if (envSecret && envSecret !== 'dev_session_secret_change_in_production') {
-    return envSecret;
+  if (envSecret && envSecret.trim()) {
+    return envSecret.trim();
   }
-  const ephemeralSecret = crypto.randomBytes(32).toString('hex');
-  console.warn(
-    '\n[SECURITY WARNING] No persistent JWT_SECRET provided. Generated ephemeral 256-bit secret. ' +
-    'User sessions will not survive process restarts unless JWT_SECRET is explicitly set in .env.\n'
-  );
-  return ephemeralSecret;
+  return DEFAULT_JWT_SECRET;
 }
 
 const resolvedSecret = resolveSecret();
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://ashok25:Dhathri%4025@localhost:5432/budget_planner',
   mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/budget_planner',
   jwtSecret: resolvedSecret,
   sessionSecret: resolvedSecret,
