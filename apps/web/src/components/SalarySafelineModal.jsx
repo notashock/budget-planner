@@ -25,9 +25,11 @@ export function SalarySafelineModal({
   useEffect(() => {
     if (isOpen && month) {
       loadingRef.current = false;
-      const activeBankId = month.salaryBankAccountId?._id || month.salaryBankAccountId || '';
       const primaryBank = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0];
-      setSalaryBankAccountId(activeBankId || primaryBank?._id || primaryBank?.id || '');
+      const rawBankId = month.salaryBankAccountId?._id || month.salaryBankAccountId || '';
+      const matchingBank = bankAccounts.find((b) => String(b._id || b.id) === String(rawBankId));
+      const activeBankId = matchingBank ? (matchingBank._id || matchingBank.id) : (primaryBank?._id || primaryBank?.id || '');
+      setSalaryBankAccountId(activeBankId);
       setIncomeAmount(month.incomeAmount ? (month.incomeAmount / 100).toString() : '0');
       setSafetyFloor(month.safetyFloor !== undefined ? (month.safetyFloor / 100).toString() : '0');
       const defaultDate = month.salaryCreditedDate || month.incomeCreditDate || (
@@ -69,8 +71,12 @@ export function SalarySafelineModal({
         };
       } else {
         const parsedIncome = Math.round(Number(incomeAmount || 0) * 100);
+        const selectedBankId = salaryBankAccountId
+          ? (typeof salaryBankAccountId === 'object' ? (salaryBankAccountId._id || salaryBankAccountId.id) : String(salaryBankAccountId))
+          : null;
+
         payload = {
-          salaryBankAccountId: salaryBankAccountId || null,
+          salaryBankAccountId: selectedBankId || null,
           incomeAmount: parsedIncome,
           safetyFloor: parsedSafetyFloor
         };

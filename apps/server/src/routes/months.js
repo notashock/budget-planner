@@ -92,6 +92,15 @@ monthsRouter.post('/', async (req, res) => {
       if (!validSalaryBank) {
         return res.status(400).json({ error: 'salaryBankAccountId is invalid or not owned by user' });
       }
+    } else if (defaultSalaryBank) {
+      const validDefault = await validateUserAccount({
+        userId: req.session.userId,
+        accountType: 'bank',
+        accountId: defaultSalaryBank
+      });
+      if (!validDefault) {
+        defaultSalaryBank = null;
+      }
     }
 
     let finalAccountOpenings = [];
@@ -148,7 +157,11 @@ monthsRouter.post('/', async (req, res) => {
         ? Math.round(unplannedAllowance)
         : (userSettings?.defaultUnplannedAllowance ?? 0),
       currencySymbol: currencySymbol || userSettings?.currencySymbol || '₹',
-      salaryBankAccountId: salaryBankAccountId || defaultSalaryBank,
+      salaryBankAccountId: salaryBankAccountId || defaultSalaryBank || (
+        await BankAccount.findOne({ userId: req.session.userId, isPrimary: true, isArchived: { $ne: true } })
+      )?._id || (
+        await BankAccount.findOne({ userId: req.session.userId, isArchived: { $ne: true } }).sort({ createdAt: 1 })
+      )?._id || null,
       isSalaryCredited: false,
       accountOpeningBalances: finalAccountOpenings
     });
@@ -278,7 +291,8 @@ monthsRouter.get('/:year/:month', async (req, res) => {
           }
         );
 
-        if (!month.salaryBankAccountId) {
+        const currentSalaryBankId = month.salaryBankAccountId ? String(month.salaryBankAccountId._id || month.salaryBankAccountId) : null;
+        if (!currentSalaryBankId || !validBankIds.map(String).includes(currentSalaryBankId)) {
           month.salaryBankAccountId = primaryBank._id;
           await Month.updateOne({ _id: month._id }, { $set: { salaryBankAccountId: primaryBank._id } });
         }
@@ -387,17 +401,21 @@ monthsRouter.put('/:year/:month', async (req, res) => {
     if (typeof unplannedAllowance === 'number') update.unplannedAllowance = Math.round(unplannedAllowance);
     if (typeof currencySymbol === 'string' && currencySymbol.trim()) update.currencySymbol = currencySymbol.trim();
     if (salaryBankAccountId !== undefined) {
-      if (salaryBankAccountId) {
+      let cleanSalaryBankId = salaryBankAccountId;
+      if (typeof cleanSalaryBankId === 'object' && cleanSalaryBankId !== null) {
+        cleanSalaryBankId = cleanSalaryBankId._id || cleanSalaryBankId.id || null;
+      }
+      if (cleanSalaryBankId) {
         const validSalary = await validateUserAccount({
           userId: req.session.userId,
           accountType: 'bank',
-          accountId: salaryBankAccountId
+          accountId: cleanSalaryBankId
         });
         if (!validSalary) {
           return res.status(400).json({ error: 'salaryBankAccountId is invalid or not owned by user' });
         }
       }
-      update.salaryBankAccountId = salaryBankAccountId || null;
+      update.salaryBankAccountId = cleanSalaryBankId || null;
     }
     if (typeof req.body.salaryCreditedDate === 'string') {
       update.salaryCreditedDate = req.body.salaryCreditedDate.trim() || null;

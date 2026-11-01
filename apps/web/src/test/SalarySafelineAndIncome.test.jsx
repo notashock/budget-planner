@@ -255,4 +255,42 @@ describe('Salary Linking and Income Logging Integration', () => {
     // Verify sole truth helper guidance text
     expect(screen.getByText(/your primary monthly salary is managed via link salary & safeline/i)).toBeInTheDocument();
   });
+  it('auto-heals ghost or invalid salaryBankAccountId by falling back to primary bank and submits successfully', async () => {
+    // Month has an invalid/ghost salary bank account ID that does not exist in bankAccounts
+    const monthWithGhostBank = {
+      ...mockMonth,
+      salaryBankAccountId: 'deleted-or-ghost-bank-999'
+    };
+
+    const handleSave = vi.fn().mockResolvedValue({});
+    const handleClose = vi.fn();
+
+    render(
+      <SalarySafelineModal
+        isOpen={true}
+        onClose={handleClose}
+        month={monthWithGhostBank}
+        bankAccounts={[mockBank]}
+        currencySymbol="₹"
+        onSave={handleSave}
+      />
+    );
+
+    // Verify the select has selected mockBank._id ('bank-1'), not the ghost bank ID
+    const bankSelect = screen.getByLabelText(/salary credited account/i);
+    expect(bankSelect.value).toBe('bank-1');
+
+    // Submit the form
+    const saveBtn = screen.getByRole('button', { name: /save salary & safeline/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          salaryBankAccountId: 'bank-1'
+        })
+      );
+      expect(handleClose).toHaveBeenCalled();
+    });
+  });
 });
