@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "pretest": "node src/scripts/db_prepare.js",
     "test": "vitest run test/postgres_api.test.js test/transactions_lifecycle_api.test.js test/onboarding_and_income_model.test.js test/jwt.test.js test/review_mode_and_cycle_advancement.test.js test/v1_architecture.test.js --fileParallelism=false --testTimeout=20000",
     "db:migrate-unified": "node src/scripts/migrate_to_unified_transactions.js",
     "db:rollback-unified": "node src/scripts/rollback_unified_transactions.js",

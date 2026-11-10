@@ -103,7 +103,7 @@ export function createApp(options = {}) {
   });
 
   // Auto-bootstrap middleware: In PostgreSQL / Supabase environments, ensures database tables exist
-  if (config.databaseUrl && process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  if (config.databaseUrl) {
     app.use(async (req, res, next) => {
       try {
         await ensureDatabaseInitialized();

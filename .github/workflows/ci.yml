@@ -71,6 +71,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      - name: Bootstrap Database Schema & Migrations
+        run: npm run db:prepare --workspace=@budget/server
       - name: Run Server Integration Suite
         run: npm run test:server
 
@@ -155,6 +157,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      - name: Bootstrap Database Schema & Migrations
+        run: npm run db:prepare --workspace=@budget/server
       - name: Verify Live TCP Binding & Health Probe
         run: |
           mkdir -p logs

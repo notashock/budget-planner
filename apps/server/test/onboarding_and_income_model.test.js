@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { db } from '../src/db/index.js';
+import { db, ensureDatabaseInitialized } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { migrateMonthDecouplingAndIncomeModel } from '../src/scripts/migrate_month_decoupling_and_income_model.js';
@@ -12,6 +12,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
   let authToken;
 
   beforeAll(async () => {
+    await ensureDatabaseInitialized();
     app = createApp();
     await migrateMonthDecouplingAndIncomeModel();
 

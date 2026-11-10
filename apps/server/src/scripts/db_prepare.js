@@ -51,9 +51,14 @@ async function runPrepare() {
   console.log('  DEVOPS DATABASE PREPARATION & SUPABASE HARDENING');
   console.log('============================================================');
 
-  const maskedUrl = targetDbUrl.replace(/:([^:@]+)@/, ':****@');
+  const maskedUrl = targetDbUrl ? targetDbUrl.replace(/:([^:@]+)@/, ':****@') : 'none';
   console.log(`Target Database: ${maskedUrl}`);
   console.log(`SSL Mode:        ${isRemoteDb ? 'Enabled (rejectUnauthorized: false)' : 'Disabled (Local)'}\n`);
+
+  if (!targetDbUrl) {
+    console.log('[Notice] No DATABASE_URL configured. Skipping database preparation.');
+    process.exit(0);
+  }
 
   const pool = new Pool({
     connectionString: targetDbUrl,

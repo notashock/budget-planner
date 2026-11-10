@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { db } from '../src/db/index.js';
+import { db, ensureDatabaseInitialized } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 
@@ -15,6 +15,7 @@ describe('Unified Transaction Lifecycle API Suite', () => {
   const monthNum = 11;
 
   beforeAll(async () => {
+    await ensureDatabaseInitialized();
     app = createApp({
       sessionSecret: 'test_tx_secret'
     });

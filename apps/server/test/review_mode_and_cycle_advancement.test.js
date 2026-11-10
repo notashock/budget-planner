@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { db } from '../src/db/index.js';
+import { db, ensureDatabaseInitialized } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { migrateReviewModeAndClosedMonths } from '../src/scripts/migrate_review_mode_and_closed_months.js';
@@ -15,6 +15,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
   let activeMonth;
 
   beforeAll(async () => {
+    await ensureDatabaseInitialized();
     app = createApp();
     await migrateReviewModeAndClosedMonths();
 
