@@ -24,10 +24,16 @@ const server = app.listen(PORT, HOST, () => {
 
 // Non-blocking database initialization with graceful error handling and auto-reconnect
 async function initDatabase() {
+  if (!config.isMongoValid) {
+    console.warn('[Startup Notice] MongoDB URI is unconfigured or contains placeholder syntax (<cluster>). Running server without database connection. Please provide a valid MONGODB_URI.');
+    return;
+  }
   const uri = config.mongoUri;
   try {
-    await connectDB(uri);
-    console.log(`Connected to MongoDB at ${uri}`);
+    const conn = await connectDB(uri);
+    if (conn) {
+      console.log(`Connected to MongoDB at ${uri}`);
+    }
   } catch (err) {
     console.warn(`[Startup Notice] Database connection deferred/failed: ${err.message}`);
     console.log('Server is accepting TCP connections. Will retry connecting to MongoDB in 5 seconds...');

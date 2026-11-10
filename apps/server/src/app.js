@@ -20,6 +20,27 @@ import { transfersRouter } from './routes/transfers.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Centralized Error Handling Middleware (prevents process crashes)
+export function errorHandler(err, req, res, next) {
+  console.error('[Unhandled Request Error]:', err.stack || err.message);
+  if (res.headersSent) {
+    return next(err);
+  }
+  // Handle database driver connection/selection failures gracefully
+  if (
+    err.name === 'MongoServerSelectionError' ||
+    err.name === 'MongoNetworkError' ||
+    (err.name === 'MongooseError' && err.message?.includes('buffering timed out'))
+  ) {
+    return res.status(503).json({
+      error: 'Database service unavailable. Please check your database connection configuration.'
+    });
+  }
+  res.status(err.status || 500).json({
+    error: config.isProduction ? 'Internal Server Error' : err.message
+  });
+}
+
 export function createApp(options = {}) {
   const app = express();
 
@@ -115,15 +136,7 @@ export function createApp(options = {}) {
   }
 
   // Centralized Error Handling Middleware (prevents process crashes)
-  app.use((err, req, res, next) => {
-    console.error('[Unhandled Request Error]:', err.stack || err.message);
-    if (res.headersSent) {
-      return next(err);
-    }
-    res.status(err.status || 500).json({
-      error: config.isProduction ? 'Internal Server Error' : err.message
-    });
-  });
+  app.use(errorHandler);
 
   return app;
 }

@@ -24,17 +24,37 @@ function resolveSecret() {
   return ephemeralSecret;
 }
 
+export function isValidMongoUri(uri, isProduction = false) {
+  if (!uri || typeof uri !== 'string') return false;
+  const trimmed = uri.trim();
+  if (!trimmed.startsWith('mongodb://') && !trimmed.startsWith('mongodb+srv://')) {
+    return false;
+  }
+  // Detect template placeholders like <cluster>, <password>, <username>
+  if (trimmed.includes('<') || trimmed.includes('>')) {
+    return false;
+  }
+  if (isProduction && (trimmed.includes('127.0.0.1') || trimmed.includes('localhost'))) {
+    return false;
+  }
+  return true;
+}
+
 const resolvedSecret = resolveSecret();
+const rawMongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/budget_planner';
+const isProd = process.env.NODE_ENV === 'production';
+const isMongoValid = isValidMongoUri(rawMongoUri, isProd);
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
-  mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/budget_planner',
+  mongoUri: rawMongoUri,
+  isMongoValid,
   databaseUrl: process.env.DATABASE_URL || '',
   jwtSecret: resolvedSecret,
   sessionSecret: resolvedSecret,
   sessionMaxAgeDays: Number(process.env.SESSION_MAX_AGE_DAYS) || 14,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction: isProd,
   geminiApiKey: process.env.GEMINI_API_KEY || ''
 };
 

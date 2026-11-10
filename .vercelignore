@@ -1,0 +1,10 @@
+# Exclude Docker and local container configs from Vercel deployment
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Exclude non-production test suites and audit files
+tests/
+audits/
+docs/
+coverage/
