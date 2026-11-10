@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline & Deployment Gate
 
 on:
   push:
@@ -6,11 +6,33 @@ on:
   pull_request:
     branches: [ master, main ]
 
-jobs:
-  verify:
-    name: Verify Engine, Server, Web & Health
-    runs-on: ubuntu-latest
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+jobs:
+  # =========================================================================
+  # 1. ENGINE UNIT TESTS
+  # =========================================================================
+  test-engine:
+    name: Engine Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Engine Test Suite
+        run: npm run test:engine
+
+  # =========================================================================
+  # 2. SERVER INTEGRATION TESTS
+  # =========================================================================
+  test-server:
+    name: Server Integration Tests
+    runs-on: ubuntu-latest
     services:
       mongodb:
         image: mongo:6.0
@@ -21,7 +43,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       NODE_ENV: test
       PORT: 4000
@@ -29,9 +50,121 @@ jobs:
       SESSION_SECRET: ci_session_secret_for_testing
       SESSION_MAX_AGE_DAYS: 14
       CORS_ORIGIN: http://localhost:3000
-      VITE_PORT: 3000
-      VITE_PROXY_TARGET: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Server Integration Suite
+        run: npm run test:server
 
+  # =========================================================================
+  # 3. WEB COMPONENT TESTS
+  # =========================================================================
+  test-web:
+    name: Web Component & UI Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Web Component Suite
+        run: npm run test:web
+
+  # =========================================================================
+  # 4. WEB PRODUCTION BUILD VERIFICATION
+  # =========================================================================
+  build-web:
+    name: Web Production Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Build Web Application
+        run: npm run build:web
+      - name: Archive Production Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 2
+
+  # =========================================================================
+  # 5. SERVER BOOT & HEALTH CHECK E2E PROBE
+  # =========================================================================
+  e2e-health:
+    name: Server Boot & Health Check
+    needs: [test-engine, test-server, test-web, build-web]
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+      PORT: 4000
+      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
+      SESSION_SECRET: ci_session_secret_production_check
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Verify Live TCP Binding & Health Probe
+        run: |
+          mkdir -p logs
+          node apps/server/src/index.js > logs/server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Server started with PID: $SERVER_PID. Polling http://127.0.0.1:4000/api/health..."
+          
+          SUCCESS=0
+          for i in {1..30}; do
+            RESPONSE=$(curl -s http://127.0.0.1:4000/api/health || true)
+            echo "Attempt $i: $RESPONSE"
+            if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+              echo "Server health check passed on port 4000!"
+              SUCCESS=1
+              break
+            fi
+            sleep 1
+          done
+          
+          if [ $SUCCESS -eq 0 ]; then
+            echo "ERROR: Server failed to accept TCP connections or respond to /api/health!"
+            echo "--- Server Log Output ---"
+            cat logs/server.log
+            kill -9 $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          kill -15 $SERVER_PID 2>/dev/null || kill -9 $SERVER_PID 2>/dev/null || true
+
+  # =========================================================================
+  # 6. DEPLOYMENT GATE: DEPLOY TO VERCEL ONLY IF ALL TESTS PASS
+  # =========================================================================
+  deploy:
+    name: Production Deployment Gate (Vercel)
+    needs: [test-engine, test-server, test-web, build-web, e2e-health]
+    runs-on: ubuntu-latest
+    # STRICT GATE: Only runs on push to production branches when all 5 jobs succeed
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -45,33 +178,46 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Engine Unit Tests
-        run: npm run test:engine
-
-      - name: Run Server Integration Tests (MongoDB)
-        run: npm run test:server
-
-      - name: Run Web Component Unit Tests
-        run: npm run test:web
-
-      - name: Build Web Application (Vite)
-        run: npm run build:web
-
-      - name: Verify Server Boot & Health Check Connection
+      - name: Verify Deployment Prerequisites
         run: |
-          node apps/server/src/index.js &
-          SERVER_PID=$!
-          echo "Waiting for server to start..."
-          for i in {1..30}; do
-            RESPONSE=$(curl -s http://127.0.0.1:4000/api/health || true)
-            echo "Health check attempt $i: $RESPONSE"
-            if echo "$RESPONSE" | grep -q '"status":"ok"'; then
-              echo "Server health check verified successfully!"
-              kill -9 $SERVER_PID || true
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Server failed to respond to health check!"
-          kill -9 $SERVER_PID || true
-          exit 1
+          echo "============================================================"
+          echo "  CI/CD PIPELINE DEPLOYMENT GATEWAY: ALL TESTS PASSED (100%)"
+          echo "============================================================"
+          echo "Engine Unit Tests:         PASS"
+          echo "Server Integration Tests:   PASS"
+          echo "Web Component Tests:        PASS"
+          echo "Web Production Build:       PASS"
+          echo "Server TCP Boot & Health:   PASS"
+          echo "Target Branch:              ${{ github.ref_name }}"
+          echo "Commit SHA:                 ${{ github.sha }}"
+          echo "============================================================"
+
+      - name: Install Vercel CLI
+        if: env.VERCEL_TOKEN != ''
+        run: npm install -g vercel@latest
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Pull Vercel Environment Configuration
+        if: env.VERCEL_TOKEN != ''
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project Artifacts via Vercel CLI
+        if: env.VERCEL_TOKEN != ''
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy Prebuilt Artifacts to Vercel Production
+        if: env.VERCEL_TOKEN != ''
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
