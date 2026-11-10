@@ -15,11 +15,34 @@
     "build": "npm run build --workspace=@budget/web",
     "build:web": "npm run build --workspace=@budget/web",
     "start": "node apps/server/src/index.js",
+    "db:clean": "npm run db:clean --workspace=@budget/server --",
+    "db:prepare": "npm run db:prepare --workspace=@budget/server --",
+    "db:verify": "npm run db:verify --workspace=@budget/server --",
+    "db:migrate-mongo": "npm run db:migrate-mongo --workspace=@budget/server --",
+    "db:verify-mongo": "npm run db:verify-mongo --workspace=@budget/server --",
     "dev:server": "npm run dev --workspace=@budget/server",
     "dev:web": "npm run dev --workspace=@budget/web",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\""
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "kill:server": "powershell -Command \"Get-NetTCPConnection -LocalPort 4000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\"",
+    "mobile:reverse": "\"C:\\Other_Files\\Android_sdk_tools\\platform-tools\\adb.exe\" reverse tcp:4000 tcp:4000",
+    "mobile:devices": "\"C:\\Other_Files\\flutter\\bin\\flutter.bat\" devices",
+    "mobile:test": "\"C:\\Other_Files\\flutter\\bin\\flutter.bat\" test apps/mobile/test",
+    "mobile:run": "cd apps/mobile && \"C:\\Other_Files\\flutter\\bin\\flutter.bat\" run",
+    "mobile:build-apk": "cd apps/mobile && \"C:\\Other_Files\\flutter\\bin\\flutter.bat\" build apk --debug --target-platform android-arm64"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.45.4",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4"
   }
 }

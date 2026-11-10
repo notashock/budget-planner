@@ -1,6 +1,8 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { Setting } from '../models/Setting.js';
+import { eq } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import * as s from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
@@ -22,7 +24,10 @@ aiRouter.use(aiLimiter);
 // Middleware: ensure AI assistant is enabled in user settings
 async function requireAiEnabled(req, res, next) {
   try {
-    const setting = await Setting.findOne({ userId: req.session.userId });
+    const userId = req.userId || req.session?.userId;
+    const setting = await db.query.settings.findFirst({
+      where: eq(s.settings.userId, userId)
+    });
     if (!setting || !setting.aiAssistantEnabled) {
       return res.status(403).json({
         error: 'AI assistant is disabled. Enable it in settings to use this feature.'
@@ -30,6 +35,7 @@ async function requireAiEnabled(req, res, next) {
     }
     next();
   } catch (err) {
+    console.error('Verify AI permissions error:', err);
     return res.status(500).json({ error: 'Failed to verify AI assistant permissions' });
   }
 }

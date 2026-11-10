@@ -7,10 +7,18 @@ import {
   PlusIcon
 } from './Icons.jsx';
 
-export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry }) {
+export function BottomNav({
+  activeTab,
+  onSelectTab,
+  onOpenUnifiedEntry,
+  isReviewMode = false,
+  hasActivePlanningMonth = true,
+  onOpenRollover,
+  nextMonthLabel = 'Next Month'
+}) {
   const leftTabs = [
     { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
-    { id: 'items', label: 'Items', Icon: ListOrderedIcon }
+    { id: 'transactions', label: 'Transactions', Icon: ListOrderedIcon }
   ];
 
   const rightTabs = [
@@ -39,18 +47,32 @@ export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry }) {
           );
         })}
 
-        {/* Central Symmetrical Quick-Action (+) Button */}
-        <div className="nav-action-wrapper">
-          <button
-            type="button"
-            className="bottom-nav-action-btn"
-            onClick={() => onOpenUnifiedEntry?.('log')}
-            title="Log or Plan Entry"
-            aria-label="Quick Add Entry"
-          >
-            <PlusIcon size={19} color="currentColor" strokeWidth={2.4} />
-          </button>
-        </div>
+        {/* Central Symmetrical Quick-Action (+) Button or Floating Recovery Pill */}
+        {!isReviewMode ? (
+          <div className="nav-action-wrapper">
+            <button
+              type="button"
+              className="bottom-nav-action-btn"
+              onClick={() => onOpenUnifiedEntry?.('log')}
+              title="Log or Plan Entry"
+              aria-label="Quick Add Entry"
+            >
+              <PlusIcon size={19} color="currentColor" strokeWidth={2.4} />
+            </button>
+          </div>
+        ) : !hasActivePlanningMonth && onOpenRollover ? (
+          <div className="bottom-nav-rollover-wrapper">
+            <button
+              type="button"
+              className="bottom-nav-rollover-pill"
+              onClick={onOpenRollover}
+              aria-label={`Start ${nextMonthLabel || 'Next Month'}`}
+              data-testid="bottom-nav-rollover-btn"
+            >
+              <span>⚡ Start {nextMonthLabel || 'Next Month'}</span>
+            </button>
+          </div>
+        ) : null}
 
         {rightTabs.map((tab) => {
           const IconComponent = tab.Icon;

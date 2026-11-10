@@ -24,85 +24,57 @@ _Avoid_: Transaction, entry, record.
 The exact calendar date on which salary is deposited. When credited on or before the 1st of the budget month (such as the 30th of the preceding month), the funds become available cash from Day 1 of the planned month.
 _Avoid_: Payday number, salary cycle day.
 
-**One-Time Item**:
-An expense occurring on a single calendar date.
-_Avoid_: Ad-hoc expense, sporadic cost.
-
-**Recurring Item**:
-An expense scheduled on a specific day of the month that repeats monthly, clamped to the last day of shorter months.
-_Avoid_: Subscription, standing order, bill.
-
-**Fixed Recurring Item**:
-A recurring item marked with a fixed flag that is automatically carried over to the next month on the identical calendar day and amount during month rollover.
-_Avoid_: Permanent bill, locked expense, hard subscription.
-
-**Fuel Log**:
-A vehicle fuel expense entry recording odometer readings, fuel volume, and total cost across refueling stops, automatically calculating bike fuel efficiency (distance per volume unit) between consecutive stops.
-_Avoid_: Formula item, mileage expense, dynamic bill.
-
-**Month Rollover**:
-The process of creating the next calendar month, copying fixed recurring items, optionally rolling forward unpaid one-time items to their optimal dates, and carrying forward the ending balance as the new opening balance.
-_Avoid_: Month close, archive, reset.
-
-**Month Deletion Cascade**:
-The atomic removal of a specific budget month and all of its associated records (planned items, actual transactions, inter-account transfers, and purchase goals). Deletion of past or future months requires user confirmation; deletion of the active current calendar month strictly requires an explicit force parameter (`?force=true`) to guard against active cycle data loss. When executed on the currently viewed month, the dashboard automatically transitions the user to the nearest remaining budget month.
-_Avoid_: Orphaned transaction purge, unconfirmed month wipe, soft-delete zombie month.
-
-**Account Opening Breakdown**:
-The itemized distribution of starting cash across a user's active bank accounts and wallets on Day 1 of a specific budget month (`accountOpeningBalances`), mathematically summing to the month's total opening balance and strictly capped to registered user accounts.
-_Avoid_: Multi-month history list, cumulative account record, unbounded opening list.
-
-**Bearer Token Authentication**:
-The decoupled authorization protocol where clients transmit a signed JSON Web Token (JWT) in the `Authorization: Bearer <token>` header on each request, eliminating ambient browser cookie dependencies, CSRF risks, and credentialed CORS origin reflection.
-_Avoid_: Session cookie, connect.sid, ambient session.
-
-**Predecessor Baseline Inheritance**:
-The automatic resolution mechanism during manual month creation where default income (`incomeAmount`) and safety floor (`safetyFloor`) are populated from the latest existing month chronologically preceding the target year and month (falling back to the active month). If no predecessor month exists in the user's history, both values default strictly to zero ($0$).
-_Avoid_: Static arbitrary default, global settings hardcoding, phantom baseline.
-
-**Forward-Rolling Pending Item**:
-A planned budget item whose scheduled date has passed without payment settlement (`isPaid: false`). The system dynamically moves its scheduled date forward to the next recommended safe date within the current month, leveling daily outflows until the item is settled.
-_Avoid_: Expired item, overdue debt, frozen bill.
-
-**Actual Payment Date Attribution**:
-The practice of updating a planned budget item's active execution date (`item.day` / `item.date`) to the current calendar date when marked as paid (`isPaid: true`), while preserving its initial planned schedule in `originalDay` / `originalDate`. This ensures the running balance timeline records the cash debit on the actual day settlement occurred.
-_Avoid_: Static past date debit, retro-debit, unrecorded payment timing.
-
-**Unpaid Item Rollover**:
-A capability during month rollover that detects unpaid one-time items remaining at the conclusion of a month and prompts the user to carry them forward into the new month, automatically assigning them to the new month's best recommended date.
-_Avoid_: Forced item deletion, forgotten expense.
-
-**Pre-Month Event**:
-A dated transaction, item, or salary credit occurring prior to Day 1 of the planned month, indexed as a negative relative day offset from the 1st (e.g., Day -1 for 1 day prior, Day -2 for 2 days prior), processed chronologically before Day 1 and plotted on the balance chart and timeline preceding Day 1.
-_Avoid_: Previous month carryover, early expense, Day 30 alias.
-
-**Goal Date Estimation Pipeline**:
-An algorithm that determines whether a target purchase goal is feasible within the remainder of the month by evaluating upcoming heavy fixed bills, projecting remaining spend from the user's actual daily burn rate, and picking the safest upcoming date that maximizes savings buffer. If no safe date exists, it returns no date (`null`) with an explicit floor deficit and wait-for-next-month guidance.
-_Avoid_: Spend date picker, price estimator.
-
-**Date Diversification (Daily Outflow Smoothing)**:
-A date recommendation strategy that evaluates candidate dates for safety floor preservation and selects the day with the minimum existing expenditure load (total scheduled payments on that day), breaking ties by the earliest feasible calendar date. This avoids clustering multiple payments or compounding heavy bills on a single day, ensuring smooth, non-shock cash flow.
-_Avoid_: Random date spread, fixed date clustering, naive maximum-buffer dating.
-
 **Transaction**:
-A recorded financial actual (expense or negative refund) on an exact date, either linked to a planned item or logged as an unexpected expense.
-_Avoid_: Purchase entry, ledger entry, receipt.
+The single canonical entity representing all money-related events across their lifecycle. Stored statuses are `planned`, `successful`, and `cancelled`. Derived states are `due` and `overdue`. Origins are `spot`, `planned`, `goal`, and `transfer`. Only successful transactions count toward spending totals, balances, and category shares.
+_Avoid_: Item, planned item, one-time item, recurring item, bill entry, expense record, purchase entry.
+
+**Transfer Transaction**:
+A single bidirectional transaction entity representing the actual movement of funds between a source account and a destination account (`origin = transfer`). Transfers are strictly spot transactions created in `status = successful`; they cannot be created as planned commitments. In aggregate unified views it evaluates to a net zero change; when filtered by a specific account, it evaluates dynamically as a withdrawal for the source account or a deposit for the destination account.
+_Avoid_: Paired transfer, double-entry transfer, split transfer, transfer legs, planned transfer.
+
+**Spot Transaction**:
+A transaction logged on the spot that bypasses planning and is created directly in `successful` status (`origin = spot`).
+_Avoid_: Quick expense, ad-hoc item, out-of-pocket item.
+
+**Planned Transaction**:
+A scheduled future commitment created in `planned` status (`origin = planned`) with a planned amount and planned date. If no date is provided, it is automatically assigned to the algorithm-recommended date.
+_Avoid_: Planned item, scheduled item, upcoming bill.
+
+**Goal**:
+A separate target purchase entity with statuses `logged`, `scheduled`, `achieved`, and `dropped`. When scheduled, it creates a 1-to-1 linked planned transaction (`origin = goal`).
+_Avoid_: Purchase goal item, wishlist item, target item.
+
+**Goal Transaction**:
+A planned transaction generated by scheduling a Goal (`origin = goal`, linked via `goalId`). When marked successful, the linked goal transitions to `achieved`. If cancelled, the user selects whether the goal returns to `logged` or is `dropped`.
+_Avoid_: Goal item, goal expense.
+
+**Due Transaction**:
+A derived state for a planned transaction whose scheduled date falls on today or within the due window (default 3 days). Used for badges, sorting, and reminders; never stored in the database.
+_Avoid_: Due item, imminent bill.
+
+**Overdue Transaction**:
+A derived state for a planned transaction whose scheduled date has passed without payment settlement. Used for badges and alerts; never stored in the database.
+_Avoid_: Overdue item, late bill, expired item.
+
+**Transaction Settlement (Mark as Paid)**:
+The transition of a planned transaction from `planned` to `successful`, recording actual amount and actual date while preserving planned values. Moves the record out of the Planned view into actual transactions.
+_Avoid_: Item payment, settling planned item, copying item to transaction.
+
+**Transaction Cancellation**:
+The transition of a planned transaction from `planned` to `cancelled`. Dead plans are excluded from the Planned view. Cannot be undone in v1.
+_Avoid_: Item deletion, dropping item.
+
+**Credit / Refund Mapping**:
+The targeted association of an incoming credit or refund transaction strictly and exclusively to an existing spent transaction (`refund_target_transaction_id`).
+_Avoid_: Linking refunds to planned transactions, bill reversal.
 
 **Unplanned Allowance**:
-The remaining liquid cash cushion after accounting for the safety floor and active goals, dynamically derived directly from the Pace-Adaptive Safe Velocity calculation rather than a static manual quota. Unpaid planned items do not deduct from this cushion until settled.
+The remaining liquid cash cushion after accounting for the safety floor and active commitments, dynamically derived from the Pace-Adaptive Safe Velocity calculation.
 _Avoid_: Buffer, slush fund, petty cash, static allowance quota.
 
 **Safe to Spend per Day**:
 The remaining unplanned allowance (Safe Velocity daily rate) calculated as dynamic free surplus divided by the remaining calendar days in the month.
 _Avoid_: Daily budget, rigid daily burn quota.
-
-**Purchase Goal**:
-A target one-time purchase evaluated against the monthly cash flow to recommend a feasible purchase date or advise waiting for the following month.
-_Avoid_: Wishlist, savings target, impulse budget.
-
-**Net Item Amount**:
-The effective monetary cost of a budget item computed by subtracting all mapped refund transactions from its original amount.
-_Avoid_: Adjusted cost, discounted price, revised expense.
 
 **Goal Lifecycle Status**:
 The state of a purchase goal within a budget month: `active` (evaluating recommendation dynamically against cash flows), `scheduled` (promoted to a planned one-time budget item), or `deferred` (pushed to the following budget month).
@@ -499,7 +471,109 @@ _Avoid_: Silent assumption of remainder disposition when settling under-budget s
 The SVG Step Line Chart formats Y-axis tick values with the currency symbol and threshold-based compact metric notation: values below 10,000 render as full numbers (e.g. ₹0, ₹100, ₹1000, ₹9500), values from 10,000 to 999,999 use `k` notation (e.g. ₹10k, ₹100k), and values 1,000,000+ use `m` notation (e.g. ₹1m, ₹2.5m). In `ItemsScreen`, planned items and logged transactions are organized chronologically descending (newest / highest day first: Day 31 down to Day 1), and card action buttons replace plain text with accessible SVG icon controls (`EditIcon` and `TrashIcon`).
 _Avoid_: Inconsistent number abbreviations, clipping axis labels, unsorted budget item lists, plain text action buttons cluttering compact mobile cards.
 
+**Mobile Engine Port**:
+The client-side mathematical simulation subsystem implemented in pure Dart within the Flutter mobile client, providing 1:1 algorithmic parity with the TypeScript/JavaScript engine to deliver zero-latency What-If projections and timeline rendering on physical devices without server round-trips.
+_Avoid_: Backend-dependent simulation round-trip, diverging mobile calculation formulas.
 
+**Device Loopback Port Forwarding**:
+The development connectivity pattern routing mobile HTTP traffic to the local API server over USB using `adb reverse tcp:4000 tcp:4000`, enabling the physical mobile test device to reach `http://127.0.0.1:4000` directly with an in-app fallback network host configuration.
+_Avoid_: Hardcoded developer IP address, Wi-Fi firewall dependency during USB debugging.
+
+**Server Centralized Simulations**:
+The authoritative backend calculation pattern where `GET /api/months/:year/:month` executes `@budget/engine`'s `simulate` for both the unified aggregate month and isolated per-account projections (`accountSimulations`). Both web and mobile clients consume these authoritative snapshots, eliminating cross-platform calculation drift.
+_Avoid_: Divergent client-side mathematical algorithms across multiple client implementations.
+
+**Strict Salary Window & Credited Lock**:
+The security and budget consistency policy enforcing that once salary has been credited for a given month, or whenever the current date falls outside the designated expected salary window, the salary linking and safety floor configuration is strictly locked from edits until the next scheduled window.
+_Avoid_: Inadvertent mutation of past or locked salary baselines.
+
+**Calendar Date Attribution**:
+The input convention where all one-time financial records (actual transactions, one-time planned items, transfers, and purchase goals) specify exact calendar dates (`YYYY-MM-DD`), with relative day-of-month (1-31) reserved strictly for monthly recurring items.
+_Avoid_: Ambiguous numeric day numbers for non-recurring financial events.
+
+**Unified Response Envelope**:
+The universal JSON response wrapper structure (`{ status: 'success' | 'error', timestamp, metadata, data }` or error `{ status: 'error', timestamp, error: { code, message, details }, metadata }`) returned by all API endpoints, providing consistent diagnostics, timing, and machine-readable error codes.
+_Avoid_: Ad-hoc unwrapped JSON payloads, divergent status codes and error object shapes.
+
+**Defensive Core**:
+The multi-layered backend security firewall that deep-inspects all inbound HTTP parameters and bodies to strictly reject prototype pollution (`__proto__`, `constructor`), script injection (`<script>`), and SQL/traversal probes, while applying secure HTTP response headers and enforcing request body payload limits.
+_Avoid_: Unchecked raw request bodies, scattered route-level regex validation.
+
+**Month Lifecycle Module**:
+The deep domain service that encapsulates month simulation orchestration, per-account trajectory aggregation, salary credit transactions, and rollover item cloning behind a cohesive, testable interface.
+_Avoid_: Monolithic route handlers with leaked simulation loops and scattered database calls.
+
+**Rollover Opening Balance Reconciliation**:
+The mathematical adjustment during month rollover ensuring starting balances are not double-penalized. When unpaid planned items are carried forward from month $M$ into month $M+1$, their unspent amounts are added back to the ending balance (or reconciled against today's actual cash balance) before assigning opening balances to accounts in month $M+1$.
+_Avoid_: Naively carrying forward projected ending balance while simultaneously copying unpaid items, which double-deducts unfulfilled expenses from the new month.
+
+**Windowed Salary Mutation**:
+The lifecycle enforcement where already-credited monthly salary transactions and metadata may only be modified or resubmitted while the current calendar date resides within the active 10-day salary window. Once the window closes, the credit becomes permanently immutable against repeat submissions or accidental edits.
+_Avoid_: Unbounded annual edits to historical salary transactions or arbitrary lockouts during the active crediting window.
+
+**Zero-Opening Baseline Default**:
+The principle that any active bank account or wallet lacking an explicit opening balance entry in `monthAccountOpenings` for a given month defaults strictly to zero ($0$) opening balance. This preserves complete historical simulation determinism without mutating established aggregate totals or deducting funds from other accounts.
+_Avoid_: Auto-rebalancing other accounts or blocking simulation execution on unconfigured accounts.
+
+**User-Directed Carryover Month Creation**:
+The creation policy granting the user explicit autonomy over their starting cash when manually instantiating a new budget month. If `carryoverBalance: true` is chosen, the new month automatically inherits the predecessor month's ending cash balance across all accounts; if false, it opens cleanly with zero starting balance ($0$) while preserving predecessor baseline configurations (income amount, safety floor, and salary accounts).
+_Avoid_: Forcing a single rigid opening balance behavior upon manual month creation without giving the user the choice.
+
+**Terminal-Only Month Deletion**:
+The structural integrity constraint that prohibits deleting non-terminal intermediate months. A user may only delete either the latest month (to roll back or prune an unneeded future planning cycle) or the earliest month (to prune ancient historical data at the tail). Deleting an intermediate past month between two existing months is strictly blocked to prevent broken chronological continuity and corrupted balance trajectories.
+_Avoid_: Arbitrary mid-history month deletion, creating chronological voids between active budget periods.
+
+**Automatic Goal Deferral Migration**:
+The execution policy in `BudgetExecution` where recording an expenditure that renders an active purchase goal unfeasible in the current budget month automatically migrates the goal's assignment to the subsequent month under status `'deferred'`. If the subsequent month does not yet exist, it is initialized with baseline settings inherited from the current month, preserving user savings intentions without manual re-entry.
+_Avoid_: Leaving broken goals in current month timelines or silently dropping unfeasible targets.
+
+**Strict Priority Goal Reservation**:
+The allocation discipline where active purchase goals reserve safe surplus strictly in priority order (lowest numerical rank first, ties broken by creation date). If a higher-priority goal cannot be fulfilled within the safe cashflow timeline, lower-priority goals are blocked from skipping ahead to claim funds, ensuring essential targets are not displaced by secondary desires.
+_Avoid_: Opportunistic out-of-order goal reservation, equal pro-rata dilution of priority savings.
+
+**Month-Decoupled Tracking**:
+The architectural principle establishing that financial tracking never depends on a "month". Every transaction belongs to an account and has a date. A Month (budget period) is an optional wrapper that exists only for users who set up regular income. All reports, ledgers, and balances operate fully with no month existing.
+_Avoid_: Month-dependent ledgers, mandatory month containers, orphan transactions outside months.
+
+**Onboarding Gate**:
+The mandatory setup checkpoint requiring a new user to create at least one account (with name, type [bank, cash, wallet], opening balance, and opening balance date) before gaining access to the main application.
+_Avoid_: Account-less app entry, deferred opening balance, skipped onboarding.
+
+**Income Mode**:
+An editable profile setting (`salary`, `irregular`, `both`) establishing whether regular income templates and budget periods are generated, or whether tracking is driven by ad-hoc and planned irregular inflows. Can be changed at any time without mutating or deleting existing transactions.
+_Avoid_: One-time signup fork, irreversible user classification.
+
+**Salary Template**:
+A versioned entity defining the parameters of a recurring regular income stream (amount, expected credit day, receiving account, period type, effective date). It automatically provisions planned income transactions across a rolling 2-period horizon without requiring manual month creation.
+_Avoid_: Manual monthly income setup, unversioned salary updates.
+
+**Salary-to-Salary Cycle**:
+A budget period whose calendar boundaries run from the expected salary credit day to the day immediately preceding the next scheduled credit day, serving as an alternative to standard calendar months.
+_Avoid_: Rigid calendar month constraint, offset paycheck misalignment.
+
+**Partial Initial Period**:
+The initial budget period for a newly registered salaried user, starting on their account opening balance date and running until the conclusion of the active period.
+_Avoid_: Retroactive phantom days, artificial full-month backfill.
+
+**Smoothed Monthly Income**:
+The annualized trailing 12-month total income divided by 12, providing irregular and seasonal earners with a dependable normalized benchmark for calculating runway and planning commitments.
+_Avoid_: Static arbitrary averages, month-to-month volatility distortion.
+
+**Emergency Runway**:
+The liquidity endurance metric calculated as total current cash divided by average monthly spending over the trailing 12-month period, expressed in months of coverage.
+_Avoid_: Month-end savings rate for irregular earners, division-by-zero crashes.
+
+**Continuous Tracking Timeline**:
+The unbroken flow of financial reality where transactions simply have accounts and dates. Financial tracking never resets, halts, or splits into disjointed containers. Schedulers advance cycles automatically upon salary deposit without user intervention.
+_Avoid_: Month-by-month resets, manual rollover ceremonies, period containers.
+
+**Review Period (Historical Archive)**:
+A closed, read-only scorecard and audit snapshot of a completed budget cycle or calendar month. Preserved for inspection, analytics, and historical review, rather than acting as an operational gatekeeper.
+_Avoid_: Active month container, manual rollover milestone, editable past period.
+
+**Read-Only Period Review Mode**:
+An application-wide view state entered when a past period is selected from the header dropdown. Shows the period's historical step-line balance curve, settled transactions, period closing balances, completed transfers, and achieved goals. All transaction creation and mutation controls are disabled to guarantee immutable audit fidelity.
+_Avoid_: In-place historical mutations, backdated budget distortion, disjointed review modals.
 
 
 

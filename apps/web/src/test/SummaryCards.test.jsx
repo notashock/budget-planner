@@ -19,11 +19,11 @@ describe('SummaryCards components', () => {
         />
       );
 
-      expect(screen.getByText('Dynamic Safe Velocity')).toBeInTheDocument();
+      expect(screen.getByText('Safe Velocity')).toBeInTheDocument();
       expect(screen.getByText('ON TRACK')).toBeInTheDocument();
       expect(screen.getByText('12 days left')).toBeInTheDocument();
       expect(screen.getByText('₹450.00')).toBeInTheDocument();
-      expect(screen.getByText(/Committed bills:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Committed:/i)).toBeInTheDocument();
     });
   });
 

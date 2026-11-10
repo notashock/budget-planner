@@ -6,6 +6,9 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config, isValidMongoUri } from './config.js';
+import { defenseFirewall } from './middleware/defense.js';
+import { responseEnvelope } from './middleware/envelope.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -16,30 +19,16 @@ import { goalsRouter } from './routes/goals.js';
 import { bankAccountsRouter } from './routes/bankAccounts.js';
 import { walletsRouter } from './routes/wallets.js';
 import { transfersRouter } from './routes/transfers.js';
+import { salaryTemplatesRouter } from './routes/salaryTemplates.js';
+import { v1AccountsRouter } from './routes/v1/accounts.js';
+import { v1TransactionsRouter } from './routes/v1/transactions.js';
+import { v1PeriodsRouter } from './routes/v1/periods.js';
+import { ensureDatabaseInitialized } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Centralized Error Handling Middleware (prevents process crashes)
-export function errorHandler(err, req, res, next) {
-  console.error('[Unhandled Request Error]:', err.stack || err.message);
-  if (res.headersSent) {
-    return next(err);
-  }
-  // Handle database driver connection/selection failures gracefully
-  if (
-    err.name === 'MongoServerSelectionError' ||
-    err.name === 'MongoNetworkError' ||
-    (err.name === 'MongooseError' && err.message?.includes('buffering timed out'))
-  ) {
-    return res.status(503).json({
-      error: 'Database service unavailable. Please check your database connection configuration.'
-    });
-  }
-  res.status(err.status || 500).json({
-    error: config.isProduction ? 'Internal Server Error' : err.message
-  });
-}
+export { errorHandler };
 
 export function createApp(options = {}) {
   const app = express();
@@ -61,10 +50,11 @@ export function createApp(options = {}) {
 
   app.use(express.json());
 
-  // Health check endpoint (public, unauthenticated, zero external dependencies)
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
+  // Defensive Security Firewall (Sanitizes inputs, enforces security headers, blocks attacks)
+  app.use(defenseFirewall);
+
+  // Standardized Response Envelope Decorator
+  app.use(responseEnvelope);
 
   // Configure Session Store
   const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
@@ -89,7 +79,7 @@ export function createApp(options = {}) {
       store = undefined;
     }
   } else if (!store && !isMongoValid) {
-    console.warn('[Session Store Notice] Production cloud runtime detected with unconfigured or placeholder MONGODB_URI. Operating with ephemeral session store.');
+    console.warn('[Session Store Notice] Operating with ephemeral session store.');
   }
 
   app.use(
@@ -107,7 +97,33 @@ export function createApp(options = {}) {
     })
   );
 
-  // Mount API routers
+  // Health check endpoint (public, unauthenticated)
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', serverTime: new Date().toISOString() });
+  });
+
+  // Auto-bootstrap middleware: In PostgreSQL / Supabase environments, ensures database tables exist
+  if (config.databaseUrl && process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    app.use(async (req, res, next) => {
+      try {
+        await ensureDatabaseInitialized();
+        next();
+      } catch (err) {
+        console.error('[Database Bootstrap] Auto-initialization failure:', err);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Database auto-initialization failure: ' + (err.message || String(err))
+        });
+      }
+    });
+  }
+
+  // Mount API v1 domain-driven routers
+  app.use('/api/v1/accounts', v1AccountsRouter);
+  app.use('/api/v1/transactions', v1TransactionsRouter);
+  app.use('/api/v1/periods', v1PeriodsRouter);
+
+  // Mount API legacy compatibility routers
   app.use('/api/auth', authRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/months', monthsRouter);
@@ -116,8 +132,10 @@ export function createApp(options = {}) {
   app.use('/api', transactionsRouter);
   app.use('/api', goalsRouter);
   app.use('/api/bank-accounts', bankAccountsRouter);
+  app.use('/api/accounts', bankAccountsRouter);
   app.use('/api/wallets', walletsRouter);
   app.use('/api/transfers', transfersRouter);
+  app.use('/api/salary-templates', salaryTemplatesRouter);
 
   // Serve static web frontend if built (production Docker runtime)
   const webDistPath = path.resolve(__dirname, '../../web/dist');
@@ -135,7 +153,7 @@ export function createApp(options = {}) {
     });
   }
 
-  // Centralized Error Handling Middleware (prevents process crashes)
+  // Centralized Error Handling Middleware (Catches AppError, PostgreSQL errors, and uncaught exceptions)
   app.use(errorHandler);
 
   return app;

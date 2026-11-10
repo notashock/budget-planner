@@ -1,15 +1,15 @@
-import mongoose from 'mongoose';
-import { BankAccount } from '../models/BankAccount.js';
-import { Wallet } from '../models/Wallet.js';
+import { eq, and } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import * as s from '../db/schema.js';
 
 /**
  * Validates that a specified financial account (Bank Account or Wallet) belongs to the authenticated user.
  * 
  * @param {object} params
- * @param {string|import('mongoose').Types.ObjectId} params.userId - Authenticated user ID
+ * @param {string} params.userId - Authenticated user ID
  * @param {'bank'|'wallet'} [params.accountType] - Financial entity discriminator
- * @param {string|object|import('mongoose').Types.ObjectId} params.accountId - Financial account ID to validate
- * @returns {Promise<object|null>} Account document if valid and owned by user, otherwise null
+ * @param {string|object} params.accountId - Financial account ID to validate
+ * @returns {Promise<object|null>} Account record if valid and owned by user, otherwise null
  */
 export async function validateUserAccount({ userId, accountType, accountId }) {
   if (!accountId || !userId) {
@@ -19,7 +19,7 @@ export async function validateUserAccount({ userId, accountType, accountId }) {
   // Unwrap object wrappers e.g. { _id: ... } or { id: ... }
   let cleanId = accountId;
   if (typeof cleanId === 'object' && cleanId !== null) {
-    cleanId = cleanId._id || cleanId.id || null;
+    cleanId = cleanId.id || cleanId._id || null;
   }
 
   if (!cleanId) {
@@ -31,28 +31,18 @@ export async function validateUserAccount({ userId, accountType, accountId }) {
     return null;
   }
 
-  // Guard against uncastable ObjectId strings to avoid throwing CastError
-  if (!mongoose.isValidObjectId(idStr)) {
-    return null;
+  const conditions = [
+    eq(s.accounts.id, idStr),
+    eq(s.accounts.userId, userId)
+  ];
+
+  if (accountType === 'wallet' || accountType === 'bank') {
+    conditions.push(eq(s.accounts.type, accountType));
   }
 
-  try {
-    if (accountType === 'wallet') {
-      return await Wallet.findOne({ _id: idStr, userId });
-    }
+  const account = await db.query.accounts.findFirst({
+    where: and(...conditions)
+  });
 
-    if (accountType === 'bank') {
-      return await BankAccount.findOne({ _id: idStr, userId });
-    }
-
-    // If accountType is not explicitly provided, probe BankAccount first, then Wallet
-    const bank = await BankAccount.findOne({ _id: idStr, userId });
-    if (bank) {
-      return bank;
-    }
-
-    return await Wallet.findOne({ _id: idStr, userId });
-  } catch (err) {
-    return null;
-  }
+  return account || null;
 }

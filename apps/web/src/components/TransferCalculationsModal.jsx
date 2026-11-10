@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { BuildingLibraryIcon, ArrowRightLeftIcon, ShieldAlertIcon } from './Icons.jsx';
+import { BuildingLibraryIcon, ArrowRightLeftIcon, ShieldAlertIcon, XIcon } from './Icons.jsx';
 import { formatCurrency } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
 import { CustomSelect } from './CustomSelect.jsx';
@@ -100,7 +100,9 @@ export function TransferCalculationsModal({
                 </p>
               </div>
             </div>
-            <button type="button" className="btn-icon" onClick={() => requestClose()}>✕</button>
+            <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
+              <XIcon size={14} />
+            </button>
           </div>
 
         {error && (

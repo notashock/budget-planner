@@ -6,20 +6,30 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "vitest run"
+    "test": "vitest run test/postgres_api.test.js test/transactions_lifecycle_api.test.js test/onboarding_and_income_model.test.js test/jwt.test.js test/review_mode_and_cycle_advancement.test.js test/v1_architecture.test.js --fileParallelism=false --testTimeout=20000",
+    "db:migrate-unified": "node src/scripts/migrate_to_unified_transactions.js",
+    "db:rollback-unified": "node src/scripts/rollback_unified_transactions.js",
+    "db:clean": "node src/scripts/db_clean.js",
+    "db:prepare": "node src/scripts/db_prepare.js",
+    "db:verify": "node src/scripts/db_verify.js",
+    "db:migrate-mongo": "node src/scripts/migrate_mongo_to_supabase.js",
+    "db:verify-mongo": "node src/scripts/verify_mongo_migration.js"
   },
   "dependencies": {
     "@budget/engine": "*",
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^5.1.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "express-session": "^1.18.1",
-    "mongoose": "^8.9.5"
+    "mongoose": "^8.9.5",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.31.11",
     "supertest": "^7.0.0",
     "vitest": "^3.0.0"
   }

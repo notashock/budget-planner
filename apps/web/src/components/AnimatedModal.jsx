@@ -31,7 +31,7 @@ export function AnimatedModal({
   const triggerExit = (onDone) => {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
     gsap.killTweensOf([overlayRef.current, contentRef.current].filter(Boolean));
     const tl = gsap.timeline({
@@ -72,7 +72,7 @@ export function AnimatedModal({
   useGSAP(
     () => {
       if (!shouldRender || isClosingRef.current) return;
-      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
       gsap.killTweensOf([overlayRef.current, contentRef.current].filter(Boolean));
 

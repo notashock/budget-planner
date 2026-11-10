@@ -676,6 +676,44 @@ describe('Phase 2 - Multi-Account & Wallet Simulation Engine', () => {
       expect(sim.lowestBalance).toBe(288000);
       expect(sim.lowestDate).toBe('2026-10-20');
     });
+
+    it('reflects transferred amount in isolated simulation todayBalance and dailyBalances of destination account', () => {
+      const destinationBank = {
+        id: 'bank-dest',
+        name: 'Destination Savings',
+        type: 'bank',
+        openingBalance: 50000,
+        isPrimary: false
+      };
+
+      const transfers = [
+        {
+          id: 'tr-1',
+          date: '2026-10-04',
+          day: 4,
+          amount: 25000,
+          sourceAccountId: 'bank-source',
+          destinationAccountId: 'bank-dest'
+        }
+      ];
+
+      // Single-account isolated simulation for destination bank on Day 5
+      const isolatedSettings = {
+        openingBalance: 50000,
+        currentDay: 5,
+        accounts: [destinationBank]
+      };
+
+      const sim = simulate(isolatedSettings, [], { year: 2026, month: 10 }, [], [], transfers);
+
+      // Destination account started at 50,000, received +25,000 transfer on Day 4.
+      // On Day 5, todayBalance must be 75,000!
+      expect(sim.todayBalance).toBe(75000);
+      expect(sim.dailyBalances[2].balance).toBe(50000); // Day 3 (index 2): before transfer
+      expect(sim.dailyBalances[3].balance).toBe(75000); // Day 4 (index 3): after transfer
+      expect(sim.dailyBalances[4].balance).toBe(75000); // Day 5 (index 4): today
+      expect(sim.endingBalance).toBe(75000);
+    });
   });
 });
 

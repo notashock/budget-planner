@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatCurrency, formatDisplayDate, getRelativeDay } from '@budget/engine';
-import { SearchableItemPicker } from './SearchableItemPicker';
-import { DatePicker } from './DatePicker';
+import { SearchableItemPicker } from './SearchableItemPicker.jsx';
+import { DatePicker } from './DatePicker.jsx';
+import { XIcon } from './Icons.jsx';
 
 export function QuickLogModal({
   isOpen,
@@ -72,10 +73,10 @@ export function QuickLogModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3>Log spending</h3>
-          <button type="button" className="btn-subtle" onClick={onClose}>
-            Close
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <h3 style={{ margin: 0 }}>Log spending</h3>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">
+            <XIcon size={14} />
           </button>
         </div>
 
@@ -83,11 +84,11 @@ export function QuickLogModal({
           {/* Tap 1: Amount & Refund Toggle */}
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label className="form-label">Amount ({currencySymbol})</label>
+              <label className="form-label" style={{ margin: 0 }}>Amount ({currencySymbol})</label>
               <button
                 type="button"
-                className={`btn-subtle ${isRefund ? 'btn-primary' : ''}`}
-                style={{ padding: '2px 8px', fontSize: '11px' }}
+                className={isRefund ? 'btn-primary' : 'btn-subtle'}
+                style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600 }}
                 onClick={() => setIsRefund(!isRefund)}
               >
                 {isRefund ? 'Refund / credit' : 'Expense'}
@@ -113,9 +114,14 @@ export function QuickLogModal({
                 <button
                   key={t}
                   type="button"
-                  className={tag === t ? 'btn-primary' : ''}
+                  className={tag === t ? 'btn-primary' : 'btn-subtle'}
                   onClick={() => setTag(t)}
-                  style={{ padding: '8px 4px', fontSize: '12px' }}
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: tag === t ? 600 : 400,
+                    border: tag === t ? undefined : '1px solid var(--border)'
+                  }}
                 >
                   {t}
                 </button>
@@ -134,9 +140,9 @@ export function QuickLogModal({
             />
           </div>
 
-          {/* Tap 3: Match to Planned Item or Draw Down Unplanned Allowance */}
+          {/* Tap 3: Match to Planned Transaction or Draw Down Unplanned Allowance */}
           <div className="form-group">
-            <label className="form-label">Match to planned item (optional)</label>
+            <label className="form-label">Match to planned transaction (optional)</label>
             <SearchableItemPicker
               items={eligiblePlannedItems}
               selectedId={plannedItemId}
@@ -146,8 +152,8 @@ export function QuickLogModal({
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               {plannedItemId
                 ? isRefund
-                  ? 'Applies this refund as a credit to the item, calculating its net cost.'
-                  : 'Matches and fulfills the planned item, replacing it to prevent double-counting.'
+                  ? 'Applies this refund as a credit to the planned transaction, calculating its net cost.'
+                  : 'Settles the planned transaction, marking it successful to prevent double-counting.'
                 : isRefund
                 ? 'Adds this credit/refund directly to your balance.'
                 : 'Logs as unexpected spending, reducing your safe-to-spend daily allowance.'}

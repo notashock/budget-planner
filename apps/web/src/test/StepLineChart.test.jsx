@@ -117,8 +117,8 @@ describe('StepLineChart component', () => {
     expect(onSelectDay).toHaveBeenCalledWith(null);
   });
 
-  it('displays opening balance, day spending, and closing balance in tooltip on day selection', () => {
-    render(
+  it('displays transaction details or day summary in tooltip on day selection', () => {
+    const { rerender } = render(
       <StepLineChart
         dailyBalances={mockDailyBalances}
         events={mockEvents}
@@ -128,13 +128,28 @@ describe('StepLineChart component', () => {
       />
     );
 
-    // Day 2: 5000 paisa = ₹50.00, spending = -500 paisa = -₹5.00, closing = 4500 paisa = ₹45.00
+    // Day 2 has a single transaction: Groceries (-₹5.00), balance ₹45.00
+    expect(screen.getByText('Groceries')).toBeInTheDocument();
+    expect(screen.getByText('-₹5.00')).toBeInTheDocument();
+    expect(screen.getByText('Balance:')).toBeInTheDocument();
+    expect(screen.getByText('Day End:')).toBeInTheDocument();
+    expect(screen.getAllByText('₹45.00').length).toBeGreaterThanOrEqual(1);
+
+    // Day 4 has no transactions: renders Opening, Spending, Closing summary
+    rerender(
+      <StepLineChart
+        dailyBalances={mockDailyBalances}
+        events={mockEvents}
+        safetyFloor={1000}
+        currencySymbol="₹"
+        selectedDay={4}
+      />
+    );
+
     expect(screen.getByText('Opening:')).toBeInTheDocument();
     expect(screen.getByText('Spending:')).toBeInTheDocument();
     expect(screen.getByText('Closing:')).toBeInTheDocument();
-    expect(screen.getByText('₹50.00')).toBeInTheDocument();
-    expect(screen.getByText('-₹5.00')).toBeInTheDocument();
-    expect(screen.getByText('₹45.00')).toBeInTheDocument();
+    expect(screen.getAllByText('₹32.00').length).toBeGreaterThanOrEqual(1);
   });
 
   describe('formatChartTick (Y-axis label formatting)', () => {

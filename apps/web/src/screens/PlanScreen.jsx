@@ -1,44 +1,56 @@
-import React, { useState, useMemo } from 'react';
-import { formatCurrency } from '@budget/engine';
-import { SafeVelocityCard, DetailedKpiGrid } from '../components/SummaryCards.jsx';
+import React, { useState, useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { formatCurrency, calculateIrregularMetrics } from '@budget/engine';
+import {
+  SafeVelocityCard,
+  DetailedKpiGrid,
+  IrregularHeroCards,
+  QuarterlyBreakdownTable
+} from '../components/SummaryCards.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
-import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon } from '../components/Icons.jsx';
+import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
+
+gsap.registerPlugin(useGSAP);
 
 export function PlanScreen({
   month,
   items,
+  transactions = [],
   simulation,
+  accountSimulations = {},
   bankAccounts = [],
   wallets = [],
+  settings = null,
   migrationEligible = false,
+  isReviewMode = false,
   onOpenMigration = null,
   onOpenUnifiedEntry,
   onOpenReview,
+  onOpenSalarySafeline,
   onTogglePaid = null,
-  onPayTransaction = null
+  onPayTransaction = null,
+  onEditTransaction = null
 }) {
+  const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [timeframe, setTimeframe] = useState('trailing12m'); // 'trailing12m' | 'ytd' | 'quarterly'
+  const [viewSubmode, setViewSubmode] = useState('monthly'); // 'monthly' | 'irregular'
 
-  const {
-    events = [],
-    dailyBalances = [],
-    endingBalance = 0,
-    todayBalance,
-    lowestBalance = 0,
-    lowestDate = '',
-    floorBreached = false,
-    unplannedAllowance = 0,
-    allowanceLeft = 0,
-    daysLeft = 1,
-    safeToSpendPerDay = 0
-  } = simulation || {};
+  const currencySymbol = month?.currencySymbol || settings?.currencySymbol || '₹';
 
-  const now = new Date();
-  const isCurrentCalendarMonth = month ? (month.year === now.getFullYear() && month.month === (now.getMonth() + 1)) : false;
-  const currentDay = isCurrentCalendarMonth ? now.getDate() : null;
+  // Compute irregular income & runway metrics client-side deterministically
+  const irregularMetrics = useMemo(() => {
+    return calculateIrregularMetrics({
+      transactions,
+      accounts: [...bankAccounts, ...wallets]
+    });
+  }, [transactions, bankAccounts, wallets]);
+
+  const isIrregularDashboard = !month || settings?.incomeMode === 'irregular' || viewSubmode === 'irregular';
 
   // Selected account metadata
   const selectedBank = useMemo(
@@ -52,9 +64,37 @@ export function PlanScreen({
   const selectedAccount = selectedBank || selectedWallet;
   const isFilteringAccount = selectedAccountId !== 'all' && Boolean(selectedAccount);
 
+  const activeSim = useMemo(() => {
+    if (isFilteringAccount && accountSimulations?.[selectedAccountId]) {
+      return accountSimulations[selectedAccountId];
+    }
+    return simulation || {};
+  }, [isFilteringAccount, accountSimulations, selectedAccountId, simulation]);
+
+  const {
+    events = [],
+    dailyBalances = [],
+    endingBalance = 0,
+    todayBalance,
+    lowestBalance = 0,
+    lowestDate = '',
+    floorBreached = false,
+    unplannedAllowance = 0,
+    allowanceLeft = 0,
+    daysLeft = 1,
+    safeToSpendPerDay = 0
+  } = activeSim || {};
+
+  const now = new Date();
+  const isCurrentCalendarMonth = month ? (month.year === now.getFullYear() && month.month === (now.getMonth() + 1)) : false;
+  const currentDay = isCurrentCalendarMonth ? now.getDate() : null;
+
   // Filtered daily balances curve
   const activeDailyBalances = useMemo(() => {
     if (!isFilteringAccount) return dailyBalances;
+    if (accountSimulations?.[selectedAccountId]?.dailyBalances?.length) {
+      return accountSimulations[selectedAccountId].dailyBalances;
+    }
     const sid = String(selectedAccountId || '');
     const alt1 = String(selectedAccount?._id || '');
     const alt2 = String(selectedAccount?.id || '');
@@ -86,7 +126,7 @@ export function PlanScreen({
     return Array.from({ length: totalDays }, (_, i) => {
       const d = i + 1;
       const ref = dailyBalances?.[i];
-      const dateStr = ref?.date || `${month.year}-${String(month.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dateStr = ref?.date || `${month?.year || now.getFullYear()}-${String(month?.month || (now.getMonth() + 1)).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       return {
         day: d,
         date: dateStr,
@@ -260,25 +300,254 @@ export function PlanScreen({
     ? (activeAccountSummary?.safeVelocity?.allowanceLeft ?? allowanceLeft)
     : (simulation?.safeVelocity?.freeSurplus ?? allowanceLeft);
 
-  if (!month) {
+  useGSAP(() => {
+    if (!containerRef.current) return;
+    const cards = containerRef.current.querySelectorAll('.summary-card, .dashboard-insights-panel, .dashboard-chart-panel');
+    if (cards.length > 0) {
+      gsap.fromTo(
+        cards,
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.25, stagger: 0.04, ease: 'power2.out' }
+      );
+    }
+  }, { dependencies: [selectedAccountId, viewSubmode, timeframe], scope: containerRef });
+
+  if (isIrregularDashboard) {
+    const quarters = irregularMetrics.quarterly || [];
+    const yearly = irregularMetrics.yearly || [];
+
     return (
-      <div className="card" style={{ textAlign: 'center', padding: '30px' }}>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-          No active budget month selected.
-        </p>
+      <div className="dashboard-layout" ref={containerRef}>
+        {/* Dual Mode Switcher if user has both salary & irregular */}
+        {settings?.incomeMode === 'both' && month && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <div style={{ display: 'inline-flex', background: 'var(--surface-subtle)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                onClick={() => setViewSubmode('monthly')}
+                className={`filter-pill ${viewSubmode === 'monthly' ? 'active' : ''}`}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+              >
+                Monthly Budget
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewSubmode('irregular')}
+                className={`filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+              >
+                Runway & Irregular Cashflow
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Account Filter Bar */}
+        <div className="account-filter-bar">
+          <div className="account-filter-track">
+            <button
+              type="button"
+              className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedAccountId('all')}
+            >
+              <span>All Accounts ({formatCurrency(irregularMetrics.currentBalance, currencySymbol)})</span>
+            </button>
+            {bankAccounts.map((b) => (
+              <button
+                key={b._id || b.id}
+                type="button"
+                className={`filter-pill account-filter-pill ${selectedAccountId === (b._id || b.id) ? 'active' : ''}`}
+                onClick={() => setSelectedAccountId(b._id || b.id)}
+              >
+                <span>{b.name} ({formatCurrency(b.openingBalance, currencySymbol)})</span>
+              </button>
+            ))}
+            {wallets.map((w) => (
+              <button
+                key={w._id || w.id}
+                type="button"
+                className={`filter-pill account-filter-pill ${selectedAccountId === (w._id || w.id) ? 'active' : ''}`}
+                onClick={() => setSelectedAccountId(w._id || w.id)}
+              >
+                <span>{w.name} ({formatCurrency(w.openingBalance, currencySymbol)})</span>
+              </button>
+            ))}
+          </div>
+
+          {!isReviewMode && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ fontSize: '12px', padding: '6px 14px' }}
+                onClick={() => onOpenUnifiedEntry('income')}
+              >
+                + Log Income
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 14px' }}
+                onClick={() => onOpenUnifiedEntry('log')}
+              >
+                - Log Expense
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 14px' }}
+                onClick={() => onOpenUnifiedEntry('transfer')}
+              >
+                <ArrowRightLeftIcon size={12} /> Transfer
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Hero KPI Cards: Runway, Smoothed Income, Liquid Balance, Avg Monthly Spending */}
+        <IrregularHeroCards metrics={irregularMetrics} currencySymbol={currencySymbol} />
+
+        {/* Timeframe Selector & Report Content */}
+        <div className="card" style={{ padding: '20px', marginTop: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Cashflow & Earnings Analysis
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                Volatility-smoothed metrics decoupled from arbitrary month cuts.
+              </p>
+            </div>
+
+            <div style={{ display: 'inline-flex', background: 'var(--surface-subtle)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                className={`filter-pill ${timeframe === 'trailing12m' ? 'active' : ''}`}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+                onClick={() => setTimeframe('trailing12m')}
+              >
+                Trailing 12M
+              </button>
+              <button
+                type="button"
+                className={`filter-pill ${timeframe === 'quarterly' ? 'active' : ''}`}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+                onClick={() => setTimeframe('quarterly')}
+              >
+                Quarterly
+              </button>
+              <button
+                type="button"
+                className={`filter-pill ${timeframe === 'ytd' ? 'active' : ''}`}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+                onClick={() => setTimeframe('ytd')}
+              >
+                Yearly
+              </button>
+            </div>
+          </div>
+
+          {/* Timeframe View Display */}
+          {timeframe === 'quarterly' && (
+            <QuarterlyBreakdownTable quarters={quarters} currencySymbol={currencySymbol} />
+          )}
+
+          {timeframe === 'trailing12m' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                  Trailing 12-Month Inflow
+                </span>
+                <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--success)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
+                  +{formatCurrency(irregularMetrics.trailing12mIncome, currencySymbol)}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Smoothed Monthly: {formatCurrency(irregularMetrics.smoothedMonthlyIncome, currencySymbol)} / mo
+                </div>
+              </div>
+
+              <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                  Trailing 12-Month Outflow
+                </span>
+                <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
+                  -{formatCurrency(irregularMetrics.trailing12mSpending, currencySymbol)}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Average Burn: {formatCurrency(irregularMetrics.avgMonthlySpending, currencySymbol)} / mo
+                </div>
+              </div>
+            </div>
+          )}
+
+          {timeframe === 'ytd' && (
+            <div style={{ overflowX: 'auto' }}>
+              {yearly.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                  No yearly transaction records found.
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-subtle)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 14px' }}>Year</th>
+                      <th style={{ padding: '10px 14px' }}>Total Inflow</th>
+                      <th style={{ padding: '10px 14px' }}>Total Outflow</th>
+                      <th style={{ padding: '10px 14px' }}>Net Cashflow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearly.map((y) => (
+                      <tr key={y.key} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 14px', fontWeight: 700 }}>{y.year}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--success)' }}>+{formatCurrency(y.income, currencySymbol)}</td>
+                        <td style={{ padding: '10px 14px' }}>-{formatCurrency(y.spending, currencySymbol)}</td>
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: y.net >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          {y.net >= 0 ? '+' : ''}{formatCurrency(y.net, currencySymbol)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Regular salary configuration link if user has no salary template */}
+        {!month && onOpenSalarySafeline && (
+          <div className="card" style={{ marginTop: '16px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: 'var(--surface-subtle)' }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 600 }}>Receive a fixed regular salary?</span>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                You can configure a monthly salary template to automate recurring pay and monthly budget horizons.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: '11px', padding: '5px 12px' }}
+              onClick={onOpenSalarySafeline}
+            >
+              Configure Salary Schedule →
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-layout" ref={containerRef}>
       {/* Prominent Data Transfer Banner */}
       {migrationEligible && (
         <div
           className="card"
           style={{
             background: 'var(--surface-subtle)',
-            border: '2px solid var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-subtle)',
             padding: '16px',
             marginBottom: '14px',
             display: 'flex',
@@ -293,12 +562,12 @@ export function PlanScreen({
                 Transfer Existing Calculations to Bank Account
               </span>
             </div>
-            <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontWeight: 600 }}>
+            <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontWeight: 500, color: 'var(--text-secondary)' }}>
               1-Tap Ingestion
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            Your current active month calculations ({formatCurrency(todayBalance, month.currencySymbol)} today's balance, {formatCurrency(month.incomeAmount, month.currencySymbol)} income, across all planned items) are ready to be transferred into your new Primary Bank Account so every balance is backed by real banking truth.
+            Transfer your active calculations ({formatCurrency(todayBalance, month.currencySymbol)} balance) into your primary bank account for live balance tracking.
           </p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
             <button
@@ -314,7 +583,8 @@ export function PlanScreen({
       )}
 
       {/* Account Filter & Action Toolbar */}
-      <div className="account-filter-bar">
+      <div className="account-filter-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="account-filter-bar">
         <div className="account-filter-track">
           {hasAccounts && (
             <>
@@ -345,7 +615,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <span style={{ fontSize: '10px' }}>▲</span>}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                   </button>
                 );
               })}
@@ -369,7 +639,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <span style={{ fontSize: '10px' }}>▲</span>}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                   </button>
                 );
               })}
@@ -378,15 +648,21 @@ export function PlanScreen({
         </div>
 
         <div className="account-toolbar-actions">
-          <button
-            type="button"
-            className="btn-primary desktop-only-btn"
-            style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-            onClick={() => onOpenUnifiedEntry?.('log')}
-          >
-            <PlusIcon size={14} />
-            <span>New Entry</span>
-          </button>
+          {isReviewMode ? (
+            <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}>
+              <span>👁️</span> Historical Preview
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn-primary desktop-only-btn"
+              style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              onClick={() => onOpenUnifiedEntry?.('log')}
+            >
+              <PlusIcon size={14} />
+              <span>New Entry</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -422,6 +698,7 @@ export function PlanScreen({
           </button>
         </div>
       )}
+      </div>
 
       {/* Top Split: Symmetrical Bento Left Insights and Right Timeline Curve */}
       <div className="dashboard-top-grid">
@@ -472,7 +749,9 @@ export function PlanScreen({
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               currentDay={currentDay}
-              onOpenReview={onOpenReview ? () => onOpenReview(selectedAccountId) : null}
+              onOpenReview={isReviewMode && onOpenReview ? () => onOpenReview(selectedAccountId) : null}
+              bankAccounts={bankAccounts}
+              wallets={wallets}
             />
           </ErrorBoundary>
         </div>
@@ -480,21 +759,24 @@ export function PlanScreen({
 
       {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}
       <div className="dashboard-bottom-timeline">
-        <TimelineList
-          events={activeEvents}
-          safetyFloor={activeSafetyFloor}
-          currencySymbol={month.currencySymbol}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-          currentDay={currentDay}
-          month={month}
-          selectedAccountId={selectedAccountId}
-          selectedAccount={selectedAccount}
-          bankAccounts={bankAccounts}
-          wallets={wallets}
-          onTogglePaid={onTogglePaid}
-          onPayTransaction={onPayTransaction}
-        />
+        <ErrorBoundary title="Transactions timeline encountered an issue">
+          <TimelineList
+            events={activeEvents}
+            safetyFloor={activeSafetyFloor}
+            currencySymbol={month.currencySymbol}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            currentDay={currentDay}
+            month={month}
+            selectedAccountId={selectedAccountId}
+            selectedAccount={selectedAccount}
+            bankAccounts={bankAccounts}
+            wallets={wallets}
+            onTogglePaid={onTogglePaid}
+            onPayTransaction={onPayTransaction}
+            onEditTransaction={onEditTransaction}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

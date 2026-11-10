@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { formatDate, getRelativeDay } from '@budget/engine';
-import { CalendarIcon } from './Icons.jsx';
+import { CalendarIcon, ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons.jsx';
 
 export function DatePicker({
   value = '',
@@ -8,7 +8,9 @@ export function DatePicker({
   placeholder = 'Select date',
   disabled = false,
   month = null,
-  required = false
+  required = false,
+  maxDate = null,
+  minDate = null
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState('down');
@@ -184,6 +186,15 @@ export function DatePicker({
     setIsOpen(false);
   };
 
+  const handleSelectYesterday = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatted = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`;
+    onChange?.(formatted);
+    setIsOpen(false);
+  };
+
   const handleClear = () => {
     onChange?.('');
     setIsOpen(false);
@@ -275,22 +286,61 @@ export function DatePicker({
           <CalendarIcon size={14} color="var(--text-secondary)" />
           {renderTriggerLabel()}
         </span>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-          {isOpen ? '▲' : '▼'}
+        <span style={{ display: 'inline-flex', color: 'var(--text-muted)', marginLeft: '8px' }}>
+          {isOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
         </span>
       </button>
 
       {isOpen && (
         <div className={`datepicker-popover placement-${placement} ${alignRight ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
-          {/* Header */}
+          {/* Quick Shortcuts Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              className="btn-subtle"
+              disabled={Boolean(maxDate && todayStr > maxDate) || Boolean(minDate && todayStr < minDate)}
+              style={{
+                flex: 1,
+                fontSize: '11px',
+                padding: '3px 8px',
+                justifyContent: 'center',
+                opacity: (maxDate && todayStr > maxDate) || (minDate && todayStr < minDate) ? 0.3 : 1
+              }}
+              onClick={handleSelectToday}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className="btn-subtle"
+              style={{ flex: 1, fontSize: '11px', padding: '3px 8px', justifyContent: 'center' }}
+              onClick={handleSelectYesterday}
+            >
+              Yesterday
+            </button>
+            {!required && value && (
+              <button
+                type="button"
+                className="btn-subtle"
+                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--text-muted)' }}
+                onClick={handleClear}
+                title="Clear date selection"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Month Navigator */}
           <div className="datepicker-header">
             <button
               type="button"
               className="datepicker-nav-btn"
               onClick={handlePrevMonth}
               title="Previous month"
+              aria-label="Previous month"
             >
-              ◀
+              <ChevronLeftIcon size={12} />
             </button>
             <span className="datepicker-title">
               {monthNames[viewMonth]} {viewYear}
@@ -300,8 +350,9 @@ export function DatePicker({
               className="datepicker-nav-btn"
               onClick={handleNextMonth}
               title="Next month"
+              aria-label="Next month"
             >
-              ▶
+              <ChevronRightIcon size={12} />
             </button>
           </div>
 
@@ -323,43 +374,27 @@ export function DatePicker({
               const cellDateStr = `${item.year}-${pad(item.month + 1)}-${pad(item.day)}`;
               const isSelected = value === cellDateStr;
               const isToday = todayStr === cellDateStr;
+              const isPastMax = maxDate && cellDateStr > maxDate;
+              const isBeforeMin = minDate && cellDateStr < minDate;
+              const isDisabledDay = Boolean(isPastMax || isBeforeMin);
 
               return (
                 <button
                   key={`${item.year}-${item.month}-${item.day}-${index}`}
                   type="button"
+                  disabled={isDisabledDay}
                   className={`datepicker-day ${item.isCurrentMonth ? '' : 'outside-month'} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
-                  onClick={() => handleSelectDay(item.day, item.year, item.month)}
+                  onClick={() => !isDisabledDay && handleSelectDay(item.day, item.year, item.month)}
+                  style={isDisabledDay ? { opacity: 0.25, cursor: 'not-allowed', textDecoration: 'line-through' } : {}}
                 >
                   {item.day}
                 </button>
               );
             })}
           </div>
-
-          {/* Quick Shortcuts */}
-          <div className="datepicker-footer">
-            <button
-              type="button"
-              className="btn-subtle"
-              style={{ fontSize: '11px', padding: '2px 8px' }}
-              onClick={handleSelectToday}
-            >
-              Today
-            </button>
-            {!required && value && (
-              <button
-                type="button"
-                className="btn-subtle"
-                style={{ fontSize: '11px', padding: '2px 8px', color: 'var(--text-muted)' }}
-                onClick={handleClear}
-              >
-                Clear
-              </button>
-            )}
-          </div>
         </div>
       )}
     </div>
   );
 }
+

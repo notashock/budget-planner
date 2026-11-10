@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import { TrashIcon, EditIcon, CheckCircleIcon, PlusIcon, CalendarIcon } from '../components/Icons.jsx';
+import { TrashIcon, EditIcon, CheckCircleIcon, PlusIcon, CalendarIcon, ClockIcon } from '../components/Icons.jsx';
 
 describe('Icons component exports', () => {
   it('renders TrashIcon without error', () => {
@@ -27,5 +27,11 @@ describe('Icons component exports', () => {
       </div>
     );
     expect(container.querySelectorAll('svg').length).toBe(3);
+  });
+
+  it('renders ClockIcon without error', () => {
+    const { container } = render(<ClockIcon size={16} />);
+    const svg = container.querySelector('svg');
+    expect(svg).toBeInTheDocument();
   });
 });

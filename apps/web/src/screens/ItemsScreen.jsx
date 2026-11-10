@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import { PlusIcon, BuildingLibraryIcon, WalletIcon, EditIcon, TrashIcon } from '../components/Icons.jsx';
+import { PlusIcon, BuildingLibraryIcon, WalletIcon, EditIcon, TrashIcon, CheckCircleIcon } from '../components/Icons.jsx';
 
 export function ItemsScreen({
   items = [],
@@ -294,29 +294,45 @@ export function ItemsScreen({
 
         {/* Bento Footer: Status & Actions */}
         <div className="item-bento-footer" style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div
-            className="recurring-toggle-switch"
-            onClick={() => onTogglePaid?.(item._id, !item.isPaid)}
-            title={item.isPaid ? 'Payment completed - click to mark pending' : 'Payment pending - click to mark paid'}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onTogglePaid?.(item._id, !item.isPaid);
-              }
-            }}
-          >
-            <div className={`recurring-toggle-track ${item.isPaid ? 'active' : ''}`}>
-              <div className="recurring-toggle-thumb" />
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: item.isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
-              {item.isPaid ? 'Paid' : 'Pending'}
+          {item.isPaid ? (
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--green, #10b981)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <CheckCircleIcon size={12} color="var(--green, #10b981)" />
+              <span>Paid</span>
             </span>
-          </div>
+          ) : (
+            <div
+              className="recurring-toggle-switch"
+              onClick={() => onTogglePaid?.(item._id, true)}
+              title="Payment pending - click to mark paid"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onTogglePaid?.(item._id, true);
+                }
+              }}
+            >
+              <div className="recurring-toggle-track">
+                <div className="recurring-toggle-thumb" />
+              </div>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Mark as Paid
+              </span>
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isEditable ? (
+            {isEditable && !item.isPaid ? (
               <button
                 type="button"
                 className="btn-subtle"
@@ -327,26 +343,7 @@ export function ItemsScreen({
               >
                 <EditIcon size={14} />
               </button>
-            ) : (
-              <span
-                style={{
-                  padding: '3px 8px',
-                  fontSize: '11px',
-                  color: 'var(--text-muted)',
-                  background: 'var(--surface-subtle)',
-                  borderRadius: '4px',
-                  border: '1px solid var(--border)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  cursor: 'not-allowed',
-                  fontWeight: 500
-                }}
-                title="Paid items are locked from editing. Revert to pending to make changes."
-              >
-                🔒 Paid
-              </span>
-            )}
+            ) : null}
             <button
               type="button"
               className="btn-subtle"
@@ -402,8 +399,8 @@ export function ItemsScreen({
       {filter === 'transactions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {sortedTransactions.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
-              No transactions logged yet this month. Tap "New Entry" to log an expense or credit.
+            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+              No transactions logged
             </div>
           ) : (
             sortedTransactions.map(renderTransactionCard)
@@ -413,17 +410,17 @@ export function ItemsScreen({
 
       {/* All Tab: Sectioned Mixed Feed */}
       {filter === 'all' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Section 1: Active & Pending Budget Items */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                Active & Pending Budget Items ({pendingItems.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Pending items ({pendingItems.length})
               </h3>
             </div>
             {pendingItems.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                No active or pending budget items. All scheduled items have been paid or none were added.
+              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+                No pending items
               </div>
             ) : (
               <div className="items-grid">
@@ -434,17 +431,17 @@ export function ItemsScreen({
 
           {/* Section 2: Logged Transactions & Paid Items */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                Logged Transactions & Paid Items ({paidItems.length + sortedTransactions.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Settled & logged ({paidItems.length + sortedTransactions.length})
               </h3>
             </div>
             {paidItems.length === 0 && sortedTransactions.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                No settled items or transactions logged yet this month.
+              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+                No settled items
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {paidItems.length > 0 && (
                   <div className="items-grid">
                     {paidItems.map((item) => renderItemCard(item, false))}
@@ -465,8 +462,8 @@ export function ItemsScreen({
       {filter !== 'transactions' && filter !== 'all' && (
         <div>
           {filteredItems.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
-              No budget items found in this view.
+            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+              No items
             </div>
           ) : (
             <div className="items-grid">

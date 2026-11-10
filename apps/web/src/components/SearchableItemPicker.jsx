@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { formatCurrency } from '@budget/engine';
+import { ChevronUpIcon, ChevronDownIcon } from './Icons.jsx';
 
 /**
  * Unified Searchable Item Picker Popover.
@@ -117,8 +118,8 @@ export function SearchableItemPicker({
             </span>
           )}
         </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px', flexShrink: 0 }}>
-          {isOpen ? '▴' : '▾'}
+        <span style={{ display: 'inline-flex', color: 'var(--text-secondary)', marginLeft: '8px', flexShrink: 0 }}>
+          {isOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
         </span>
       </button>
 
@@ -149,7 +150,7 @@ export function SearchableItemPicker({
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search planned items..."
+                placeholder="Search planned transactions..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ padding: '6px 10px', fontSize: '12px' }}

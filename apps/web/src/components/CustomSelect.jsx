@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDownIcon } from './Icons.jsx';
 
 /**
  * Reusable Rich Select Dropdown matching the UI's Swiss minimalist aesthetic.
@@ -108,8 +109,8 @@ export function CustomSelect({
             </span>
           )}
         </div>
-        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', marginLeft: '8px', flexShrink: 0, transition: 'transform 0.15s ease', transform: isOpen ? 'rotate(180deg)' : 'none' }}>
-          ▼
+        <span style={{ display: 'inline-flex', color: 'var(--text-secondary)', marginLeft: '8px', flexShrink: 0, transition: 'transform 0.15s ease', transform: isOpen ? 'rotate(180deg)' : 'none' }}>
+          <ChevronDownIcon size={12} />
         </span>
       </button>
 

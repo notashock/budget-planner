@@ -104,16 +104,51 @@ export function StepLineChart({
   selectedDay = null,
   onSelectDay = null,
   currentDay = null,
-  onOpenReview = null
+  onOpenReview = null,
+  bankAccounts = [],
+  wallets = []
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  const [hoveredPointId, setHoveredPointId] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const containerRef = useRef(null);
+
+  // Fast account lookup for tooltip account identification
+  const accountMap = useMemo(() => {
+    const map = new Map();
+    (bankAccounts || []).forEach((b) => {
+      const id = b.id || b._id;
+      if (id) map.set(String(id), { name: b.name, type: 'Bank' });
+    });
+    (wallets || []).forEach((w) => {
+      const id = w.id || w._id;
+      if (id) map.set(String(id), { name: w.name, type: 'Wallet' });
+    });
+    return map;
+  }, [bankAccounts, wallets]);
+
+  const getEventAccountInfo = (ev) => {
+    if (!ev) return null;
+    const accId = ev.bankAccountId || ev.walletId || ev.accountId || ev.sourceBankAccountId || ev.sourceWalletId;
+    const idStr = accId ? String(accId._id || accId.id || accId) : null;
+    if (idStr && accountMap.has(idStr)) {
+      return accountMap.get(idStr);
+    }
+    if (ev.sourceBankAccountId || ev.destinationBankAccountId) {
+      const dId = ev.destinationBankAccountId ? String(ev.destinationBankAccountId._id || ev.destinationBankAccountId.id || ev.destinationBankAccountId) : null;
+      if (dId && accountMap.has(dId)) return accountMap.get(dId);
+    }
+    if (ev.isSalary) {
+      const primaryBank = (bankAccounts || []).find((b) => b.isPrimary) || (bankAccounts || [])[0];
+      if (primaryBank) return { name: primaryBank.name, type: 'Bank' };
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => {
-      const mobile = window.innerWidth < 640;
+      const mobile = window.innerWidth < 768;
       setIsMobile((prev) => (prev !== mobile ? mobile : prev));
     };
     window.addEventListener('resize', handleResize);
@@ -167,8 +202,8 @@ export function StepLineChart({
     const maxDay = dailyBalances[dailyBalances.length - 1].day;
     const totalDaySpan = maxDay - minDay || 1;
 
-    const getX = (day) => {
-      return paddingLeft + ((day - minDay) / totalDaySpan) * chartWidth;
+    const getX = (day, frac = 0) => {
+      return paddingLeft + (((day + frac) - minDay) / totalDaySpan) * chartWidth;
     };
 
     const getY = (val) => {
@@ -176,11 +211,44 @@ export function StepLineChart({
       return height - paddingBottom - norm * chartHeight;
     };
 
-    // Build smooth monotonic curved spline path with zero overshoot
-    const points = dailyBalances.map((point) => ({
-      x: getX(point.day),
-      y: getY(point.balance)
-    }));
+    // Build smooth monotonic curved spline path with zero overshoot,
+    // including fractional intraday transaction steps
+    const points = [];
+    dailyBalances.forEach((point) => {
+      const dayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
+        ? point.intradayEvents
+        : (events || []).filter((e) => e.day === point.day || e.date === point.date);
+
+      if (dayEvents.length > 1) {
+        // Multiple transactions on same day: generate intermediate steps with fractional offsets
+        const n = dayEvents.length;
+        dayEvents.forEach((ev, idx) => {
+          // Spread across +/- 0.35 of a day
+          const frac = -0.35 + ((idx + 1) / (n + 1)) * 0.7;
+          points.push({
+            x: getX(point.day, frac),
+            y: getY(ev.balanceAfter ?? point.balance),
+            day: point.day,
+            date: point.date,
+            balance: ev.balanceAfter ?? point.balance,
+            isIntermediate: true,
+            event: ev,
+            eventId: ev.transactionId || ev.itemId || `${point.day}-${idx}`
+          });
+        });
+      } else {
+        points.push({
+          x: getX(point.day, 0),
+          y: getY(point.balance),
+          day: point.day,
+          date: point.date,
+          balance: point.balance,
+          isIntermediate: false,
+          event: dayEvents[0] || null,
+          eventId: dayEvents[0]?.transactionId || dayEvents[0]?.itemId || `${point.day}-0`
+        });
+      }
+    });
 
     const pathD = getMonotoneCubicSplinePath(points);
     let areaD = '';
@@ -188,6 +256,22 @@ export function StepLineChart({
     if (points.length > 0) {
       const baselineY = getY(yMin);
       areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baselineY.toFixed(1)} L ${points[0].x.toFixed(1)} ${baselineY.toFixed(1)} Z`;
+    }
+
+    // Dual-phase paths: Realized (history up to Today) vs Projected (future days reflecting planned transactions)
+    let realizedPathD = '';
+    let projectedPathD = '';
+    if (typeof currentDay === 'number' && currentDay >= minDay && currentDay <= maxDay) {
+      const realizedPts = points.filter((p) => p.day <= currentDay);
+      const projectedPts = points.filter((p) => p.day >= currentDay);
+      if (realizedPts.length > 1) {
+        realizedPathD = getMonotoneCubicSplinePath(realizedPts);
+      } else if (realizedPts.length === 1) {
+        realizedPathD = `M ${realizedPts[0].x.toFixed(1)} ${realizedPts[0].y.toFixed(1)}`;
+      }
+      if (projectedPts.length > 1) {
+        projectedPathD = getMonotoneCubicSplinePath(projectedPts);
+      }
     }
 
     const floorY = getY(safetyFloor);
@@ -252,12 +336,14 @@ export function StepLineChart({
       getY,
       points,
       pathD,
+      realizedPathD,
+      projectedPathD,
       areaD,
       floorY,
       yTicks,
       prunedXTicks
     };
-  }, [dailyBalances, safetyFloor, currencySymbol, isMobile]);
+  }, [dailyBalances, safetyFloor, currencySymbol, isMobile, currentDay]);
 
   const {
     minDay,
@@ -274,23 +360,42 @@ export function StepLineChart({
     getY,
     points,
     pathD,
+    realizedPathD,
+    projectedPathD,
     areaD,
     floorY,
     yTicks,
     prunedXTicks
   } = chartData;
 
-  // Active point for tooltip inspection
+  // Days with planned commitments (transactions/events)
+  const plannedDaySet = useMemo(() => {
+    const set = new Set();
+    (events || []).forEach((e) => {
+      if (e.isPlannedTransaction || (!e.isActual && e.amount < 0 && e.itemType !== 'income')) {
+        set.add(e.day);
+      }
+    });
+    return set;
+  }, [events]);
+
+  // Active point for tooltip inspection (can be specific intraday event point or day point)
   const activeDay = hoveredDay !== null ? hoveredDay : selectedDay;
-  const activePoint = activeDay !== null ? dailyBalances.find((p) => p.day === activeDay) : null;
-  const activeIndex = activePoint ? dailyBalances.indexOf(activePoint) : -1;
+  const activePoint = hoveredPointId !== null
+    ? points.find((p) => p.eventId === hoveredPointId)
+    : (activeDay !== null ? (points.find((p) => p.day === activeDay && !p.isIntermediate) || points.find((p) => p.day === activeDay)) : null);
+
+  const activeDayObj = activePoint ? dailyBalances.find((d) => d.day === activePoint.day) : null;
+  const activeIndex = activeDayObj ? dailyBalances.indexOf(activeDayObj) : -1;
   const prevPoint = activeIndex > 0 ? dailyBalances[activeIndex - 1] : null;
   const isBreached = activePoint ? activePoint.balance < safetyFloor : false;
 
   // Day calculations: opening balance, spending on that day, and closing balance
   const closingBalance = activePoint ? activePoint.balance : 0;
   const dayEvents = activePoint
-    ? (events || []).filter((e) => e.day === activePoint.day || e.date === activePoint.date)
+    ? ((activeDayObj && activeDayObj.intradayEvents && activeDayObj.intradayEvents.length > 0)
+        ? activeDayObj.intradayEvents
+        : (events || []).filter((e) => e.day === activePoint.day || e.date === activePoint.date))
     : [];
 
   const eventSpend = dayEvents.reduce((sum, e) => {
@@ -310,16 +415,22 @@ export function StepLineChart({
     daySpend = prevPoint.balance - closingBalance;
   }
 
+  // Active event on intermediate points (or single event for the day)
+  const activeEvent = activePoint?.event || (dayEvents.length === 1 ? dayEvents[0] : null);
+  const activeAccount = getEventAccountInfo(activeEvent);
+
   // Tooltip geometry
-  const tooltipWidth = 204;
-  const tooltipHeight = isBreached ? 96 : 84;
-  let tooltipX = activePoint ? getX(activePoint.day) - tooltipWidth / 2 : 0;
+  const tooltipWidth = 224;
+  const tooltipHeight = activeEvent
+    ? (activeAccount ? (isBreached ? 142 : 124) : (isBreached ? 122 : 106))
+    : (isBreached ? 96 : 84);
+  let tooltipX = activePoint ? activePoint.x - tooltipWidth / 2 : 0;
   if (tooltipX < paddingLeft) tooltipX = paddingLeft;
   if (tooltipX + tooltipWidth > width - paddingRight) tooltipX = width - paddingRight - tooltipWidth;
 
-  let tooltipY = activePoint ? getY(activePoint.balance) - tooltipHeight - 12 : 0;
+  let tooltipY = activePoint ? activePoint.y - tooltipHeight - 12 : 0;
   if (tooltipY < paddingTop) {
-    tooltipY = activePoint ? getY(activePoint.balance) + 12 : paddingTop;
+    tooltipY = activePoint ? activePoint.y + 12 : paddingTop;
   }
   if (tooltipY + tooltipHeight > height - 4) {
     tooltipY = height - tooltipHeight - 4;
@@ -450,15 +561,20 @@ export function StepLineChart({
             y1={floorY}
             x2={width - paddingRight}
             y2={floorY}
-            stroke="var(--text-muted)"
+            stroke={floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-muted)'}
             strokeWidth="1.5"
             strokeDasharray="4 4"
+            opacity={floorBreached ? 0.8 : 0.45}
           />
           <text
             x={width - paddingRight - 4}
             y={floorY - 6}
             textAnchor="end"
-            style={{ fontSize: '11.5px', fill: 'var(--text-secondary)', fontWeight: 600 }}
+            style={{
+              fontSize: '11px',
+              fill: floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-secondary)',
+              fontWeight: 600
+            }}
           >
             {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
@@ -523,26 +639,52 @@ export function StepLineChart({
             />
           )}
 
-          {/* Smooth Curved Line Path */}
-          <path
-            d={pathD}
-            fill="none"
-            stroke="var(--text)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {/* Dual-Phase Curved Line Paths: Solid Realized vs Dashed Projected */}
+          {realizedPathD && projectedPathD ? (
+            <>
+              {/* Realized History Line up to Today */}
+              <path
+                d={realizedPathD}
+                fill="none"
+                stroke="var(--text)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {/* Future Projection Line reflecting Planned Commitments */}
+              <path
+                d={projectedPathD}
+                fill="none"
+                stroke="var(--text-secondary)"
+                strokeWidth="2.2"
+                strokeDasharray="4 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.85"
+              />
+            </>
+          ) : (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--text)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
 
-          {/* Daily Data Points */}
-          {dailyBalances.map((pt) => {
+          {/* Data Points (supports multiple same-day transaction pins) */}
+          {points.map((pt) => {
             const isLowest = pt.date === lowestDate;
             const isSelected = selectedDay === pt.day;
-            const isHovered = hoveredDay === pt.day;
-            const x = getX(pt.day);
-            const y = getY(pt.balance);
+            const isHovered = hoveredPointId === pt.eventId || (hoveredDay === pt.day && !hoveredPointId);
+            const isPlannedDay = plannedDaySet.has(pt.day);
+            const x = pt.x;
+            const y = pt.y;
 
             return (
-              <g key={pt.day}>
+              <g key={pt.eventId}>
                 {/* Visual circle dot */}
                 {isLowest ? (
                   <circle
@@ -553,13 +695,30 @@ export function StepLineChart({
                     stroke="var(--text)"
                     strokeWidth="2.5"
                   />
+                ) : (isPlannedDay || pt.event?.isPlannedTransaction) ? (
+                  <>
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={isSelected || isHovered ? '6.5' : (pt.isIntermediate ? '4.5' : '5')}
+                      fill="var(--surface)"
+                      stroke="#3b82f6"
+                      strokeWidth={isSelected || isHovered ? '2.5' : '1.8'}
+                    />
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={isSelected || isHovered ? '3' : '2'}
+                      fill="#3b82f6"
+                    />
+                  </>
                 ) : (
                   <circle
                     cx={x}
                     cy={y}
-                    r={isSelected || isHovered ? '5' : '2.5'}
+                    r={isSelected || isHovered ? '5' : (pt.isIntermediate ? '3' : '2.5')}
                     fill={isSelected || isHovered ? 'var(--text)' : 'var(--text-secondary)'}
-                    opacity={isSelected || isHovered ? '1' : '0.45'}
+                    opacity={isSelected || isHovered ? '1' : '0.55'}
                     stroke={isSelected || isHovered ? 'var(--surface)' : 'none'}
                     strokeWidth={isSelected || isHovered ? '1.5' : '0'}
                   />
@@ -569,11 +728,17 @@ export function StepLineChart({
                 <circle
                   cx={x}
                   cy={y}
-                  r="16"
+                  r={pt.isIntermediate ? '12' : '16'}
                   fill="transparent"
                   style={{ cursor: 'pointer' }}
-                  onMouseEnter={() => setHoveredDay(pt.day)}
-                  onMouseLeave={() => setHoveredDay(null)}
+                  onMouseEnter={() => {
+                    setHoveredPointId(pt.eventId);
+                    setHoveredDay(pt.day);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredPointId(null);
+                    setHoveredDay(null);
+                  }}
                   onClick={() => onSelectDay?.(selectedDay === pt.day ? null : pt.day)}
                 />
               </g>
@@ -624,11 +789,11 @@ export function StepLineChart({
               <rect
                 width={tooltipWidth}
                 height={tooltipHeight}
-                rx="6"
+                rx="8"
                 fill="var(--surface)"
-                stroke="var(--border-strong)"
+                stroke="var(--border)"
                 strokeWidth="1"
-                filter="drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35))"
+                filter="drop-shadow(0 4px 14px rgba(0, 0, 0, 0.12))"
               />
               {/* Header: Date */}
               <text
@@ -642,71 +807,160 @@ export function StepLineChart({
                   : formatDisplayDate(activePoint.date, true)}
               </text>
 
-              {/* Opening Balance */}
-              <text
-                x="12"
-                y="35"
-                fill="var(--text-secondary)"
-                style={{ fontSize: '11.5px', fontWeight: 500 }}
-              >
-                Opening:
-              </text>
-              <text
-                x={tooltipWidth - 12}
-                y="35"
-                textAnchor="end"
-                className="tabular-nums"
-                fill="var(--text)"
-                style={{ fontSize: '12px', fontWeight: 600 }}
-              >
-                {formatCurrency(openingBalance, currencySymbol)}
-              </text>
+              {/* Active Transaction specific details (if an intraday transaction pin is hovered) */}
+              {activeEvent ? (
+                <>
+                  <text
+                    x="12"
+                    y="35"
+                    fill="var(--text)"
+                    style={{ fontSize: '11.5px', fontWeight: 600 }}
+                  >
+                    {(activeEvent.name || activeEvent.description || activeEvent.label || 'Transaction').slice(0, 16)}
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y="35"
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--emerald, #10b981)'}
+                    style={{ fontSize: '12px', fontWeight: 700 }}
+                  >
+                    {activeEvent.amount < 0 ? `-${formatCurrency(Math.abs(activeEvent.amount), currencySymbol)}` : `+${formatCurrency(activeEvent.amount, currencySymbol)}`}
+                  </text>
 
-              {/* Day Spending */}
-              <text
-                x="12"
-                y="52"
-                fill="var(--text-secondary)"
-                style={{ fontSize: '11.5px', fontWeight: 500 }}
-              >
-                Spending:
-              </text>
-              <text
-                x={tooltipWidth - 12}
-                y="52"
-                textAnchor="end"
-                className="tabular-nums"
-                fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
-                style={{ fontSize: '12px', fontWeight: 600 }}
-              >
-                {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
-              </text>
+                  {/* Account Name & Type (Bank / Wallet) */}
+                  {activeAccount && (
+                    <>
+                      <text
+                        x="12"
+                        y="52"
+                        fill="var(--text-secondary)"
+                        style={{ fontSize: '11px', fontWeight: 500 }}
+                      >
+                        Account:
+                      </text>
+                      <text
+                        x={tooltipWidth - 12}
+                        y="52"
+                        textAnchor="end"
+                        fill="var(--text-secondary)"
+                        style={{ fontSize: '11.5px', fontWeight: 600 }}
+                      >
+                        {activeAccount.name.slice(0, 16)} ({activeAccount.type})
+                      </text>
+                    </>
+                  )}
 
-              {/* Closing Balance */}
-              <text
-                x="12"
-                y="69"
-                fill="var(--text-secondary)"
-                style={{ fontSize: '11.5px', fontWeight: 500 }}
-              >
-                Closing:
-              </text>
-              <text
-                x={tooltipWidth - 12}
-                y="69"
-                textAnchor="end"
-                className="tabular-nums"
-                fill="var(--text)"
-                style={{ fontSize: '12px', fontWeight: 700 }}
-              >
-                {formatCurrency(closingBalance, currencySymbol)}
-              </text>
+                  {/* Balance After this transaction */}
+                  <text
+                    x="12"
+                    y={activeAccount ? 70 : 52}
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11px', fontWeight: 500 }}
+                  >
+                    Balance:
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y={activeAccount ? 70 : 52}
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill="var(--text)"
+                    style={{ fontSize: '12px', fontWeight: 600 }}
+                  >
+                    {formatCurrency(activePoint.balance, currencySymbol)}
+                  </text>
+
+                  {/* Day Closing Balance */}
+                  <text
+                    x="12"
+                    y={activeAccount ? 88 : 69}
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11px', fontWeight: 500 }}
+                  >
+                    Day End:
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y={activeAccount ? 88 : 69}
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11.5px', fontWeight: 600 }}
+                  >
+                    {formatCurrency(closingBalance, currencySymbol)}
+                  </text>
+                </>
+              ) : (
+                <>
+                  {/* Opening Balance */}
+                  <text
+                    x="12"
+                    y="35"
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                  >
+                    Opening:
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y="35"
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill="var(--text)"
+                    style={{ fontSize: '12px', fontWeight: 600 }}
+                  >
+                    {formatCurrency(openingBalance, currencySymbol)}
+                  </text>
+
+                  {/* Day Spending */}
+                  <text
+                    x="12"
+                    y="52"
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                  >
+                    Spending:
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y="52"
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
+                    style={{ fontSize: '12px', fontWeight: 600 }}
+                  >
+                    {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
+                  </text>
+
+                  {/* Closing Balance */}
+                  <text
+                    x="12"
+                    y="69"
+                    fill="var(--text-secondary)"
+                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                  >
+                    Closing:
+                  </text>
+                  <text
+                    x={tooltipWidth - 12}
+                    y="69"
+                    textAnchor="end"
+                    className="tabular-nums"
+                    fill="var(--text)"
+                    style={{ fontSize: '12px', fontWeight: 700 }}
+                  >
+                    {formatCurrency(closingBalance, currencySymbol)}
+                  </text>
+                </>
+              )}
 
               {/* Floor Breached Warning */}
               {isBreached && (
                 <text
                   x="12"
-                  y="87"
+                  y={activeEvent ? (activeAccount ? 106 : 88) : 87}
                   fill="var(--danger)"
                   style={{ fontSize: '10.5px', fontWeight: 600 }}
                 >

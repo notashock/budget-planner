@@ -47,4 +47,15 @@ describe('Stateless JWT Authentication Utility (ADR 0044 & ADR 0046)', () => {
     const verified = verifyToken(expiredToken, secret);
     expect(verified).toBeNull();
   });
+
+  it('guarantees config.jwtSecret is persistent and survives server restarts', async () => {
+    const { config } = await import('../src/config.js');
+    expect(typeof config.jwtSecret).toBe('string');
+    expect(config.jwtSecret.length).toBeGreaterThanOrEqual(16);
+
+    const token = signToken(payload, config.jwtSecret, 14);
+    const verified = verifyToken(token, config.jwtSecret);
+    expect(verified).not.toBeNull();
+    expect(verified.userId).toBe(payload.userId);
+  });
 });

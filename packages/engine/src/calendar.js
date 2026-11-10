@@ -95,7 +95,7 @@ export function getDateFromRelativeDay(relativeDay, year, monthNum) {
 
 /**
  * Calculates the active 10-day salary logging window and lock status.
- * Window: 5 days before expected credit date through 4 days after expected credit date (10 days total).
+ * Window: 5 days before the last date of the respective month through 5 days after (inclusive).
  * 
  * @param {object} month - { year, month, incomeAmount, incomeCreditDay, salaryCreditedDate, salaryBankAccountId }
  * @param {string|Date} [currentDate] - Current date to evaluate against (defaults to now)

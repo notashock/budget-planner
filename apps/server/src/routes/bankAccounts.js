@@ -1,17 +1,30 @@
 import express from 'express';
-import { BankAccount } from '../models/BankAccount.js';
+import { eq, and, desc, asc, count } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import * as s from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getMigrationStatus, executeMigration, backfillUnassignedTransactions } from '../services/accountMigration.js';
+import { serialize } from '../utils/serializer.js';
 
 export const bankAccountsRouter = express.Router();
 bankAccountsRouter.use(requireAuth);
 
+function parseCurrencyInt(val) {
+  if (val === undefined || val === null || val === '') return undefined;
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.round(val);
+  const clean = String(val).replace(/[^0-9.-]+/g, '');
+  const parsed = Number(clean);
+  return isNaN(parsed) ? 0 : Math.round(parsed);
+}
+
 // Check migration eligibility and get legacy stats
 bankAccountsRouter.get('/migration-status', async (req, res) => {
   try {
-    const result = await getMigrationStatus(req.session.userId);
+    const userId = req.userId || req.session?.userId;
+    const result = await getMigrationStatus(userId);
     return res.json(result);
   } catch (err) {
+    console.error('Migration status error:', err);
     return res.status(500).json({ error: 'Failed to retrieve migration status' });
   }
 });
@@ -19,12 +32,13 @@ bankAccountsRouter.get('/migration-status', async (req, res) => {
 // User-consented primary bank account data migration
 bankAccountsRouter.post('/migrate', async (req, res) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const { name, institution, accountType, accountNumberLast4, accountNumberMasked, minimumBalance } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Account name is required' });
     }
 
-    const result = await executeMigration(req.session.userId, {
+    const result = await executeMigration(userId, {
       name: name.trim(),
       institution: typeof institution === 'string' ? institution.trim() : '',
       accountType,
@@ -43,36 +57,60 @@ bankAccountsRouter.post('/migrate', async (req, res) => {
 // List all bank accounts
 bankAccountsRouter.get('/', async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const query = { userId };
+    const userId = req.userId || req.session?.userId;
+    const conditions = [
+      eq(s.accounts.userId, userId),
+      eq(s.accounts.type, 'bank')
+    ];
     if (req.query.includeArchived !== 'true') {
-      query.isArchived = { $ne: true };
+      conditions.push(eq(s.accounts.isArchived, false));
     }
-    const accounts = await BankAccount.find(query).sort({ isPrimary: -1, createdAt: 1 });
-    return res.json(accounts);
+
+    const bankList = await db.query.accounts.findMany({
+      where: and(...conditions),
+      orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
+    });
+
+    return res.json(serialize(bankList));
   } catch (err) {
+    console.error('Fetch bank accounts error:', err);
     return res.status(500).json({ error: 'Failed to fetch bank accounts' });
   }
 });
 
-// Helper to safely parse currency integer amounts (handling formatted strings, commas, or numbers)
-function parseCurrencyInt(val) {
-  if (val === undefined || val === null || val === '') return undefined;
-  if (typeof val === 'number') return isNaN(val) ? 0 : Math.round(val);
-  const clean = String(val).replace(/[^0-9.-]+/g, '');
-  const parsed = Number(clean);
-  return isNaN(parsed) ? 0 : Math.round(parsed);
-}
+// List all accounts of any type (bank, cash, wallet)
+bankAccountsRouter.get('/all', async (req, res) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const conditions = [eq(s.accounts.userId, userId)];
+    if (req.query.includeArchived !== 'true') {
+      conditions.push(eq(s.accounts.isArchived, false));
+    }
+
+    const allList = await db.query.accounts.findMany({
+      where: and(...conditions),
+      orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
+    });
+
+    return res.json(serialize(allList));
+  } catch (err) {
+    console.error('Fetch all accounts error:', err);
+    return res.status(500).json({ error: 'Failed to fetch accounts' });
+  }
+});
 
 // Create a new bank account
 bankAccountsRouter.post('/', async (req, res) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const {
       name,
+      type,
       institution,
       accountType,
       accountNumberMasked,
       openingBalance,
+      openingBalanceDate,
       minimumBalance,
       isPrimary,
       color
@@ -82,52 +120,56 @@ bankAccountsRouter.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Account name is required' });
     }
 
-    const userId = req.session.userId;
+    const resolvedType = type === 'cash' || accountType === 'cash' ? 'cash' : (type === 'wallet' ? 'wallet' : 'bank');
+
     const isPrimaryBool = Boolean(isPrimary);
     if (isPrimaryBool) {
-      await BankAccount.updateMany(
-        { userId },
-        { $set: { isPrimary: false } }
-      );
+      await db.update(s.accounts)
+        .set({ isPrimary: false, updatedAt: new Date() })
+        .where(and(eq(s.accounts.userId, userId), eq(s.accounts.type, resolvedType)));
     }
 
     const parsedOpening = parseCurrencyInt(openingBalance) ?? 0;
     const parsedMin = parseCurrencyInt(minimumBalance) ?? 0;
 
-    const bankAccount = await BankAccount.create({
+    const [bankAccount] = await db.insert(s.accounts).values({
       userId,
       name: name.trim(),
+      type: resolvedType,
+      subtype: ['checking', 'savings', 'salary', 'cash', 'other'].includes(accountType) ? accountType : (resolvedType === 'cash' ? 'cash' : 'checking'),
       institution: typeof institution === 'string' ? institution.trim() : '',
-      accountType: ['checking', 'savings', 'salary', 'other'].includes(accountType) ? accountType : 'checking',
       accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
       openingBalance: parsedOpening,
+      openingBalanceDate: typeof openingBalanceDate === 'string' && openingBalanceDate.trim() ? openingBalanceDate.trim() : null,
       minimumBalance: parsedMin,
       isPrimary: isPrimaryBool,
       color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
-    });
+    }).returning();
 
-    const totalBanks = await BankAccount.countDocuments({ userId, isArchived: { $ne: true } });
-    if (isPrimaryBool || totalBanks === 1) {
-      if (totalBanks === 1 && !isPrimaryBool) {
-        bankAccount.isPrimary = true;
-        await bankAccount.save();
+    const [{ count: totalBanks }] = await db
+      .select({ count: count() })
+      .from(s.accounts)
+      .where(and(eq(s.accounts.userId, userId), eq(s.accounts.type, 'bank'), eq(s.accounts.isArchived, false)));
+
+    let finalAccount = bankAccount;
+    if (isPrimaryBool || Number(totalBanks) === 1) {
+      if (Number(totalBanks) === 1 && !isPrimaryBool) {
+        const [updated] = await db.update(s.accounts)
+          .set({ isPrimary: true, updatedAt: new Date() })
+          .where(eq(s.accounts.id, bankAccount.id))
+          .returning();
+        finalAccount = updated;
       }
       try {
-        await backfillUnassignedTransactions(userId, bankAccount);
+        await backfillUnassignedTransactions(userId, finalAccount);
       } catch (backfillErr) {
         console.error('Failed to backfill transactions on bank account creation:', backfillErr);
       }
     }
 
-    return res.status(201).json(bankAccount);
+    return res.status(201).json(serialize(finalAccount));
   } catch (err) {
     console.error('Failed to create bank account:', err);
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message });
-    }
-    if (err.code === 11000) {
-      return res.status(409).json({ error: 'A bank account with this name already exists' });
-    }
     return res.status(500).json({ error: err.message || 'Failed to create bank account' });
   }
 });
@@ -135,6 +177,23 @@ bankAccountsRouter.post('/', async (req, res) => {
 // Update bank account
 bankAccountsRouter.put('/:id', async (req, res) => {
   try {
+    const userId = req.userId || req.session?.userId;
+    const bankId = req.params.id;
+    if (!bankId || bankId === 'undefined' || bankId === 'null') {
+      return res.status(400).json({ error: 'Invalid bank account ID' });
+    }
+
+    const account = await db.query.accounts.findFirst({
+      where: and(
+        eq(s.accounts.id, bankId),
+        eq(s.accounts.userId, userId)
+      )
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
     const {
       name,
       institution,
@@ -147,49 +206,57 @@ bankAccountsRouter.put('/:id', async (req, res) => {
       color
     } = req.body;
 
-    const bankId = req.params.id;
-    if (!bankId || bankId === 'undefined' || bankId === 'null') {
-      return res.status(400).json({ error: 'Invalid bank account ID' });
-    }
-
-    const account = await BankAccount.findOne({
-      _id: bankId,
-      userId: req.session.userId
-    });
-
-    if (!account) {
-      return res.status(404).json({ error: 'Bank account not found' });
-    }
+    const updates = { updatedAt: new Date() };
 
     if (isPrimary === true) {
-      await BankAccount.updateMany(
-        { userId: req.session.userId, _id: { $ne: account._id } },
-        { $set: { isPrimary: false } }
-      );
-      account.isPrimary = true;
+      await db.update(s.accounts)
+        .set({ isPrimary: false, updatedAt: new Date() })
+        .where(and(eq(s.accounts.userId, userId), eq(s.accounts.type, 'bank')));
+      updates.isPrimary = true;
     } else if (isPrimary === false) {
-      account.isPrimary = false;
+      updates.isPrimary = false;
     }
 
-    if (typeof name === 'string' && name.trim()) account.name = name.trim();
-    if (typeof institution === 'string') account.institution = institution.trim();
-    if (['checking', 'savings', 'salary', 'other'].includes(accountType)) account.accountType = accountType;
-    if (typeof accountNumberMasked === 'string') account.accountNumberMasked = accountNumberMasked.trim();
+    if (typeof name === 'string' && name.trim()) updates.name = name.trim();
+    if (typeof institution === 'string') updates.institution = institution.trim();
+    if (['checking', 'savings', 'salary', 'other'].includes(accountType)) updates.subtype = accountType;
+    if (typeof accountNumberMasked === 'string') updates.accountNumberMasked = accountNumberMasked.trim();
 
     const parsedOpening = parseCurrencyInt(openingBalance);
-    if (parsedOpening !== undefined) account.openingBalance = parsedOpening;
+    if (parsedOpening !== undefined) updates.openingBalance = parsedOpening;
 
     const parsedMin = parseCurrencyInt(minimumBalance);
-    if (parsedMin !== undefined) account.minimumBalance = parsedMin;
+    if (parsedMin !== undefined) updates.minimumBalance = parsedMin;
 
     if (typeof isArchived === 'boolean') {
-      account.isArchived = isArchived;
-      if (isArchived) account.isPrimary = false;
+      updates.isArchived = isArchived;
+      if (isArchived) updates.isPrimary = false;
     }
-    if (typeof color === 'string' && color.trim()) account.color = color.trim();
+    if (typeof color === 'string' && color.trim()) updates.color = color.trim();
 
-    await account.save();
-    return res.json(account);
+    const [updated] = await db.update(s.accounts)
+      .set(updates)
+      .where(eq(s.accounts.id, bankId))
+      .returning();
+
+    if (parsedOpening !== undefined) {
+      const activeMonth = await db.query.months.findFirst({
+        where: and(eq(s.months.userId, userId), eq(s.months.isClosed, false)),
+        orderBy: [desc(s.months.year), desc(s.months.month)]
+      });
+      if (activeMonth) {
+        const existingOpening = await db.query.monthAccountOpenings.findFirst({
+          where: and(eq(s.monthAccountOpenings.monthId, activeMonth.id), eq(s.monthAccountOpenings.accountId, bankId))
+        });
+        if (existingOpening) {
+          await db.update(s.monthAccountOpenings).set({ amount: parsedOpening }).where(eq(s.monthAccountOpenings.id, existingOpening.id));
+        } else {
+          await db.insert(s.monthAccountOpenings).values({ monthId: activeMonth.id, accountId: bankId, amount: parsedOpening });
+        }
+      }
+    }
+
+    return res.json(serialize(updated));
   } catch (err) {
     console.error('Failed to update bank account:', err);
     return res.status(500).json({ error: err.message || 'Failed to update bank account' });
@@ -199,21 +266,29 @@ bankAccountsRouter.put('/:id', async (req, res) => {
 // Soft-archive a bank account
 bankAccountsRouter.delete('/:id', async (req, res) => {
   try {
-    const account = await BankAccount.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
+    const userId = req.userId || req.session?.userId;
+    const bankId = req.params.id;
+
+    const account = await db.query.accounts.findFirst({
+      where: and(
+        eq(s.accounts.id, bankId),
+        eq(s.accounts.userId, userId),
+        eq(s.accounts.type, 'bank')
+      )
     });
 
     if (!account) {
       return res.status(404).json({ error: 'Bank account not found' });
     }
 
-    account.isArchived = true;
-    account.isPrimary = false;
-    await account.save();
+    const [updated] = await db.update(s.accounts)
+      .set({ isArchived: true, isPrimary: false, updatedAt: new Date() })
+      .where(eq(s.accounts.id, bankId))
+      .returning();
 
-    return res.json({ message: 'Bank account archived successfully', account });
+    return res.json({ message: 'Bank account archived successfully', account: serialize(updated) });
   } catch (err) {
+    console.error('Failed to archive bank account:', err);
     return res.status(500).json({ error: 'Failed to archive bank account' });
   }
 });

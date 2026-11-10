@@ -56,7 +56,7 @@ describe('SearchableItemPicker component', () => {
     expect(screen.getByText('Grocery Budget')).toBeInTheDocument();
 
     // Type in search input
-    const searchInput = screen.getByPlaceholderText(/search planned items/i);
+    const searchInput = screen.getByPlaceholderText(/search planned/i);
     fireEvent.change(searchInput, { target: { value: 'Rent' } });
 
     expect(screen.getByText('Apartment Rent')).toBeInTheDocument();

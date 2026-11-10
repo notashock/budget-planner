@@ -8,7 +8,7 @@ import {
 } from '@budget/engine';
 import { api } from '../api.js';
 import { DatePicker } from './DatePicker.jsx';
-import { SparklesIcon } from './Icons.jsx';
+import { SparklesIcon, XIcon } from './Icons.jsx';
 
 export function ItemModal({
   isOpen,
@@ -204,7 +204,9 @@ export function ItemModal({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3>{initialItem ? 'Edit budget item' : 'Add budget item'}</h3>
-          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button type="button" className="btn-icon" onClick={onClose} title="Close" aria-label="Close">
+            <XIcon size={14} />
+          </button>
         </div>
 
         {/* Tab Selector */}
@@ -214,7 +216,7 @@ export function ItemModal({
               <button
                 key={t}
                 type="button"
-                className={type === t ? 'btn-primary' : ''}
+                className={type === t ? 'btn-primary' : 'btn-subtle'}
                 onClick={() => setType(t)}
                 style={{ padding: '6px 4px', fontSize: '11px' }}
               >

@@ -1,11 +1,10 @@
 import express from 'express';
-import { Month } from '../models/Month.js';
-import { Item } from '../models/Item.js';
-import { Transaction } from '../models/Transaction.js';
-import { BankAccount } from '../models/BankAccount.js';
-import { Wallet } from '../models/Wallet.js';
+import { eq, and, or } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import * as s from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateUserAccount } from '../services/accountValidation.js';
+import { serialize } from '../utils/serializer.js';
 
 export const itemsRouter = express.Router();
 itemsRouter.use(requireAuth);
@@ -13,243 +12,198 @@ itemsRouter.use(requireAuth);
 // Create item in specific month
 itemsRouter.post('/months/:year/:month/items', async (req, res) => {
   try {
+    const userId = req.userId || req.session?.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
-    const { type, name, priority, amount, day, dayOfMonth, formulaConfig } = req.body;
+    let { type, name, priority, amount, day, dayOfMonth, date } = req.body;
 
-    if (!type || !name || !['one-time', 'recurring', 'fuel-log'].includes(type)) {
+    if (!type || !name) {
       return res.status(400).json({ error: 'Valid item type and name required' });
     }
 
-    const month = await Month.findOne({
-      userId: req.session.userId,
-      year,
-      month: monthNum
+    const resolvedType = type === 'recurring' ? 'recurring' : 'one-time';
+
+    const month = await db.query.months.findFirst({
+      where: and(
+        eq(s.months.userId, userId),
+        eq(s.months.year, year),
+        eq(s.months.month, monthNum)
+      )
     });
 
     if (!month) {
       return res.status(404).json({ error: 'Month not found' });
     }
 
-    const itemData = {
-      userId: req.session.userId,
-      monthId: month._id,
-      type,
-      name: name.trim(),
-      priority: typeof priority === 'number' ? priority : 0
-    };
-
-    if (type === 'one-time') {
-      itemData.amount = Math.round(Number(amount) || 0);
-      itemData.day = Math.max(-31, Math.min(31, Math.floor(Number(day) || 1)));
-    } else if (type === 'recurring') {
-      itemData.amount = Math.round(Number(amount) || 0);
-      itemData.dayOfMonth = Math.max(1, Math.min(31, Math.floor(Number(dayOfMonth) || 1)));
-      if (typeof req.body.isFixed === 'boolean') {
-        itemData.isFixed = req.body.isFixed;
-      }
-    } else if (type === 'fuel-log') {
-      const stops = Array.isArray(req.body.fuelStops) ? req.body.fuelStops : [];
-      itemData.fuelStops = stops.map((s) => ({
-        date: s.date || `${year}-${String(monthNum).padStart(2, '0')}-01`,
-        odometer: Number(s.odometer) || 0,
-        fuelVolume: Number(s.fuelVolume) || 0,
-        fuelCost: Math.round(Number(s.fuelCost) || 0)
-      }));
+    // Determine canonical date
+    let itemDate = date;
+    if (!itemDate || typeof itemDate !== 'string') {
+      const dayNum = resolvedType === 'recurring' ? (Number(dayOfMonth) || 1) : (Number(day) || 1);
+      const clampedDay = Math.max(1, Math.min(28, Math.floor(dayNum)));
+      itemDate = `${year}-${String(monthNum).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
     }
 
-    if (typeof req.body.isPaid === 'boolean') {
-      itemData.isPaid = req.body.isPaid;
-    }
-
-    // Resolve Account Attribution per ADR 0035 (mandatory):
+    // Resolve Account Attribution
     if (req.body.accountType === 'unassigned') {
       return res.status(400).json({ error: 'Account linking is required' });
     }
 
-    let resolvedAccountType = ['bank', 'wallet'].includes(req.body.accountType) ? req.body.accountType : null;
-    let resolvedBankAccountId = req.body.bankAccountId || null;
-    let resolvedWalletId = req.body.walletId || null;
+    let resolvedAccountId = req.body.accountId || req.body.bankAccountId || req.body.walletId;
 
-    if (!resolvedBankAccountId && !resolvedWalletId) {
-      let primaryBank = await BankAccount.findOne({
-        userId: req.session.userId,
-        isArchived: { $ne: true }
-      }).sort({ isPrimary: -1, createdAt: 1 });
+    if (!resolvedAccountId) {
+      let primaryAccount = await db.query.accounts.findFirst({
+        where: and(
+          eq(s.accounts.userId, userId),
+          eq(s.accounts.isPrimary, true),
+          eq(s.accounts.isArchived, false)
+        )
+      });
 
-      if (!primaryBank) {
-        const totalAccounts = (await BankAccount.countDocuments({ userId: req.session.userId })) +
-          (await Wallet.countDocuments({ userId: req.session.userId }));
-        if (totalAccounts === 0) {
-          primaryBank = await BankAccount.create({
-            userId: req.session.userId,
-            name: 'Primary Account',
-            institution: 'Default Bank',
-            accountType: 'checking',
-            isPrimary: true,
-            openingBalance: month.openingBalance || 0
-          });
-        }
+      if (!primaryAccount) {
+        primaryAccount = await db.query.accounts.findFirst({
+          where: and(
+            eq(s.accounts.userId, userId),
+            eq(s.accounts.isArchived, false)
+          )
+        });
       }
 
-      if (primaryBank) {
-        resolvedAccountType = 'bank';
-        resolvedBankAccountId = primaryBank._id;
+      if (!primaryAccount) {
+        const [created] = await db.insert(s.accounts).values({
+          userId,
+          name: 'Primary Account',
+          type: 'bank',
+          subtype: 'checking',
+          institution: 'Default Bank',
+          isPrimary: true,
+          openingBalance: month.openingBalance || 0
+        }).returning();
+        primaryAccount = created;
       }
+
+      resolvedAccountId = primaryAccount.id;
     }
 
-    if (!resolvedBankAccountId && !resolvedWalletId) {
-      return res.status(400).json({ error: 'A valid Bank Account or Wallet must be linked to the planned item' });
+    const validAccount = await validateUserAccount({ userId, accountId: resolvedAccountId });
+    if (!validAccount) {
+      return res.status(400).json({ error: 'Linked account is invalid or not owned by user' });
     }
 
-    if (resolvedBankAccountId) {
-      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: resolvedBankAccountId });
-      if (!valid) {
-        return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
-      }
-    }
+    const isPaid = typeof req.body.isPaid === 'boolean' ? req.body.isPaid : false;
+    const numAmount = Math.round(Number(amount) || 0);
 
-    if (resolvedWalletId) {
-      const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: resolvedWalletId });
-      if (!valid) {
-        return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
-      }
-    }
+    const [tx] = await db.insert(s.transactions).values({
+      userId,
+      monthId: month.id,
+      name: name.trim(),
+      status: isPaid ? 'successful' : 'planned',
+      origin: 'planned',
+      amount: numAmount,
+      date: itemDate,
+      plannedAmount: numAmount,
+      plannedDate: itemDate,
+      category: ((req.body.category || req.body.tag) ? String(req.body.category || req.body.tag).trim() : 'General'),
+      note: req.body.note ? String(req.body.note).trim() : '',
+      isIncome: typeof req.body.isIncome === 'boolean' ? req.body.isIncome : false,
+      recurrence: resolvedType === 'recurring' ? 'monthly' : null,
+      accountId: resolvedAccountId
+    }).returning();
 
-    itemData.accountType = resolvedAccountType;
-    itemData.bankAccountId = resolvedBankAccountId;
-    itemData.walletId = resolvedWalletId;
-
-    const item = await Item.create(itemData);
-    return res.status(201).json(item);
+    return res.success(serialize({
+      ...tx,
+      type: resolvedType,
+      isPaid: tx.status === 'successful',
+      isFixed: typeof req.body.isFixed === 'boolean' ? req.body.isFixed : false,
+      priority: typeof priority === 'number' ? priority : 0
+    }), 201);
   } catch (err) {
+    console.error('Create item error:', err);
     return res.status(500).json({ error: 'Failed to create item' });
   }
 });
 
-// Update item
+// Update item (updates unified transaction or legacy item)
 itemsRouter.put('/items/:id', async (req, res) => {
   try {
-    const { name, priority, amount, day, dayOfMonth, isFixed, accountType, bankAccountId, walletId } = req.body;
+    const userId = req.userId || req.session?.userId;
+    const itemId = req.params.id;
 
-    const item = await Item.findOne({
-      _id: req.params.id,
-      userId: req.session.userId
+    // Check transactions first
+    const tx = await db.query.transactions.findFirst({
+      where: and(
+        or(eq(s.transactions.id, itemId), eq(s.transactions.legacyItemId, itemId)),
+        eq(s.transactions.userId, userId)
+      )
+    });
+
+    if (tx) {
+      const { name, amount, date, day, dayOfMonth } = req.body;
+      const updates = { updatedAt: new Date() };
+      if (name) updates.name = name.trim();
+      if (typeof amount === 'number') {
+        updates.amount = Math.round(amount);
+        updates.plannedAmount = Math.round(amount);
+      }
+      if (typeof date === 'string' && date.trim()) {
+        updates.date = date.trim();
+        updates.plannedDate = date.trim();
+      }
+      if (typeof req.body.isPaid === 'boolean') {
+        updates.status = req.body.isPaid ? 'successful' : 'planned';
+      }
+      const incomingAccountId = req.body.accountId || req.body.bankAccountId || req.body.walletId;
+      if (incomingAccountId) {
+        updates.accountId = incomingAccountId;
+      }
+      const [updatedTx] = await db.update(s.transactions)
+        .set(updates)
+        .where(eq(s.transactions.id, tx.id))
+        .returning();
+      return res.success(serialize({
+        ...updatedTx,
+        isPaid: updatedTx.status === 'successful'
+      }));
+    }
+
+    const item = await db.query.items.findFirst({
+      where: and(eq(s.items.id, itemId), eq(s.items.userId, userId))
     });
 
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
     }
 
-    if (name) item.name = name.trim();
-    if (typeof priority === 'number') item.priority = priority;
+    const { name, priority, amount, day, dayOfMonth, date, isFixed } = req.body;
+    const updates = { updatedAt: new Date() };
 
-    if (item.type === 'one-time') {
-      if (typeof amount === 'number') item.amount = Math.round(amount);
-      if (typeof day === 'number') item.day = Math.max(-31, Math.min(31, Math.floor(day)));
-    } else if (item.type === 'recurring') {
-      if (typeof amount === 'number') item.amount = Math.round(amount);
-      if (typeof dayOfMonth === 'number') item.dayOfMonth = Math.max(1, Math.min(31, Math.floor(dayOfMonth)));
-      if (typeof isFixed === 'boolean') item.isFixed = isFixed;
-    } else if (item.type === 'fuel-log') {
-      if (Array.isArray(req.body.fuelStops)) {
-        item.fuelStops = req.body.fuelStops.map((s) => ({
-          date: s.date || item.fuelStops?.[0]?.date || '2026-09-01',
-          odometer: Number(s.odometer) || 0,
-          fuelVolume: Number(s.fuelVolume) || 0,
-          fuelCost: Math.round(Number(s.fuelCost) || 0)
-        }));
-      }
+    if (name) updates.name = name.trim();
+    if (req.body.category !== undefined) {
+      updates.category = String(req.body.category).trim() || 'General';
     }
+    if (typeof req.body.isIncome === 'boolean') updates.isIncome = req.body.isIncome;
+    if (typeof isFixed === 'boolean') updates.isFixed = isFixed;
+    if (typeof amount === 'number') updates.amount = Math.round(amount);
 
+    if (typeof date === 'string' && date.trim()) {
+      updates.date = date.trim();
+    }
     if (typeof req.body.isPaid === 'boolean') {
-      const willBePaid = req.body.isPaid;
-      if (willBePaid && !item.isPaid) {
-        // Mark as paid: assign today's actual date in current active month
-        const parentMonth = await Month.findById(item.monthId);
-        const now = new Date();
-        const isCurrentMonth = parentMonth && parentMonth.year === now.getFullYear() && parentMonth.month === (now.getMonth() + 1);
-
-        if (isCurrentMonth) {
-          if (item.originalDay === undefined || item.originalDay === null) {
-            item.originalDay = item.type === 'recurring' ? (item.dayOfMonth || 1) : (item.day || 1);
-            item.originalDate = item.date || null;
-          }
-          const todayDateNum = now.getDate();
-          if (item.type === 'one-time') {
-            item.day = todayDateNum;
-          } else if (item.type === 'recurring') {
-            item.dayOfMonth = todayDateNum;
-          }
-          const pad = (n) => String(n).padStart(2, '0');
-          item.date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(todayDateNum)}`;
-        }
-        item.isPaid = true;
-      } else if (!willBePaid && item.isPaid) {
-        // Revert to pending: restore original scheduled day if saved
-        if (item.originalDay !== undefined && item.originalDay !== null) {
-          if (item.type === 'one-time') {
-            item.day = item.originalDay;
-          } else if (item.type === 'recurring') {
-            item.dayOfMonth = item.originalDay;
-          }
-          if (item.originalDate) {
-            item.date = item.originalDate;
-          }
-          item.originalDay = null;
-          item.originalDate = null;
-        }
-        item.isPaid = false;
-      }
+      updates.isPaid = req.body.isPaid;
     }
 
-    let accountUpdated = false;
-    if (accountType !== undefined) {
-      if (accountType === 'unassigned') {
-        return res.status(400).json({ error: 'Account linking is required' });
-      }
-      if (['bank', 'wallet'].includes(accountType)) {
-        item.accountType = accountType;
-        accountUpdated = true;
-      }
-    }
-    if (bankAccountId !== undefined) {
-      if (bankAccountId) {
-        const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'bank', accountId: bankAccountId });
-        if (!valid) {
-          return res.status(400).json({ error: 'Linked Bank Account is invalid or not owned by user' });
-        }
-      }
-      item.bankAccountId = bankAccountId || null;
-      accountUpdated = true;
-    }
-    if (walletId !== undefined) {
-      if (walletId) {
-        const valid = await validateUserAccount({ userId: req.session.userId, accountType: 'wallet', accountId: walletId });
-        if (!valid) {
-          return res.status(400).json({ error: 'Linked Wallet is invalid or not owned by user' });
-        }
-      }
-      item.walletId = walletId || null;
-      accountUpdated = true;
+    const incomingAccountId = req.body.accountId || req.body.bankAccountId || req.body.walletId;
+    if (incomingAccountId) {
+      updates.accountId = incomingAccountId;
     }
 
-    await item.save();
+    const [updatedItem] = await db.update(s.items)
+      .set(updates)
+      .where(eq(s.items.id, itemId))
+      .returning();
 
-    if (accountUpdated) {
-      // Synchronize any matched transactions per ADR 0035
-      await Transaction.updateMany(
-        { plannedItemId: item._id, userId: req.session.userId },
-        {
-          accountType: item.accountType,
-          bankAccountId: item.bankAccountId,
-          walletId: item.walletId
-        }
-      );
-    }
-
-    return res.json(item);
+    return res.success(serialize(updatedItem));
   } catch (err) {
+    console.error('Update item error:', err);
     return res.status(500).json({ error: 'Failed to update item' });
   }
 });
@@ -257,17 +211,20 @@ itemsRouter.put('/items/:id', async (req, res) => {
 // Delete item
 itemsRouter.delete('/items/:id', async (req, res) => {
   try {
-    const item = await Item.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.session.userId
-    });
+    const userId = req.userId || req.session?.userId;
+    const itemId = req.params.id;
 
-    if (!item) {
-      return res.status(404).json({ error: 'Item not found' });
-    }
+    await db.delete(s.transactions).where(
+      and(
+        or(eq(s.transactions.id, itemId), eq(s.transactions.legacyItemId, itemId)),
+        eq(s.transactions.userId, userId)
+      )
+    );
+    await db.delete(s.items).where(and(eq(s.items.id, itemId), eq(s.items.userId, userId)));
 
-    return res.json({ message: 'Item deleted successfully' });
+    return res.success({ message: 'Item deleted successfully' });
   } catch (err) {
+    console.error('Delete item error:', err);
     return res.status(500).json({ error: 'Failed to delete item' });
   }
 });
