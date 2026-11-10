@@ -1,12 +1,13 @@
 import { config } from './config.js';
-import { runMigrations } from './db/index.js';
+import { runMigrations, ensureDatabaseInitialized } from './db/index.js';
 import { createApp } from './app.js';
 import { SalaryCycleJob } from './services/salaryCycleJob.js';
 
 async function main() {
   try {
-    console.log('Ensuring PostgreSQL database migrations are applied...');
+    console.log('Ensuring PostgreSQL database migrations and data initialization are verified...');
     await runMigrations();
+    await ensureDatabaseInitialized();
 
     // Run salary cycle check on server startup
     try {

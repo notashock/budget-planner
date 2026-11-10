@@ -352,32 +352,31 @@ export async function ensureDatabaseInitialized() {
         const { has_users, has_accounts } = checkRes.rows[0] || {};
 
         if (!has_users || !has_accounts) {
-          console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping database in production...');
+          console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping schema in production...');
           await runMigrations();
-
-          // Optional automated MongoDB ETL migration hook if target database is completely empty and MONGODB_URI is provided
-          const targetMongoUri = config.mongoUri || process.env.MONGODB_URI;
-          if (targetMongoUri) {
-            try {
-              const countUsers = await pool.query('SELECT count(*)::int AS count FROM public.users;');
-              if (countUsers.rows[0].count === 0) {
-                console.log('[Data Engineer Auto-Migration] Target users table is empty and MONGODB_URI is configured. Launching MongoDB to Supabase migration...');
-                const { migrateMongoToSupabase } = await import('../scripts/migrate_mongo_to_supabase.js');
-                await migrateMongoToSupabase({
-                  databaseUrl: config.databaseUrl,
-                  mongoUri: targetMongoUri
-                });
-                console.log('[Data Engineer Auto-Migration] Auto-migration from MongoDB completed.');
-              }
-            } catch (etlErr) {
-              console.warn('[Data Engineer Auto-Migration] Legacy MongoDB auto-migration notice:', etlErr.message);
-            }
-          }
-
-          console.log('[DevOps Auto-Init] Database bootstrap completed successfully.');
-        } else {
-          isInitialized = true;
+          console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
         }
+
+        // Data Engineering Check: If PostgreSQL database has 0 users and MongoDB URI is available, trigger migration
+        const targetMongoUri = config.mongoUri || process.env.MONGODB_URI;
+        if (targetMongoUri) {
+          try {
+            const countUsers = await pool.query('SELECT count(*)::int AS count FROM public.users;');
+            if (countUsers.rows[0]?.count === 0) {
+              console.log('[Data Engineer Auto-Migration] Target users table has 0 records and MONGODB_URI is configured. Launching initial data migration...');
+              const { migrateMongoToSupabase } = await import('../scripts/migrate_mongo_to_supabase.js');
+              await migrateMongoToSupabase({
+                databaseUrl: config.databaseUrl,
+                mongoUri: targetMongoUri
+              });
+              console.log('[Data Engineer Auto-Migration] Initial data migration completed.');
+            }
+          } catch (etlErr) {
+            console.warn('[Data Engineer Auto-Migration] Initial data migration notice:', etlErr.message);
+          }
+        }
+
+        isInitialized = true;
         isInitialized = true;
       } catch (err) {
         initPromise = null;
