@@ -5,7 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { config } from './config.js';
+import { config, isValidMongoUri } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -70,9 +70,9 @@ export function createApp(options = {}) {
   const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
   let store = options.sessionStore;
   const targetMongoUri = options.mongoUri || config.mongoUri;
-  const isLocalMongoInProd = config.isProduction && (targetMongoUri.includes('127.0.0.1') || targetMongoUri.includes('localhost'));
+  const isMongoValid = isValidMongoUri(targetMongoUri, config.isProduction);
 
-  if (!store && options.useMongoStore !== false && !isLocalMongoInProd && targetMongoUri) {
+  if (!store && options.useMongoStore !== false && isMongoValid) {
     try {
       store = MongoStore.create({
         mongoUrl: targetMongoUri,
@@ -88,8 +88,8 @@ export function createApp(options = {}) {
       console.warn('[Session Store Warning] Falling back to MemoryStore:', e.message);
       store = undefined;
     }
-  } else if (isLocalMongoInProd) {
-    console.warn('[Session Store Notice] Production cloud runtime detected with local/unconfigured MONGODB_URI. Operating with ephemeral session store.');
+  } else if (!store && !isMongoValid) {
+    console.warn('[Session Store Notice] Production cloud runtime detected with unconfigured or placeholder MONGODB_URI. Operating with ephemeral session store.');
   }
 
   app.use(
