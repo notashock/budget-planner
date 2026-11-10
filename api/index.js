@@ -13,6 +13,14 @@ process.on('uncaughtException', (err) => {
   console.error('[Vercel Serverless Shield] Intercepted uncaught exception:', err?.message || err);
 });
 
+// Filter out third-party driver deprecation noise (such as [DEP0169] url.parse) from polluting stderr in Node 26
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && warning.code === 'DEP0169') {
+    return;
+  }
+  console.warn(`[${warning.name}] ${warning.message}`);
+});
+
 let isDbConnecting = false;
 let isDbConnected = false;
 let hasWarnedPlaceholder = false;

@@ -23,7 +23,7 @@ import { salaryTemplatesRouter } from './routes/salaryTemplates.js';
 import { v1AccountsRouter } from './routes/v1/accounts.js';
 import { v1TransactionsRouter } from './routes/v1/transactions.js';
 import { v1PeriodsRouter } from './routes/v1/periods.js';
-import { ensureDatabaseInitialized } from './db/index.js';
+import { ensureDatabaseInitialized, isDatabaseInitialized } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,16 +105,17 @@ export function createApp(options = {}) {
   // Auto-bootstrap middleware: In PostgreSQL / Supabase environments, ensures database tables exist
   if (config.databaseUrl) {
     app.use(async (req, res, next) => {
+      // If already initialized in this process/container, immediately pass through without DB round-trip
+      if (isDatabaseInitialized()) {
+        return next();
+      }
       try {
         await ensureDatabaseInitialized();
-        next();
       } catch (err) {
-        console.error('[Database Bootstrap] Auto-initialization failure:', err);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Database auto-initialization failure: ' + (err.message || String(err))
-        });
+        // Non-fatal: log warning and proceed to route handler so existing healthy tables can be queried
+        console.warn('[Database Bootstrap] Non-blocking schema initialization check deferred:', err.message || err);
       }
+      next();
     });
   }
 

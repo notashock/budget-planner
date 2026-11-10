@@ -22,12 +22,15 @@ const isRemoteDb = Boolean(
   )
 );
 
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 export const pool = new Pool({
   connectionString: config.databaseUrl,
   ssl: isRemoteDb ? { rejectUnauthorized: false } : false,
-  max: config.isProduction ? 10 : 4,
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000
+  max: isServerless ? 1 : (config.isProduction ? 10 : 4),
+  idleTimeoutMillis: isServerless ? 1000 : 10000,
+  connectionTimeoutMillis: 5000,
+  allowExitOnIdle: isServerless ? true : false
 });
 
 export const db = drizzle(pool, { schema });
@@ -325,6 +328,12 @@ export async function runMigrations() {
 
 let isInitialized = false;
 let initPromise = null;
+let lastInitAttemptTime = 0;
+const INIT_RETRY_COOLDOWN_MS = 15000;
+
+export function isDatabaseInitialized() {
+  return isInitialized;
+}
 
 export async function ensureDatabaseInitialized() {
   if (isInitialized) {
@@ -333,50 +342,61 @@ export async function ensureDatabaseInitialized() {
   if (!config.databaseUrl) {
     return;
   }
-  if (!initPromise) {
-    initPromise = (async () => {
-      try {
-        const checkRes = await pool.query(`
-          SELECT 
-            EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users,
-            EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'accounts') AS has_accounts;
-        `);
-        const { has_users, has_accounts } = checkRes.rows[0] || {};
-
-        if (!has_users || !has_accounts) {
-          console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping schema in production...');
-          await runMigrations();
-          console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
-        }
-
-        // Data Engineering Check: If PostgreSQL database has 0 users and MongoDB URI is available, trigger migration
-        const targetMongoUri = config.mongoUri || process.env.MONGODB_URI;
-        if (targetMongoUri) {
-          try {
-            const countUsers = await pool.query('SELECT count(*)::int AS count FROM public.users;');
-            if (countUsers.rows[0]?.count === 0) {
-              console.log('[Data Engineer Auto-Migration] Target users table has 0 records and MONGODB_URI is configured. Launching initial data migration...');
-              const { migrateMongoToSupabase } = await import('../scripts/migrate_mongo_to_supabase.js');
-              await migrateMongoToSupabase({
-                databaseUrl: config.databaseUrl,
-                mongoUri: targetMongoUri
-              });
-              console.log('[Data Engineer Auto-Migration] Initial data migration completed.');
-            }
-          } catch (etlErr) {
-            console.warn('[Data Engineer Auto-Migration] Initial data migration notice:', etlErr.message);
-          }
-        }
-
-        isInitialized = true;
-        isInitialized = true;
-      } catch (err) {
-        initPromise = null;
-        console.error('[DevOps Auto-Init] Database auto-initialization error:', err);
-        throw err;
-      }
-    })();
+  if (initPromise) {
+    return initPromise;
   }
+  const now = Date.now();
+  if (lastInitAttemptTime > 0 && now - lastInitAttemptTime < INIT_RETRY_COOLDOWN_MS) {
+    return;
+  }
+
+  initPromise = (async () => {
+    try {
+      lastInitAttemptTime = Date.now();
+      const checkRes = await pool.query(`
+        SELECT 
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users,
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'accounts') AS has_accounts;
+      `);
+      const { has_users, has_accounts } = checkRes.rows[0] || {};
+
+      if (!has_users || !has_accounts) {
+        console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping schema in production...');
+        await runMigrations();
+        console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
+      }
+
+      // Data Engineering Check: If PostgreSQL database has 0 users and MongoDB URI is available, trigger migration
+      const targetMongoUri = config.mongoUri || process.env.MONGODB_URI;
+      if (targetMongoUri) {
+        try {
+          const countUsers = await pool.query('SELECT count(*)::int AS count FROM public.users;');
+          if (countUsers.rows[0]?.count === 0) {
+            console.log('[Data Engineer Auto-Migration] Target users table has 0 records and MONGODB_URI is configured. Launching initial data migration...');
+            const { migrateMongoToSupabase } = await import('../scripts/migrate_mongo_to_supabase.js');
+            await migrateMongoToSupabase({
+              databaseUrl: config.databaseUrl,
+              mongoUri: targetMongoUri
+            });
+            console.log('[Data Engineer Auto-Migration] Initial data migration completed.');
+          }
+        } catch (etlErr) {
+          console.warn('[Data Engineer Auto-Migration] Initial data migration notice:', etlErr.message);
+        }
+      }
+
+      isInitialized = true;
+    } catch (err) {
+      console.warn('[DevOps Auto-Init] Database auto-initialization error:', err.message || err);
+      if (err.message && err.message.includes('EMAXCONNSESSION')) {
+        console.warn('[Data Engineer Advice] Supabase connection pool in session mode reached limit (15). Recommendation: configure DATABASE_URL to use transaction pooler port 6543 (?pgbouncer=true) or ensure serverless max pool is 1.');
+      }
+      throw err;
+    } finally {
+      initPromise = null;
+    }
+  })();
+
   return initPromise;
 }
 
