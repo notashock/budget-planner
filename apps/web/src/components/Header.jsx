@@ -117,7 +117,7 @@ export function Header({
       const isPast = m.endDate
         ? m.endDate < todayIso
         : (m.year < currentYear || (m.year === currentYear && m.month < currentMonthNum));
-      return isPast && m.isClosed;
+      return isPast;
     });
   }, [months]);
 

@@ -54,7 +54,7 @@ export async function healPrematurelyClosedMonths() {
 
 export async function pruneEmptyFutureMonths() {
   try {
-    // 1. Reassign any goals from future months to the user's active current month
+    // 1. Reassign any goals from ghost future months that have no items/transactions to active current month
     await pool.query(`
       UPDATE goals g
       SET month_id = m_curr.id
@@ -68,56 +68,13 @@ export async function pruneEmptyFutureMonths() {
         AND (
           m_future.start_date > TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
           OR (m_future.year > EXTRACT(YEAR FROM CURRENT_DATE) OR (m_future.year = EXTRACT(YEAR FROM CURRENT_DATE) AND m_future.month > EXTRACT(MONTH FROM CURRENT_DATE)))
-        );
+        )
+        AND NOT EXISTS (SELECT 1 FROM items WHERE items.month_id = m_future.id)
+        AND NOT EXISTS (SELECT 1 FROM month_account_openings WHERE month_account_openings.month_id = m_future.id);
     `);
 
-    // 2. Delete auto-generated planned salary transactions in future months
-    await pool.query(`
-      DELETE FROM transactions t
-      USING months m
-      WHERE t.month_id = m.id
-        AND t.origin = 'salary'
-        AND t.status = 'planned'
-        AND (
-          m.start_date > TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
-          OR (m.year > EXTRACT(YEAR FROM CURRENT_DATE) OR (m.year = EXTRACT(YEAR FROM CURRENT_DATE) AND m.month > EXTRACT(MONTH FROM CURRENT_DATE)))
-        );
-    `);
-
-    // 3. Delete items and account openings in future months having no successful transactions
-    await pool.query(`
-      DELETE FROM items
-      WHERE month_id IN (
-        SELECT id FROM months
-        WHERE (
-          start_date > TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
-          OR (year > EXTRACT(YEAR FROM CURRENT_DATE) OR (year = EXTRACT(YEAR FROM CURRENT_DATE) AND month > EXTRACT(MONTH FROM CURRENT_DATE)))
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM transactions 
-          WHERE transactions.month_id = months.id 
-            AND transactions.status = 'successful'
-        )
-      );
-    `);
-
-    await pool.query(`
-      DELETE FROM month_account_openings
-      WHERE month_id IN (
-        SELECT id FROM months
-        WHERE (
-          start_date > TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
-          OR (year > EXTRACT(YEAR FROM CURRENT_DATE) OR (year = EXTRACT(YEAR FROM CURRENT_DATE) AND month > EXTRACT(MONTH FROM CURRENT_DATE)))
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM transactions 
-          WHERE transactions.month_id = months.id 
-            AND transactions.status = 'successful'
-        )
-      );
-    `);
-
-    // 4. Delete any future months that have NO successful transactions
+    // 2. Only delete genuinely empty ghost future months:
+    // A ghost future month has NO user items, NO manual transactions, and NO account openings.
     const res = await pool.query(`
       DELETE FROM months 
       WHERE (
@@ -125,16 +82,50 @@ export async function pruneEmptyFutureMonths() {
         OR (year > EXTRACT(YEAR FROM CURRENT_DATE) OR (year = EXTRACT(YEAR FROM CURRENT_DATE) AND month > EXTRACT(MONTH FROM CURRENT_DATE)))
       )
       AND NOT EXISTS (
+        SELECT 1 FROM items WHERE items.month_id = months.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM month_account_openings WHERE month_account_openings.month_id = months.id
+      )
+      AND NOT EXISTS (
         SELECT 1 FROM transactions 
         WHERE transactions.month_id = months.id 
-          AND transactions.status = 'successful'
+          AND transactions.origin != 'salary'
       );
     `);
     if (res.rowCount > 0) {
-      console.log(`Pruned ${res.rowCount} premature empty future month(s).`);
+      console.log(`Pruned ${res.rowCount} premature empty ghost future month(s).`);
     }
   } catch (err) {
     console.warn('Could not run pruneEmptyFutureMonths:', err.message);
+  }
+}
+
+export async function syncPlannedItemsToTransactions() {
+  try {
+    const res = await pool.query(`
+      INSERT INTO "transactions" (
+        "id", "user_id", "month_id", "name", "status", "origin", "amount", "date", 
+        "planned_amount", "planned_date", "category", "note", "is_income", "account_id", 
+        "planned_item_id", "legacy_item_id", "created_at", "updated_at"
+      )
+      SELECT 
+        gen_random_uuid(), i."user_id", i."month_id", i."name", 
+        CASE WHEN i."is_paid" = true THEN 'successful' ELSE 'planned' END,
+        'planned', i."amount", i."date", i."amount", i."date",
+        COALESCE(i."category", 'General'), '', COALESCE(i."is_income", false), i."account_id",
+        i."id", i."id", i."created_at", i."updated_at"
+      FROM "items" i
+      WHERE NOT EXISTS (
+        SELECT 1 FROM "transactions" tx 
+        WHERE tx."planned_item_id" = i."id" OR tx."legacy_item_id" = i."id"
+      );
+    `);
+    if (res.rowCount > 0) {
+      console.log(`Synced ${res.rowCount} planned item(s) from items table to transactions table.`);
+    }
+  } catch (err) {
+    console.warn('Could not run syncPlannedItemsToTransactions:', err.message);
   }
 }
 
@@ -301,6 +292,7 @@ export async function runMigrations() {
 
     // 3. Synchronize cross-references and normal forms
     await syncTransferSchema();
+    await syncPlannedItemsToTransactions();
     await syncDatabaseNormalFormsAndConstraints();
     await migrateLedgerAndMaterializedBalances();
     await healPrematurelyClosedMonths();

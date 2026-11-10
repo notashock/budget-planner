@@ -14,6 +14,8 @@ export function AccountSelect({
   bankAccounts = [],
   wallets = [],
   currencySymbol = '₹',
+  simulation = null,
+  accountSimulations = {},
   disabled = false,
   id,
   dataTestId,
@@ -81,6 +83,15 @@ export function AccountSelect({
 
   const getAccountBalance = (acc) => {
     if (!acc) return 0;
+    const aId = String(acc.id || acc._id || '');
+    if (aId) {
+      if (accountSimulations?.[aId]?.todayBalance !== undefined) {
+        return accountSimulations[aId].todayBalance;
+      }
+      if (simulation?.accounts?.[aId]?.todayBalance !== undefined) {
+        return simulation.accounts[aId].todayBalance;
+      }
+    }
     return acc.currentBalance ?? acc.balance ?? acc.openingBalance ?? 0;
   };
 

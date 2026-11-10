@@ -51,7 +51,9 @@ export function UnifiedEntryModal({
   bankAccounts = [],
   wallets = [],
   currencySymbol = '₹',
-  month
+  month,
+  simulation = null,
+  accountSimulations = {}
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1166,6 +1168,8 @@ export function UnifiedEntryModal({
                   bankAccounts={bankAccounts}
                   wallets={wallets}
                   currencySymbol={currencySymbol}
+                  simulation={simulation}
+                  accountSimulations={accountSimulations}
                 />
               )}
             </div>
@@ -1248,6 +1252,8 @@ export function UnifiedEntryModal({
                     bankAccounts={bankAccounts}
                     wallets={wallets}
                     currencySymbol={currencySymbol}
+                    simulation={simulation}
+                    accountSimulations={accountSimulations}
                   />
                 </>
               )}

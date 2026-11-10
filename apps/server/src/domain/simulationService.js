@@ -15,6 +15,7 @@ export const SimulationService = {
     bankAccounts = [],
     wallets = [],
     accountOpenings = [],
+    items = [],
     transactions = [],
     transfers = [],
     currentDay = null
@@ -41,7 +42,7 @@ export const SimulationService = {
         accountOpeningBalances: accountOpenings || [],
         transfers: serialize(transfers)
       },
-      [], // Unified transactions is the sole entity
+      serialize(items),
       { year: month.year, month: month.month },
       serialize(transactions),
       [],

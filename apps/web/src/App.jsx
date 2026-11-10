@@ -1151,6 +1151,8 @@ export default function App() {
         wallets={wallets}
         currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
         month={currentMonth}
+        simulation={activeSimulation}
+        accountSimulations={serverAccountSimulations}
         onClose={() => {
           setUnifiedEntryOpen(false);
           setEditingItem(null);

@@ -383,6 +383,27 @@ export async function migrateMongoToSupabase(options = {}) {
         createdAt: itm.createdAt ? new Date(itm.createdAt) : new Date(),
         updatedAt: itm.updatedAt ? new Date(itm.updatedAt) : new Date()
       }).onConflictDoNothing();
+
+      // Mirror planned item into transactions ledger
+      await txDb.insert(s.transactions).values({
+        userId: uId,
+        monthId: mId,
+        name: itm.name || 'Planned Item',
+        status: itm.isPaid ? 'successful' : 'planned',
+        origin: 'planned',
+        amount: toBigIntAmount(itm.amount),
+        date: computedDate,
+        plannedAmount: toBigIntAmount(itm.amount),
+        plannedDate: computedDate,
+        category: itm.category || 'General',
+        note: '',
+        isIncome: Boolean(itm.isIncome),
+        accountId: accId,
+        plannedItemId: itmId,
+        legacyItemId: itmId,
+        createdAt: itm.createdAt ? new Date(itm.createdAt) : new Date(),
+        updatedAt: itm.updatedAt ? new Date(itm.updatedAt) : new Date()
+      }).onConflictDoNothing();
       metrics.itemsMigrated++;
     }
 

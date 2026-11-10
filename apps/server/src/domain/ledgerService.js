@@ -99,6 +99,46 @@ export const LedgerService = {
   },
 
   /**
+   * Recalculates and updates materialized current_balance for all accounts (or a specific user's accounts).
+   */
+  async recomputeAllAccountBalances(userId = null) {
+    const query = userId
+      ? `UPDATE "accounts" a
+         SET "current_balance" = a."opening_balance" + COALESCE((
+           SELECT SUM(
+             CASE 
+               WHEN t."is_income" = true THEN t."amount"
+               WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
+               WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"
+               ELSE -t."amount"
+             END
+           )
+           FROM "transactions" t
+           WHERE (t."account_id" = a."id" OR t."destination_account_id" = a."id")
+             AND t."status" = 'successful'
+         ), 0),
+         "updated_at" = NOW()
+         WHERE a."user_id" = $1`
+      : `UPDATE "accounts" a
+         SET "current_balance" = a."opening_balance" + COALESCE((
+           SELECT SUM(
+             CASE 
+               WHEN t."is_income" = true THEN t."amount"
+               WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
+               WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"
+               ELSE -t."amount"
+             END
+           )
+           FROM "transactions" t
+           WHERE (t."account_id" = a."id" OR t."destination_account_id" = a."id")
+             AND t."status" = 'successful'
+         ), 0),
+         "updated_at" = NOW()`;
+    const params = userId ? [userId] : [];
+    return pool.query(query, params);
+  },
+
+  /**
    * Retrieves all accounts for a user with materialized current balances.
    */
   async getAccountsWithBalances(userId, includeArchived = false) {

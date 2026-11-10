@@ -41,8 +41,9 @@ export function isHistoricalPastMonth(month, asOfDate = null) {
 export async function attachAccountOpeningsToMonth(month) {
   if (!month) return month;
 
-  // If a month was prematurely marked isClosed (without closedAt or closingBalances), auto-heal and unclose it.
-  if (month.isClosed && (!month.closedAt || !month.closingBalances)) {
+  // If an active current/future month was prematurely marked isClosed (without closedAt or closingBalances), auto-heal and unclose it.
+  // Historical past months must remain closed.
+  if (month.isClosed && (!month.closedAt || !month.closingBalances) && !isHistoricalPastMonth(month)) {
     try {
       await db.update(s.months)
         .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
@@ -224,7 +225,38 @@ export const MonthLifecycle = {
     const dueWindowDays = userSettings?.dueWindowDays || 3;
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-    const transactions = rawTransactions.map((tx) => ({
+    // Bridge any items from s.items not yet represented in s.transactions
+    const existingTxItemIds = new Set(
+      rawTransactions.map(t => String(t.plannedItemId || t.legacyItemId || t.id)).filter(Boolean)
+    );
+
+    const bridgedPlannedTxs = items
+      .filter(it => !existingTxItemIds.has(String(it.id)))
+      .map(it => ({
+        id: it.id,
+        _id: it.id,
+        userId: it.userId,
+        monthId: it.monthId,
+        name: it.name,
+        status: it.isPaid ? 'successful' : 'planned',
+        origin: 'planned',
+        amount: it.amount,
+        date: it.date,
+        plannedAmount: it.amount,
+        plannedDate: it.date,
+        category: it.category || 'General',
+        note: '',
+        isIncome: Boolean(it.isIncome),
+        accountId: it.accountId,
+        legacyItemId: it.id,
+        plannedItemId: it.id,
+        createdAt: it.createdAt,
+        updatedAt: it.updatedAt
+      }));
+
+    const combinedTransactions = [...rawTransactions, ...bridgedPlannedTxs];
+
+    const transactions = combinedTransactions.map((tx) => ({
       ...tx,
       derivedStatus: deriveTransactionState(tx, todayStr, dueWindowDays)
     }));
@@ -245,6 +277,7 @@ export const MonthLifecycle = {
       bankAccounts,
       wallets,
       accountOpenings: month.accountOpeningBalances || [],
+      items,
       transactions,
       transfers,
       currentDay
@@ -252,7 +285,7 @@ export const MonthLifecycle = {
 
     return {
       month: serialize(month),
-      items: [], // Deprecated: unified transactions is the sole entity
+      items: serialize(items),
       transactions: serialize(transactions),
       transfers: serialize(transfers),
       bankAccounts: serialize(bankAccounts),
