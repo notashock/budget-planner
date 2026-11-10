@@ -95,7 +95,7 @@ export function getDateFromRelativeDay(relativeDay, year, monthNum) {
 
 /**
  * Calculates the active 10-day salary logging window and lock status.
- * Window: 5 days before expected credit date through 4 days after expected credit date (10 days total).
+ * Window: 5 days before the last date of the respective month through 5 days after (inclusive).
  * 
  * @param {object} month - { year, month, incomeAmount, incomeCreditDay, salaryCreditedDate, salaryBankAccountId }
  * @param {string|Date} [currentDate] - Current date to evaluate against (defaults to now)
@@ -124,22 +124,12 @@ export function getSalaryWindowStatus(month, currentDate) {
   const year = month.year;
   const monthNum = month.month; // 1-indexed
 
-  let expectedDay = 1;
-  if (month.incomeCreditDay && !isNaN(Number(month.incomeCreditDay))) {
-    expectedDay = Math.max(1, Math.min(31, Number(month.incomeCreditDay)));
-  } else if (month.salaryCreditedDate) {
-    const parts = String(month.salaryCreditedDate).split('-');
-    if (parts.length === 3) expectedDay = parseInt(parts[2], 10) || 1;
-  }
+  // Anchor window to the last date of the respective month (5 days before through 5 days after)
+  const lastDay = getDaysInMonth(year, monthNum);
+  const expectedDate = new Date(Date.UTC(year, monthNum - 1, lastDay, 0, 0, 0, 0));
 
-  // Pure UTC / ISO date math to avoid any local timezone drift
-  const expectedDate = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
-
-  const windowStart = new Date(Date.UTC(year, monthNum - 1, expectedDay, 0, 0, 0, 0));
-  windowStart.setUTCDate(windowStart.getUTCDate() - 5);
-
-  const windowEnd = new Date(Date.UTC(year, monthNum - 1, expectedDay, 23, 59, 59, 999));
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 4);
+  const windowStart = new Date(Date.UTC(year, monthNum - 1, lastDay - 5, 0, 0, 0, 0));
+  const windowEnd = new Date(Date.UTC(year, monthNum - 1, lastDay + 5, 23, 59, 59, 999));
 
   // Parse comparison date
   let now;
@@ -170,7 +160,7 @@ export function getSalaryWindowStatus(month, currentDate) {
   const friendlyEnd = formatFriendly(windowEnd);
 
   if (now.getTime() < windowStart.getTime()) {
-    const tooltip = `Unlocks on ${friendlyStart} — 5 days before expected salary credit`;
+    const tooltip = `Unlocks on ${friendlyStart} — 5 days before month-end`;
     return {
       isLocked: true,
       isUnconfigured: false,

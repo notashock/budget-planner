@@ -81,7 +81,7 @@ class SalaryWindowStatus {
 }
 
 /// Calculates the active 10-day salary logging window and lock status.
-/// Window: 5 days before expected credit date through 4 days after expected credit date.
+/// Window: 5 days before the last date of the respective month through 5 days after (inclusive).
 SalaryWindowStatus getSalaryWindowStatus(Map<String, dynamic>? month, [DateTime? currentDate]) {
   if (month == null || month['year'] == null || month['month'] == null) {
     return SalaryWindowStatus(
@@ -110,19 +110,11 @@ SalaryWindowStatus getSalaryWindowStatus(Map<String, dynamic>? month, [DateTime?
   final int year = (month['year'] as num).toInt();
   final int monthNum = (month['month'] as num).toInt();
 
-  int expectedDay = 1;
-  if (month['incomeCreditDay'] != null) {
-    expectedDay = (num.tryParse('${month['incomeCreditDay']}') ?? 1).toInt().clamp(1, 31);
-  } else if (month['salaryCreditedDate'] != null) {
-    final parts = month['salaryCreditedDate'].toString().split('-');
-    if (parts.length == 3) {
-      expectedDay = int.tryParse(parts[2]) ?? 1;
-    }
-  }
-
-  final expectedDate = DateTime.utc(year, monthNum, expectedDay);
-  final windowStart = expectedDate.subtract(const Duration(days: 5));
-  final windowEnd = DateTime.utc(year, monthNum, expectedDay, 23, 59, 59, 999).add(const Duration(days: 4));
+  // Anchor window to the last date of the respective month (5 days before through 5 days after)
+  final lastDay = getDaysInMonth(year, monthNum);
+  final expectedDate = DateTime.utc(year, monthNum, lastDay);
+  final windowStart = DateTime.utc(year, monthNum, lastDay - 5);
+  final windowEnd = DateTime.utc(year, monthNum, lastDay + 5, 23, 59, 59, 999);
 
   final now = currentDate ?? DateTime.now().toUtc();
 
@@ -137,7 +129,7 @@ SalaryWindowStatus getSalaryWindowStatus(Map<String, dynamic>? month, [DateTime?
   final friendlyEnd = formatFriendly(windowEnd);
 
   if (now.isBefore(windowStart)) {
-    final tip = 'Unlocks on $friendlyStart — 5 days before expected salary credit';
+    final tip = 'Unlocks on $friendlyStart — 5 days before month-end';
     return SalaryWindowStatus(
       isLocked: true,
       isUnconfigured: false,

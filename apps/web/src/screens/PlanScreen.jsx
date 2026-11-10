@@ -544,7 +544,9 @@ export function PlanScreen({
           className="card"
           style={{
             background: 'var(--surface-subtle)',
-            border: '2px solid var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-subtle)',
             padding: '16px',
             marginBottom: '14px',
             display: 'flex',
@@ -559,7 +561,7 @@ export function PlanScreen({
                 Transfer Existing Calculations to Bank Account
               </span>
             </div>
-            <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontWeight: 600 }}>
+            <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontWeight: 500, color: 'var(--text-secondary)' }}>
               1-Tap Ingestion
             </span>
           </div>
@@ -580,7 +582,8 @@ export function PlanScreen({
       )}
 
       {/* Account Filter & Action Toolbar */}
-      <div className="account-filter-bar">
+      <div className="account-filter-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="account-filter-bar">
         <div className="account-filter-track">
           {hasAccounts && (
             <>
@@ -611,7 +614,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--red, #ef4444)" />}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                   </button>
                 );
               })}
@@ -635,7 +638,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--red, #ef4444)" />}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                   </button>
                 );
               })}
@@ -646,7 +649,7 @@ export function PlanScreen({
         <div className="account-toolbar-actions">
           {isReviewMode ? (
             <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}>
-              <span>👁️</span> Read-Only Review
+              <span>👁️</span> Historical Preview
             </span>
           ) : (
             <button
@@ -694,6 +697,7 @@ export function PlanScreen({
           </button>
         </div>
       )}
+      </div>
 
       {/* Top Split: Symmetrical Bento Left Insights and Right Timeline Curve */}
       <div className="dashboard-top-grid">

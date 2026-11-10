@@ -36,6 +36,7 @@ export const accounts = pgTable(
     accountNumberMasked: text('account_number_masked').default('').notNull(),
     openingBalance: bigint('opening_balance', { mode: 'number' }).default(0).notNull(),
     openingBalanceDate: text('opening_balance_date'),
+    currentBalance: bigint('current_balance', { mode: 'number' }).default(0).notNull(),
     minimumBalance: bigint('minimum_balance', { mode: 'number' }).default(0).notNull(),
     isPrimary: boolean('is_primary').default(false).notNull(),
     isArchived: boolean('is_archived').default(false).notNull(),
@@ -98,7 +99,8 @@ export const monthAccountOpenings = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [
-    index('idx_openings_month').on(table.monthId)
+    index('idx_openings_month').on(table.monthId),
+    uniqueIndex('uq_openings_month_account').on(table.monthId, table.accountId)
   ]
 );
 
@@ -158,7 +160,8 @@ export const transfers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [
-    index('idx_transfers_month').on(table.monthId)
+    index('idx_transfers_month').on(table.monthId),
+    index('idx_transfers_user_date').on(table.userId, table.date)
   ]
 );
 
@@ -209,9 +212,11 @@ export const transactions = pgTable(
     index('idx_transactions_month').on(table.monthId),
     index('idx_transactions_month_status').on(table.monthId, table.status),
     index('idx_transactions_user_date').on(table.userId, table.date),
+    index('idx_transactions_account_date').on(table.accountId, table.date),
     index('idx_transactions_user_status_date').on(table.userId, table.status, table.date),
     index('idx_transactions_dest_account').on(table.destinationAccountId),
-    index('idx_transactions_goal').on(table.goalId)
+    index('idx_transactions_goal').on(table.goalId),
+    index('idx_transactions_month_origin_status').on(table.monthId, table.origin, table.status)
   ]
 );
 

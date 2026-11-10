@@ -149,5 +149,24 @@ export const api = {
 
   // AI Assistant (Gated by settings toggle)
   parseText: (text) => request('/api/ai/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
-  explainTimeline: (timelineSummary, safetyFloor) => request('/api/ai/explain-timeline', { method: 'POST', body: JSON.stringify({ timelineSummary, safetyFloor }) })
+  explainTimeline: (timelineSummary, safetyFloor) => request('/api/ai/explain-timeline', { method: 'POST', body: JSON.stringify({ timelineSummary, safetyFloor }) }),
+
+  // V1 Domain-Driven Endpoints
+  v1: {
+    getAccounts: (includeArchived = false) => request(`/api/v1/accounts${includeArchived ? '?includeArchived=true' : ''}`),
+    createAccount: (data) => request('/api/v1/accounts', { method: 'POST', body: JSON.stringify(data) }),
+    updateAccount: (id, updates) => request(`/api/v1/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+    createTransfer: (data) => request('/api/v1/accounts/transfers', { method: 'POST', body: JSON.stringify(data) }),
+    getPeriods: () => request('/api/v1/periods'),
+    getPeriodDetail: (year, month) => request(`/api/v1/periods/${year}/${month}`),
+    getTransactions: (query = {}) => {
+      const params = new URLSearchParams(query);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      return request(`/api/v1/transactions${qs}`);
+    },
+    createTransaction: (data) => request('/api/v1/transactions', { method: 'POST', body: JSON.stringify(data) }),
+    updateTransaction: (id, updates) => request(`/api/v1/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+    payTransaction: (id, payload = {}) => request(`/api/v1/transactions/${id}/pay`, { method: 'POST', body: JSON.stringify(payload) }),
+    deleteTransaction: (id) => request(`/api/v1/transactions/${id}`, { method: 'DELETE' })
+  }
 };

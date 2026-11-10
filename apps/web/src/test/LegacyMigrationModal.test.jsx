@@ -121,7 +121,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
   describe('SalarySafelineModal & Header Integration', () => {
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
-      vi.setSystemTime(new Date('2026-10-02T10:00:00Z'));
+      vi.setSystemTime(new Date('2026-10-28T10:00:00Z'));
     });
 
     afterEach(() => {

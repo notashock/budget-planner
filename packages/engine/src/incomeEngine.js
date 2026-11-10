@@ -75,6 +75,8 @@ export function calculateIrregularMetrics({
   for (const t of transactions || []) {
     // Only successful transactions affect real cash balances and historical reporting
     if (t.status !== 'successful') continue;
+    // Exclude zero-sum internal transfers across user accounts
+    if (t.origin === 'transfer' || t.category === 'Transfer' || t.destinationAccountId || t.itemType === 'transfer' || t.isTransfer) continue;
 
     const tDate = t.date;
     const amount = Number(t.amount) || 0;
@@ -285,4 +287,18 @@ export function getNextPeriodBoundaries({
     creditDay,
     targetDate: nextTargetDate
   });
+}
+
+/**
+ * Determines whether a period boundary has expired (today is past the period endDate).
+ *
+ * @param {string} endDate - 'YYYY-MM-DD'
+ * @param {string|Date} [asOfDate] - optional override date
+ * @returns {boolean}
+ */
+export function isPeriodExpired(endDate, asOfDate = null) {
+  if (!endDate) return false;
+  const now = asOfDate ? new Date(asOfDate) : new Date();
+  const todayIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+  return todayIso > endDate;
 }

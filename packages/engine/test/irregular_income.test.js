@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateIrregularMetrics,
   calculatePeriodBoundaries,
-  getNextPeriodBoundaries
+  getNextPeriodBoundaries,
+  isPeriodExpired
 } from '../src/index.js';
 
 describe('Irregular Income & Period Boundaries Engine Suite', () => {
@@ -210,6 +211,12 @@ describe('Irregular Income & Period Boundaries Engine Suite', () => {
 
       expect(nextCycle.startDate).toBe('2026-10-25');
       expect(nextCycle.endDate).toBe('2026-11-24');
+    });
+
+    it('evaluates whether a period has expired based on asOfDate', () => {
+      expect(isPeriodExpired('2026-10-31', '2026-10-15')).toBe(false);
+      expect(isPeriodExpired('2026-10-31', '2026-10-31')).toBe(false);
+      expect(isPeriodExpired('2026-10-31', '2026-11-01')).toBe(true);
     });
   });
 });

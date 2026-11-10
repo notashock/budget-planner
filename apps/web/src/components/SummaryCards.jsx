@@ -16,7 +16,7 @@ export function SafeVelocityCard({
             Safe Velocity
           </span>
           {safeVelocity?.paceStatus && (
-            <span className="pace-status-badge">
+            <span className={`pace-status-badge ${safeVelocity.paceStatus.toLowerCase().includes('on pace') ? 'on-pace' : (safeVelocity.paceStatus.toLowerCase().includes('slow') || safeVelocity.paceStatus.toLowerCase().includes('warn') ? 'warning' : '')}`}>
               {safeVelocity.paceStatus}
             </span>
           )}
@@ -80,7 +80,7 @@ export function DetailedKpiGrid({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span className="summary-label">Monthly income</span>
           {canEditSalary && isCreditEffective && (
-            <span className="pace-status-badge" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
+            <span className="pace-status-badge on-pace" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
               ✓ Credited
             </span>
           )}

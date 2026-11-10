@@ -6,6 +6,8 @@ import { TransactionsScreen } from '../screens/TransactionsScreen.jsx';
 import { AccountsScreen } from '../screens/AccountsScreen.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
 import { Header } from '../components/Header.jsx';
+import { BottomNav } from '../components/BottomNav.jsx';
+import { MonthRolloverModal } from '../components/MonthRolloverModal.jsx';
 
 describe('Continuous Tracking & Read-Only Review Mode', () => {
   const closedMonth = {
@@ -34,14 +36,19 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
     }
   };
 
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthNum = now.getMonth() + 1;
+  const lastDay = new Date(currentYear, currentMonthNum, 0).getDate();
+
   const activeMonth = {
     _id: 'month-active',
     id: 'month-active',
-    name: 'October 2026',
-    month: 10,
-    year: 2026,
-    startDate: '2026-10-01',
-    endDate: '2026-10-31',
+    name: `${currentMonthNum === 11 ? 'November' : 'Current'} ${currentYear}`,
+    month: currentMonthNum,
+    year: currentYear,
+    startDate: `${currentYear}-${String(currentMonthNum).padStart(2, '0')}-01`,
+    endDate: `${currentYear}-${String(currentMonthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
     isClosed: false
   };
 
@@ -104,8 +111,39 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       fireEvent.click(trigger);
 
       // Check dropdown category labels
-      expect(screen.getByText(/Active Planning Cycle/i)).toBeInTheDocument();
-      expect(screen.getByText(/Review Archive \(Read-Only\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Active Planning Cycle$/i)).toBeInTheDocument();
+      expect(screen.getByText(/Previous Month Previews \(Read-Only\)/i)).toBeInTheDocument();
+    });
+
+    it('does not render future months in the dropdown', () => {
+      const futureMonth = {
+        _id: 'month-future',
+        id: 'month-future',
+        name: 'December 2026',
+        month: 12,
+        year: 2026,
+        startDate: '2026-12-01',
+        endDate: '2026-12-31',
+        isClosed: false
+      };
+
+      render(
+        <Header
+          currentMonth={activeMonth}
+          months={[closedMonth, activeMonth, futureMonth]}
+          activePlanningMonth={activeMonth}
+          isReviewMode={false}
+          onSelectMonth={vi.fn()}
+        />
+      );
+
+      const trigger = screen.getByRole('button', { name: /Select month/i });
+      fireEvent.click(trigger);
+
+      // Future month should not be in the dropdown
+      expect(screen.queryByText(/December 2026/i)).toBeNull();
+      // Active current month should be present
+      expect(screen.getAllByText(new RegExp(`${activeMonth.name}`, 'i')).length).toBeGreaterThan(0);
     });
   });
 
@@ -124,7 +162,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       );
 
       expect(screen.queryByText(/\+ New Entry/i)).toBeNull();
-      expect(screen.getByText(/Read-Only Review/i)).toBeInTheDocument();
+      expect(screen.getByText(/Historical Preview/i)).toBeInTheDocument();
     });
   });
 
@@ -242,6 +280,135 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       expect(screen.getByText(/Goal Scorecard \(Archive\)/i)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Schedule/i })).toBeNull();
       expect(screen.queryByRole('button', { name: /Delete/i })).toBeNull();
+    });
+  });
+
+  describe('Month Advancement Recovery & Rollover Modal', () => {
+    it('renders start month action in header dropdown when no active planning cycle exists', () => {
+      const onOpenRollover = vi.fn();
+      render(
+        <Header
+          currentMonth={closedMonth}
+          months={[closedMonth]} // Only closed month, activePlanningMonths.length === 0
+          hasActivePlanningMonth={false}
+          isReviewMode={true}
+          onOpenRollover={onOpenRollover}
+          nextMonthLabel="October 2026"
+          onSelectMonth={vi.fn()}
+        />
+      );
+
+      // Open month picker dropdown
+      const trigger = screen.getByRole('button', { name: /Select month/i });
+      fireEvent.click(trigger);
+
+      // Verify Start Month button is present in dropdown
+      const startBtn = screen.getByTestId('header-start-month-btn');
+      expect(startBtn).toBeInTheDocument();
+      expect(startBtn).toHaveTextContent(/Start October 2026/i);
+
+      fireEvent.click(startBtn);
+      expect(onOpenRollover).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders floating recovery pill in BottomNav when in review mode with no active planning month', () => {
+      const onOpenRollover = vi.fn();
+      render(
+        <BottomNav
+          activeTab="plan"
+          onSelectTab={vi.fn()}
+          isReviewMode={true}
+          hasActivePlanningMonth={false}
+          onOpenRollover={onOpenRollover}
+          nextMonthLabel="October 2026"
+        />
+      );
+
+      const pill = screen.getByTestId('bottom-nav-rollover-btn');
+      expect(pill).toBeInTheDocument();
+      expect(pill).toHaveTextContent(/Start October 2026/i);
+
+      fireEvent.click(pill);
+      expect(onOpenRollover).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders MonthRolloverModal with snapshotted closing balances and confirms rollover', async () => {
+      const onConfirm = vi.fn().mockResolvedValue({});
+      const onClose = vi.fn();
+
+      render(
+        <MonthRolloverModal
+          isOpen={true}
+          month={closedMonth}
+          bankAccounts={mockBankAccounts}
+          wallets={mockWallets}
+          currencySymbol="₹"
+          onClose={onClose}
+          onConfirmRollover={onConfirm}
+        />
+      );
+
+      // Check modal heading and closing balances
+      expect(screen.getByRole('heading', { name: /Start October 2026/i })).toBeInTheDocument();
+      expect(screen.getByText(/HDFC Salary Account/i)).toBeInTheDocument();
+      expect(screen.getByText(/Physical Cash/i)).toBeInTheDocument();
+
+      // Check default checkboxes
+      const unpaidCheckbox = screen.getByTestId('rollover-unpaid-checkbox');
+      const carryCheckbox = screen.getByTestId('carry-balance-checkbox');
+      expect(unpaidCheckbox).toBeChecked();
+      expect(carryCheckbox).toBeChecked();
+
+      // Click confirm button
+      const confirmBtn = screen.getByTestId('confirm-rollover-btn');
+      fireEvent.click(confirmBtn);
+
+      expect(onConfirm).toHaveBeenCalledWith(true, true);
+    });
+
+    it('prevents future months (such as December 2026) from being marked Current or active planning cycle', () => {
+      const novMonth = {
+        _id: 'nov-2026',
+        id: 'nov-2026',
+        name: 'November 2026',
+        month: 11,
+        year: 2026,
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        isClosed: false
+      };
+
+      const decMonth = {
+        _id: 'dec-2026',
+        id: 'dec-2026',
+        name: 'December 2026',
+        month: 12,
+        year: 2026,
+        startDate: '2026-11-09',
+        endDate: '2026-12-31',
+        isClosed: false
+      };
+
+      render(
+        <Header
+          currentMonth={novMonth}
+          months={[decMonth, novMonth, closedMonth]}
+          onSelectMonth={vi.fn()}
+          onOpenRollover={vi.fn()}
+        />
+      );
+
+      // Open dropdown
+      const trigger = screen.getByRole('button', { name: /Select month/i });
+      fireEvent.click(trigger);
+
+      // December 2026 must NOT have the Current badge
+      const decItem = screen.queryByText(/December 2026/i);
+      if (decItem) {
+        // If rendered at all, it must NOT be in active planning cycle
+        const activeSection = screen.getByText(/^Active Planning Cycle$/i).parentElement;
+        expect(activeSection).not.toHaveTextContent(/December 2026/i);
+      }
     });
   });
 });

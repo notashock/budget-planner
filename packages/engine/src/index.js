@@ -2,7 +2,7 @@ export { simulate, deriveTransactionState } from './simulator.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
-export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoundaries } from './incomeEngine.js';
+export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoundaries, isPeriodExpired } from './incomeEngine.js';
 
 /**
  * Currency conversion and formatting utilities.

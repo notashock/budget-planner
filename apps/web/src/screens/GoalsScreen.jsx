@@ -399,7 +399,7 @@ export function GoalsScreen({
               No purchase goals this month
             </div>
           ) : (
-            <div className="goals-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            <div className="goals-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
               {evaluatedGoals.map((goal) => {
                 const isActive = goal.status === 'active' || goal.status === 'evaluating';
                 const isScheduled = goal.status === 'scheduled' || goal.status === 'ready';

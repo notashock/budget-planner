@@ -171,9 +171,7 @@ export function simulate(
     (sum, a) => sum + (Math.round(Number(a.minimumBalance)) || 0),
     0
   );
-  const safetyFloor = normalizedAccounts.length > 0
-    ? sumAccountsMinimumBalance
-    : rawSafetyFloor;
+  const safetyFloor = Math.max(rawSafetyFloor || 0, sumAccountsMinimumBalance || 0);
 
   const primaryBank = normalizedAccounts.find((a) => a.type === 'bank' && a.isPrimary) ||
                       normalizedAccounts.find((a) => a.type === 'bank') ||
@@ -328,7 +326,9 @@ export function simulate(
     } else if (it.type === 'recurring' || it.dayOfMonth) td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
     else if (it.type === 'one-time' || it.day) td = clampDayToMonth(it.day ?? 1, daysInMonth);
     if (td >= rollStartDay) {
-      forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.plannedAmount ?? it.amount ?? 0));
+      if (!it.isIncome && it.origin !== 'salary') {
+        forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.plannedAmount ?? it.amount ?? 0));
+      }
     }
   });
 
@@ -383,10 +383,11 @@ export function simulate(
         targetDate = formatDate(year, monthNum, 1);
       }
 
+      const isIncomePlanned = Boolean(item.isIncome || item.origin === 'salary');
       const rawAmount = isPlannedTx && item.plannedAmount !== undefined && item.plannedAmount !== null
         ? item.plannedAmount
         : (item.amount ?? 0);
-      const amount = Math.round(rawAmount);
+      const amount = isIncomePlanned ? Math.max(0, Math.round(rawAmount)) : Math.round(rawAmount);
 
       let effectiveDay = targetDay;
       if (item.isPaid === true) {
@@ -412,7 +413,7 @@ export function simulate(
         name: item.name,
         category: item.category || item.tag || 'General',
         description: item.name,
-        amount: -Math.abs(amount),
+        amount: isIncomePlanned ? amount : -Math.abs(amount),
         priority,
         sourceIndex: index,
         itemType: isPlannedTx ? 'planned-transaction' : 'one-time',
@@ -1017,6 +1018,9 @@ export function simulate(
     if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
       return;
     }
+    if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) {
+      return;
+    }
     if (!tx.isIncome) {
       const txAmt = Math.round(Number(tx.amount) || 0);
       const txDay = getRelativeDay(tx.date, year, monthNum);
@@ -1114,7 +1118,7 @@ export function simulate(
         return;
       }
       // Exclude formal transfers from burn pace
-      if (tx.itemType === 'transfer' || tx.isTransfer) {
+      if (tx.itemType === 'transfer' || tx.isTransfer || tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId) {
         return;
       }
 
@@ -1234,10 +1238,31 @@ export function simulate(
   });
 
   const accountsMap = {};
+  const accountSimulations = {};
   accountSummaries.forEach((s) => {
     accountsMap[s.id] = s;
     if (s.altId) {
       accountsMap[s.altId] = s;
+    }
+
+    const accSim = {
+      todayBalance: s.todayBalance,
+      todaysBalance: s.todayBalance,
+      endingBalance: s.endingBalance,
+      lowestBalance: s.lowestBalance,
+      lowestDate: s.lowestDate,
+      floorBreached: s.floorBreached,
+      dailyBalances: accountDailyBalances[s.id] || [],
+      openingBalance: s.openingBalance,
+      minimumBalance: s.minimumBalance,
+      safetyFloor: s.minimumBalance,
+      incomeAmount: s.incomeAmount,
+      totalExpenses: s.totalExpenses,
+      safeVelocity: s.safeVelocity
+    };
+    accountSimulations[s.id] = accSim;
+    if (s.altId) {
+      accountSimulations[s.altId] = accSim;
     }
   });
 
@@ -1256,8 +1281,8 @@ export function simulate(
     .filter((e) => e.amount < 0 && e.itemType !== 'transfer')
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
-  const aggLowestBalance = accountSummaries.length > 0
-    ? accountSummaries.reduce((sum, a) => sum + (a.lowestBalance || 0), 0)
+  const aggLowestBalance = (dailyBalances && dailyBalances.length > 0)
+    ? Math.min(...dailyBalances.map((d) => (d.balance !== undefined ? d.balance : (d.closingBalance !== undefined ? d.closingBalance : lowestBalance))))
     : lowestBalance;
 
   const aggFloorBreached = accountSummaries.length > 0
@@ -1376,6 +1401,7 @@ export function simulate(
     })(),
     accounts: accountsMap,
     accountSummaries,
-    accountDailyBalances
+    accountDailyBalances,
+    accountSimulations
   };
 }

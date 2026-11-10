@@ -19,6 +19,10 @@ import { bankAccountsRouter } from './routes/bankAccounts.js';
 import { walletsRouter } from './routes/wallets.js';
 import { transfersRouter } from './routes/transfers.js';
 import { salaryTemplatesRouter } from './routes/salaryTemplates.js';
+import { v1AccountsRouter } from './routes/v1/accounts.js';
+import { v1TransactionsRouter } from './routes/v1/transactions.js';
+import { v1PeriodsRouter } from './routes/v1/periods.js';
+import { ensureDatabaseInitialized } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,7 +84,28 @@ export function createApp(options = {}) {
     res.success({ status: 'ok', serverTime: new Date().toISOString() });
   });
 
-  // Mount API routers
+  // Auto-bootstrap middleware: In production or serverless environments, ensures database tables exist
+  if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    app.use(async (req, res, next) => {
+      try {
+        await ensureDatabaseInitialized();
+        next();
+      } catch (err) {
+        console.error('[Database Bootstrap] Auto-initialization failure:', err);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Database auto-initialization failure: ' + (err.message || String(err))
+        });
+      }
+    });
+  }
+
+  // Mount API v1 domain-driven routers
+  app.use('/api/v1/accounts', v1AccountsRouter);
+  app.use('/api/v1/transactions', v1TransactionsRouter);
+  app.use('/api/v1/periods', v1PeriodsRouter);
+
+  // Mount API legacy compatibility routers
   app.use('/api/auth', authRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/months', monthsRouter);

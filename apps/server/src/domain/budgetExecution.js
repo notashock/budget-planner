@@ -15,6 +15,7 @@ import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { serialize } from '../utils/serializer.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { isHistoricalPastMonth } from './monthLifecycle.js';
+import { LedgerService } from './ledgerService.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -331,9 +332,19 @@ export const BudgetExecution = {
       }).where(eq(s.goals.id, payload.goalId));
     }
 
+    if (transaction.status === 'successful') {
+      try {
+        await LedgerService.applyTransactionBalance(transaction, 1);
+      } catch (balErr) {
+        console.error('Failed to update materialized account balance:', balErr);
+      }
+    }
+
     // Auto goal deferral if spending committed
     if (resolvedStatus === 'successful' && transaction.amount > 0 && !transaction.isIncome) {
       await this._reEvaluateAndDeferGoals(userId, month);
+    } else if (resolvedStatus === 'successful' && (transaction.isIncome || transaction.amount < 0)) {
+      await this._reEvaluateAndReviveGoals(userId, month);
     }
 
     return serialize(transaction);
@@ -390,9 +401,19 @@ export const BudgetExecution = {
       }).where(eq(s.goals.id, tx.goalId));
     }
 
+    try {
+      await LedgerService.applyTransactionBalance(updatedTx, 1);
+    } catch (balErr) {
+      console.error('Failed to update materialized account balance:', balErr);
+    }
+
+    let advancedMonth = null;
     // When a salary transaction is settled, advance the cycle and snapshot closed period
-    if (updatedTx.origin === 'salary' && updatedTx.isIncome) {
-      await SalaryTemplateService.onSalaryCredited(userId, updatedTx, actualDate);
+    if ((updatedTx.origin === 'salary' || updatedTx.category === 'Salary') && updatedTx.isIncome) {
+      const advanceRes = await SalaryTemplateService.onSalaryCredited(userId, updatedTx, actualDate);
+      if (advanceRes?.nextMonth) {
+        advancedMonth = advanceRes.nextMonth;
+      }
     }
 
     const month = await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) });
@@ -400,7 +421,11 @@ export const BudgetExecution = {
       await this._reEvaluateAndDeferGoals(userId, month);
     }
 
-    return serialize(updatedTx);
+    const resObj = serialize(updatedTx);
+    if (advancedMonth) {
+      resObj.advancedMonth = serialize(advancedMonth);
+    }
+    return resObj;
   },
 
   /**
@@ -478,6 +503,21 @@ export const BudgetExecution = {
       .where(eq(s.transactions.id, txId))
       .returning();
 
+    try {
+      await LedgerService.handleTransactionUpdateBalance(tx, updated);
+    } catch (balErr) {
+      console.error('Failed to update materialized account balance:', balErr);
+    }
+
+    const month = tx.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) }) : null;
+    if (month) {
+      if (updated.isIncome || (tx.amount > updated.amount)) {
+        await this._reEvaluateAndReviveGoals(userId, month);
+      } else if (!updated.isIncome && updated.amount > tx.amount) {
+        await this._reEvaluateAndDeferGoals(userId, month);
+      }
+    }
+
     return serialize(updated);
   },
 
@@ -502,8 +542,11 @@ export const BudgetExecution = {
       ]);
 
       const now = new Date();
-      const isCurrentMonth = Number(month.year) === now.getFullYear() && Number(month.month) === (now.getMonth() + 1);
-      const currentDay = isCurrentMonth ? now.getDate() : null;
+      const currentYear = now.getFullYear();
+      const currentMonthNum = now.getMonth() + 1;
+      const isPastMonth = Number(month.year) < currentYear || (Number(month.year) === currentYear && Number(month.month) < currentMonthNum);
+      const isCurrentMonth = Number(month.year) === currentYear && Number(month.month) === currentMonthNum;
+      const currentDay = isCurrentMonth ? now.getDate() : (isPastMonth ? null : 0);
 
       for (const goal of activeGoals) {
         const rec = recommendPurchaseDate(
@@ -540,6 +583,68 @@ export const BudgetExecution = {
   },
 
   /**
+   * Internal routine for Autonomous Goal Self-Healing Revival.
+   * Restores deferred goals to active when positive cashflow restores the safety buffer.
+   */
+  async _reEvaluateAndReviveGoals(userId, month) {
+    try {
+      const deferredGoals = await db.query.goals.findMany({
+        where: and(
+          eq(s.goals.userId, userId),
+          eq(s.goals.monthId, month.id),
+          eq(s.goals.status, 'deferred')
+        ),
+        orderBy: [asc(s.goals.priority), asc(s.goals.createdAt)]
+      });
+
+      if (deferredGoals.length === 0) return;
+
+      const [items, allTransactions] = await Promise.all([
+        db.query.items.findMany({ where: and(eq(s.items.userId, userId), eq(s.items.monthId, month.id)) }),
+        db.query.transactions.findMany({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)) })
+      ]);
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonthNum = now.getMonth() + 1;
+      const isPastMonth = Number(month.year) < currentYear || (Number(month.year) === currentYear && Number(month.month) < currentMonthNum);
+      const isCurrentMonth = Number(month.year) === currentYear && Number(month.month) === currentMonthNum;
+      const currentDay = isCurrentMonth ? now.getDate() : (isPastMonth ? null : 0);
+
+      for (const goal of deferredGoals) {
+        const rec = recommendPurchaseDate(
+          {
+            openingBalance: month.openingBalance,
+            incomeAmount: month.incomeAmount,
+            incomeCreditDate: month.incomeCreditDate,
+            incomeCreditDay: month.incomeCreditDate ? parseInt(month.incomeCreditDate.split('-')[2], 10) : 1,
+            safetyFloor: month.safetyFloor,
+            unplannedAllowance: month.unplannedAllowance || 0,
+            currentDay,
+            scale: 100
+          },
+          items,
+          { year: month.year, month: month.month },
+          goal.targetAmount,
+          allTransactions
+        );
+
+        if (rec.feasible) {
+          await db.update(s.goals)
+            .set({
+              status: 'active',
+              deferredReason: null,
+              updatedAt: new Date()
+            })
+            .where(eq(s.goals.id, goal.id));
+        }
+      }
+    } catch (goalReviveErr) {
+      console.error('Goal self-healing revival error:', goalReviveErr);
+    }
+  },
+
+  /**
    * Deletes a transaction and re-evaluates goals.
    */
   async deleteTransaction(userId, txId) {
@@ -571,7 +676,21 @@ export const BudgetExecution = {
       );
     }
 
+    if (existing.status === 'successful') {
+      try {
+        await LedgerService.applyTransactionBalance(existing, -1);
+      } catch (balErr) {
+        console.error('Failed to reverse materialized account balance on delete:', balErr);
+      }
+    }
+
     await db.delete(s.transactions).where(eq(s.transactions.id, txId));
+    if (existing.monthId && !existing.isIncome && existing.amount > 0) {
+      const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
+      if (month) {
+        await this._reEvaluateAndReviveGoals(userId, month);
+      }
+    }
     return { message: 'Transaction deleted successfully' };
   },
 
@@ -1272,6 +1391,12 @@ export const BudgetExecution = {
         isIncome: false
       }).returning();
 
+      try {
+        await LedgerService.applyTransactionBalance(transaction, 1);
+      } catch (balErr) {
+        console.error('Failed to update balance on transfer transaction:', balErr);
+      }
+
       return serialize(transaction);
     }
 
@@ -1310,6 +1435,14 @@ export const BudgetExecution = {
       isIncome: Boolean(isIncome),
       goalId: payload.goalId || null
     }).returning();
+
+    if (transaction.status === 'successful') {
+      try {
+        await LedgerService.applyTransactionBalance(transaction, 1);
+      } catch (balErr) {
+        console.error('Failed to update balance on global transaction:', balErr);
+      }
+    }
 
     return serialize(transaction);
   },

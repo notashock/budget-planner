@@ -545,7 +545,7 @@ export function AccountsScreen({
                 No bank accounts configured yet. Tap "Add Bank" to connect your checking, savings, or salary accounts.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
                 {bankAccounts.map((bank) => {
                   const key = String(bank._id || bank.id || '');
                   const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
@@ -719,7 +719,7 @@ export function AccountsScreen({
                 No wallets configured yet. Tap "Add Wallet" to track physical cash envelopes or digital wallets.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
                 {wallets.map((wallet) => {
                   const key = String(wallet._id || wallet.id || '');
                   const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];

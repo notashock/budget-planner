@@ -1,11 +1,11 @@
 {
-  "id": "290b8aae-34de-44f8-a935-b24a743aaed5",
+  "id": "b04b8393-3681-4ee2-a187-ecc6ea6db4f4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.bank_accounts": {
-      "name": "bank_accounts",
+    "public.accounts": {
+      "name": "accounts",
       "schema": "",
       "columns": {
         "id": {
@@ -27,19 +27,25 @@
           "primaryKey": false,
           "notNull": true
         },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subtype": {
+          "name": "subtype",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'checking'"
+        },
         "institution": {
           "name": "institution",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "account_type": {
-          "name": "account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'checking'"
         },
         "account_number_masked": {
           "name": "account_number_masked",
@@ -50,6 +56,19 @@
         },
         "opening_balance": {
           "name": "opening_balance",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "opening_balance_date": {
+          "name": "opening_balance_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_balance": {
+          "name": "current_balance",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
@@ -99,8 +118,8 @@
         }
       },
       "indexes": {
-        "idx_bank_accounts_user": {
-          "name": "idx_bank_accounts_user",
+        "idx_accounts_user": {
+          "name": "idx_accounts_user",
           "columns": [
             {
               "expression": "user_id",
@@ -122,99 +141,12 @@
         }
       },
       "foreignKeys": {
-        "bank_accounts_user_id_users_id_fk": {
-          "name": "bank_accounts_user_id_users_id_fk",
-          "tableFrom": "bank_accounts",
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.fuel_stops": {
-      "name": "fuel_stops",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date": {
-          "name": "date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "odometer": {
-          "name": "odometer",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fuel_volume": {
-          "name": "fuel_volume",
-          "type": "numeric(8, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fuel_cost": {
-          "name": "fuel_cost",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_fuel_stops_item": {
-          "name": "idx_fuel_stops_item",
-          "columns": [
-            {
-              "expression": "item_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "fuel_stops_item_id_items_id_fk": {
-          "name": "fuel_stops_item_id_items_id_fk",
-          "tableFrom": "fuel_stops",
-          "tableTo": "items",
-          "columnsFrom": [
-            "item_id"
           ],
           "columnsTo": [
             "id"
@@ -264,12 +196,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "target_date": {
+          "name": "target_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'active'"
+          "default": "'logged'"
         },
         "deferred_reason": {
           "name": "deferred_reason",
@@ -284,20 +222,8 @@
           "notNull": true,
           "default": 0
         },
-        "funding_source_type": {
-          "name": "funding_source_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "funding_bank_account_id": {
-          "name": "funding_bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "funding_wallet_id": {
-          "name": "funding_wallet_id",
+        "funding_account_id": {
+          "name": "funding_account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -361,25 +287,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "goals_funding_bank_account_id_bank_accounts_id_fk": {
-          "name": "goals_funding_bank_account_id_bank_accounts_id_fk",
+        "goals_funding_account_id_accounts_id_fk": {
+          "name": "goals_funding_account_id_accounts_id_fk",
           "tableFrom": "goals",
-          "tableTo": "bank_accounts",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "funding_bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "goals_funding_wallet_id_wallets_id_fk": {
-          "name": "goals_funding_wallet_id_wallets_id_fk",
-          "tableFrom": "goals",
-          "tableTo": "wallets",
-          "columnsFrom": [
-            "funding_wallet_id"
+            "funding_account_id"
           ],
           "columnsTo": [
             "id"
@@ -471,50 +384,14 @@
           "notNull": true,
           "default": 0
         },
-        "day": {
-          "name": "day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "day_of_month": {
-          "name": "day_of_month",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "original_day": {
-          "name": "original_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "original_date": {
-          "name": "original_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "date": {
           "name": "date",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "account_type": {
-          "name": "account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_account_id": {
-          "name": "bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wallet_id": {
-          "name": "wallet_id",
+        "account_id": {
+          "name": "account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -593,25 +470,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "items_bank_account_id_bank_accounts_id_fk": {
-          "name": "items_bank_account_id_bank_accounts_id_fk",
+        "items_account_id_accounts_id_fk": {
+          "name": "items_account_id_accounts_id_fk",
           "tableFrom": "items",
-          "tableTo": "bank_accounts",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "items_wallet_id_wallets_id_fk": {
-          "name": "items_wallet_id_wallets_id_fk",
-          "tableFrom": "items",
-          "tableTo": "wallets",
-          "columnsFrom": [
-            "wallet_id"
+            "account_id"
           ],
           "columnsTo": [
             "id"
@@ -640,12 +504,6 @@
         "month_id": {
           "name": "month_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_type": {
-          "name": "account_type",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -685,6 +543,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "uq_openings_month_account": {
+          "name": "uq_openings_month_account",
+          "columns": [
+            {
+              "expression": "month_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -694,6 +573,19 @@
           "tableTo": "months",
           "columnsFrom": [
             "month_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "month_account_openings_account_id_accounts_id_fk": {
+          "name": "month_account_openings_account_id_accounts_id_fk",
+          "tableFrom": "month_account_openings",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
           ],
           "columnsTo": [
             "id"
@@ -737,6 +629,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "opening_balance": {
           "name": "opening_balance",
           "type": "bigint",
@@ -756,13 +660,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "income_credit_day": {
-          "name": "income_credit_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
         },
         "safety_floor": {
           "name": "safety_floor",
@@ -785,8 +682,8 @@
           "notNull": true,
           "default": "'₹'"
         },
-        "salary_bank_account_id": {
-          "name": "salary_bank_account_id",
+        "salary_account_id": {
+          "name": "salary_account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -801,6 +698,25 @@
         "salary_credited_date": {
           "name": "salary_credited_date",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_closed": {
+          "name": "is_closed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closing_balances": {
+          "name": "closing_balances",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -889,12 +805,147 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "months_salary_bank_account_id_bank_accounts_id_fk": {
-          "name": "months_salary_bank_account_id_bank_accounts_id_fk",
+        "months_salary_account_id_accounts_id_fk": {
+          "name": "months_salary_account_id_accounts_id_fk",
           "tableFrom": "months",
-          "tableTo": "bank_accounts",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "salary_bank_account_id"
+            "salary_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.salary_templates": {
+      "name": "salary_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_credit_day": {
+          "name": "expected_credit_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "receiving_account_id": {
+          "name": "receiving_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "period_type": {
+          "name": "period_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'calendar_month'"
+        },
+        "effective_date": {
+          "name": "effective_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_salary_templates_user": {
+          "name": "idx_salary_templates_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "salary_templates_user_id_users_id_fk": {
+          "name": "salary_templates_user_id_users_id_fk",
+          "tableFrom": "salary_templates",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "salary_templates_receiving_account_id_accounts_id_fk": {
+          "name": "salary_templates_receiving_account_id_accounts_id_fk",
+          "tableFrom": "salary_templates",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "receiving_account_id"
           ],
           "columnsTo": [
             "id"
@@ -919,12 +970,33 @@
           "primaryKey": true,
           "notNull": true
         },
+        "income_mode": {
+          "name": "income_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'salary'"
+        },
+        "period_type": {
+          "name": "period_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'calendar_month'"
+        },
         "default_income_amount": {
           "name": "default_income_amount",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "default_income_credit_day": {
+          "name": "default_income_credit_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         },
         "default_safety_floor": {
           "name": "default_safety_floor",
@@ -940,12 +1012,32 @@
           "notNull": true,
           "default": 0
         },
+        "due_window_days": {
+          "name": "due_window_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
         "currency_symbol": {
           "name": "currency_symbol",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "'₹'"
+        },
+        "default_salary_account_id": {
+          "name": "default_salary_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ai_assistant_enabled": {
+          "name": "ai_assistant_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "theme": {
           "name": "theme",
@@ -983,6 +1075,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "settings_default_salary_account_id_accounts_id_fk": {
+          "name": "settings_default_salary_account_id_accounts_id_fk",
+          "tableFrom": "settings",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "default_salary_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1012,6 +1117,33 @@
           "name": "month_id",
           "type": "uuid",
           "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'successful'"
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'spot'"
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "primaryKey": false,
           "notNull": true
         },
         "date": {
@@ -1020,18 +1152,17 @@
           "primaryKey": false,
           "notNull": true
         },
-        "amount": {
-          "name": "amount",
+        "planned_amount": {
+          "name": "planned_amount",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "tag": {
-          "name": "tag",
+        "planned_date": {
+          "name": "planned_date",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'Other'"
+          "notNull": false
         },
         "category": {
           "name": "category",
@@ -1054,20 +1185,32 @@
           "notNull": true,
           "default": false
         },
-        "account_type": {
-          "name": "account_type",
+        "recurrence": {
+          "name": "recurrence",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "bank_account_id": {
-          "name": "bank_account_id",
+        "account_id": {
+          "name": "account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "wallet_id": {
-          "name": "wallet_id",
+        "destination_account_id": {
+          "name": "destination_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "goal_id": {
+          "name": "goal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legacy_item_id": {
+          "name": "legacy_item_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -1121,6 +1264,27 @@
           "method": "btree",
           "with": {}
         },
+        "idx_transactions_month_status": {
+          "name": "idx_transactions_month_status",
+          "columns": [
+            {
+              "expression": "month_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_transactions_user_date": {
           "name": "idx_transactions_user_date",
           "columns": [
@@ -1132,6 +1296,111 @@
             },
             {
               "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_transactions_account_date": {
+          "name": "idx_transactions_account_date",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_transactions_user_status_date": {
+          "name": "idx_transactions_user_status_date",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_transactions_dest_account": {
+          "name": "idx_transactions_dest_account",
+          "columns": [
+            {
+              "expression": "destination_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_transactions_goal": {
+          "name": "idx_transactions_goal",
+          "columns": [
+            {
+              "expression": "goal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_transactions_month_origin_status": {
+          "name": "idx_transactions_month_origin_status",
+          "columns": [
+            {
+              "expression": "month_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "origin",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1167,15 +1436,15 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "transactions_bank_account_id_bank_accounts_id_fk": {
-          "name": "transactions_bank_account_id_bank_accounts_id_fk",
+        "transactions_account_id_accounts_id_fk": {
+          "name": "transactions_account_id_accounts_id_fk",
           "tableFrom": "transactions",
-          "tableTo": "bank_accounts",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "bank_account_id"
+            "account_id"
           ],
           "columnsTo": [
             "id"
@@ -1183,12 +1452,25 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "transactions_wallet_id_wallets_id_fk": {
-          "name": "transactions_wallet_id_wallets_id_fk",
+        "transactions_destination_account_id_accounts_id_fk": {
+          "name": "transactions_destination_account_id_accounts_id_fk",
           "tableFrom": "transactions",
-          "tableTo": "wallets",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "wallet_id"
+            "destination_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transactions_goal_id_goals_id_fk": {
+          "name": "transactions_goal_id_goals_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "goals",
+          "columnsFrom": [
+            "goal_id"
           ],
           "columnsTo": [
             "id"
@@ -1250,7 +1532,7 @@
           "name": "month_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "date": {
           "name": "date",
@@ -1264,38 +1546,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "source_type": {
-          "name": "source_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_bank_account_id": {
-          "name": "source_bank_account_id",
+        "source_account_id": {
+          "name": "source_account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "source_wallet_id": {
-          "name": "source_wallet_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "destination_type": {
-          "name": "destination_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "destination_bank_account_id": {
-          "name": "destination_bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "destination_wallet_id": {
-          "name": "destination_wallet_id",
+        "destination_account_id": {
+          "name": "destination_account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -1337,6 +1595,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_transfers_user_date": {
+          "name": "idx_transfers_user_date",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1363,15 +1642,15 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "transfers_source_bank_account_id_bank_accounts_id_fk": {
-          "name": "transfers_source_bank_account_id_bank_accounts_id_fk",
+        "transfers_source_account_id_accounts_id_fk": {
+          "name": "transfers_source_account_id_accounts_id_fk",
           "tableFrom": "transfers",
-          "tableTo": "bank_accounts",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "source_bank_account_id"
+            "source_account_id"
           ],
           "columnsTo": [
             "id"
@@ -1379,38 +1658,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "transfers_source_wallet_id_wallets_id_fk": {
-          "name": "transfers_source_wallet_id_wallets_id_fk",
+        "transfers_destination_account_id_accounts_id_fk": {
+          "name": "transfers_destination_account_id_accounts_id_fk",
           "tableFrom": "transfers",
-          "tableTo": "wallets",
+          "tableTo": "accounts",
           "columnsFrom": [
-            "source_wallet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transfers_destination_bank_account_id_bank_accounts_id_fk": {
-          "name": "transfers_destination_bank_account_id_bank_accounts_id_fk",
-          "tableFrom": "transfers",
-          "tableTo": "bank_accounts",
-          "columnsFrom": [
-            "destination_bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transfers_destination_wallet_id_wallets_id_fk": {
-          "name": "transfers_destination_wallet_id_wallets_id_fk",
-          "tableFrom": "transfers",
-          "tableTo": "wallets",
-          "columnsFrom": [
-            "destination_wallet_id"
+            "destination_account_id"
           ],
           "columnsTo": [
             "id"
@@ -1436,17 +1689,11 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "username": {
-          "name": "username",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "password_hash": {
           "name": "password_hash",
@@ -1473,13 +1720,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_username_unique": {
-          "name": "users_username_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
-        },
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
@@ -1488,123 +1728,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.wallets": {
-      "name": "wallets",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wallet_type": {
-          "name": "wallet_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'cash'"
-        },
-        "opening_balance": {
-          "name": "opening_balance",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_archived": {
-          "name": "is_archived",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "color": {
-          "name": "color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'#09090b'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_wallets_user": {
-          "name": "idx_wallets_user",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "is_archived",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "wallets_user_id_users_id_fk": {
-          "name": "wallets_user_id_users_id_fk",
-          "tableFrom": "wallets",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

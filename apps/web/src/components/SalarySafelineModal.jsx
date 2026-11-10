@@ -48,6 +48,7 @@ export function SalarySafelineModal({
   if (!month) return null;
 
   const maxDate = month ? (() => {
+    if (salaryLockStatus?.windowEndDate) return salaryLockStatus.windowEndDate;
     const lastD = new Date(month.year, month.month, 0).getDate();
     return `${month.year}-${String(month.month).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
   })() : undefined;
@@ -55,7 +56,7 @@ export function SalarySafelineModal({
   const handleSubmit = async (e, requestClose) => {
     e.preventDefault();
     if (loadingRef.current) return;
-    if (salaryLockStatus.isLocked) {
+    if (salaryLockStatus.isLocked && (dateDirty || creditedDirty || Number(incomeAmount || 0) !== (month.incomeAmount ? month.incomeAmount / 100 : 0))) {
       setError(salaryLockStatus.reason || 'Salary logging is currently locked.');
       return;
     }
@@ -77,7 +78,7 @@ export function SalarySafelineModal({
         payload.incomeCreditDate = salaryCreditedDate;
       }
       if (creditedDirty) {
-        payload.isSalaryCredited = isSalaryCredited;
+        payload.isSalaryCredited = Boolean(isSalaryCredited);
       }
 
       await onSave(payload);
@@ -198,6 +199,7 @@ export function SalarySafelineModal({
               required
               className="input-field tabular-nums"
               placeholder="0.00"
+              disabled={salaryLockStatus.isLocked}
               value={incomeAmount}
               onChange={(e) => setIncomeAmount(e.target.value)}
             />
@@ -231,11 +233,15 @@ export function SalarySafelineModal({
               max={maxDate}
               required
               className="input-field tabular-nums"
+              disabled={salaryLockStatus.isLocked}
               value={salaryCreditedDate}
               onChange={(e) => {
                 setSalaryCreditedDate(e.target.value);
                 setDateDirty(true);
-                if (e.target.value) setIsSalaryCredited(true);
+                if (e.target.value) {
+                  setIsSalaryCredited(true);
+                  setCreditedDirty(true);
+                }
               }}
             />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
@@ -249,6 +255,7 @@ export function SalarySafelineModal({
               id="salary-credited-checkbox"
               type="checkbox"
               checked={isSalaryCredited}
+              disabled={salaryLockStatus.isLocked}
               onChange={(e) => {
                 setIsSalaryCredited(e.target.checked);
                 setCreditedDirty(true);
@@ -272,7 +279,7 @@ export function SalarySafelineModal({
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading || bankAccounts.length === 0 || salaryLockStatus.isLocked}
+              disabled={loading || bankAccounts.length === 0}
             >
               {loading ? 'Saving...' : 'Save Salary & Safeline'}
             </button>

@@ -74,7 +74,7 @@ export function MonthEndReviewModal({
     if (isClosingRef.current) return;
     isClosingRef.current = true;
 
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const tl = gsap.timeline({
       onComplete: () => {
         setShouldRender(false);
@@ -115,7 +115,7 @@ export function MonthEndReviewModal({
   useGSAP(() => {
     if (!shouldRender || isClosingRef.current) return;
 
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     gsap.killTweensOf([overlayRef.current, contentRef.current]);
 
     if (overlayRef.current) {
@@ -170,7 +170,7 @@ export function MonthEndReviewModal({
 
   const handleTouchMove = (e) => {
     if (!contentRef.current) return;
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     if (!isMobile) return;
 
     const currentY = e.touches[0].clientY;

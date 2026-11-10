@@ -239,6 +239,23 @@ bankAccountsRouter.put('/:id', async (req, res) => {
       .where(eq(s.accounts.id, bankId))
       .returning();
 
+    if (parsedOpening !== undefined) {
+      const activeMonth = await db.query.months.findFirst({
+        where: and(eq(s.months.userId, userId), eq(s.months.isClosed, false)),
+        orderBy: [desc(s.months.year), desc(s.months.month)]
+      });
+      if (activeMonth) {
+        const existingOpening = await db.query.monthAccountOpenings.findFirst({
+          where: and(eq(s.monthAccountOpenings.monthId, activeMonth.id), eq(s.monthAccountOpenings.accountId, bankId))
+        });
+        if (existingOpening) {
+          await db.update(s.monthAccountOpenings).set({ amount: parsedOpening }).where(eq(s.monthAccountOpenings.id, existingOpening.id));
+        } else {
+          await db.insert(s.monthAccountOpenings).values({ monthId: activeMonth.id, accountId: bankId, amount: parsedOpening });
+        }
+      }
+    }
+
     return res.json(serialize(updated));
   } catch (err) {
     console.error('Failed to update bank account:', err);

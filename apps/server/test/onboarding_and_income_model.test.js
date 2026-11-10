@@ -121,34 +121,30 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
     expect(monthsRes.status).toBe(200);
     expect(monthsRes.body.data.length).toBeGreaterThanOrEqual(1);
 
-    // Check planned salary transaction in active month
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    // Check active month metadata has salary marker (Rule 1: No planned salary in ledger)
+    const targetMonth = monthsRes.body.data[0];
 
     const txRes = await request(app)
-      .get(`/api/months/${currentYear}/${currentMonth}/transactions`)
+      .get(`/api/months/${targetMonth.year}/${targetMonth.month}/transactions`)
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(txRes.status).toBe(200);
     const salaryTx = txRes.body.data.find((t) => t.origin === 'salary');
-    expect(salaryTx).toBeDefined();
-    expect(salaryTx.status).toBe('planned');
-    expect(salaryTx.amount).toBe(80000);
-    expect(salaryTx.isIncome).toBe(true);
+    expect(salaryTx).toBeUndefined();
+    expect(targetMonth.incomeAmount).toBe(80000);
 
-    // Test settling salary: Mark as Paid
+    // Test settling salary: 1-click credit salary
     const payRes = await request(app)
-      .patch(`/api/transactions/${salaryTx.id}/pay`)
+      .post(`/api/months/${targetMonth.year}/${targetMonth.month}/credit-salary`)
       .set('Authorization', `Bearer ${authToken}`)
       .send({
-        actualAmount: 82000, // received bonus
-        actualDate: `${currentYear}-${String(currentMonth).padStart(2, '0')}-25`
+        amount: 82000, // received bonus
+        date: `${targetMonth.year}-${String(targetMonth.month).padStart(2, '0')}-25`
       });
 
     expect(payRes.status).toBe(200);
-    expect(payRes.body.data.status).toBe('successful');
-    expect(payRes.body.data.amount).toBe(82000);
+    expect(payRes.body.data.month.isSalaryCredited).toBe(true);
+    expect(payRes.body.data.month.incomeAmount).toBe(82000);
   });
 
   it('3. Versions salary template on change and preserves past transactions', async () => {

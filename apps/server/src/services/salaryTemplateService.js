@@ -134,15 +134,40 @@ export const SalaryTemplateService = {
    * Provisions active period and 1 period forward (rolling 2-period horizon) so the user never creates months by hand.
    */
   async ensureRollingPeriods(userId, asOfDate) {
-    const template = await this.getActiveTemplate(userId);
+    let template = await this.getActiveTemplate(userId);
+    if (!template) {
+      const existing = await db.query.months.findFirst({
+        where: and(eq(s.months.userId, userId)),
+        orderBy: [desc(s.months.year), desc(s.months.month)]
+      });
+
+      let receivingAccountId = existing?.salaryAccountId || null;
+      if (!receivingAccountId) {
+        const primaryAccount = await db.query.accounts.findFirst({
+          where: and(eq(s.accounts.userId, userId), eq(s.accounts.isArchived, false)),
+          orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
+        });
+        receivingAccountId = primaryAccount?.id || null;
+      }
+
+      if (existing || receivingAccountId) {
+        template = {
+          amount: existing?.incomeAmount || 0,
+          expectedCreditDay: 1,
+          receivingAccountId: receivingAccountId || null,
+          periodType: 'calendar_month',
+          isActive: true
+        };
+      }
+    }
     if (!template || !template.isActive) return;
 
     const targetDate = asOfDate || getTodayIso();
 
     // Lookup receiving account's openingBalanceDate
-    const receivingAccount = await db.query.accounts.findFirst({
+    const receivingAccount = template.receivingAccountId ? await db.query.accounts.findFirst({
       where: and(eq(s.accounts.id, template.receivingAccountId), eq(s.accounts.userId, userId))
-    });
+    }) : null;
     const openingBalanceDate = receivingAccount?.openingBalanceDate || null;
 
     // Period 1 (Active period)
@@ -163,7 +188,8 @@ export const SalaryTemplateService = {
    * Internal helper: finds or creates month and planned salary transaction for a period boundary.
    */
   async _ensurePeriodMonthAndSalary(userId, template, bounds, targetDate) {
-    const parts = bounds.endDate.split('-');
+    const cycleStartRef = bounds.originalStartDate || bounds.startDate;
+    const parts = cycleStartRef.split('-');
     const year = parseInt(parts[0], 10);
     const monthNum = parseInt(parts[1], 10);
 
@@ -174,6 +200,27 @@ export const SalaryTemplateService = {
         eq(s.months.month, monthNum)
       )
     });
+
+    if (month && month.isClosed) {
+      const todayIso = getTodayIso();
+      // If the period endDate has actually elapsed in the past, provision the succeeding period.
+      // But if the month is ongoing (todayIso <= bounds.endDate), it must NOT be closed! Auto-heal it.
+      if (bounds.endDate < todayIso) {
+        const nextBounds = getNextPeriodBoundaries({
+          periodType: template.periodType,
+          creditDay: template.expectedCreditDay,
+          previousEndDate: bounds.endDate
+        });
+        return this._ensurePeriodMonthAndSalary(userId, template, nextBounds, targetDate);
+      } else {
+        await db.update(s.months)
+          .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
+          .where(eq(s.months.id, month.id));
+        month.isClosed = false;
+        month.closedAt = null;
+        month.closingBalances = null;
+      }
+    }
 
     if (!month) {
       // Find predecessor month if any to carry forward ending balances, or seed from accounts
@@ -210,17 +257,21 @@ export const SalaryTemplateService = {
         }
       }
 
+      const effectiveStartDate = bounds.startDate;
+
       const [newMonth] = await db.insert(s.months).values({
         userId,
         year,
         month: monthNum,
-        startDate: bounds.startDate,
+        startDate: effectiveStartDate,
         endDate: bounds.endDate,
         openingBalance: initialTotalOpening,
         incomeAmount: template.amount,
         salaryAccountId: template.receivingAccountId,
-        safetyFloor: 0,
-        unplannedAllowance: 0
+        safetyFloor: predecessor?.safetyFloor || 0,
+        unplannedAllowance: 0,
+        isSalaryCredited: false,
+        salaryCreditedDate: null
       }).returning();
       month = newMonth;
 
@@ -258,75 +309,18 @@ export const SalaryTemplateService = {
       creditDateStr = formatDate(year, monthNum, clampedDay);
     }
 
-    // Check if salary transactions already exist for this month
-    const existingSalaryTxs = await db.query.transactions.findMany({
-      where: and(
-        eq(s.transactions.userId, userId),
-        eq(s.transactions.monthId, month.id),
-        eq(s.transactions.origin, 'salary')
-      )
-    });
-
-    const isSalaryCycle = template.periodType === 'salary_cycle';
-    const effDate = template.effectiveDate;
-    const hasPastEffectiveDate = effDate && effDate <= targetDate;
-
-    if (existingSalaryTxs.length === 0) {
-      if (isSalaryCycle && hasPastEffectiveDate) {
-        // 1. Record the salary logged during onboarding as already CREDITED (successful) on the past credit date
-        await db.insert(s.transactions).values({
-          userId,
-          monthId: month.id,
-          name: 'Monthly Salary (Credited)',
-          status: 'successful',
-          origin: 'salary',
-          amount: template.amount,
-          plannedAmount: template.amount,
-          date: effDate,
-          plannedDate: effDate,
-          isIncome: true,
-          category: 'Income',
-          note: 'Salary Credited',
-          accountId: template.receivingAccountId
-        });
-
-        // 2. Schedule upcoming planned commitment defaulting to the last date of the current cycle/month
-        const lastDayOfCycleMonth = getDaysInMonth(year, monthNum);
-        const expectedNextCreditDate = formatDate(year, monthNum, lastDayOfCycleMonth);
-
-        await db.insert(s.transactions).values({
-          userId,
-          monthId: month.id,
-          name: 'Expected Monthly Salary',
-          status: 'planned',
-          origin: 'salary',
-          amount: template.amount,
-          plannedAmount: template.amount,
-          date: expectedNextCreditDate,
-          plannedDate: expectedNextCreditDate,
-          isIncome: true,
-          category: 'Income',
-          note: 'Expected Next Salary Credit',
-          accountId: template.receivingAccountId
-        });
-      } else {
-        // Standard single planned salary entry
-        await db.insert(s.transactions).values({
-          userId,
-          monthId: month.id,
-          name: 'Monthly Salary',
-          status: 'planned',
-          origin: 'salary',
-          amount: template.amount,
-          plannedAmount: template.amount,
-          date: creditDateStr,
-          plannedDate: creditDateStr,
-          isIncome: true,
-          category: 'Income',
-          note: 'Expected Salary Credit',
-          accountId: template.receivingAccountId
-        });
-      }
+    // Update income credit date and amount on month metadata if not already set (Pure Date Marker / No Planned Transaction in Ledger)
+    if (!month.incomeCreditDate || month.incomeCreditDate !== creditDateStr || !month.incomeAmount) {
+      const [updated] = await db.update(s.months)
+        .set({
+          incomeCreditDate: creditDateStr,
+          incomeAmount: month.incomeAmount || template.amount || 0,
+          salaryAccountId: month.salaryAccountId || template.receivingAccountId,
+          updatedAt: new Date()
+        })
+        .where(eq(s.months.id, month.id))
+        .returning();
+      if (updated) month = updated;
     }
 
     return month;
@@ -336,7 +330,7 @@ export const SalaryTemplateService = {
    * Called when a salary transaction is settled/marked paid.
    * Closes the completed period, snapshots account closing balances, and advances the rolling horizon.
    */
-  async onSalaryCredited(userId, salaryTx, actualDate) {
+  async onSalaryCredited(userId, salaryTx, actualDate, options = {}) {
     if (!salaryTx.monthId) return null;
 
     const month = await db.query.months.findFirst({
@@ -373,6 +367,9 @@ export const SalaryTemplateService = {
 
     const closingBalancesSnapshot = {};
 
+    const transferIdsInTable = new Set(transfers.map((tr) => String(tr.id)));
+    const isTransferTx = (t) => t.origin === 'transfer' || t.category === 'Transfer' || Boolean(t.destinationAccountId) || Boolean(t.transferId);
+
     for (const acc of accountsList) {
       const accOpening = openingMap.has(acc.id)
         ? openingMap.get(acc.id)
@@ -380,10 +377,10 @@ export const SalaryTemplateService = {
 
       const accTxs = txs.filter((t) => t.accountId === acc.id);
       const inflow = accTxs
-        .filter((t) => t.isIncome)
+        .filter((t) => t.isIncome && !isTransferTx(t))
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       const outflow = accTxs
-        .filter((t) => !t.isIncome)
+        .filter((t) => !t.isIncome && !isTransferTx(t))
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const inTransfers = transfers
@@ -393,8 +390,15 @@ export const SalaryTemplateService = {
         .filter((tr) => tr.sourceAccountId === acc.id)
         .reduce((sum, tr) => sum + (tr.amount || 0), 0);
 
-      const totalInflow = inflow + inTransfers;
-      const totalOutflow = outflow + outTransfers;
+      const orphanOutTransfers = txs
+        .filter((t) => t.accountId === acc.id && isTransferTx(t) && (!t.transferId || !transferIdsInTable.has(String(t.transferId))))
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      const orphanInTransfers = txs
+        .filter((t) => t.destinationAccountId === acc.id && isTransferTx(t) && (!t.transferId || !transferIdsInTable.has(String(t.transferId))))
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+      const totalInflow = inflow + inTransfers + orphanInTransfers;
+      const totalOutflow = outflow + outTransfers + orphanOutTransfers;
       const closingBalance = accOpening + totalInflow - totalOutflow;
 
       closingBalancesSnapshot[acc.id] = {
@@ -408,21 +412,47 @@ export const SalaryTemplateService = {
       };
     }
 
-    // If this is the initial starting salary from onboarding, never close the active cycle.
-    if (salaryTx.name === 'Monthly Salary (Credited)') {
+    const todayIso = getTodayIso();
+    const shouldAdvance = Boolean(options.advance);
+    const isOngoingCycle = !shouldAdvance && (month.endDate ? todayIso <= month.endDate : !isHistoricalPastMonth(month));
+
+    if (isOngoingCycle) {
+      // In-cycle salary fulfillment: Mark salary credited on the current active month, but keep it open!
       await db.update(s.months)
         .set({
           isSalaryCredited: true,
-          salaryCreditedDate: actualDate || getTodayIso(),
-          incomeAmount: salaryTx.amount,
+          salaryCreditedDate: actualDate || todayIso,
+          incomeAmount: salaryTx.amount || month.incomeAmount,
           updatedAt: new Date()
         })
         .where(eq(s.months.id, month.id));
-      return month;
+
+      const updatedMonth = await db.query.months.findFirst({
+        where: eq(s.months.id, month.id)
+      });
+
+      return {
+        month: updatedMonth,
+        advanced: false,
+        message: 'Salary credited successfully. Current cycle remains active.'
+      };
     }
 
-    // Seamless Hand-off: Confirming the next/ending salary credit completes the active cycle.
-    // Mark current month closed and snapshot closing balances.
+    // Period elapsed: Confirming salary credit completes the active cycle and rolls forward to the next period.
+    // Adjust current month endDate to the day before the salary credit date if actualDate provided, ensuring endDate >= startDate
+    let effectiveEndDate = month.endDate;
+    if (actualDate) {
+      const [y, m, d] = actualDate.split('-').map(Number);
+      const prevDay = new Date(Date.UTC(y, m - 1, d - 1));
+      const prevDayStr = `${prevDay.getUTCFullYear()}-${pad(prevDay.getUTCMonth() + 1)}-${pad(prevDay.getUTCDate())}`;
+      if (month.startDate && prevDayStr >= month.startDate) {
+        effectiveEndDate = prevDayStr;
+      } else {
+        effectiveEndDate = actualDate;
+      }
+    }
+
+    // Mark current month closed and snapshot closing balances
     await db.update(s.months)
       .set({
         isClosed: true,
@@ -430,27 +460,46 @@ export const SalaryTemplateService = {
         closingBalances: closingBalancesSnapshot,
         isSalaryCredited: true,
         salaryCreditedDate: actualDate || getTodayIso(),
-        incomeAmount: salaryTx.amount,
+        incomeAmount: salaryTx.amount || month.incomeAmount,
+        endDate: effectiveEndDate,
         updatedAt: new Date()
       })
       .where(eq(s.months.id, month.id));
 
-    // Next period boundary: advance cycle strictly just-in-time
+    // Next period boundary: starts strictly on the date of salary credit for salary_cycle, or next calendar month
+    const template = await this.getActiveTemplate(userId);
     let nextStartDate = actualDate || month.endDate;
-    if (nextStartDate) {
-      const [y, m, d] = nextStartDate.split('-').map(Number);
-      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
-      nextStartDate = `${nextDay.getUTCFullYear()}-${pad(nextDay.getUTCMonth() + 1)}-${pad(nextDay.getUTCDate())}`;
+    if (template?.periodType === 'calendar_month' || (!template && !month.periodType)) {
+      const nextYear = month.month === 12 ? month.year + 1 : month.year;
+      const nextMonthNum = month.month === 12 ? 1 : month.month + 1;
+      nextStartDate = `${nextYear}-${pad(nextMonthNum)}-01`;
     }
 
     const { p1Month: nextMonth } = (await this.ensureRollingPeriods(userId, nextStartDate)) || {};
 
+    let effectiveNextMonth = nextMonth;
+    // Fallback safety net: if ensureRollingPeriods failed to provision nextMonth, execute rollover
+    if (!effectiveNextMonth || !effectiveNextMonth.id) {
+      try {
+        const { MonthLifecycle } = await import('../domain/monthLifecycle.js');
+        const rolloverRes = await MonthLifecycle.rolloverMonth(userId, month.year, month.month, {
+          carryBalance: true,
+          rolloverUnpaidOneTimeItems: true
+        });
+        if (rolloverRes?.month) {
+          effectiveNextMonth = rolloverRes.month;
+        }
+      } catch (rolloverErr) {
+        console.error('[SalaryTemplateService] Safety rollover in onSalaryCredited failed:', rolloverErr);
+      }
+    }
+
     // Propagate closing balances into next month's opening balances automatically
-    if (nextMonth && nextMonth.id) {
+    if (effectiveNextMonth && effectiveNextMonth.id) {
       for (const [accId, snap] of Object.entries(closingBalancesSnapshot)) {
         const existingOpening = await db.query.monthAccountOpenings.findFirst({
           where: and(
-            eq(s.monthAccountOpenings.monthId, nextMonth.id),
+            eq(s.monthAccountOpenings.monthId, effectiveNextMonth.id),
             eq(s.monthAccountOpenings.accountId, accId)
           )
         });
@@ -460,19 +509,29 @@ export const SalaryTemplateService = {
             .where(eq(s.monthAccountOpenings.id, existingOpening.id));
         } else {
           await db.insert(s.monthAccountOpenings).values({
-            monthId: nextMonth.id,
+            monthId: effectiveNextMonth.id,
             accountId: accId,
             amount: snap.closingBalance
           });
         }
       }
 
+      // Carry forward any unsettled planned commitments from the closed cycle into the newly opened cycle
+      await db.update(s.transactions)
+        .set({ monthId: effectiveNextMonth.id, updatedAt: new Date() })
+        .where(and(eq(s.transactions.monthId, month.id), eq(s.transactions.status, 'planned')));
+
       // Carry forward any deferred goals from the closed cycle into the newly opened cycle
       await db.update(s.goals)
-        .set({ monthId: nextMonth.id, updatedAt: new Date() })
+        .set({ monthId: effectiveNextMonth.id, updatedAt: new Date() })
         .where(and(eq(s.goals.monthId, month.id), eq(s.goals.status, 'deferred')));
     }
 
-    return { closedMonthId: month.id, closingBalances: closingBalancesSnapshot, nextMonthId: nextMonth?.id, nextMonth };
+    return {
+      closedMonthId: month.id,
+      closingBalances: closingBalancesSnapshot,
+      nextMonthId: effectiveNextMonth?.id || null,
+      nextMonth: effectiveNextMonth || null
+    };
   }
 };

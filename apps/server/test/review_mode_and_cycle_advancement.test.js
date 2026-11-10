@@ -37,7 +37,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
         type: 'bank',
         accountType: 'savings',
         openingBalance: 100000,
-        openingBalanceDate: '2026-10-01',
+        openingBalanceDate: '2026-11-01',
         isPrimary: true
       });
     expect(bankRes.status).toBe(201);
@@ -52,7 +52,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
         type: 'cash',
         accountType: 'cash',
         openingBalance: 5000,
-        openingBalanceDate: '2026-10-01'
+        openingBalanceDate: '2026-11-01'
       });
     expect(cashRes.status).toBe(201);
     cashAccountId = cashRes.body.data.id;
@@ -63,10 +63,10 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         amount: 80000,
-        expectedCreditDay: 1,
+        expectedCreditDay: 28,
         receivingAccountId: primaryAccountId,
         periodType: 'calendar_month',
-        effectiveDate: '2026-10-01'
+        effectiveDate: '2026-11-28'
       });
     expect(templateRes.status).toBe(201);
   });
@@ -79,7 +79,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
     expect(monthsRes.status).toBe(200);
     expect(monthsRes.body.data.length).toBeGreaterThanOrEqual(1);
 
-    activeMonth = monthsRes.body.data.find(m => m.year === 2026 && m.month === 10) || monthsRes.body.data[0];
+    activeMonth = monthsRes.body.data.find(m => m.year === 2026 && m.month === 11) || monthsRes.body.data[0];
     expect(activeMonth).toBeDefined();
     expect(activeMonth.isClosed).toBe(false);
 
@@ -90,9 +90,8 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
 
     expect(txRes.status).toBe(200);
     const salaryTx = txRes.body.data.find(t => t.origin === 'salary');
-    expect(salaryTx).toBeDefined();
-    expect(salaryTx.status).toBe('planned');
-    expect(salaryTx.amount).toBe(80000);
+    expect(salaryTx).toBeUndefined();
+    expect(activeMonth.incomeAmount).toBe(80000);
   });
 
   it('2. Records an expense and settles salary: advances cycle, snapshots closing balances, closes month', async () => {
@@ -103,7 +102,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
       .send({
         name: 'Groceries',
         amount: 15000,
-        date: '2026-10-05',
+        date: `${activeMonth.year}-${String(activeMonth.month).padStart(2, '0')}-05`,
         origin: 'spot',
         status: 'successful',
         accountId: primaryAccountId,
@@ -111,24 +110,17 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
       });
     expect(expenseRes.status).toBe(201);
 
-    // Find planned salary transaction
-    const txRes = await request(app)
-      .get(`/api/months/${activeMonth.year}/${activeMonth.month}/transactions`)
-      .set('Authorization', `Bearer ${authToken}`);
-    const salaryTx = txRes.body.data.find(t => t.origin === 'salary');
-
-    // Settle salary transaction
+    // Settle salary via POST /api/months/:year/:month/credit-salary (Rule 1)
     const payRes = await request(app)
-      .patch(`/api/transactions/${salaryTx.id}/pay`)
+      .post(`/api/months/${activeMonth.year}/${activeMonth.month}/credit-salary`)
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         amount: 80000,
-        date: '2026-10-01',
+        date: '2026-11-28',
         accountId: primaryAccountId
       });
 
     expect(payRes.status).toBe(200);
-    expect(payRes.body.data.status).toBe('successful');
 
     // Verify month is now closed and closing balances snapshotted
     const closedMonthRes = await request(app)
@@ -178,7 +170,7 @@ describe('Continuous Tracking & Read-Only Review Mode Integration Suite', () => 
       .send({
         name: 'Backdated Global Expense',
         amount: 3000,
-        date: '2026-10-15',
+        date: activeMonth.startDate || '2026-11-01',
         origin: 'spot',
         accountId: primaryAccountId
       });

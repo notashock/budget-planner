@@ -110,7 +110,7 @@ export function StepLineChart({
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
   const [hoveredPointId, setHoveredPointId] = useState(null);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const containerRef = useRef(null);
 
   // Fast account lookup for tooltip account identification
@@ -148,7 +148,7 @@ export function StepLineChart({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => {
-      const mobile = window.innerWidth < 640;
+      const mobile = window.innerWidth < 768;
       setIsMobile((prev) => (prev !== mobile ? mobile : prev));
     };
     window.addEventListener('resize', handleResize);
@@ -561,15 +561,20 @@ export function StepLineChart({
             y1={floorY}
             x2={width - paddingRight}
             y2={floorY}
-            stroke="var(--text-muted)"
+            stroke={floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-muted)'}
             strokeWidth="1.5"
             strokeDasharray="4 4"
+            opacity={floorBreached ? 0.8 : 0.45}
           />
           <text
             x={width - paddingRight - 4}
             y={floorY - 6}
             textAnchor="end"
-            style={{ fontSize: '11.5px', fill: 'var(--text-secondary)', fontWeight: 600 }}
+            style={{
+              fontSize: '11px',
+              fill: floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-secondary)',
+              fontWeight: 600
+            }}
           >
             {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
@@ -784,11 +789,11 @@ export function StepLineChart({
               <rect
                 width={tooltipWidth}
                 height={tooltipHeight}
-                rx="6"
+                rx="8"
                 fill="var(--surface)"
-                stroke="var(--border-strong)"
+                stroke="var(--border)"
                 strokeWidth="1"
-                filter="drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35))"
+                filter="drop-shadow(0 4px 14px rgba(0, 0, 0, 0.12))"
               />
               {/* Header: Date */}
               <text
@@ -818,7 +823,7 @@ export function StepLineChart({
                     y="35"
                     textAnchor="end"
                     className="tabular-nums"
-                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--success, #10b981)'}
+                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--emerald, #10b981)'}
                     style={{ fontSize: '12px', fontWeight: 700 }}
                   >
                     {activeEvent.amount < 0 ? `-${formatCurrency(Math.abs(activeEvent.amount), currencySymbol)}` : `+${formatCurrency(activeEvent.amount, currencySymbol)}`}
@@ -839,7 +844,7 @@ export function StepLineChart({
                         x={tooltipWidth - 12}
                         y="52"
                         textAnchor="end"
-                        fill="var(--accent, #3b82f6)"
+                        fill="var(--text-secondary)"
                         style={{ fontSize: '11.5px', fontWeight: 600 }}
                       >
                         {activeAccount.name.slice(0, 16)} ({activeAccount.type})

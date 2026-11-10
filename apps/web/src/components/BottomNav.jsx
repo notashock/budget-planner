@@ -7,7 +7,15 @@ import {
   PlusIcon
 } from './Icons.jsx';
 
-export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry, isReviewMode = false }) {
+export function BottomNav({
+  activeTab,
+  onSelectTab,
+  onOpenUnifiedEntry,
+  isReviewMode = false,
+  hasActivePlanningMonth = true,
+  onOpenRollover,
+  nextMonthLabel = 'Next Month'
+}) {
   const leftTabs = [
     { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
     { id: 'transactions', label: 'Transactions', Icon: ListOrderedIcon }
@@ -39,8 +47,8 @@ export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry, isReview
           );
         })}
 
-        {/* Central Symmetrical Quick-Action (+) Button */}
-        {!isReviewMode && (
+        {/* Central Symmetrical Quick-Action (+) Button or Floating Recovery Pill */}
+        {!isReviewMode ? (
           <div className="nav-action-wrapper">
             <button
               type="button"
@@ -52,7 +60,19 @@ export function BottomNav({ activeTab, onSelectTab, onOpenUnifiedEntry, isReview
               <PlusIcon size={19} color="currentColor" strokeWidth={2.4} />
             </button>
           </div>
-        )}
+        ) : !hasActivePlanningMonth && onOpenRollover ? (
+          <div className="bottom-nav-rollover-wrapper">
+            <button
+              type="button"
+              className="bottom-nav-rollover-pill"
+              onClick={onOpenRollover}
+              aria-label={`Start ${nextMonthLabel || 'Next Month'}`}
+              data-testid="bottom-nav-rollover-btn"
+            >
+              <span>⚡ Start {nextMonthLabel || 'Next Month'}</span>
+            </button>
+          </div>
+        ) : null}
 
         {rightTabs.map((tab) => {
           const IconComponent = tab.Icon;

@@ -5,11 +5,18 @@ import { simulate, recommendPurchaseDate as engineRecommendDate, getSalaryWindow
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
+import { SalaryCycleJob } from '../services/salaryCycleJob.js';
+import { SimulationService } from './simulationService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
+}
+
+function getTodayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function isHistoricalPastMonth(month, asOfDate = null) {
@@ -34,8 +41,8 @@ export function isHistoricalPastMonth(month, asOfDate = null) {
 export async function attachAccountOpeningsToMonth(month) {
   if (!month) return month;
 
-  // If an active or ongoing month was erroneously marked isClosed without closedAt/closingBalances, auto-heal it.
-  if (month.isClosed && !month.closedAt && !isHistoricalPastMonth(month)) {
+  // If a month was prematurely marked isClosed (without closedAt or closingBalances), auto-heal and unclose it.
+  if (month.isClosed && (!month.closedAt || !month.closingBalances)) {
     try {
       await db.update(s.months)
         .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
@@ -65,7 +72,85 @@ export async function attachAccountOpeningsToMonth(month) {
  */
 export const MonthLifecycle = {
   /**
-   * Lists all months for a user with account opening balances attached
+   * Reconciles prematurely closed current months and prunes unpopulated ghost future months.
+   */
+  async reconcileAndPruneMonths(userId) {
+    const todayIso = getTodayIso();
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthNum = now.getMonth() + 1;
+
+    const allMonths = await db.query.months.findMany({
+      where: eq(s.months.userId, userId),
+      orderBy: [desc(s.months.year), desc(s.months.month)]
+    });
+
+    for (const m of allMonths) {
+      // 1. Repair and unclose prematurely closed current/ongoing month
+      const isCurrentCalendar = m.year === currentYear && m.month === currentMonthNum;
+      if (isCurrentCalendar) {
+        const lastDay = new Date(Date.UTC(currentYear, currentMonthNum, 0)).getUTCDate();
+        const expectedEndDate = `${currentYear}-${pad(currentMonthNum)}-${pad(lastDay)}`;
+        if (!m.endDate || m.endDate < todayIso || (m.startDate && m.endDate < m.startDate)) {
+          await db.update(s.months)
+            .set({ endDate: expectedEndDate, isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
+            .where(eq(s.months.id, m.id));
+          m.endDate = expectedEndDate;
+          m.isClosed = false;
+          m.closedAt = null;
+          m.closingBalances = null;
+        } else if (m.isClosed && (!m.closedAt || !m.closingBalances)) {
+          await db.update(s.months)
+            .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
+            .where(eq(s.months.id, m.id));
+          m.isClosed = false;
+          m.closedAt = null;
+          m.closingBalances = null;
+        }
+      } else {
+        const isPast = m.endDate ? m.endDate < todayIso : isHistoricalPastMonth(m);
+        if (!isPast && m.isClosed && (!m.closedAt || !m.closingBalances)) {
+          await db.update(s.months)
+            .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
+            .where(eq(s.months.id, m.id));
+          m.isClosed = false;
+          m.closedAt = null;
+          m.closingBalances = null;
+        }
+      }
+
+      // 2. Prune ghost future months (e.g. December 2026 when in November 2026)
+      const isFuture = (m.startDate && m.startDate > todayIso) ||
+        (m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum));
+
+      if (isFuture) {
+        const txsList = await db.query.transactions.findMany({
+          where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, m.id))
+        });
+        const realTxs = txsList.filter(t => t.origin !== 'salary' && t.name !== 'Monthly Salary');
+        if (realTxs.length === 0) {
+          const currentMonthRecord = allMonths.find(cur =>
+            (cur.year === currentYear && cur.month === currentMonthNum) ||
+            (!cur.isClosed && cur.startDate && cur.endDate && cur.startDate <= todayIso && cur.endDate >= todayIso)
+          );
+          if (currentMonthRecord && currentMonthRecord.id !== m.id) {
+            await db.update(s.goals)
+              .set({ monthId: currentMonthRecord.id, updatedAt: new Date() })
+              .where(eq(s.goals.monthId, m.id));
+          } else {
+            await db.delete(s.goals).where(eq(s.goals.monthId, m.id));
+          }
+          await db.delete(s.items).where(eq(s.items.monthId, m.id));
+          await db.delete(s.transactions).where(eq(s.transactions.monthId, m.id));
+          await db.delete(s.monthAccountOpenings).where(eq(s.monthAccountOpenings.monthId, m.id));
+          await db.delete(s.months).where(eq(s.months.id, m.id));
+        }
+      }
+    }
+  },
+
+  /**
+   * Lists all months for a user with account opening balances attached (Idempotent read)
    */
   async listMonths(userId) {
     const monthsList = await db.query.months.findMany({
@@ -73,32 +158,7 @@ export const MonthLifecycle = {
       orderBy: [desc(s.months.year), desc(s.months.month)]
     });
 
-    const now = new Date();
-    const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-
-    // Auto-prune and filter out any future months that have no successful transactions
-    const validMonths = [];
-    for (const m of monthsList) {
-      const isFuture = m.startDate
-        ? m.startDate > todayIso
-        : (m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > (now.getMonth() + 1)));
-
-      if (isFuture) {
-        const hasTxs = await db.query.transactions.findFirst({
-          where: and(eq(s.transactions.monthId, m.id), eq(s.transactions.status, 'successful'))
-        });
-        if (!hasTxs) {
-          try {
-            await db.delete(s.transactions).where(and(eq(s.transactions.monthId, m.id), eq(s.transactions.status, 'planned')));
-            await db.delete(s.months).where(eq(s.months.id, m.id));
-          } catch (_) {}
-          continue;
-        }
-      }
-      validMonths.push(m);
-    }
-
-    return Promise.all(validMonths.map(attachAccountOpeningsToMonth));
+    return Promise.all(monthsList.map(attachAccountOpeningsToMonth));
   },
 
   /**
@@ -180,93 +240,15 @@ export const MonthLifecycle = {
       currentDay = 0;
     }
 
-    const simulation = simulate(
-      {
-        openingBalance: month.openingBalance,
-        incomeAmount: month.incomeAmount,
-        incomeCreditDate: month.incomeCreditDate,
-        incomeCreditDay: month.incomeCreditDate ? parseInt(month.incomeCreditDate.split('-')[2], 10) : 1,
-        salaryBankAccountId: month.salaryAccountId,
-        isSalaryCredited: Boolean(month.isSalaryCredited),
-        salaryCreditedDate: month.salaryCreditedDate,
-        safetyFloor: month.safetyFloor,
-        unplannedAllowance: month.unplannedAllowance || 0,
-        currentDay,
-        scale: 100,
-        accounts: { bankAccounts: serialize(bankAccounts), wallets: serialize(wallets) },
-        accountOpeningBalances: month.accountOpeningBalances || [],
-        transfers: serialize(transfers)
-      },
-      [], // Transactions is the sole source of truth
-      { year, month: monthNum },
-      serialize(transactions),
-      [],
-      serialize(transfers)
-    );
-
-    // Compute per-account isolated simulations
-    const accountSimulations = {};
-    const designatedSalaryBankId = String(month?.salaryAccountId || '');
-
-    for (const acc of allAccounts) {
-      const accId = String(acc.id);
-      const isBank = acc.type === 'bank';
-      const isPrimaryBank = isBank && Boolean(acc.isPrimary);
-      const isSoleBank = isBank && bankAccounts.length === 1;
-      const isDesignatedSalaryBank = designatedSalaryBankId && designatedSalaryBankId === accId;
-      const receivesSalary = isDesignatedSalaryBank || (!designatedSalaryBankId && (isPrimaryBank || isSoleBank));
-      const isFallbackAccount = isPrimaryBank || isDesignatedSalaryBank || isSoleBank;
-
-      const filteredItems = items.filter((it) => {
-        const id = it.accountId ? String(it.accountId) : null;
-        if (id === accId) return true;
-        if (!id) return isFallbackAccount;
-        return false;
-      });
-
-      const filteredTransactions = transactions.filter((tx) => {
-        const id = tx.accountId ? String(tx.accountId) : null;
-        if (id === accId) return true;
-        if (!id) return isFallbackAccount;
-        return false;
-      });
-
-      const filteredTransfers = transfers.filter((tr) => {
-        const sId = String(tr.sourceAccountId || '');
-        const dId = String(tr.destinationAccountId || '');
-        return sId === accId || dId === accId;
-      });
-
-      const monthOpeningEntry = (month.accountOpeningBalances || []).find(o => String(o.accountId) === accId);
-      const opening = monthOpeningEntry ? Math.round(Number(monthOpeningEntry.amount ?? 0)) : 0;
-      const minBal = Math.round(Number(acc.minimumBalance ?? 0));
-
-      accountSimulations[accId] = simulate(
-        {
-          openingBalance: opening,
-          safetyFloor: minBal,
-          incomeAmount: receivesSalary ? (month.incomeAmount || 0) : 0,
-          incomeCreditDate: month.incomeCreditDate,
-          incomeCreditDay: month.incomeCreditDate ? parseInt(month.incomeCreditDate.split('-')[2], 10) : 1,
-          salaryBankAccountId: month.salaryAccountId,
-          isSalaryCredited: Boolean(month.isSalaryCredited),
-          salaryCreditedDate: month.salaryCreditedDate,
-          unplannedAllowance: 0,
-          currentDay,
-          scale: 100,
-          accounts: {
-            bankAccounts: isBank ? [serialize(acc)] : [],
-            wallets: !isBank ? [serialize(acc)] : []
-          },
-          transfers: serialize(filteredTransfers)
-        },
-        [], // Transactions is the sole source of truth
-        { year, month: monthNum },
-        serialize(filteredTransactions),
-        [],
-        serialize(filteredTransfers)
-      );
-    }
+    const { simulation, accountSimulations } = SimulationService.computeSimulation({
+      month,
+      bankAccounts,
+      wallets,
+      accountOpenings: month.accountOpeningBalances || [],
+      transactions,
+      transfers,
+      currentDay
+    });
 
     return {
       month: serialize(month),
@@ -597,8 +579,49 @@ export const MonthLifecycle = {
       serialize(transfers)
     );
 
+    let advancedMonth = null;
+    if (update.isSalaryCredited) {
+      const creditDate = update.salaryCreditedDate || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      let salaryTx = await db.query.transactions.findFirst({
+        where: and(
+          eq(s.transactions.userId, userId),
+          eq(s.transactions.monthId, month.id),
+          or(
+            eq(s.transactions.origin, 'salary'),
+            eq(s.transactions.category, 'Salary'),
+            eq(s.transactions.category, 'Income'),
+            eq(s.transactions.name, 'Monthly Salary'),
+            eq(s.transactions.name, 'Expected Monthly Salary')
+          )
+        ),
+        orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
+      });
+      if (!salaryTx && (month.incomeAmount > 0 || (typeof update.incomeAmount === 'number' && update.incomeAmount > 0))) {
+        const [newTx] = await db.insert(s.transactions).values({
+          userId,
+          monthId: month.id,
+          name: 'Monthly Salary',
+          status: 'successful',
+          origin: 'salary',
+          amount: update.incomeAmount || month.incomeAmount || 0,
+          date: creditDate,
+          isIncome: true,
+          category: 'Salary',
+          accountId: update.salaryAccountId || month.salaryAccountId
+        }).returning();
+        salaryTx = newTx;
+      }
+      if (salaryTx) {
+        const advanceRes = await SalaryTemplateService.onSalaryCredited(userId, salaryTx, creditDate);
+        if (advanceRes?.nextMonth) {
+          advancedMonth = advanceRes.nextMonth;
+        }
+      }
+    }
+
     return {
       month: serialize(month),
+      advancedMonth: advancedMonth ? serialize(advancedMonth) : null,
       items: serialize(items),
       transactions: serialize(transactions),
       transfers: serialize(transfers),
@@ -694,8 +717,9 @@ export const MonthLifecycle = {
       salaryTx = newTx;
     }
 
+    let advanceResult = null;
     if (salaryTx) {
-      await SalaryTemplateService.onSalaryCredited(userId, salaryTx, creditDate);
+      advanceResult = await SalaryTemplateService.onSalaryCredited(userId, salaryTx, creditDate, { advance: true, ...options });
     }
 
     const [updatedMonth] = await db.update(s.months)
@@ -743,6 +767,7 @@ export const MonthLifecycle = {
     return {
       success: true,
       month: serialize(fullMonth),
+      advancedMonth: advanceResult?.nextMonth ? serialize(advanceResult.nextMonth) : null,
       transaction: serialize(salaryTx),
       simulation,
       items: serialize(items),

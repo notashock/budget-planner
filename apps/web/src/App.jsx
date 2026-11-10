@@ -13,6 +13,7 @@ import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { SalarySafelineModal } from './components/SalarySafelineModal.jsx';
 import { TransferCalculationsModal } from './components/TransferCalculationsModal.jsx';
+import { MonthRolloverModal } from './components/MonthRolloverModal.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
 import { OnboardingModal } from './components/OnboardingModal.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
@@ -86,6 +87,7 @@ export default function App() {
   const [reviewAccountId, setReviewAccountId] = useState('all');
   const [isSalarySafelineOpen, setIsSalarySafelineOpen] = useState(false);
   const [migrationModalOpen, setMigrationModalOpen] = useState(false);
+  const [rolloverModalOpen, setRolloverModalOpen] = useState(false);
 
   // Review mode & active cycle derivation
   const isReviewMode = useMemo(() => {
@@ -108,13 +110,55 @@ export default function App() {
   const activePlanningMonth = useMemo(() => {
     const now = new Date();
     const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentYear = now.getFullYear();
+    const currentMonthNum = now.getMonth() + 1;
+
     return months.find((m) => {
-      const isOngoingOrFuture = m.endDate
-        ? m.endDate >= todayIso
-        : (m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month >= (now.getMonth() + 1)));
-      return isOngoingOrFuture || !m.isClosed;
+      const isPast = m.endDate
+        ? m.endDate < todayIso
+        : (m.year < currentYear || (m.year === currentYear && m.month < currentMonthNum));
+      const isFuture = (m.startDate && m.startDate > todayIso) ||
+        (m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum));
+      return !isPast && !isFuture && !m.isClosed;
     }) || null;
   }, [months]);
+
+  const nextMonthLabel = useMemo(() => {
+    if (!currentMonth) return 'Next Month';
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    let nextM = Number(currentMonth.month) + 1;
+    let nextY = Number(currentMonth.year);
+    if (nextM > 12) {
+      nextM = 1;
+      nextY += 1;
+    }
+    return `${monthNames[nextM - 1]} ${nextY}`;
+  }, [currentMonth]);
+
+  const handleRolloverSubmit = async (carryBalance = true, rolloverUnpaid = true) => {
+    if (!currentMonth) return;
+    setDataLoading(true);
+    try {
+      const res = await api.rolloverMonth(currentMonth.year, currentMonth.month, carryBalance, rolloverUnpaid);
+      const list = await api.getMonths();
+      setMonths(list || []);
+      const target = res?.month || res?.data?.month || (list && list.find((m) => !m.isClosed)) || list?.[0];
+      if (target) {
+        await loadMonthDetails(target.year, target.month);
+        await loadGoals(target.year, target.month);
+      }
+      await loadAccounts();
+      setRolloverModalOpen(false);
+    } catch (err) {
+      alert(err.message || 'Failed to roll over month');
+      throw err;
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   // Migration state
   const [migrationEligible, setMigrationEligible] = useState(false);
@@ -146,22 +190,24 @@ export default function App() {
         }
         const now = new Date();
         const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const currentYear = now.getFullYear();
+        const currentMonthNum = now.getMonth() + 1;
 
-        // 1. Prefer ongoing active cycle containing today
+        // 1. Prefer ongoing active cycle containing today (not future)
         if (!target) {
-          target = list.find((m) => m.startDate && m.endDate && m.startDate <= todayIso && m.endDate >= todayIso);
+          target = list.find((m) => !m.isClosed && m.startDate && m.endDate && m.startDate <= todayIso && m.endDate >= todayIso && !(m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum)));
         }
         // 2. Next check current calendar month
         if (!target) {
-          target = list.find((m) => m.year === now.getFullYear() && m.month === (now.getMonth() + 1));
+          target = list.find((m) => !m.isClosed && m.year === currentYear && m.month === currentMonthNum);
         }
-        // 3. Next prefer any active (unclosed) planning month
+        // 3. Next prefer any active (unclosed) planning month that is not in future
         if (!target) {
-          target = list.find((m) => !m.isClosed);
+          target = list.find((m) => !m.isClosed && !(m.startDate && m.startDate > todayIso) && !(m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum)));
         }
-        // 4. Fallback to first available month
+        // 4. Fallback to latest available non-future month
         if (!target) {
-          target = list[0];
+          target = list.find((m) => m.year < currentYear || (m.year === currentYear && m.month <= currentMonthNum)) || list[0];
         }
         await loadMonthDetails(target.year, target.month);
       } else {
@@ -461,8 +507,19 @@ export default function App() {
 
   const handlePayTransaction = async (txId, payData) => {
     try {
-      await api.payTransaction(txId, payData);
-      if (currentMonth) {
+      const res = await api.payTransaction(txId, payData);
+      
+      // Reload months to reflect any cycle advancement
+      const list = await api.getMonths();
+      setMonths(list || []);
+
+      const advanced = res?.advancedMonth || (res?.data?.advancedMonth);
+      const targetMonth = advanced || (list && list.find((m) => !m.isClosed));
+
+      if (targetMonth) {
+        await loadMonthDetails(targetMonth.year, targetMonth.month);
+        await loadGoals(targetMonth.year, targetMonth.month);
+      } else if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
         await loadGoals(currentMonth.year, currentMonth.month);
       } else {
@@ -780,12 +837,17 @@ export default function App() {
         updates.safetyFloor = safetyFloor;
       }
       const updated = await api.updateMonth(currentMonth.year, currentMonth.month, updates);
-      setCurrentMonth(updated.month);
-      setItems(updated.items || []);
-      setTransactions(updated.transactions || []);
-      setTransfers(updated.transfers || []);
-      if (updated.bankAccounts) setBankAccounts(updated.bankAccounts);
-      if (updated.wallets) setWallets(updated.wallets);
+
+      // Reload months to see if a cycle advancement provisioned a new period
+      const list = await api.getMonths();
+      setMonths(list || []);
+
+      const targetMonth = updated.advancedMonth || (list && list.find((m) => !m.isClosed));
+      if (targetMonth) {
+        await loadMonthDetails(targetMonth.year, targetMonth.month);
+      } else {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
       await loadAccounts();
     } catch (err) {
       alert(err.message || 'Failed to update salary details');
@@ -813,15 +875,17 @@ export default function App() {
   const hasAccounts = (bankAccounts && bankAccounts.length > 0) || (wallets && wallets.length > 0);
   const showOnboarding = user && accountsLoaded && !hasAccounts;
 
-  if (authLoading) {
+  const isInitialApiWaiting = user && (!accountsLoaded || (dataLoading && !currentMonth && months.length > 0));
+
+  if (authLoading || isInitialApiWaiting) {
     return (
-      <div className="app-splash-screen">
+      <div className="app-splash-screen" role="status" aria-label="Loading application">
         <AnimatedLogo size={36} />
         <div className="app-splash-loader-bar">
           <div className="app-splash-loader-progress" />
         </div>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-          Initializing Budget Planner
+          {authLoading ? 'Initializing Budget Planner' : 'Loading your financial plan...'}
         </span>
       </div>
     );
@@ -861,6 +925,9 @@ export default function App() {
         simulation={activeSimulation}
         onSelectMonth={(y, m) => loadMonthDetails(y, m)}
         isReviewMode={isReviewMode}
+        hasActivePlanningMonth={Boolean(activePlanningMonth)}
+        onOpenRollover={() => setRolloverModalOpen(true)}
+        nextMonthLabel={nextMonthLabel}
         onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
         onDeleteMonth={handleDeleteMonth}
         onLogout={handleLogout}
@@ -878,20 +945,30 @@ export default function App() {
               <span className="review-mode-icon">👁️</span>
               <div className="review-mode-text">
                 <div className="review-mode-title">
-                  Reviewing {currentMonth ? `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth.month - 1]} ${currentMonth.year}` : 'Archive'} (Read-Only Scorecard)
+                  Previewing {currentMonth ? `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth.month - 1]} ${currentMonth.year}` : 'Archive'} (Historical Snapshot)
                 </div>
                 <div className="review-mode-subtext">
                   This historical period is completed and closed. Figures and account closing balances are strictly snapshotted.
                 </div>
               </div>
             </div>
-            {activePlanningMonth && (
+            {activePlanningMonth ? (
               <button
                 type="button"
                 className="review-mode-return-btn"
+                data-testid="review-mode-return-btn"
                 onClick={() => loadMonthDetails(activePlanningMonth.year, activePlanningMonth.month)}
               >
-                Return to Active Plan →
+                Return to Current Month →
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="review-mode-start-next-btn"
+                data-testid="banner-start-next-month-btn"
+                onClick={() => setRolloverModalOpen(true)}
+              >
+                ⚡ Start {nextMonthLabel || 'Next Month'} →
               </button>
             )}
           </div>
@@ -1033,6 +1110,9 @@ export default function App() {
         onSelectTab={setActiveTab}
         onOpenUnifiedEntry={handleOpenUnifiedEntry}
         isReviewMode={isReviewMode}
+        hasActivePlanningMonth={Boolean(activePlanningMonth)}
+        onOpenRollover={() => setRolloverModalOpen(true)}
+        nextMonthLabel={nextMonthLabel}
       />
 
       {/* Unified Entry Modal: Single Component & Button for Logging & Planning */}
@@ -1089,6 +1169,16 @@ export default function App() {
         bankAccounts={bankAccounts}
         currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
         onMigrate={handleMigrated}
+      />
+      {/* Month Rollover & Cycle Advancement Modal */}
+      <MonthRolloverModal
+        isOpen={rolloverModalOpen}
+        month={currentMonth}
+        bankAccounts={bankAccounts}
+        wallets={wallets}
+        currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
+        onClose={() => setRolloverModalOpen(false)}
+        onConfirmRollover={handleRolloverSubmit}
       />
     </div>
   );
