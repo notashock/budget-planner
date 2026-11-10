@@ -750,6 +750,7 @@ export default function App() {
               migrationEligible={migrationEligible}
               onOpenMigration={() => setMigrationModalOpen(true)}
               onOpenUnifiedEntry={handleOpenUnifiedEntry}
+              onTogglePaid={handleTogglePaid}
               onOpenReview={(accId) => {
                 setReviewAccountId(accId || 'all');
                 setReviewOpen(true);

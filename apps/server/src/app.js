@@ -49,6 +49,11 @@ export function createApp(options = {}) {
         mongoUrl: options.mongoUri || config.mongoUri,
         ttl: sessionTtlSeconds
       });
+      if (store && typeof store.on === 'function') {
+        store.on('error', (storeErr) => {
+          console.warn('[Session Store Notice] MongoDB session connection deferred:', storeErr.message);
+        });
+      }
     } catch (e) {
       // MemoryStore fallback if MongoDB store creation fails
       store = undefined;

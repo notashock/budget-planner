@@ -14,6 +14,7 @@
     "test:all": "npm run test:engine && npm run test:server && npm run test:web",
     "build": "npm run build --workspace=@budget/web",
     "build:web": "npm run build --workspace=@budget/web",
+    "start": "node apps/server/src/index.js",
     "dev:server": "npm run dev --workspace=@budget/server",
     "dev:web": "npm run dev --workspace=@budget/web",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\""

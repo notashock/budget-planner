@@ -1,6 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import { MapPinIcon } from './Icons.jsx';
+import {
+  MapPinIcon,
+  CheckCircleIcon,
+  CalendarIcon,
+  AlertTriangleIcon,
+  TargetIcon,
+  BuildingLibraryIcon,
+  WalletIcon,
+  ArrowRightLeftIcon
+} from './Icons.jsx';
 
 export function TimelineList({
   events = [],
@@ -14,7 +23,9 @@ export function TimelineList({
   selectedAccount = null,
   bankAccounts = [],
   wallets = [],
-  onCreditSalary = null
+  onCreditSalary = null,
+  onTogglePaid = null,
+  onPayTransaction = null
 }) {
   const [filterType, setFilterType] = useState('all');
 
@@ -177,6 +188,17 @@ export function TimelineList({
   const pad = (n) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
+  const handleQuickPay = (evt) => {
+    if (onPayTransaction) {
+      onPayTransaction(evt);
+    } else if (onTogglePaid) {
+      const targetId = evt.itemId || evt._id || evt.id;
+      if (targetId) {
+        onTogglePaid(targetId, true);
+      }
+    }
+  };
+
   return (
     <div className="card">
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
@@ -277,6 +299,62 @@ export function TimelineList({
             const isSelected = selectedDay === evt.day;
             const isToday = currentDay !== null && evt.day === currentDay;
 
+            const isTransfer = evt.itemType === 'transfer';
+            const isSalary = Boolean(evt.isSalary || evt.itemType === 'salary');
+
+            // Planned identification:
+            // Settled items, actuals, transfers, or paid items are NOT planned.
+            const isPlanned = !isTransfer && !evt.isActual && !evt.isPaid && (
+              evt.itemType === 'planned-item' ||
+              evt.itemType === 'planned-transaction' ||
+              evt.isPlanned ||
+              evt.isPending ||
+              evt.status === 'planned' ||
+              (evt.displayAmount < 0 && !evt.isActual)
+            );
+
+            // Due vs Overdue status
+            const targetDay = currentDay !== null ? currentDay : (month?.daysInMonth || 30);
+            const isOverdue = isPlanned && (
+              evt.isPending ||
+              (evt.date && todayStr ? evt.date < todayStr : Number(evt.day) < Number(targetDay))
+            );
+            const isDue = isPlanned && !isOverdue && (
+              (evt.date && todayStr ? evt.date === todayStr : Number(evt.day) === Number(targetDay))
+            );
+            const isUpcoming = isPlanned && !isOverdue && !isDue;
+
+            // Account attribution & icon
+            const bId = evt.bankAccountId ? String(evt.bankAccountId._id || evt.bankAccountId.id || evt.bankAccountId) : '';
+            const wId = evt.walletId ? String(evt.walletId._id || evt.walletId.id || evt.walletId) : '';
+            const isWallet = Boolean(wId || evt.walletId || evt.accountType === 'wallet' || evt.sourceType === 'wallet');
+            const accountName = isFilteringAccount && selectedAccount
+              ? selectedAccount.name
+              : (accountMap.get(bId || wId) || (isWallet ? 'Wallet' : 'Bank Account'));
+
+            // Amount formatting & classes
+            let formattedAmount = '';
+            let amountClass = 'amount-neutral';
+            if (evt.itemType === 'transfer' && !isFilteringAccount) {
+              formattedAmount = `⇄ ${formatCurrency(evt.transferAmount, currencySymbol)}`;
+              amountClass = 'amount-neutral';
+            } else if (evt.displayAmount > 0) {
+              formattedAmount = `+${formatCurrency(evt.displayAmount, currencySymbol)}`;
+              amountClass = 'amount-credit positive';
+            } else {
+              formattedAmount = formatCurrency(evt.displayAmount, currencySymbol);
+              amountClass = 'amount-debit';
+            }
+
+            // Description / transfer detail text for audit & backwards test compatibility
+            const metaDescription = evt.transferDetail || (
+              evt.itemType === 'actual-income'
+                ? 'income • actual credited'
+                : isSalary
+                  ? (evt.isActual ? 'salary • credited' : 'salary • planned')
+                  : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
+            );
+
             // Check if we should insert the "Today" marker right before this event
             // when this is the first event on or after currentDay
             const showTodayMarker =
@@ -299,48 +377,93 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''}`}
+                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
-                  <div className="timeline-event-info">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexWrap: 'wrap' }}>
-                      <span className="timeline-event-label" title={evt.label}>{evt.label}</span>
+                  {/* Left Zone: Title, Tags & Account Attribution */}
+                  <div className="tx-card-left timeline-event-info">
+                    <div className="tx-card-headline">
+                      <span className="tx-card-title timeline-event-label" title={evt.label}>{evt.label}</span>
+
+                      {/* Status / Type Tags */}
+                      {isTransfer && (
+                        <span className="tx-tag tag-transfer">
+                          <ArrowRightLeftIcon size={10} />
+                          <span>Transfer</span>
+                        </span>
+                      )}
+                      {evt.origin === 'goal' && (
+                        <span className="tx-tag tag-goal">
+                          <TargetIcon size={10} />
+                          <span>Goal</span>
+                        </span>
+                      )}
                       {evt.isPending && (
                         <span
-                          className="pending-status-pill"
+                          className="pending-status-pill tx-tag tag-overdue"
                           title={`Scheduled for Day ${evt.originalDay} but unpaid; cash remains in today's balance.`}
                         >
                           Pending
                         </span>
                       )}
-                      {evt.isSalary && evt.isActual && (
-                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', fontWeight: 600 }}>
+                      {isSalary && evt.isActual && (
+                        <span className="tx-tag tag-settled" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#16a34a', borderColor: 'rgba(34, 197, 94, 0.25)' }}>
                           ✓ Credited
                         </span>
                       )}
                       {evt.isPaid && evt.originalDay && evt.originalDay !== evt.day && !evt.isPending && (
                         <span
-                          style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--primary)', fontWeight: 600 }}
+                          className="tx-tag tag-settled"
                           title={`Paid on Day ${evt.day} (originally scheduled for Day ${evt.originalDay})`}
                         >
                           Orig Day {evt.originalDay}
                         </span>
                       )}
-                    </div>
-                    <span className="timeline-event-type">
-                      {evt.transferDetail || (
-                        evt.itemType === 'actual-income'
-                          ? 'income • actual credited'
-                          : (evt.isSalary || evt.itemType === 'salary')
-                            ? (evt.isActual ? 'salary • credited' : 'salary • planned')
-                            : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
+                      {isPlanned && isOverdue && (
+                        <span className="tx-tag tag-overdue">
+                          <AlertTriangleIcon size={10} />
+                          <span>Overdue</span>
+                        </span>
                       )}
-                    </span>
+                      {isPlanned && isDue && (
+                        <span className="tx-tag tag-due">
+                          <CalendarIcon size={10} />
+                          <span>Due</span>
+                        </span>
+                      )}
+                      {isPlanned && isUpcoming && (
+                        <span className="tx-tag tag-upcoming">
+                          Upcoming
+                        </span>
+                      )}
+                      {!isPlanned && !isTransfer && !isSalary && (evt.isActual || evt.isPaid || evt.status === 'successful') && (
+                        <span className="tx-tag tag-settled">
+                          Settled
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="tx-card-account">
+                      <span className="tx-account-name">
+                        {isTransfer ? (
+                          <ArrowRightLeftIcon size={11} />
+                        ) : isWallet ? (
+                          <WalletIcon size={11} />
+                        ) : (
+                          <BuildingLibraryIcon size={11} />
+                        )}
+                        <span className="timeline-event-type">{metaDescription}</span>
+                      </span>
+                      <span className="tx-date-inline tabular-nums">• {formatDisplayDate(evt.date, true)}</span>
+                    </div>
                   </div>
 
-                  <div className="timeline-event-date">
-                    <div className="event-date-text tabular-nums">{formatDisplayDate(evt.date, true)}</div>
+                  {/* Center Zone: Date Badge */}
+                  <div className="tx-card-center timeline-event-date">
+                    <span className={`tx-date-badge event-date-text tabular-nums ${isOverdue ? 'date-overdue' : (isDue ? 'date-due' : '')}`}>
+                      {formatDisplayDate(evt.date, true)}
+                    </span>
                     {isPreMonth && (
                       <span className="day-offset-pill tabular-nums">
                         Day {evt.day}
@@ -353,21 +476,34 @@ export function TimelineList({
                     )}
                   </div>
 
-                  <div className="timeline-event-numbers">
-                    <span
-                      className={`timeline-event-amount tabular-nums ${evt.displayAmount > 0 ? 'positive' : ''}`}
-                    >
-                      {evt.itemType === 'transfer' && !isFilteringAccount
-                        ? `⇄ ${formatCurrency(evt.transferAmount, currencySymbol)}`
-                        : `${evt.displayAmount > 0 ? '+' : ''}${formatCurrency(evt.displayAmount, currencySymbol)}`
-                      }
+                  {/* Right Zone: Amounts, Balance & Settle Action (ONLY for planned) */}
+                  <div className="tx-card-right timeline-event-numbers">
+                    <span className={`tx-amount-display timeline-event-amount tabular-nums ${amountClass}`}>
+                      {formattedAmount}
                     </span>
-                    <span
-                      className={`timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}
-                    >
+                    <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
                       {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
                       bal: {formatCurrency(evt.displayBalance, currencySymbol)}
                     </span>
+
+                    {/* ONLY planned items have the "Mark as Paid" button; settled records have NO actionable items */}
+                    {isPlanned && (
+                      <div className="tx-card-actions">
+                        <button
+                          type="button"
+                          className="tx-btn-settle"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickPay(evt);
+                          }}
+                          title="Mark as paid (confirm actual amount and date)"
+                          aria-label="Mark as Paid (Settle)"
+                        >
+                          <CheckCircleIcon size={12} />
+                          <span>Mark as Paid</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </React.Fragment>

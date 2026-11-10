@@ -2,19 +2,47 @@ import { config } from './config.js';
 import { connectDB } from './db.js';
 import { createApp } from './app.js';
 
-async function main() {
-  try {
-    await connectDB(config.mongoUri);
-    console.log(`Connected to MongoDB at ${config.mongoUri}`);
+// Resolve port strictly from process.env.PORT as required by Vercel / Cloud PaaS
+const PORT = process.env.PORT ? Number(process.env.PORT) : (config.port || 4000);
+const HOST = '0.0.0.0';
 
-    const app = createApp();
-    app.listen(config.port, '0.0.0.0', () => {
-      console.log(`Budget Planner API server running on http://localhost:${config.port}`);
-    });
+const app = createApp();
+
+// Start HTTP server immediately so Vercel, Docker, Railway, or local runners accept TCP connections instantly (<100ms)
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Budget Planner API server running on http://${HOST}:${PORT} (process.env.PORT=${process.env.PORT || 'unset'})`);
+});
+
+// Non-blocking database initialization with graceful error handling and auto-reconnect
+async function initDatabase() {
+  const uri = config.mongoUri;
+  try {
+    await connectDB(uri);
+    console.log(`Connected to MongoDB at ${uri}`);
   } catch (err) {
-    console.error('Fatal server startup error:', err);
-    process.exit(1);
+    console.warn(`[Startup Notice] Database connection deferred/failed: ${err.message}`);
+    console.log('Server is accepting TCP connections. Will retry connecting to MongoDB in 5 seconds...');
+    setTimeout(initDatabase, 5000);
   }
 }
 
-main();
+initDatabase();
+
+// Handle graceful termination
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed cleanly');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed cleanly');
+    process.exit(0);
+  });
+});
+
+export { app, server };

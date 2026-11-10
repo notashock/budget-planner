@@ -15,7 +15,9 @@ export function PlanScreen({
   migrationEligible = false,
   onOpenMigration = null,
   onOpenUnifiedEntry,
-  onOpenReview
+  onOpenReview,
+  onTogglePaid = null,
+  onPayTransaction = null
 }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState('all');
@@ -490,6 +492,8 @@ export function PlanScreen({
           selectedAccount={selectedAccount}
           bankAccounts={bankAccounts}
           wallets={wallets}
+          onTogglePaid={onTogglePaid}
+          onPayTransaction={onPayTransaction}
         />
       </div>
     </div>
