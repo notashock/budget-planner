@@ -106,6 +106,10 @@ export function createApp(options = {}) {
       if (req.path.startsWith('/api')) {
         return next();
       }
+      // Return 404 for missing static assets rather than masking them with index.html
+      if (path.extname(req.path)) {
+        return res.status(404).type('text/plain').send('Not found');
+      }
       res.sendFile(path.join(webDistPath, 'index.html'));
     });
   }
