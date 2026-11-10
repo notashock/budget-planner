@@ -151,31 +151,74 @@ export function UnifiedEntryModal({
       setTransferError('');
 
       if (initialItem) {
-        setMode('plan');
-        setItemType(initialItem.type === 'recurring' ? 'recurring' : 'one-time');
-        setDescription(initialItem.name || '');
-        setPriority(initialItem.priority ?? 0);
-        setIsFixed(Boolean(initialItem.isFixed));
-        setIsPaid(Boolean(initialItem.isPaid));
+        const isIncomeItem = initialItem.type === 'income' || initialItem.direction === 'income' || Boolean(initialItem.isIncome);
+        const isTransferItem = initialItem.origin === 'transfer' || Boolean(initialItem.isTransfer);
+        const isExpenseTx = initialItem.origin === 'spot' || initialItem.direction === 'expense';
 
-        const initAcctType = (initialItem.accountType === 'wallet' || initialItem.walletId) ? 'wallet' : 'bank';
-        setAccountType(initAcctType);
-        const bId = initialItem.bankAccountId?._id || initialItem.bankAccountId || (initAcctType === 'bank' ? (primaryBank?._id || primaryBank?.id || '') : '');
-        const wId = initialItem.walletId?._id || initialItem.walletId || (initAcctType === 'wallet' ? (primaryWallet?._id || primaryWallet?.id || '') : '');
-        setAccountId(initAcctType === 'bank' ? bId : wId);
+        const resolvedMode = isIncomeItem
+          ? 'income'
+          : (isTransferItem
+            ? 'transfer'
+            : (isExpenseTx
+              ? 'log'
+              : (initialMode || 'plan')));
+        setMode(resolvedMode);
 
-        const year = month?.year || now.getFullYear();
-        const monthNum = month?.month || (now.getMonth() + 1);
-
-        if (initialItem.type === 'recurring') {
-          setAmount(initialItem.amount ? (initialItem.amount / 100).toString() : '');
-          setDayOfMonth(initialItem.dayOfMonth || 1);
+        // Deduce account attribution without hardcoding to primaryBank
+        const targetAccountId = initialItem.accountId || initialItem.bankAccountId?._id || initialItem.bankAccountId || initialItem.walletId?._id || initialItem.walletId;
+        if (targetAccountId) {
+          const isWallet = (wallets || []).some((w) => (w._id || w.id) === targetAccountId);
+          setAccountType(isWallet ? 'wallet' : 'bank');
+          setAccountId(targetAccountId);
         } else {
-          setAmount(initialItem.amount ? (initialItem.amount / 100).toString() : '');
-          if (typeof initialItem.day === 'number' && initialItem.day < 0) {
-            setDate(initialItem.date || getDateFromRelativeDay(initialItem.day, year, monthNum));
+          const initAcctType = (initialItem.accountType === 'wallet' || initialItem.walletId) ? 'wallet' : 'bank';
+          setAccountType(initAcctType);
+          const bId = (initAcctType === 'bank' ? (primaryBank?._id || primaryBank?.id || '') : '');
+          const wId = (initAcctType === 'wallet' ? (primaryWallet?._id || primaryWallet?.id || '') : '');
+          setAccountId(initAcctType === 'bank' ? bId : wId);
+        }
+
+        if (resolvedMode === 'income') {
+          setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
+          setDescription(initialItem.title || initialItem.name || initialItem.description || '');
+          setIncomeTag(initialItem.category || initialItem.tag || 'Salary');
+          setDate(initialItem.date || todayStr);
+        } else if (resolvedMode === 'transfer') {
+          setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
+          setDescription(initialItem.note || initialItem.description || '');
+          setDate(initialItem.date || todayStr);
+          if (initialItem.destinationAccountId) {
+            const destIsWallet = (wallets || []).some((w) => (w._id || w.id) === initialItem.destinationAccountId);
+            setDestAccountType(destIsWallet ? 'wallet' : 'bank');
+            setDestAccountId(initialItem.destinationAccountId);
+          }
+        } else if (resolvedMode === 'log') {
+          setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
+          setDescription(initialItem.title || initialItem.name || initialItem.description || '');
+          setTag(initialItem.category || initialItem.tag || 'Food');
+          setDate(initialItem.date || todayStr);
+          setIsRefund(Number(initialItem.amount) < 0);
+        } else {
+          // Plan mode
+          setItemType(initialItem.type === 'recurring' ? 'recurring' : 'one-time');
+          setDescription(initialItem.name || initialItem.title || '');
+          setPriority(initialItem.priority ?? 0);
+          setIsFixed(Boolean(initialItem.isFixed));
+          setIsPaid(Boolean(initialItem.isPaid));
+
+          const year = month?.year || now.getFullYear();
+          const monthNum = month?.month || (now.getMonth() + 1);
+
+          if (initialItem.type === 'recurring') {
+            setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
+            setDayOfMonth(initialItem.dayOfMonth || 1);
           } else {
-            setDate(initialItem.date || formatDate(year, monthNum, initialItem.day || 1));
+            setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
+            if (typeof initialItem.day === 'number' && initialItem.day < 0) {
+              setDate(initialItem.date || getDateFromRelativeDay(initialItem.day, year, monthNum));
+            } else {
+              setDate(initialItem.date || formatDate(year, monthNum, initialItem.day || 1));
+            }
           }
         }
       } else {
@@ -567,10 +610,14 @@ export function UnifiedEntryModal({
       const txPayload = {
         amount: finalAmount,
         tag,
+        category: tag,
         note: description.trim(),
+        title: description.trim() || tag || 'Expense',
+        name: description.trim() || tag || 'Expense',
         date,
         plannedItemId: matchedItemId || null,
         accountType,
+        accountId,
         bankAccountId: accountType === 'bank' ? accountId : null,
         walletId: accountType === 'wallet' ? accountId : null
       };
@@ -611,13 +658,18 @@ export function UnifiedEntryModal({
         amount: baseAmount,
         isIncome: true,
         tag: incomeTag,
+        category: incomeTag,
         note: description.trim(),
+        title: description.trim() || incomeTag || 'Income',
+        name: description.trim() || incomeTag || 'Income',
         date,
         plannedItemId: null,
         accountType,
+        accountId,
         bankAccountId: accountType === 'bank' ? accountId : null,
         walletId: accountType === 'wallet' ? accountId : null
       });
+      triggerExit();
     } catch {
       // Handled in parent
     } finally {
@@ -813,63 +865,59 @@ export function UnifiedEntryModal({
             }}
           >
             <div className="modal-tab-track" style={{ flex: 1, maxWidth: '440px' }}>
-              {!initialItem ? (
-                <>
-                  <div ref={indicatorRef} className="modal-tab-indicator" />
-                  <button
-                    ref={logBtnRef}
-                    type="button"
-                    className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
-                    onClick={() => handleSwitchMode('log')}
-                    aria-label="Spending"
-                    title="Log Spending"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                  >
-                    <ZapIcon size={14} />
-                    <span>Spending</span>
-                  </button>
-                  <button
-                    ref={incomeBtnRef}
-                    type="button"
-                    className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
-                    onClick={() => handleSwitchMode('income')}
-                    aria-label="Income"
-                    title="Log Income"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                  >
-                    <TrendingUpIcon size={14} />
-                    <span>Income</span>
-                  </button>
-                  <button
-                    ref={planBtnRef}
-                    type="button"
-                    className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
-                    onClick={() => handleSwitchMode('plan')}
-                    aria-label="Plan Transaction"
-                    title="Plan Transaction"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                  >
-                    <PlusIcon size={14} />
-                    <span>Plan</span>
-                  </button>
-                  <button
-                    ref={transferBtnRef}
-                    type="button"
-                    className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
-                    onClick={() => handleSwitchMode('transfer')}
-                    aria-label="Transfer"
-                    title="Transfer Funds"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                  >
-                    <ArrowRightLeftIcon size={14} />
-                    <span>Transfer</span>
-                  </button>
-                </>
-              ) : (
-                <span style={{ fontSize: '13px', fontWeight: 600, padding: '4px 8px' }}>
-                  Edit Planned Transaction
-                </span>
-              )}
+              <div ref={indicatorRef} className="modal-tab-indicator" />
+              <button
+                ref={logBtnRef}
+                type="button"
+                className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
+                data-active={mode === 'log' ? 'true' : 'false'}
+                onClick={() => handleSwitchMode('log')}
+                aria-label="Spending"
+                title="Log Spending"
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                <ZapIcon size={14} />
+                <span>Spending</span>
+              </button>
+              <button
+                ref={incomeBtnRef}
+                type="button"
+                className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
+                data-active={mode === 'income' ? 'true' : 'false'}
+                onClick={() => handleSwitchMode('income')}
+                aria-label="Income"
+                title="Log Income"
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                <TrendingUpIcon size={14} />
+                <span>Income</span>
+              </button>
+              <button
+                ref={planBtnRef}
+                type="button"
+                className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
+                data-active={mode === 'plan' ? 'true' : 'false'}
+                onClick={() => handleSwitchMode('plan')}
+                aria-label="Plan Transaction"
+                title="Plan Transaction"
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                <PlusIcon size={14} />
+                <span>Plan</span>
+              </button>
+              <button
+                ref={transferBtnRef}
+                type="button"
+                className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
+                data-active={mode === 'transfer' ? 'true' : 'false'}
+                onClick={() => handleSwitchMode('transfer')}
+                aria-label="Transfer"
+                title="Transfer Funds"
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                <ArrowRightLeftIcon size={14} />
+                <span>Transfer</span>
+              </button>
             </div>
 
             <button
@@ -1515,8 +1563,10 @@ export function UnifiedEntryModal({
                     }}
                   >
                     {isSubmitting
-                      ? 'Logging...'
-                      : (isRefund ? 'Log credit inflow' : 'Log expense debit')}
+                      ? (initialItem ? 'Updating...' : 'Logging...')
+                      : (initialItem
+                          ? (isRefund ? 'Update credit inflow' : 'Update expense debit')
+                          : (isRefund ? 'Log credit inflow' : 'Log expense debit'))}
                   </button>
                 )}
 
@@ -1531,7 +1581,9 @@ export function UnifiedEntryModal({
                       borderColor: 'var(--success)'
                     }}
                   >
-                    {isSubmitting ? 'Recording...' : 'Record Income'}
+                    {isSubmitting
+                      ? (initialItem ? 'Updating...' : 'Recording...')
+                      : (initialItem ? 'Update Income Credit' : 'Record Income')}
                   </button>
                 )}
 

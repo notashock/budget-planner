@@ -20,6 +20,20 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 
+export function resolveEntryModeFromItem(item) {
+  if (!item) return 'log';
+  if (item.type === 'income' || item.direction === 'income' || Boolean(item.isIncome)) {
+    return 'income';
+  }
+  if (item.origin === 'transfer' || Boolean(item.isTransfer)) {
+    return 'transfer';
+  }
+  if (item.origin === 'spot' || ((!item.status || item.status === 'successful') && item.type !== 'one-time' && item.type !== 'recurring')) {
+    return 'log';
+  }
+  return 'plan';
+}
+
 export default function App() {
   // Theme state: system | light | dark
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('budget_theme') || 'system');
@@ -428,12 +442,18 @@ export default function App() {
   const handleLogTransaction = async (txData, underSpendAction = null) => {
     try {
       let created;
-      if (currentMonth) {
+      if (editingItem) {
+        const editingId = editingItem.id || editingItem._id;
+        created = await api.updateTransaction(editingId, txData);
+        setTransactions((prev) => prev.map((t) => ((t.id || t._id) === editingId ? { ...t, ...created } : t)));
+        setItems((prev) => prev.map((i) => ((i.id || i._id) === editingId ? { ...i, ...created } : i)));
+      } else if (currentMonth) {
         created = await api.createTransaction(currentMonth.year, currentMonth.month, txData);
+        setTransactions((prev) => [...prev, created]);
       } else {
         created = await api.createGlobalTransaction(txData);
+        setTransactions((prev) => [...prev, created]);
       }
-      setTransactions((prev) => [...prev, created]);
 
       if (underSpendAction && txData.plannedItemId && currentMonth) {
         const targetItem = items.find((i) => i._id === txData.plannedItemId);
@@ -554,7 +574,11 @@ export default function App() {
     try {
       let result;
       if (editingItem) {
-        result = await api.updateItem(editingItem._id, itemData);
+        const editingId = editingItem.id || editingItem._id;
+        result = await api.updateTransaction(editingId, itemData);
+        setTransactions((prev) => prev.map((t) => ((t.id || t._id) === editingId ? { ...t, ...result } : t)));
+        setItems((prev) => prev.map((i) => ((i.id || i._id) === editingId ? { ...i, ...result } : i)));
+        await loadAccounts();
       } else if (currentMonth) {
         result = await api.createItem(currentMonth.year, currentMonth.month, itemData);
       } else {
@@ -810,7 +834,8 @@ export default function App() {
   const handleEditItem = (item) => {
     if (isReviewMode) return;
     setEditingItem(item);
-    setUnifiedEntryMode('plan');
+    const targetMode = resolveEntryModeFromItem(item);
+    setUnifiedEntryMode(targetMode);
     setUnifiedEntryOpen(true);
   };
 

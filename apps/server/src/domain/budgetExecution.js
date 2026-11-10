@@ -488,14 +488,17 @@ export const BudgetExecution = {
     }
 
     const updates = { updatedAt: new Date() };
-    if (payload.name !== undefined) updates.name = String(payload.name).trim();
+    const effectiveName = payload.name !== undefined ? payload.name : payload.title;
+    if (effectiveName !== undefined) updates.name = String(effectiveName).trim();
     if (payload.amount !== undefined) updates.amount = Math.round(Number(payload.amount));
     if (payload.date) updates.date = String(payload.date).trim();
     if (payload.plannedAmount !== undefined) updates.plannedAmount = Math.round(Number(payload.plannedAmount));
     if (payload.plannedDate !== undefined) updates.plannedDate = payload.plannedDate;
     if (payload.category) updates.category = String(payload.category).trim();
     if (payload.note !== undefined) updates.note = String(payload.note).trim();
-    if (payload.accountId) updates.accountId = payload.accountId;
+    if (payload.accountId !== undefined) updates.accountId = payload.accountId;
+    if (payload.destinationAccountId !== undefined) updates.destinationAccountId = payload.destinationAccountId;
+    if (payload.isIncome !== undefined) updates.isIncome = Boolean(payload.isIncome);
     if (payload.recurrence !== undefined) updates.recurrence = payload.recurrence;
 
     const [updated] = await db.update(s.transactions)
