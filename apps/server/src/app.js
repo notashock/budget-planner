@@ -40,14 +40,23 @@ export function createApp(options = {}) {
 
   app.use(express.json());
 
+  // Health check endpoint (public, unauthenticated, zero external dependencies)
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Configure Session Store
   const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;
   let store = options.sessionStore;
-  if (!store && options.useMongoStore !== false) {
+  const targetMongoUri = options.mongoUri || config.mongoUri;
+  const isLocalMongoInProd = config.isProduction && (targetMongoUri.includes('127.0.0.1') || targetMongoUri.includes('localhost'));
+
+  if (!store && options.useMongoStore !== false && !isLocalMongoInProd && targetMongoUri) {
     try {
       store = MongoStore.create({
-        mongoUrl: options.mongoUri || config.mongoUri,
-        ttl: sessionTtlSeconds
+        mongoUrl: targetMongoUri,
+        ttl: sessionTtlSeconds,
+        autoRemove: 'native'
       });
       if (store && typeof store.on === 'function') {
         store.on('error', (storeErr) => {
@@ -55,9 +64,11 @@ export function createApp(options = {}) {
         });
       }
     } catch (e) {
-      // MemoryStore fallback if MongoDB store creation fails
+      console.warn('[Session Store Warning] Falling back to MemoryStore:', e.message);
       store = undefined;
     }
+  } else if (isLocalMongoInProd) {
+    console.warn('[Session Store Notice] Production cloud runtime detected with local/unconfigured MONGODB_URI. Operating with ephemeral session store.');
   }
 
   app.use(
@@ -74,11 +85,6 @@ export function createApp(options = {}) {
       }
     })
   );
-
-  // Health check endpoint (public, unauthenticated)
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
 
   // Mount API routers
   app.use('/api/auth', authRouter);
@@ -103,6 +109,17 @@ export function createApp(options = {}) {
       res.sendFile(path.join(webDistPath, 'index.html'));
     });
   }
+
+  // Centralized Error Handling Middleware (prevents process crashes)
+  app.use((err, req, res, next) => {
+    console.error('[Unhandled Request Error]:', err.stack || err.message);
+    if (res.headersSent) {
+      return next(err);
+    }
+    res.status(err.status || 500).json({
+      error: config.isProduction ? 'Internal Server Error' : err.message
+    });
+  });
 
   return app;
 }

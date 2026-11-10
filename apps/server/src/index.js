@@ -2,6 +2,15 @@ import { config } from './config.js';
 import { connectDB } from './db.js';
 import { createApp } from './app.js';
 
+// Process-level crash shields for unhandled rejections and exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('[Process Shield] Unhandled Rejection intercepted:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process Shield] Uncaught Exception intercepted:', err?.message || err);
+});
+
 // Resolve port strictly from process.env.PORT as required by Vercel / Cloud PaaS
 const PORT = process.env.PORT ? Number(process.env.PORT) : (config.port || 4000);
 const HOST = '0.0.0.0';

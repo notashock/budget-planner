@@ -29,6 +29,7 @@ const resolvedSecret = resolveSecret();
 export const config = {
   port: Number(process.env.PORT) || 4000,
   mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/budget_planner',
+  databaseUrl: process.env.DATABASE_URL || '',
   jwtSecret: resolvedSecret,
   sessionSecret: resolvedSecret,
   sessionMaxAgeDays: Number(process.env.SESSION_MAX_AGE_DAYS) || 14,
