@@ -33,6 +33,8 @@ describe('Salary Linking and Income Logging Integration', () => {
     openingBalance: 1000000
   };
 
+  const openWindowDate = new Date('2026-11-02T12:00:00Z');
+
   it('preserves scheduled salary and displays combined income when ad-hoc income is logged', () => {
     // 1. Simulate month with ₹19,280 salary + ₹0.13 bonus income
     const transactions = [
@@ -127,13 +129,14 @@ describe('Salary Linking and Income Logging Integration', () => {
         bankAccounts={[mockBank]}
         currencySymbol="₹"
         onSave={handleSave}
+        currentDate={openWindowDate}
       />
     );
 
     const dateInput = screen.getByLabelText(/date of salary credit/i);
     fireEvent.change(dateInput, { target: { value: '2026-11-05' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save salary & safeline/i });
+    const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -273,6 +276,7 @@ describe('Salary Linking and Income Logging Integration', () => {
         bankAccounts={[mockBank]}
         currencySymbol="₹"
         onSave={handleSave}
+        currentDate={openWindowDate}
       />
     );
 
@@ -281,7 +285,7 @@ describe('Salary Linking and Income Logging Integration', () => {
     expect(bankSelect.value).toBe('bank-1');
 
     // Submit the form
-    const saveBtn = screen.getByRole('button', { name: /save salary & safeline/i });
+    const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {

@@ -9,7 +9,8 @@ export function SalarySafelineModal({
   month,
   bankAccounts = [],
   currencySymbol = '₹',
-  onSave
+  onSave,
+  currentDate
 }) {
   const [salaryBankAccountId, setSalaryBankAccountId] = useState('');
   const [incomeAmount, setIncomeAmount] = useState('');
@@ -44,8 +45,8 @@ export function SalarySafelineModal({
   }, [isOpen, month, bankAccounts]);
 
   const salaryLockStatus = useMemo(() => {
-    return month ? getSalaryWindowStatus(month) : { isLocked: false };
-  }, [month]);
+    return month ? getSalaryWindowStatus(month, currentDate) : { isLocked: false };
+  }, [month, currentDate]);
 
   if (!month) return null;
 
