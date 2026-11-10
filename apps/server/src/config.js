@@ -44,7 +44,7 @@ const isMongoValid = isValidMongoUri(rawMongoUri, isProd);
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
-  databaseUrl: process.env.DATABASE_URL || (isProd ? '' : 'postgresql://ashok25:Dhathri%4025@localhost:5432/budget_planner'),
+  databaseUrl: process.env.DATABASE_URL || (isProd ? '' : 'postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner'),
   mongoUri: rawMongoUri,
   isMongoValid,
   jwtSecret: resolvedSecret,

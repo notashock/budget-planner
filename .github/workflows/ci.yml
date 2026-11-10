@@ -34,6 +34,19 @@ jobs:
     name: Server Integration Tests
     runs-on: ubuntu-latest
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: budget_planner_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       mongodb:
         image: mongo:6.0
         ports:
@@ -46,6 +59,7 @@ jobs:
     env:
       NODE_ENV: test
       PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner_ci
       MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
       SESSION_SECRET: ci_session_secret_for_testing
       SESSION_MAX_AGE_DAYS: 14
@@ -105,12 +119,20 @@ jobs:
     name: Server Boot & Health Check
     needs: [test-engine, test-server, test-web, build-web]
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
-      PORT: 4000
-      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
-      SESSION_SECRET: ci_session_secret_production_check
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: budget_planner_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       mongodb:
         image: mongo:6.0
         ports:
@@ -120,6 +142,12 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner_ci
+      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
+      SESSION_SECRET: ci_session_secret_production_check
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
