@@ -249,7 +249,7 @@ export const MonthLifecycle = {
         isIncome: Boolean(it.isIncome),
         accountId: it.accountId,
         legacyItemId: it.id,
-        plannedItemId: it.id,
+        plannedItemId: it.isPaid ? it.id : null,
         createdAt: it.createdAt,
         updatedAt: it.updatedAt
       }));

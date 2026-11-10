@@ -280,6 +280,9 @@ export function simulate(
   const itemRefundMap = {};
 
   (transactions || []).forEach((tx) => {
+    // Only successful transactions fulfill planned items; planned transactions are unfulfilled commitments
+    if (tx.status === 'planned') return;
+
     if (tx.plannedItemId) {
       const pIdStr = String(tx.plannedItemId);
       const txAmount = Math.round(Number(tx.amount) || 0);

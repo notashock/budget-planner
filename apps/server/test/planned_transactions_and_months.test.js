@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { db, ensureDatabaseInitialized, pool } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
 import { MonthLifecycle } from '../src/domain/monthLifecycle.js';
@@ -135,12 +136,14 @@ describe('Planned Transactions and Months Lifecycle Integration', () => {
     await pruneEmptyFutureMonths();
 
     const futureMonth = await db.query.months.findFirst({
-      where: s.months.id ? (s.months.id, futureMonthId) : undefined
+      where: eq(s.months.id, futureMonthId)
     });
 
     // Future preview month must not be deleted!
     const check = await pool.query('SELECT id FROM months WHERE id = $1', [futureMonthId]);
     expect(check.rows.length).toBe(1);
+    expect(futureMonth).toBeDefined();
+    expect(futureMonth.id).toBe(futureMonthId);
   });
 
   it('LedgerService.recomputeAccountBalance correctly updates materialized current_balance', async () => {
