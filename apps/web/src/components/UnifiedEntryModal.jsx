@@ -90,7 +90,7 @@ export function UnifiedEntryModal({
   // Contextual Modifiers & Classifications
   const [isRefund, setIsRefund] = useState(false);
   const [tag, setTag] = useState('Food');
-  const [incomeTag, setIncomeTag] = useState('Salary');
+  const [incomeTag, setIncomeTag] = useState('Bonus');
   const [itemType, setItemType] = useState('one-time'); // 'one-time' | 'recurring'
   const [dayOfMonth, setDayOfMonth] = useState(now.getDate() || 1);
   const [priority, setPriority] = useState(0);
@@ -1183,7 +1183,7 @@ export function UnifiedEntryModal({
                   </label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {mode === 'income'
-                      ? ['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].map((t) => (
+                      ? ['Bonus', 'Freelance', 'Investment', 'Other'].map((t) => (
                           <button
                             key={t}
                             type="button"
@@ -1218,6 +1218,11 @@ export function UnifiedEntryModal({
                           </button>
                         ))}
                   </div>
+                  {mode === 'income' && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
+                      Note: Your primary monthly salary is managed via Link Salary & Safeline. Use this form to record ad-hoc earnings, bonuses, or side income.
+                    </span>
+                  )}
                 </>
               ) : (
                 <>

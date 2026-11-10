@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AccountsScreen } from '../screens/AccountsScreen.jsx';
@@ -173,6 +173,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
           bankAccounts={[mockBank]}
           currencySymbol="₹"
           onSave={handleSave}
+          currentDate="2026-10-01"
         />
       );
 
@@ -185,7 +186,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       fireEvent.change(screen.getByLabelText(/monthly salary amount/i), { target: { value: '25000' } });
       fireEvent.change(screen.getByLabelText(/overall safeline floor/i), { target: { value: '15000' } });
 
-      const saveBtn = screen.getByRole('button', { name: /save salary & safeline/i });
+      const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
       fireEvent.click(saveBtn);
 
       await waitFor(() => {

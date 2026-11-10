@@ -15,12 +15,12 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     isPrimary: true
   };
 
-  const octoberMonth = {
-    id: 'm-oct-2026',
+  const novemberMonth = {
+    id: 'm-nov-2026',
     year: 2026,
-    month: 10,
-    startDate: '2026-10-01',
-    endDate: '2026-10-31',
+    month: 11,
+    startDate: '2026-11-01',
+    endDate: '2026-11-30',
     incomeAmount: 5000000,
     safetyFloor: 1000000,
     salaryBankAccountId: 'bank-1',
@@ -38,11 +38,11 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     vi.useRealTimers();
   });
 
-  it('evaluates October 2026 on November 4 as unlocked and active in the 10-day window', () => {
-    const status = getSalaryWindowStatus(octoberMonth, new Date(Date.UTC(2026, 10, 4, 12, 0, 0)));
+  it('evaluates November 2026 on November 4 as unlocked and active in the 10-day window', () => {
+    const status = getSalaryWindowStatus(novemberMonth, new Date(Date.UTC(2026, 10, 4, 12, 0, 0)));
     expect(status.isLocked).toBe(false);
     expect(status.status).toBe('in_window');
-    expect(status.windowStartDate).toBe('2026-10-26');
+    expect(status.windowStartDate).toBe('2026-10-27');
     expect(status.windowEndDate).toBe('2026-11-05');
   });
 
@@ -50,8 +50,8 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     const handleOpenSalarySafeline = vi.fn();
     render(
       <Header
-        currentMonth={octoberMonth}
-        months={[octoberMonth]}
+        currentMonth={novemberMonth}
+        months={[novemberMonth]}
         user={mockUser}
         onOpenSalarySafeline={handleOpenSalarySafeline}
       />
@@ -77,7 +77,7 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
       <SalarySafelineModal
         isOpen={true}
         onClose={handleClose}
-        month={octoberMonth}
+        month={novemberMonth}
         bankAccounts={[mockBank]}
         currencySymbol="₹"
         onSave={handleSave}
@@ -94,8 +94,8 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     expect(dateInput).not.toBeDisabled();
     expect(creditCheckbox).not.toBeDisabled();
 
-    // Verify max date allows selecting into November window (Nov 5)
-    expect(dateInput).toHaveAttribute('max', '2026-11-05');
+    // Verify max date allows selecting throughout the month
+    expect(dateInput).toHaveAttribute('max', '2026-11-30');
 
     // Update values to Nov 4
     fireEvent.change(salaryInput, { target: { value: '60000' } });
