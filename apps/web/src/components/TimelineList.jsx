@@ -515,23 +515,9 @@ export function TimelineList({
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
-                  {/* Left Zone: Title, Tags & Account Attribution */}
+                  {/* Left Zone: Title, Status Tags & Account Attribution */}
                   <div className="tx-card-left timeline-event-info">
                     <div className="tx-card-headline">
-                      {/* Category Icon Chip */}
-                      <span
-                        className="tx-category-chip"
-                        style={{
-                          background: categoryInfo.bg,
-                          color: categoryInfo.color,
-                          border: `1px solid ${categoryInfo.color}33`
-                        }}
-                        title={`Category: ${categoryInfo.name}`}
-                      >
-                        <CategoryIcon size={10} color="currentColor" strokeWidth={2.2} />
-                        <span>{categoryInfo.name}</span>
-                      </span>
-
                       <span className="tx-card-title timeline-event-label" title={evt.label}>{evt.label}</span>
 
                       {/* Status / Type Tags */}
@@ -603,43 +589,47 @@ export function TimelineList({
                         )}
                         <span className="timeline-event-type">{metaDescription}</span>
                       </span>
+                      <span className="tx-meta-dot">•</span>
+                      <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
+                        {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
+                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
+                      </span>
                       <span className="tx-date-inline tabular-nums">
-                        • {formatDisplayDate(evt.date, true)}
+                        <span className="tx-meta-dot">•</span>
+                        {formatDisplayDate(evt.date, true)}
                         {relativeDate && ` (${relativeDate.label})`}
                       </span>
                     </div>
                   </div>
 
-                  {/* Center Zone: Date Badge & Relative Badge */}
+                  {/* Center Zone: Date Badge */}
                   <div className="tx-card-center timeline-event-date">
                     <span className={`tx-date-badge event-date-text tabular-nums ${isOverdue ? 'date-overdue' : (isDue ? 'date-due' : '')}`}>
                       {formatDisplayDate(evt.date, true)}
                     </span>
-                    {relativeDate && (
-                      <span className={`relative-date-pill ${relativeDate.type}`}>
-                        {relativeDate.label}
-                      </span>
-                    )}
-                    {isPreMonth && (
-                      <span className="day-offset-pill tabular-nums">
-                        Day {evt.day}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Right Zone: Amounts, Balance & Settle Action (ONLY for planned) */}
+                  {/* Right Zone: Amount on Top, Actions Underneath */}
                   <div className="tx-card-right timeline-event-numbers">
                     <span className={`tx-amount-display timeline-event-amount tabular-nums ${amountClass}`}>
                       {formattedAmount}
                     </span>
-                    <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
-                      {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
-                      bal: {formatCurrency(evt.displayBalance, currencySymbol)}
-                    </span>
 
-                    {/* Action buttons: Edit for any record, Mark as Paid for planned items */}
+                    {/* Action buttons: Mark as Paid for planned, Edit button */}
                     {(Boolean(onEditTransaction) || isPlanned) && (
                       <div className="tx-card-actions" onClick={(e) => e.stopPropagation()}>
+                        {isPlanned && (
+                          <button
+                            type="button"
+                            className="tx-btn-settle"
+                            onClick={() => handleQuickPay(evt)}
+                            title="Mark as paid (confirm actual amount and date)"
+                            aria-label="Mark as Paid (Settle)"
+                          >
+                            <CheckCircleIcon size={12} strokeWidth={2.4} />
+                            <span>Mark as Paid</span>
+                          </button>
+                        )}
                         {onEditTransaction && (
                           <button
                             type="button"
@@ -649,18 +639,6 @@ export function TimelineList({
                             aria-label="Edit entry"
                           >
                             <EditIcon size={12} strokeWidth={2.2} />
-                          </button>
-                        )}
-                        {isPlanned && (
-                          <button
-                            type="button"
-                            className="tx-btn-settle"
-                            onClick={() => handleQuickPay(evt)}
-                            title="Mark as paid (confirm actual amount and date)"
-                            aria-label="Mark as Paid (Settle)"
-                          >
-                            <CheckCircleIcon size={13} strokeWidth={2.4} />
-                            <span>Mark as Paid</span>
                           </button>
                         )}
                       </div>
