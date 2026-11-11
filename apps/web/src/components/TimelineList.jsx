@@ -200,7 +200,7 @@ export function TimelineList({
     if (!targetId) return;
     const payData = {
       amount: Math.abs(evt.amount || 0),
-      date: evt.date || todayStr,
+      date: todayStr,
       accountId: evt.accountId || evt.bankAccountId || evt.walletId || (selectedAccount?.id || selectedAccount?._id)
     };
     if (onPayTransaction) {

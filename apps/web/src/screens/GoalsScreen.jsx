@@ -15,7 +15,9 @@ function computeAffordableGoalBundles(activeGoals, availableCushion) {
     for (let i = 0; i < n; i++) {
       if ((mask & (1 << i)) !== 0) {
         bundle.push(activeGoals[i]);
-        totalCost += activeGoals[i].targetAmount;
+        const rawAmount = Number(activeGoals[i].targetAmount) || 0;
+        const goalCost = rawAmount > 100000 ? Math.round(rawAmount / 100) : rawAmount;
+        totalCost += goalCost;
       }
     }
     if (totalCost <= availableCushion) {
@@ -105,7 +107,9 @@ export function GoalsScreen({
   // Available Survival Cushion for Goals
   const availableCushion = simulation?.safeVelocity?.freeSurplus ?? simulation?.allowanceLeft ?? 0;
   const activeGoals = useMemo(() => {
-    return evaluatedGoals.filter((g) => g.status === 'active' || g.status === 'evaluating');
+    return evaluatedGoals.filter((g) => 
+      g.status !== 'completed' && g.status !== 'cancelled' && g.status !== 'dropped'
+    );
   }, [evaluatedGoals]);
 
   const affordableBundles = useMemo(() => {

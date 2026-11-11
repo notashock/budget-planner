@@ -189,7 +189,7 @@ export function StepLineChart({
     const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 7.5 + 16));
 
     // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
-    const width = isMobile ? 540 : 600;
+    const width = isMobile ? (typeof window !== 'undefined' ? Math.min(340, Math.max(300, window.innerWidth - 32)) : 340) : 600;
     const height = isMobile ? 260 : 175;
     const paddingRight = 16;
     const paddingTop = 14;

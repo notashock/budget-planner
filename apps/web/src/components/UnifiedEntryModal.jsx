@@ -200,6 +200,7 @@ export function UnifiedEntryModal({
           setTag(initialItem.category || initialItem.tag || 'Food');
           setDate(initialItem.date || todayStr);
           setIsRefund(Number(initialItem.amount) < 0);
+          setMatchedItemId(initialItem.plannedItemId || initialItem.legacyItemId || '');
         } else {
           // Plan mode
           setItemType(initialItem.type === 'recurring' ? 'recurring' : 'one-time');
@@ -579,12 +580,14 @@ export function UnifiedEntryModal({
       if (selectedAccount) {
         const accBal = selectedAccount.currentBalance ?? selectedAccount.balance ?? selectedAccount.openingBalance ?? 0;
         const minBal = selectedAccount.minimumBalance || 0;
-        if (minBal > 0 && (accBal - baseAmount) < minBal) {
+        const existingDebit = initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
+        const netDebitChange = baseAmount - existingDebit;
+        if (minBal > 0 && (accBal - netDebitChange) < minBal) {
           setFloorBreachData({
             type: 'spending',
             accountName: selectedAccount.name,
             minimumBalance: minBal,
-            projectedBalance: accBal - baseAmount,
+            projectedBalance: accBal - netDebitChange,
             forcedUnderSpendAction
           });
           return;
