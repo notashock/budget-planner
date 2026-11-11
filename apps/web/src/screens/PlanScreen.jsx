@@ -52,15 +52,26 @@ export function PlanScreen({
 
   const isIrregularDashboard = !month || settings?.incomeMode === 'irregular' || viewSubmode === 'irregular';
 
-  // Selected account metadata
-  const selectedBank = useMemo(
-    () => bankAccounts.find((b) => (b._id || b.id) === selectedAccountId),
-    [bankAccounts, selectedAccountId]
-  );
-  const selectedWallet = useMemo(
-    () => wallets.find((w) => (w._id || w.id) === selectedAccountId),
-    [wallets, selectedAccountId]
-  );
+  // Selected account metadata with string and altId normalization
+  const normSelectedId = String(selectedAccountId || '');
+  const selectedBank = useMemo(() => {
+    if (!normSelectedId || normSelectedId === 'all') return null;
+    return bankAccounts.find((b) => {
+      const bid = String(b._id || b.id || '');
+      const bAlt = String(b.altId || '');
+      return bid === normSelectedId || (bAlt && bAlt === normSelectedId);
+    });
+  }, [bankAccounts, normSelectedId]);
+
+  const selectedWallet = useMemo(() => {
+    if (!normSelectedId || normSelectedId === 'all') return null;
+    return wallets.find((w) => {
+      const wid = String(w._id || w.id || '');
+      const wAlt = String(w.altId || '');
+      return wid === normSelectedId || (wAlt && wAlt === normSelectedId);
+    });
+  }, [wallets, normSelectedId]);
+
   const selectedAccount = selectedBank || selectedWallet;
   const isFilteringAccount = selectedAccountId !== 'all' && Boolean(selectedAccount);
 
@@ -71,8 +82,11 @@ export function PlanScreen({
     return simulation || {};
   }, [isFilteringAccount, accountSimulations, selectedAccountId, simulation]);
 
+  // Root simulation events are the canonical source for all timeline events
+  const allSimulationEvents = simulation?.events || [];
+
   const {
-    events = [],
+    events: simEvents = [],
     dailyBalances = [],
     endingBalance = 0,
     todayBalance,
@@ -137,19 +151,31 @@ export function PlanScreen({
 
   // Filtered events
   const activeEvents = useMemo(() => {
-    if (!isFilteringAccount) return events;
+    if (!isFilteringAccount) return allSimulationEvents.length ? allSimulationEvents : simEvents;
 
-    const normSelectedId = String(selectedAccountId || '');
     const designatedSalaryBankId = String(
       month?.salaryBankAccountId?._id ||
       month?.salaryBankAccountId?.id ||
       month?.salaryBankAccountId ||
       ''
     );
-    const isDesignatedSalaryBank = designatedSalaryBankId && designatedSalaryBankId === normSelectedId;
+    const isDesignatedSalaryBank = Boolean(designatedSalaryBankId && designatedSalaryBankId === normSelectedId);
     const isSoleBank = bankAccounts.length === 1 && selectedBank;
 
-    return events.filter((ev) => {
+    const alt1 = String(selectedAccount?._id || '');
+    const alt2 = String(selectedAccount?.id || '');
+    const alt3 = String(selectedAccount?.altId || '');
+
+    const matchesAccount = (rawId) => {
+      if (!rawId) return false;
+      const idStr = String(rawId);
+      return idStr === normSelectedId ||
+        (alt1 && idStr === alt1) ||
+        (alt2 && idStr === alt2) ||
+        (alt3 && idStr === alt3);
+    };
+
+    return allSimulationEvents.filter((ev) => {
       const sBankId = ev.sourceBankAccountId ? String(ev.sourceBankAccountId._id || ev.sourceBankAccountId.id || ev.sourceBankAccountId) : null;
       const sWalletId = ev.sourceWalletId ? String(ev.sourceWalletId._id || ev.sourceWalletId.id || ev.sourceWalletId) : null;
       const dBankId = ev.destinationBankAccountId ? String(ev.destinationBankAccountId._id || ev.destinationBankAccountId.id || ev.destinationBankAccountId) : null;
@@ -158,9 +184,9 @@ export function PlanScreen({
       const wId = ev.walletId ? String(ev.walletId._id || ev.walletId.id || ev.walletId) : null;
       const aId = ev.accountId ? String(ev.accountId._id || ev.accountId.id || ev.accountId) : null;
 
-      if (aId === normSelectedId || bId === normSelectedId || wId === normSelectedId) return true;
-      if (sBankId === normSelectedId || sWalletId === normSelectedId) return true;
-      if (dBankId === normSelectedId || dWalletId === normSelectedId) return true;
+      if (matchesAccount(aId) || matchesAccount(bId) || matchesAccount(wId)) return true;
+      if (matchesAccount(sBankId) || matchesAccount(sWalletId)) return true;
+      if (matchesAccount(dBankId) || matchesAccount(dWalletId)) return true;
 
       // Salary event check: matches designated bank, primary bank, or sole bank
       if (ev.isSalary && selectedBank) {
@@ -178,7 +204,7 @@ export function PlanScreen({
 
       return false;
     });
-  }, [isFilteringAccount, events, selectedAccountId, selectedBank, month, bankAccounts]);
+  }, [isFilteringAccount, allSimulationEvents, simEvents, normSelectedId, selectedAccount, selectedBank, month, bankAccounts]);
 
   const hasAccounts = (bankAccounts?.length || 0) > 0 || (wallets?.length || 0) > 0;
 
@@ -208,7 +234,6 @@ export function PlanScreen({
     ? (selectedAccount?.minimumBalance || 0)
     : (hasAccounts ? totalAccountsSafetyFloor : (month?.safetyFloor || 0));
 
-  const normSelectedId = String(selectedAccountId || '');
   const designatedSalaryBankId = String(
     month?.salaryBankAccountId?._id ||
     month?.salaryBankAccountId?.id ||

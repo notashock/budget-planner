@@ -106,7 +106,7 @@ export function TimelineList({
   const processedEvents = useMemo(() => {
     if (!events || events.length === 0) return [];
 
-    let fallbackRunningBalance = Number(selectedAccount?.openingBalance) || 0;
+    let runningBal = Number(selectedAccount?.openingBalance) || 0;
 
     return events.map((evt, idx) => {
       let displayAmount = evt.amount;
@@ -168,6 +168,12 @@ export function TimelineList({
               : `${typeLabel} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
           transferDetail = acctName ? `${baseType} • ${acctName}` : baseType;
         }
+
+        // Sequential running balance reconstruction for isolated account view
+        runningBal += (Number(displayAmount) || 0);
+        if (displayBalance === undefined || displayBalance === null || isNaN(displayBalance)) {
+          displayBalance = runningBal;
+        }
       } else {
         // Unified mode
         displayAmount = evt.amount;
@@ -199,7 +205,7 @@ export function TimelineList({
       }
 
       // Check breach against active safety floor (account minimum balance in account mode, unified floor in unified mode)
-      const isBreach = displayBalance < safetyFloor;
+      const isBreach = typeof displayBalance === 'number' && !isNaN(displayBalance) && displayBalance < safetyFloor;
 
       return {
         ...evt,
@@ -216,7 +222,25 @@ export function TimelineList({
   if (!processedEvents || processedEvents.length === 0) {
     return (
       <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        No timeline events generated for this month.
+        {isFilteringAccount ? (
+          <div>
+            <p style={{ margin: '0 0 10px 0', fontSize: '13px' }}>
+              No timeline events recorded for <strong>{selectedAccount?.name || 'this account'}</strong> this month.
+            </p>
+            {onSelectDay && selectedDay !== null && (
+              <button
+                type="button"
+                className="btn-subtle"
+                style={{ fontSize: '12px', padding: '4px 10px' }}
+                onClick={() => onSelectDay(null)}
+              >
+                Reset day filter
+              </button>
+            )}
+          </div>
+        ) : (
+          'No timeline events generated for this month.'
+        )}
       </div>
     );
   }
@@ -254,10 +278,12 @@ export function TimelineList({
   const handleQuickPay = (evt) => {
     const targetId = evt.transactionId || evt.itemId || evt._id || evt.id;
     if (!targetId) return;
+    const rawAcc = evt.bankAccountId || evt.walletId || evt.accountId || (selectedAccount?.id || selectedAccount?._id);
+    const resolvedAccountId = rawAcc ? (rawAcc.id || rawAcc._id || rawAcc) : null;
     const payData = {
       amount: Math.abs(evt.amount || 0),
       date: todayStr,
-      accountId: evt.accountId || evt.bankAccountId || evt.walletId || (selectedAccount?.id || selectedAccount?._id)
+      accountId: resolvedAccountId ? String(resolvedAccountId) : undefined
     };
     if (onPayTransaction) {
       onPayTransaction(targetId, payData);

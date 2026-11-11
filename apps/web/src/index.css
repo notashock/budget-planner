@@ -3603,7 +3603,42 @@ main {
 
   .summary-grid,
   .detailed-kpi-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .summary-grid .kpi-card,
+  .detailed-kpi-grid .kpi-card {
+    padding: 10px 10px !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .summary-grid .summary-value,
+  .detailed-kpi-grid .summary-value {
+    font-size: clamp(14px, 4.2vw, 17px) !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .summary-grid .summary-label,
+  .detailed-kpi-grid .summary-label {
+    font-size: 10px !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .summary-grid .kpi-subtext,
+  .detailed-kpi-grid .kpi-subtext {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 }
 
