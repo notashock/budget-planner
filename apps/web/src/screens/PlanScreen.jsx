@@ -376,7 +376,7 @@ export function PlanScreen({
           </div>
 
           {!isReviewMode && (
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="desktop-only-btn" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn-primary"

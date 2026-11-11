@@ -1017,7 +1017,7 @@ export default function App() {
         onSelectTab={setActiveTab}
       />
 
-      <div className="app-container">
+      <div className="app-container" style={{ position: 'relative', zIndex: 10 }}>
         {/* Continuous Tracking: Read-Only Period Review Banner */}
         {isReviewMode && (
           <div className="review-mode-banner">
