@@ -788,6 +788,8 @@ export function PlanScreen({
         <ErrorBoundary title="Transactions timeline encountered an issue">
           <TimelineList
             events={activeEvents}
+            items={items}
+            transactions={transactions}
             safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
             selectedDay={selectedDay}

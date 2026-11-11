@@ -12,7 +12,8 @@ import {
   TagIcon,
   ZapIcon,
   BanknoteIcon,
-  TrendingUpIcon
+  TrendingUpIcon,
+  EditIcon
 } from './Icons.jsx';
 
 function getCategoryInfo(evt) {
@@ -69,6 +70,8 @@ function getRelativeDateBadge(eventDateStr, todayDateStr) {
 
 export function TimelineList({
   events = [],
+  items = [],
+  transactions = [],
   safetyFloor = 0,
   currencySymbol = '₹',
   selectedDay = null,
@@ -81,9 +84,25 @@ export function TimelineList({
   wallets = [],
   onCreditSalary = null,
   onTogglePaid = null,
-  onPayTransaction = null
+  onPayTransaction = null,
+  onEditTransaction = null
 }) {
   const [filterType, setFilterType] = useState('all');
+
+  const resolveTargetItem = (evt) => {
+    if (evt.transaction) return evt.transaction;
+    if (evt.item) return evt.item;
+    if (evt.raw) return evt.raw;
+    if (evt.transactionId) {
+      const match = (transactions || []).find((t) => String(t._id || t.id) === String(evt.transactionId));
+      if (match) return match;
+    }
+    if (evt.itemId) {
+      const match = (items || []).find((i) => String(i._id || i.id) === String(evt.itemId));
+      if (match) return match;
+    }
+    return evt;
+  };
 
   // Fast lookup map for account names (banks and wallets)
   const accountMap = useMemo(() => {
@@ -463,6 +482,21 @@ export function TimelineList({
               evt.day >= currentDay &&
               (idx === 0 || filteredEvents[idx - 1].day < currentDay);
 
+            const isCredit = evt.displayAmount > 0 || isSalary;
+            const cardTypeClass = isOverdue
+              ? 'row-overdue has-overdue'
+              : isDue
+                ? 'row-due has-due'
+                : isCredit
+                  ? 'row-income has-credit'
+                  : isTransfer
+                    ? 'row-transfer'
+                    : evt.origin === 'goal'
+                      ? 'row-goal'
+                      : isPlanned
+                        ? 'row-planned'
+                        : 'row-settled';
+
             return (
               <React.Fragment key={`${evt.date}-${evt.sourceIndex || idx}`}>
                 {showTodayMarker && (
@@ -477,7 +511,7 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'}`}
+                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
@@ -603,22 +637,32 @@ export function TimelineList({
                       bal: {formatCurrency(evt.displayBalance, currencySymbol)}
                     </span>
 
-                    {/* ONLY planned items have the "Mark as Paid" button; settled records have NO actionable items */}
-                    {isPlanned && (
-                      <div className="tx-card-actions">
-                        <button
-                          type="button"
-                          className="tx-btn-settle"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleQuickPay(evt);
-                          }}
-                          title="Mark as paid (confirm actual amount and date)"
-                          aria-label="Mark as Paid (Settle)"
-                        >
-                          <CheckCircleIcon size={13} strokeWidth={2.4} />
-                          <span>Mark as Paid</span>
-                        </button>
+                    {/* Action buttons: Edit for any record, Mark as Paid for planned items */}
+                    {(Boolean(onEditTransaction) || isPlanned) && (
+                      <div className="tx-card-actions" onClick={(e) => e.stopPropagation()}>
+                        {onEditTransaction && (
+                          <button
+                            type="button"
+                            className="tx-btn-action"
+                            onClick={() => onEditTransaction(resolveTargetItem(evt))}
+                            title="Edit entry"
+                            aria-label="Edit entry"
+                          >
+                            <EditIcon size={12} strokeWidth={2.2} />
+                          </button>
+                        )}
+                        {isPlanned && (
+                          <button
+                            type="button"
+                            className="tx-btn-settle"
+                            onClick={() => handleQuickPay(evt)}
+                            title="Mark as paid (confirm actual amount and date)"
+                            aria-label="Mark as Paid (Settle)"
+                          >
+                            <CheckCircleIcon size={13} strokeWidth={2.4} />
+                            <span>Mark as Paid</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
