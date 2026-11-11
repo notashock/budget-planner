@@ -1204,7 +1204,7 @@ export function UnifiedEntryModal({
                             {t}
                           </button>
                         ))
-                      : ['Food', 'Travel', 'Health', 'Other'].map((t) => (
+                      : ['Food', 'Travel', 'Utilities', 'Health', 'Other'].map((t) => (
                           <button
                             key={t}
                             type="button"

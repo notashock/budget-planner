@@ -865,17 +865,20 @@ export function AccountsScreen({
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {transfers.map((tr) => {
+                const allAccountsList = [...(bankAccounts || []), ...(wallets || [])];
                 const sBankId = tr.sourceBankAccountId?._id || tr.sourceBankAccountId;
                 const sWalletId = tr.sourceWalletId?._id || tr.sourceWalletId;
                 const sBank = bankAccounts.find((b) => (b._id || b.id) === sBankId) || (typeof tr.sourceBankAccountId === 'object' ? tr.sourceBankAccountId : null);
                 const sWallet = wallets.find((w) => (w._id || w.id) === sWalletId) || (typeof tr.sourceWalletId === 'object' ? tr.sourceWalletId : null);
-                const sourceName = sBank?.name || sWallet?.name || 'Source Account';
+                const sAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.sourceAccountId || sBankId || sWalletId));
+                const sourceName = sAcc?.name || sBank?.name || sWallet?.name || 'Source Account';
 
                 const dBankId = tr.destinationBankAccountId?._id || tr.destinationBankAccountId;
                 const dWalletId = tr.destinationWalletId?._id || tr.destinationWalletId;
                 const dBank = bankAccounts.find((b) => (b._id || b.id) === dBankId) || (typeof tr.destinationBankAccountId === 'object' ? tr.destinationBankAccountId : null);
                 const dWallet = wallets.find((w) => (w._id || w.id) === dWalletId) || (typeof tr.destinationWalletId === 'object' ? tr.destinationWalletId : null);
-                const destName = dBank?.name || dWallet?.name || 'Destination Account';
+                const dAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.destinationAccountId || dBankId || dWalletId));
+                const destName = dAcc?.name || dBank?.name || dWallet?.name || 'Destination Account';
 
                 return (
                   <div key={tr._id || tr.id} className="card account-card-anim" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: '12px', flexWrap: 'wrap' }}>

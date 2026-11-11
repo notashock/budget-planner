@@ -156,8 +156,9 @@ export function PlanScreen({
       const dWalletId = ev.destinationWalletId ? String(ev.destinationWalletId._id || ev.destinationWalletId.id || ev.destinationWalletId) : null;
       const bId = ev.bankAccountId ? String(ev.bankAccountId._id || ev.bankAccountId.id || ev.bankAccountId) : null;
       const wId = ev.walletId ? String(ev.walletId._id || ev.walletId.id || ev.walletId) : null;
+      const aId = ev.accountId ? String(ev.accountId._id || ev.accountId.id || ev.accountId) : null;
 
-      if (bId === normSelectedId || wId === normSelectedId) return true;
+      if (aId === normSelectedId || bId === normSelectedId || wId === normSelectedId) return true;
       if (sBankId === normSelectedId || sWalletId === normSelectedId) return true;
       if (dBankId === normSelectedId || dWalletId === normSelectedId) return true;
 
