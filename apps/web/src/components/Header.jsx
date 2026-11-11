@@ -122,7 +122,7 @@ export function Header({
   }, [months]);
 
   return (
-    <header ref={headerRef} className="app-header">
+    <header ref={headerRef} className={`app-header ${activeDropdown ? 'has-active-dropdown' : ''}`}>
       <div className="app-header-inner">
         {/* Zone 1: Identity & Month Context */}
         <div className="app-header-left">

@@ -629,6 +629,16 @@ export function TransactionsScreen({
 
                           <button
                             type="button"
+                            className="tx-btn-action"
+                            onClick={() => onEditTransaction?.(tx)}
+                            title="Edit planned commitment"
+                            aria-label="Edit commitment"
+                          >
+                            <EditIcon size={13} />
+                          </button>
+
+                          <button
+                            type="button"
                             className="tx-btn-action delete"
                             onClick={() => handlePromptCancel(tx)}
                             title="Cancel planned transaction"

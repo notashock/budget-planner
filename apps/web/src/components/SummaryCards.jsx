@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 export function SafeVelocityCard({
@@ -8,6 +8,47 @@ export function SafeVelocityCard({
   allowanceLeft = 0,
   currencySymbol = '₹'
 }) {
+  const [showInfo, setShowInfo] = useState(false);
+  const popoverRef = useRef(null);
+
+  // Mutual collapse & outside click listener for popover explanation
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setShowInfo(false);
+      }
+    }
+    if (showInfo) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [showInfo]);
+
+  const rawPace = (safeVelocity?.paceStatus || '').toLowerCase();
+  const rate = safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay;
+
+  // Calibrate glowing status micro-indicators: expanding, tight, critical, stable
+  let statusKey = 'stable';
+  let statusLabel = safeVelocity?.paceStatus || 'On Pace';
+  if (rawPace.includes('expand')) {
+    statusKey = 'expanding';
+    statusLabel = 'Expanding Pace';
+  } else if (rawPace.includes('tight') || rawPace.includes('contract') || rawPace.includes('warn') || rawPace.includes('slow')) {
+    statusKey = 'tight';
+    statusLabel = 'Pacing Tight';
+  } else if (rawPace.includes('crit') || rate <= 0) {
+    statusKey = 'critical';
+    statusLabel = 'Critical Deficit';
+  }
+
+  const remainingDays = safeVelocity?.daysLeft || daysLeft;
+  const committed = safeVelocity?.committedUpcomingItems ?? safeVelocity?.committedBills ?? 0;
+  const burn = safeVelocity?.burnRatePerDay ?? safeVelocity?.burnRate ?? 0;
+
   return (
     <div className="summary-card safe-velocity-card">
       <div className="card-top-row">
@@ -15,31 +56,82 @@ export function SafeVelocityCard({
           <span className="summary-label">
             Safe Velocity
           </span>
-          {safeVelocity?.paceStatus && (
-            <span className={`pace-status-badge ${safeVelocity.paceStatus.toLowerCase().includes('on pace') ? 'on-pace' : (safeVelocity.paceStatus.toLowerCase().includes('slow') || safeVelocity.paceStatus.toLowerCase().includes('warn') ? 'warning' : '')}`}>
-              {safeVelocity.paceStatus}
-            </span>
-          )}
+          <div
+            className={`pace-status-badge velocity-status-indicator ${statusKey}`}
+            title={`Status: ${statusLabel}`}
+          >
+            <span className={`status-micro-dot ${statusKey}`} />
+            <span>{statusLabel}</span>
+          </div>
+          <button
+            type="button"
+            className="velocity-info-btn"
+            onClick={() => setShowInfo((prev) => !prev)}
+            aria-label="Safe Velocity Explanation"
+            title="What is Safe Velocity? Click for breakdown"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </button>
         </div>
         <span className="days-remaining-pill">
-          {safeVelocity?.daysLeft || daysLeft} days left
+          {remainingDays} days left
         </span>
       </div>
 
+      {/* Interactive Glassmorphism Explanation Popover */}
+      {showInfo && (
+        <div ref={popoverRef} className="velocity-popover">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontWeight: 700, fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Safe Velocity Mechanics
+            </span>
+            <button
+              type="button"
+              className="btn-subtle"
+              style={{ padding: '0 4px', fontSize: '13px', lineHeight: 1 }}
+              onClick={() => setShowInfo(false)}
+            >
+              &times;
+            </button>
+          </div>
+          <p style={{ margin: '0 0 8px', color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.45 }}>
+            Safe Velocity calculates the exact discretionary cash allowance you can spend each day without breaching your Safety Floor or jeopardizing committed upcoming bills.
+          </p>
+          <div style={{ background: 'var(--surface-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '10.5px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Formula:</span>
+              <span style={{ fontWeight: 600 }}>Uncommitted Surplus ÷ Days Remaining</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Committed Upcoming Items:</span>
+              <span className="tabular-nums" style={{ fontWeight: 600 }}>{formatCurrency(committed, currencySymbol)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Days Remaining:</span>
+              <span className="tabular-nums" style={{ fontWeight: 600 }}>{remainingDays} days</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="safe-velocity-hero">
         <span className="safe-velocity-value tabular-nums">
-          {formatCurrency(safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay, currencySymbol)}
+          {formatCurrency(rate, currencySymbol)}
         </span>
         <span className="safe-velocity-per-day">/ day</span>
       </div>
 
       <div className="safe-velocity-footer">
         <span className="safe-velocity-meta-item">
-          Committed: <strong className="tabular-nums">{formatCurrency(safeVelocity?.committedUpcomingItems || 0, currencySymbol)}</strong>
+          Committed: <strong className="tabular-nums">{formatCurrency(committed, currencySymbol)}</strong>
         </span>
         {(safeVelocity?.burnRatePerDay !== undefined || safeVelocity?.burnRate !== undefined) && (
           <span className="safe-velocity-meta-item">
-            Burn pace: <strong className="tabular-nums">{formatCurrency(safeVelocity.burnRatePerDay ?? safeVelocity.burnRate ?? 0, currencySymbol)}/day</strong>
+            Burn pace: <strong className="tabular-nums">{formatCurrency(burn, currencySymbol)}/day</strong>
           </span>
         )}
       </div>

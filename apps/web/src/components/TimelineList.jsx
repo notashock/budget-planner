@@ -8,8 +8,64 @@ import {
   TargetIcon,
   BuildingLibraryIcon,
   WalletIcon,
-  ArrowRightLeftIcon
+  ArrowRightLeftIcon,
+  TagIcon,
+  ZapIcon,
+  BanknoteIcon,
+  TrendingUpIcon
 } from './Icons.jsx';
+
+function getCategoryInfo(evt) {
+  const cat = (evt.category || evt.tag || '').toLowerCase();
+  const label = (evt.label || evt.name || '').toLowerCase();
+  const type = (evt.itemType || evt.origin || '').toLowerCase();
+
+  if (evt.itemType === 'transfer' || evt.isTransfer) {
+    return { name: 'Transfer', Icon: ArrowRightLeftIcon, color: 'var(--text-secondary)', bg: 'var(--surface-subtle)' };
+  }
+  if (evt.isSalary || evt.itemType === 'salary' || cat.includes('salary') || label.includes('salary')) {
+    return { name: 'Salary', Icon: TrendingUpIcon, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+  }
+  if (evt.origin === 'goal' || cat.includes('goal')) {
+    return { name: 'Goal', Icon: TargetIcon, color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)' };
+  }
+  if (cat.includes('food') || label.includes('food') || label.includes('grocery') || label.includes('lunch') || label.includes('dinner') || label.includes('swiggy') || label.includes('zomato') || label.includes('cafe')) {
+    return { name: 'Food', Icon: TagIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+  }
+  if (cat.includes('travel') || label.includes('travel') || label.includes('uber') || label.includes('ola') || label.includes('fuel') || label.includes('petrol') || label.includes('flight') || label.includes('metro')) {
+    return { name: 'Travel', Icon: MapPinIcon, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' };
+  }
+  if (cat.includes('util') || label.includes('bill') || label.includes('electric') || label.includes('wifi') || label.includes('rent') || label.includes('water')) {
+    return { name: 'Bills', Icon: ZapIcon, color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)' };
+  }
+  if (cat.includes('health') || label.includes('doctor') || label.includes('med') || label.includes('pharmacy') || label.includes('gym')) {
+    return { name: 'Health', Icon: TagIcon, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)' };
+  }
+  if (evt.amount > 0 || type.includes('income')) {
+    return { name: 'Income', Icon: BanknoteIcon, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+  }
+  const tagLabel = evt.category || evt.tag;
+  return { name: tagLabel || 'Expense', Icon: TagIcon, color: 'var(--text-secondary)', bg: 'var(--surface-subtle)' };
+}
+
+function getRelativeDateBadge(eventDateStr, todayDateStr) {
+  if (!eventDateStr || !todayDateStr) return null;
+  const [y1, m1, d1] = eventDateStr.split('-').map(Number);
+  const [y2, m2, d2] = todayDateStr.split('-').map(Number);
+  if (!y1 || !m1 || !d1 || !y2 || !m2 || !d2) return null;
+  const date1 = new Date(y1, m1 - 1, d1);
+  const date2 = new Date(y2, m2 - 1, d2);
+  const diffDays = Math.round((date1 - date2) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return { label: 'Today', type: 'today' };
+  if (diffDays === 1) return { label: 'Tomorrow', type: 'tomorrow' };
+  if (diffDays === -1) return { label: 'Yesterday', type: 'yesterday' };
+  if (diffDays > 1 && diffDays <= 7) return { label: `In ${diffDays} days`, type: 'upcoming' };
+  if (diffDays > 7 && diffDays <= 28) return { label: `In ${Math.round(diffDays / 7)}w`, type: 'upcoming' };
+  if (diffDays < -1 && diffDays >= -7) return { label: `${Math.abs(diffDays)}d ago`, type: 'past' };
+  if (diffDays < -7 && diffDays >= -28) return { label: `${Math.round(Math.abs(diffDays) / 7)}w ago`, type: 'past' };
+  return null;
+}
 
 export function TimelineList({
   events = [],
@@ -343,6 +399,11 @@ export function TimelineList({
               ? selectedAccount.name
               : (accountMap.get(bId || wId) || (isWallet ? 'Wallet' : 'Bank Account'));
 
+            // Category detection & relative date badge
+            const categoryInfo = getCategoryInfo(evt);
+            const CategoryIcon = categoryInfo.Icon;
+            const relativeDate = getRelativeDateBadge(evt.date, todayStr);
+
             // Amount formatting & classes
             let formattedAmount = '';
             let amountClass = 'amount-neutral';
@@ -397,6 +458,20 @@ export function TimelineList({
                   {/* Left Zone: Title, Tags & Account Attribution */}
                   <div className="tx-card-left timeline-event-info">
                     <div className="tx-card-headline">
+                      {/* Category Icon Chip */}
+                      <span
+                        className="tx-category-chip"
+                        style={{
+                          background: categoryInfo.bg,
+                          color: categoryInfo.color,
+                          border: `1px solid ${categoryInfo.color}33`
+                        }}
+                        title={`Category: ${categoryInfo.name}`}
+                      >
+                        <CategoryIcon size={10} color="currentColor" strokeWidth={2.2} />
+                        <span>{categoryInfo.name}</span>
+                      </span>
+
                       <span className="tx-card-title timeline-event-label" title={evt.label}>{evt.label}</span>
 
                       {/* Status / Type Tags */}

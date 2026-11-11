@@ -185,15 +185,14 @@ export function StepLineChart({
 
     // Dynamically calculate left padding based on longest tick label length
     const maxTickLen = Math.max(...yTicks.map((t) => t.label.length), 4);
-    const basePadding = isMobile ? 56 : 64;
-    const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 7.5 + 16));
+    const paddingLeft = Math.max(56, Math.round(maxTickLen * 7.5 + 16));
 
-    // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
-    const width = isMobile ? (typeof window !== 'undefined' ? Math.min(340, Math.max(300, window.innerWidth - 32)) : 340) : 600;
-    const height = isMobile ? 260 : 175;
-    const paddingRight = 16;
-    const paddingTop = 14;
-    const paddingBottom = 26;
+    // Responsive SVG coordinate space (600 x 240 viewBox)
+    const width = 600;
+    const height = 240;
+    const paddingRight = 18;
+    const paddingTop = 18;
+    const paddingBottom = 28;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
@@ -520,19 +519,33 @@ export function StepLineChart({
       <div
         ref={containerRef}
         className="chart-container"
-        style={{ position: 'relative', touchAction: 'pan-y' }}
+        style={{ position: 'relative', touchAction: 'pan-y', width: '100%', overflow: 'hidden' }}
         onTouchStart={handleTouch}
         onTouchMove={handleTouch}
         onTouchEnd={() => setHoveredDay(null)}
         onTouchCancel={() => setHoveredDay(null)}
       >
         <svg
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox="0 0 600 240"
+          width="100%"
+          height="auto"
           className="chart-svg"
           preserveAspectRatio="xMidYMid meet"
-          style={{ overflow: 'visible', userSelect: 'none' }}
+          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%' }}
         >
-          {/* Horizontal Grid lines */}
+          {/* Defs for soft ambient curve glow & modern area gradient */}
+          <defs>
+            <linearGradient id="monochromeCurveGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--text)" stopOpacity="0.16" />
+              <stop offset="60%" stopColor="var(--text)" stopOpacity="0.04" />
+              <stop offset="100%" stopColor="var(--text)" stopOpacity="0.0" />
+            </linearGradient>
+            <filter id="chartCurveGlow" x="-10%" y="-20%" width="120%" height="150%">
+              <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="var(--text)" floodOpacity="0.15" />
+            </filter>
+          </defs>
+
+          {/* Subtle Horizontal Grid lines */}
           {yTicks.map((t, idx) => (
             <g key={idx}>
               <line
@@ -542,13 +555,15 @@ export function StepLineChart({
                 y2={getY(t.val)}
                 stroke="var(--border)"
                 strokeWidth="1"
+                strokeDasharray="3 3"
+                opacity="0.45"
               />
               <text
                 x={paddingLeft - 8}
                 y={getY(t.val) + 4}
                 textAnchor="end"
                 className="chart-axis-text"
-                style={{ fontSize: '11.5px', fontWeight: 500 }}
+                style={{ fontSize: '11px', fontWeight: 500, fill: 'var(--text-muted)' }}
               >
                 {t.label}
               </text>
@@ -564,14 +579,14 @@ export function StepLineChart({
             stroke={floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-muted)'}
             strokeWidth="1.5"
             strokeDasharray="4 4"
-            opacity={floorBreached ? 0.8 : 0.45}
+            opacity={floorBreached ? 0.85 : 0.45}
           />
           <text
             x={width - paddingRight - 4}
             y={floorY - 6}
             textAnchor="end"
             style={{
-              fontSize: '11px',
+              fontSize: '10.5px',
               fill: floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-secondary)',
               fontWeight: 600
             }}
@@ -579,22 +594,14 @@ export function StepLineChart({
             {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
 
-          {/* Defs for monochrome smooth curve area gradient */}
-          <defs>
-            <linearGradient id="monochromeCurveGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--text)" stopOpacity="0.14" />
-              <stop offset="100%" stopColor="var(--text)" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
-
           {/* Smooth area fill under the curve */}
           {areaD && (
             <path d={areaD} fill="url(#monochromeCurveGrad)" />
           )}
 
-          {/* Today Indicator Line */}
+          {/* Crisp Today Indicator Line & Glow Badge */}
           {todayPoint && (
-            <g>
+            <g className="chart-today-group">
               <line
                 x1={getX(todayPoint.day)}
                 y1={paddingTop}
@@ -606,19 +613,20 @@ export function StepLineChart({
                 opacity="0.8"
               />
               <rect
-                x={getX(todayPoint.day) - 20}
-                y={paddingTop - 12}
-                width="40"
-                height="14"
-                rx="3"
+                x={getX(todayPoint.day) - 22}
+                y={paddingTop - 13}
+                width="44"
+                height="15"
+                rx="3.5"
                 fill="var(--text)"
+                filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25))"
               />
               <text
                 x={getX(todayPoint.day)}
                 y={paddingTop - 2}
                 textAnchor="middle"
                 fill="var(--bg)"
-                style={{ fontSize: '10px', fontWeight: 700 }}
+                style={{ fontSize: '9.5px', fontWeight: 800, letterSpacing: '0.04em' }}
               >
                 TODAY
               </text>
@@ -642,7 +650,7 @@ export function StepLineChart({
           {/* Dual-Phase Curved Line Paths: Solid Realized vs Dashed Projected */}
           {realizedPathD && projectedPathD ? (
             <>
-              {/* Realized History Line up to Today */}
+              {/* Realized History Line up to Today with Ambient Glow */}
               <path
                 d={realizedPathD}
                 fill="none"
@@ -650,6 +658,7 @@ export function StepLineChart({
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                filter="url(#chartCurveGlow)"
               />
               {/* Future Projection Line reflecting Planned Commitments */}
               <path
@@ -671,6 +680,7 @@ export function StepLineChart({
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
+              filter="url(#chartCurveGlow)"
             />
           )}
 
