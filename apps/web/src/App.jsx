@@ -1055,22 +1055,28 @@ export default function App() {
         )}
 
         {pendingSalaryTx && (
-          <div style={{
-            margin: '12px 16px 0 16px',
-            padding: '12px 16px',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05))',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '20px' }}>💰</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+          <div
+            className="salary-scheduled-banner"
+            style={{
+              margin: '12px 0 0 0',
+              padding: '12px 14px',
+              maxWidth: '100%',
+              width: '100%',
+              boxSizing: 'border-box',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05))',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
+              <span style={{ fontSize: '20px', flexShrink: 0 }}>💰</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Salary Deposit Scheduled: {pendingSalaryTx.title} ({currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}{pendingSalaryTx.amount})
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1078,7 +1084,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="salary-scheduled-banner-actions" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => handleConfirmSalary(pendingSalaryTx)}

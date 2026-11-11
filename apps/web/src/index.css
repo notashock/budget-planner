@@ -537,6 +537,7 @@ input[type="number"] {
   z-index: 99990 !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: visible !important;
 }
 
 .app-header:has(.app-dropdown-menu),
@@ -555,6 +556,12 @@ input[type="number"] {
   max-width: 100%;
   box-sizing: border-box;
   gap: 8px;
+  overflow: visible !important;
+}
+
+.app-header-left,
+.app-header-right {
+  overflow: visible !important;
 }
 
 .app-header-left {
@@ -3519,7 +3526,13 @@ main {
     width: 100%;
   }
 
+  .app-header,
   .app-header-inner,
+  .app-header-left,
+  .app-header-right {
+    overflow: visible !important;
+  }
+
   .app-container,
   .screen-content,
   .dashboard-layout,
@@ -3533,12 +3546,26 @@ main {
     box-sizing: border-box;
   }
 
-  .bottom-nav {
-    width: calc(100vw - 24px) !important;
-    max-width: calc(100vw - 24px) !important;
+  .salary-scheduled-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
   }
 
-  .summary-grid {
+  .salary-scheduled-banner-actions {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  .bottom-nav {
+    width: calc(100vw - 24px) !important;
+    max-width: min(400px, calc(100vw - 24px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .summary-grid,
+  .detailed-kpi-grid {
     grid-template-columns: 1fr !important;
   }
 }

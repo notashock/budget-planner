@@ -528,10 +528,9 @@ export function StepLineChart({
         <svg
           viewBox="0 0 600 240"
           width="100%"
-          height="auto"
           className="chart-svg"
           preserveAspectRatio="xMidYMid meet"
-          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%' }}
+          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%', height: 'auto', maxHeight: '240px' }}
         >
           {/* Defs for soft ambient curve glow & modern area gradient */}
           <defs>
