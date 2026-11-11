@@ -6,7 +6,7 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { config } from '../config.js';
 import { signToken } from '../utils/jwt.js';
-import { resolveAuthUser } from '../middleware/auth.js';
+import { resolveAuthUser, isValidUuid } from '../middleware/auth.js';
 import { serialize } from '../utils/serializer.js';
 
 export const authRouter = express.Router();
@@ -153,7 +153,7 @@ authRouter.post('/logout', (req, res) => {
 authRouter.get('/me', async (req, res) => {
   try {
     const auth = resolveAuthUser(req);
-    if (!auth || !auth.userId) {
+    if (!auth || !auth.userId || !isValidUuid(auth.userId)) {
       return res.json({ user: null });
     }
 

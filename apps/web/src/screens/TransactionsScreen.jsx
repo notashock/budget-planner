@@ -78,8 +78,10 @@ export function TransactionsScreen({
 
   // Payment account options for Settlement modal CustomSelect
   const paymentAccountOptions = useMemo(() => {
+    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
+    const defaultAccId = primaryAcc ? (primaryAcc.id || primaryAcc._id) : '';
     return [
-      { value: '', label: 'Default Account' },
+      { value: defaultAccId, label: primaryAcc ? `Default (${primaryAcc.name})` : 'Default Account' },
       ...bankAccounts.map((b) => ({
         value: b.id || b._id,
         label: b.name,
@@ -93,7 +95,7 @@ export function TransactionsScreen({
         badge: 'Wallet'
       }))
     ];
-  }, [bankAccounts, wallets]);
+  }, [allAccounts, bankAccounts, wallets]);
 
   // Partition transactions
   const successfulTransactions = useMemo(() => {
@@ -116,10 +118,11 @@ export function TransactionsScreen({
   const handleQuickMarkPaid = async (tx) => {
     try {
       const amt = tx.plannedAmount !== undefined && tx.plannedAmount !== null ? tx.plannedAmount : Math.abs(tx.amount || 0);
+      const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
       await onPayTransaction?.(tx.id || tx._id, {
         amount: amt,
         date: todayStr,
-        accountId: tx.accountId || allAccounts[0]?.id || allAccounts[0]?._id
+        accountId: tx.accountId || primaryAcc?.id || primaryAcc?._id
       });
     } catch (err) {
       console.error('Quick pay failed:', err);
@@ -220,7 +223,8 @@ export function TransactionsScreen({
       : (tx.amount ? Math.abs(tx.amount) / 100 : '');
     setActualAmount(String(prefillAmount));
     setActualDate(todayStr);
-    setSelectedAccountId(tx.accountId || '');
+    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
+    setSelectedAccountId(tx.accountId || primaryAcc?.id || primaryAcc?._id || '');
   };
 
   // Payment confirmation
@@ -232,10 +236,12 @@ export function TransactionsScreen({
       alert('Please enter a valid actual amount');
       return;
     }
+    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
+    const resolvedAccountId = selectedAccountId || payingTx.accountId || primaryAcc?.id || primaryAcc?._id;
     await onPayTransaction?.(payingTx.id || payingTx._id, {
       amount: numAmount,
       date: actualDate || todayStr,
-      accountId: selectedAccountId || payingTx.accountId
+      accountId: resolvedAccountId
     });
     setPayingTx(null);
   };

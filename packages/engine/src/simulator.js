@@ -759,6 +759,7 @@ export function simulate(
     let accountBalanceAfter = null;
     let sourceAccountBalanceAfter = null;
     let destinationAccountBalanceAfter = null;
+    let targetBankId = null;
 
     if (evt.itemType === 'transfer') {
       const trAmt = evt.transferAmount;
@@ -795,7 +796,7 @@ export function simulate(
       const wId = getCanonicalAccId(evt.walletId);
       const defaultBankTarget = getCanonicalAccId(primaryBankId || designatedSalaryBankId);
 
-      const targetBankId = (bId && accountRunningBalances[bId] !== undefined)
+      targetBankId = (bId && accountRunningBalances[bId] !== undefined)
         ? bId
         : ((!wId || accountRunningBalances[wId] === undefined) ? defaultBankTarget : null);
 
@@ -836,7 +837,9 @@ export function simulate(
       tag: evt.tag || evt.category || (evt.isSalary ? 'Salary' : (evt.amount > 0 ? 'Income' : 'General')),
       amount: evt.amount,
       balanceAfter,
-      accountBalanceAfter,
+      accountBalanceAfter: accountBalanceAfter !== null
+        ? accountBalanceAfter
+        : (sourceAccountBalanceAfter !== null ? sourceAccountBalanceAfter : destinationAccountBalanceAfter),
       sourceAccountBalanceAfter,
       destinationAccountBalanceAfter,
       itemType: evt.itemType,
@@ -849,6 +852,7 @@ export function simulate(
       itemId: evt.itemId || null,
       transactionId: evt.transactionId || null,
       plannedItemId: evt.plannedItemId || null,
+      accountId: evt.accountId || evt.bankAccountId || evt.walletId || (targetBankId ? targetBankId : null),
       accountType: evt.accountType || null,
       bankAccountId: evt.bankAccountId || null,
       walletId: evt.walletId || null,

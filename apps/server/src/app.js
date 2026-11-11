@@ -62,7 +62,7 @@ export function createApp(options = {}) {
   const targetMongoUri = options.mongoUri || config.mongoUri;
   const isMongoValid = isValidMongoUri(targetMongoUri, config.isProduction);
 
-  if (!store && options.useMongoStore !== false && isMongoValid) {
+  if (!store && options.useMongoStore !== false && isMongoValid && !config.databaseUrl) {
     try {
       store = MongoStore.create({
         mongoUrl: targetMongoUri,

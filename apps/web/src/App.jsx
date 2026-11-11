@@ -495,12 +495,17 @@ export default function App() {
 
       setUnifiedEntryOpen(false);
       if (currentMonth) {
-        await loadMonthDetails(currentMonth.year, currentMonth.month);
+        await Promise.all([
+          loadMonthDetails(currentMonth.year, currentMonth.month),
+          loadAccounts()
+        ]);
       } else {
-        const globalTxs = await api.getGlobalTransactions();
+        const [globalTxs] = await Promise.all([
+          api.getGlobalTransactions(),
+          loadAccounts()
+        ]);
         setTransactions(globalTxs || []);
       }
-      await loadAccounts();
       return created;
     } catch (err) {
       alert(err.message || 'Failed to log transaction');
@@ -514,12 +519,17 @@ export default function App() {
       await api.deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => (t.id || t._id) !== id));
       if (currentMonth) {
-        await loadMonthDetails(currentMonth.year, currentMonth.month);
+        await Promise.all([
+          loadMonthDetails(currentMonth.year, currentMonth.month),
+          loadAccounts()
+        ]);
       } else {
-        const globalTxs = await api.getGlobalTransactions();
+        const [globalTxs] = await Promise.all([
+          api.getGlobalTransactions(),
+          loadAccounts()
+        ]);
         setTransactions(globalTxs || []);
       }
-      await loadAccounts();
     } catch (err) {
       alert(err.message || 'Failed to delete transaction');
     }
@@ -537,16 +547,24 @@ export default function App() {
       const targetMonth = advanced || (list && list.find((m) => !m.isClosed));
 
       if (targetMonth) {
-        await loadMonthDetails(targetMonth.year, targetMonth.month);
-        await loadGoals(targetMonth.year, targetMonth.month);
+        await Promise.all([
+          loadMonthDetails(targetMonth.year, targetMonth.month),
+          loadGoals(targetMonth.year, targetMonth.month),
+          loadAccounts()
+        ]);
       } else if (currentMonth) {
-        await loadMonthDetails(currentMonth.year, currentMonth.month);
-        await loadGoals(currentMonth.year, currentMonth.month);
+        await Promise.all([
+          loadMonthDetails(currentMonth.year, currentMonth.month),
+          loadGoals(currentMonth.year, currentMonth.month),
+          loadAccounts()
+        ]);
       } else {
-        const globalTxs = await api.getGlobalTransactions();
+        const [globalTxs] = await Promise.all([
+          api.getGlobalTransactions(),
+          loadAccounts()
+        ]);
         setTransactions(globalTxs || []);
       }
-      await loadAccounts();
     } catch (err) {
       alert(err.message || 'Failed to settle transaction');
       throw err;
@@ -557,10 +575,16 @@ export default function App() {
     try {
       await api.cancelTransaction(txId, cancelData);
       if (currentMonth) {
-        await loadMonthDetails(currentMonth.year, currentMonth.month);
-        await loadGoals(currentMonth.year, currentMonth.month);
+        await Promise.all([
+          loadMonthDetails(currentMonth.year, currentMonth.month),
+          loadGoals(currentMonth.year, currentMonth.month),
+          loadAccounts()
+        ]);
       } else {
-        const globalTxs = await api.getGlobalTransactions();
+        const [globalTxs] = await Promise.all([
+          api.getGlobalTransactions(),
+          loadAccounts()
+        ]);
         setTransactions(globalTxs || []);
       }
     } catch (err) {

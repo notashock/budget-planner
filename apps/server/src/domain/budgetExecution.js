@@ -16,6 +16,7 @@ import { serialize } from '../utils/serializer.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { isHistoricalPastMonth } from './monthLifecycle.js';
 import { LedgerService } from './ledgerService.js';
+import { isValidUuid } from '../middleware/auth.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -354,16 +355,112 @@ export const BudgetExecution = {
    * Transitions a planned transaction to successful (Mark as Paid).
    * Confirms actual amount and actual date while preserving planned values.
    * If linked to a goal, automatically marks the goal achieved.
+   * Resiliently resolves both s.transactions and bridged items from s.items.
    */
   async markTransactionPaid(userId, txId, payload = {}) {
-    const tx = await db.query.transactions.findFirst({
-      where: and(eq(s.transactions.id, txId), eq(s.transactions.userId, userId))
-    });
-
-    if (!tx) {
+    if (!txId || !isValidUuid(txId)) {
       throw new NotFoundError('Transaction not found');
     }
 
+    // 1. First, search in s.transactions (by id, legacyItemId, or plannedItemId)
+    let tx = await db.query.transactions.findFirst({
+      where: and(
+        or(
+          eq(s.transactions.id, txId),
+          eq(s.transactions.legacyItemId, txId),
+          eq(s.transactions.plannedItemId, txId)
+        ),
+        eq(s.transactions.userId, userId)
+      )
+    });
+
+    let rawAmt = payload.amount !== undefined ? payload.amount : payload.actualAmount;
+    let rawDate = payload.date || payload.actualDate;
+    let requestedAccountId = payload.accountId;
+
+    // Helper: resolve default primary account if accountId is empty/null
+    const resolveValidAccountId = async (candidateId) => {
+      let resolvedId = candidateId;
+      if (typeof resolvedId === 'object' && resolvedId !== null) {
+        resolvedId = resolvedId.id || resolvedId._id || null;
+      }
+      if (typeof resolvedId === 'string') {
+        resolvedId = resolvedId.trim();
+      }
+      if (!resolvedId) {
+        const primaryAcc = await db.query.accounts.findFirst({
+          where: and(eq(s.accounts.userId, userId), eq(s.accounts.isArchived, false)),
+          orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
+        });
+        return primaryAcc?.id || null;
+      }
+      const valid = await validateUserAccount({ userId, accountId: resolvedId });
+      if (!valid) throw new ValidationError('Specified account is invalid');
+      return resolvedId;
+    };
+
+    if (!tx) {
+      // 2. Check if txId references an item in s.items (bridged planned budget item)
+      const item = await db.query.items.findFirst({
+        where: and(eq(s.items.id, txId), eq(s.items.userId, userId))
+      });
+
+      if (!item) {
+        throw new NotFoundError('Transaction not found');
+      }
+
+      if (item.monthId) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) });
+        if (month && month.isClosed) {
+          throw new ValidationError('Cannot modify transactions in a closed review period. Review periods are strictly read-only.');
+        }
+      }
+
+      const actualAmount = rawAmt !== undefined ? Math.round(Number(rawAmt)) : item.amount;
+      const actualDate = rawDate ? String(rawDate).trim() : item.date;
+      const finalAccountId = await resolveValidAccountId(requestedAccountId || item.accountId);
+
+      const [insertedTx] = await db.insert(s.transactions).values({
+        userId,
+        monthId: item.monthId,
+        name: item.name,
+        status: 'successful',
+        origin: 'planned',
+        date: actualDate,
+        amount: actualAmount,
+        plannedAmount: item.amount,
+        plannedDate: item.date,
+        category: item.category || 'General',
+        note: '',
+        goalId: null,
+        recurrence: null,
+        plannedItemId: item.id,
+        legacyItemId: item.id,
+        accountId: finalAccountId,
+        isIncome: Boolean(item.isIncome)
+      }).returning();
+
+      // Mark the item as paid in s.items
+      await db.update(s.items).set({
+        isPaid: true,
+        updatedAt: new Date()
+      }).where(eq(s.items.id, item.id));
+
+      try {
+        await LedgerService.applyTransactionBalance(insertedTx, 1);
+      } catch (balErr) {
+        console.error('Failed to update materialized account balance:', balErr);
+      }
+
+      const month = item.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) }) : null;
+      if (month && insertedTx.amount > 0 && !insertedTx.isIncome) {
+        await this._reEvaluateAndDeferGoals(userId, month);
+      }
+
+      return serialize(insertedTx);
+    }
+
+    // Found existing transaction record
     if (tx.monthId) {
       const month = await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) });
       if (month && month.isClosed) {
@@ -375,24 +472,26 @@ export const BudgetExecution = {
       throw new ValidationError(`Only planned transactions can be marked as paid. Current status: ${tx.status}`);
     }
 
-    const rawAmt = payload.amount !== undefined ? payload.amount : payload.actualAmount;
     const actualAmount = rawAmt !== undefined ? Math.round(Number(rawAmt)) : (tx.plannedAmount || tx.amount);
-    const rawDate = payload.date || payload.actualDate;
     const actualDate = rawDate ? String(rawDate).trim() : (tx.plannedDate || tx.date);
-    const accountId = payload.accountId || tx.accountId;
-
-    if (accountId) {
-      const valid = await validateUserAccount({ userId, accountId });
-      if (!valid) throw new ValidationError('Specified account is invalid');
-    }
+    const finalAccountId = await resolveValidAccountId(requestedAccountId || tx.accountId);
 
     const [updatedTx] = await db.update(s.transactions).set({
       status: 'successful',
       amount: actualAmount,
       date: actualDate,
-      accountId,
+      accountId: finalAccountId,
       updatedAt: new Date()
     }).where(eq(s.transactions.id, tx.id)).returning();
+
+    // Also mark linked item in s.items as paid if exists
+    const linkedItemId = tx.plannedItemId || tx.legacyItemId;
+    if (linkedItemId && isValidUuid(linkedItemId)) {
+      await db.update(s.items).set({
+        isPaid: true,
+        updatedAt: new Date()
+      }).where(eq(s.items.id, linkedItemId));
+    }
 
     if (tx.goalId) {
       await db.update(s.goals).set({
@@ -431,14 +530,43 @@ export const BudgetExecution = {
   /**
    * Cancels a planned transaction. Excluded from Planned view.
    * If linked to a goal, prompts destination status ('return_to_logged' vs 'dropped').
+   * Resiliently handles both s.transactions and bridged items from s.items.
    */
   async cancelTransaction(userId, txId, payload = {}) {
-    const tx = await db.query.transactions.findFirst({
-      where: and(eq(s.transactions.id, txId), eq(s.transactions.userId, userId))
+    if (!txId || !isValidUuid(txId)) {
+      throw new NotFoundError('Transaction not found');
+    }
+
+    let tx = await db.query.transactions.findFirst({
+      where: and(
+        or(
+          eq(s.transactions.id, txId),
+          eq(s.transactions.legacyItemId, txId),
+          eq(s.transactions.plannedItemId, txId)
+        ),
+        eq(s.transactions.userId, userId)
+      )
     });
 
     if (!tx) {
-      throw new NotFoundError('Transaction not found');
+      // Check s.items
+      const item = await db.query.items.findFirst({
+        where: and(eq(s.items.id, txId), eq(s.items.userId, userId))
+      });
+
+      if (!item) {
+        throw new NotFoundError('Transaction not found');
+      }
+
+      if (item.monthId) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) });
+        if (month && month.isClosed) {
+          throw new ValidationError('Cannot cancel transactions in a closed review period. Review periods are strictly read-only.');
+        }
+      }
+
+      await db.delete(s.items).where(eq(s.items.id, item.id));
+      return serialize({ id: item.id, status: 'cancelled', message: 'Planned item cancelled successfully' });
     }
 
     if (tx.monthId) {
@@ -456,6 +584,11 @@ export const BudgetExecution = {
       status: 'cancelled',
       updatedAt: new Date()
     }).where(eq(s.transactions.id, tx.id)).returning();
+
+    const linkedItemId = tx.plannedItemId || tx.legacyItemId;
+    if (linkedItemId && isValidUuid(linkedItemId)) {
+      await db.delete(s.items).where(eq(s.items.id, linkedItemId));
+    }
 
     if (tx.goalId) {
       const destinationGoalStatus = payload.goalAction === 'dropped' ? 'dropped' : 'logged';

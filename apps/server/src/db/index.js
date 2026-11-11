@@ -27,10 +27,10 @@ const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTI
 export const pool = new Pool({
   connectionString: config.databaseUrl,
   ssl: isRemoteDb ? { rejectUnauthorized: false } : false,
-  max: isServerless ? 1 : (config.isProduction ? 10 : 4),
-  idleTimeoutMillis: isServerless ? 1000 : 10000,
+  max: isServerless ? 4 : (config.isProduction ? 10 : 4),
+  idleTimeoutMillis: isServerless ? 30000 : 10000,
   connectionTimeoutMillis: 5000,
-  allowExitOnIdle: isServerless ? true : false
+  allowExitOnIdle: false
 });
 
 export const db = drizzle(pool, { schema });

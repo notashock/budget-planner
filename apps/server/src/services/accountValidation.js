@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
+import { isValidUuid } from '../middleware/auth.js';
 
 /**
  * Validates that a specified financial account (Bank Account or Wallet) belongs to the authenticated user.
@@ -27,7 +28,7 @@ export async function validateUserAccount({ userId, accountType, accountId }) {
   }
 
   const idStr = String(cleanId).trim();
-  if (!idStr) {
+  if (!idStr || !isValidUuid(idStr) || !isValidUuid(userId)) {
     return null;
   }
 

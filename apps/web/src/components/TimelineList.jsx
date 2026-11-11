@@ -97,15 +97,20 @@ export function TimelineList({
           }
         } else {
           displayAmount = evt.amount;
-          displayBalance = evt.accountBalanceAfter;
-        }
-
-        // Robust fallback for running balance if engine accountBalanceAfter is missing
-        if (displayBalance === null || displayBalance === undefined) {
-          fallbackRunningBalance += displayAmount;
-          displayBalance = fallbackRunningBalance;
-        } else {
-          fallbackRunningBalance = displayBalance;
+          displayBalance = evt.accountBalances?.[normSelectedId] ?? evt.accountBalanceAfter;
+          const bId = evt.bankAccountId ? String(evt.bankAccountId._id || evt.bankAccountId.id || evt.bankAccountId) : '';
+          const wId = evt.walletId ? String(evt.walletId._id || evt.walletId.id || evt.walletId) : '';
+          const acctName = accountMap.get(bId || wId) || selectedAccount?.name || 'Account';
+          const isSalaryEvt = Boolean(evt.isSalary || evt.itemType === 'salary');
+          const salaryTypeDesc = evt.isActual ? 'salary • credited' : 'salary • planned';
+          const rawType = evt.itemType || evt.origin || 'planned';
+          const typeLabel = String(rawType).replace('-', ' ');
+          const baseType = evt.itemType === 'actual-income'
+            ? 'income • actual credited'
+            : isSalaryEvt
+              ? salaryTypeDesc
+              : `${typeLabel} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
+          transferDetail = acctName ? `${baseType} • ${acctName}` : baseType;
         }
       } else {
         // Unified mode
@@ -126,11 +131,13 @@ export function TimelineList({
           const acctName = accountMap.get(bId || wId);
           const isSalaryEvt = Boolean(evt.isSalary || evt.itemType === 'salary');
           const salaryTypeDesc = evt.isActual ? 'salary • credited' : 'salary • planned';
+          const rawType = evt.itemType || evt.origin || 'planned';
+          const typeLabel = String(rawType).replace('-', ' ');
           const baseType = evt.itemType === 'actual-income'
             ? 'income • actual credited'
             : isSalaryEvt
               ? salaryTypeDesc
-              : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
+              : `${typeLabel} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`;
           transferDetail = acctName ? `${baseType} • ${acctName}` : baseType;
         }
       }
@@ -189,13 +196,17 @@ export function TimelineList({
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   const handleQuickPay = (evt) => {
+    const targetId = evt.transactionId || evt.itemId || evt._id || evt.id;
+    if (!targetId) return;
+    const payData = {
+      amount: Math.abs(evt.amount || 0),
+      date: evt.date || todayStr,
+      accountId: evt.accountId || evt.bankAccountId || evt.walletId || (selectedAccount?.id || selectedAccount?._id)
+    };
     if (onPayTransaction) {
-      onPayTransaction(evt);
+      onPayTransaction(targetId, payData);
     } else if (onTogglePaid) {
-      const targetId = evt.itemId || evt._id || evt.id;
-      if (targetId) {
-        onTogglePaid(targetId, true);
-      }
+      onTogglePaid(targetId, true);
     }
   };
 
@@ -347,12 +358,14 @@ export function TimelineList({
             }
 
             // Description / transfer detail text for audit & backwards test compatibility
+            const rawType = evt.itemType || evt.origin || 'planned';
+            const typeLabel = String(rawType).replace('-', ' ');
             const metaDescription = evt.transferDetail || (
               evt.itemType === 'actual-income'
                 ? 'income • actual credited'
                 : isSalary
                   ? (evt.isActual ? 'salary • credited' : 'salary • planned')
-                  : `${evt.itemType} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
+                  : `${typeLabel} ${evt.isActual ? '• actual' : evt.isPending ? `• pending (orig. Day ${evt.originalDay})` : (evt.isPaid ? (evt.originalDay && evt.originalDay !== evt.day ? `• paid (orig. Day ${evt.originalDay})` : '• paid') : '• planned')}${evt.isFixed ? ' • fixed' : ''}`
             );
 
             // Check if we should insert the "Today" marker right before this event
