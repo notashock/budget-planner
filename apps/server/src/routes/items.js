@@ -123,89 +123,16 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
   }
 });
 
-// Update item (updates unified transaction or legacy item)
-itemsRouter.put('/items/:id', async (req, res) => {
+// Update item (routes polymorphically through BudgetExecution.updateTransaction)
+itemsRouter.put('/items/:id', async (req, res, next) => {
   try {
     const userId = req.userId || req.session?.userId;
     const itemId = req.params.id;
 
-    // Check transactions first
-    const tx = await db.query.transactions.findFirst({
-      where: and(
-        or(eq(s.transactions.id, itemId), eq(s.transactions.legacyItemId, itemId)),
-        eq(s.transactions.userId, userId)
-      )
-    });
-
-    if (tx) {
-      const { name, amount, date, day, dayOfMonth } = req.body;
-      const updates = { updatedAt: new Date() };
-      if (name) updates.name = name.trim();
-      if (typeof amount === 'number') {
-        updates.amount = Math.round(amount);
-        updates.plannedAmount = Math.round(amount);
-      }
-      if (typeof date === 'string' && date.trim()) {
-        updates.date = date.trim();
-        updates.plannedDate = date.trim();
-      }
-      if (typeof req.body.isPaid === 'boolean') {
-        updates.status = req.body.isPaid ? 'successful' : 'planned';
-      }
-      const incomingAccountId = req.body.accountId || req.body.bankAccountId || req.body.walletId;
-      if (incomingAccountId) {
-        updates.accountId = incomingAccountId;
-      }
-      const [updatedTx] = await db.update(s.transactions)
-        .set(updates)
-        .where(eq(s.transactions.id, tx.id))
-        .returning();
-      return res.success(serialize({
-        ...updatedTx,
-        isPaid: updatedTx.status === 'successful'
-      }));
-    }
-
-    const item = await db.query.items.findFirst({
-      where: and(eq(s.items.id, itemId), eq(s.items.userId, userId))
-    });
-
-    if (!item) {
-      return res.status(404).json({ error: 'Item not found' });
-    }
-
-    const { name, priority, amount, day, dayOfMonth, date, isFixed } = req.body;
-    const updates = { updatedAt: new Date() };
-
-    if (name) updates.name = name.trim();
-    if (req.body.category !== undefined) {
-      updates.category = String(req.body.category).trim() || 'General';
-    }
-    if (typeof req.body.isIncome === 'boolean') updates.isIncome = req.body.isIncome;
-    if (typeof isFixed === 'boolean') updates.isFixed = isFixed;
-    if (typeof amount === 'number') updates.amount = Math.round(amount);
-
-    if (typeof date === 'string' && date.trim()) {
-      updates.date = date.trim();
-    }
-    if (typeof req.body.isPaid === 'boolean') {
-      updates.isPaid = req.body.isPaid;
-    }
-
-    const incomingAccountId = req.body.accountId || req.body.bankAccountId || req.body.walletId;
-    if (incomingAccountId) {
-      updates.accountId = incomingAccountId;
-    }
-
-    const [updatedItem] = await db.update(s.items)
-      .set(updates)
-      .where(eq(s.items.id, itemId))
-      .returning();
-
-    return res.success(serialize(updatedItem));
+    const result = await BudgetExecution.updateTransaction(userId, itemId, req.body);
+    return res.success(result);
   } catch (err) {
-    console.error('Update item error:', err);
-    return res.status(500).json({ error: 'Failed to update item' });
+    next(err);
   }
 });
 

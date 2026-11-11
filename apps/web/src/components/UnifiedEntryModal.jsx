@@ -99,6 +99,8 @@ export function UnifiedEntryModal({
   const [isFixed, setIsFixed] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState('');
+  const [cascadeScope, setCascadeScope] = useState('single'); // 'single' | 'all_future'
+  const [updateSalaryTemplate, setUpdateSalaryTemplate] = useState(false);
 
   // UI status states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,6 +153,8 @@ export function UnifiedEntryModal({
       setUnderSpendData(null);
       setFloorBreachData(null);
       setTransferError('');
+      setCascadeScope('single');
+      setUpdateSalaryTemplate(false);
 
       if (initialItem) {
         const isIncomeItem = initialItem.type === 'income' || initialItem.direction === 'income' || Boolean(initialItem.isIncome);
@@ -624,7 +628,8 @@ export function UnifiedEntryModal({
         accountType,
         accountId,
         bankAccountId: accountType === 'bank' ? accountId : null,
-        walletId: accountType === 'wallet' ? accountId : null
+        walletId: accountType === 'wallet' ? accountId : null,
+        cascadeScope
       };
       if (forcedUnderSpendAction) {
         await onLogTransaction(txPayload, forcedUnderSpendAction);
@@ -672,7 +677,8 @@ export function UnifiedEntryModal({
         accountType,
         accountId,
         bankAccountId: accountType === 'bank' ? accountId : null,
-        walletId: accountType === 'wallet' ? accountId : null
+        walletId: accountType === 'wallet' ? accountId : null,
+        updateSalaryTemplate
       });
       triggerExit();
     } catch {
@@ -727,8 +733,12 @@ export function UnifiedEntryModal({
       isPaid,
       isFixed,
       accountType,
+      accountId,
       bankAccountId: accountType === 'bank' ? accountId : null,
-      walletId: accountType === 'wallet' ? accountId : null
+      walletId: accountType === 'wallet' ? accountId : null,
+      cascadeScope,
+      category: tag,
+      tag
     };
 
     if (itemType === 'one-time') {
@@ -806,11 +816,18 @@ export function UnifiedEntryModal({
         sourceType: accountType,
         sourceBankAccountId: accountType === 'bank' ? accountId : null,
         sourceWalletId: accountType === 'wallet' ? accountId : null,
+        sourceAccountId: accountId,
         destinationType: destAccountType,
         destinationBankAccountId: destAccountType === 'bank' ? destAccountId : null,
         destinationWalletId: destAccountType === 'wallet' ? destAccountId : null,
-        note: description.trim()
+        destinationAccountId: destAccountId,
+        note: description.trim(),
+        description: description.trim()
       };
+
+      if (initialItem) {
+        payload.id = initialItem.transferId || initialItem.id || initialItem._id;
+      }
 
       if (onCreateTransfer) {
         await onCreateTransfer(payload);
@@ -869,61 +886,113 @@ export function UnifiedEntryModal({
               marginBottom: '12px'
             }}
           >
-            <div className="modal-tab-track" style={{ flex: 1, maxWidth: '440px' }}>
-              <div ref={indicatorRef} className="modal-tab-indicator" />
-              <button
-                ref={logBtnRef}
-                type="button"
-                className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
-                data-active={mode === 'log' ? 'true' : 'false'}
-                onClick={() => handleSwitchMode('log')}
-                aria-label="Spending"
-                title="Log Spending"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                <ZapIcon size={14} />
-                <span>Spending</span>
-              </button>
-              <button
-                ref={incomeBtnRef}
-                type="button"
-                className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
-                data-active={mode === 'income' ? 'true' : 'false'}
-                onClick={() => handleSwitchMode('income')}
-                aria-label="Income"
-                title="Log Income"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                <TrendingUpIcon size={14} />
-                <span>Income</span>
-              </button>
-              <button
-                ref={planBtnRef}
-                type="button"
-                className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
-                data-active={mode === 'plan' ? 'true' : 'false'}
-                onClick={() => handleSwitchMode('plan')}
-                aria-label="Plan Transaction"
-                title="Plan Transaction"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                <PlusIcon size={14} />
-                <span>Plan</span>
-              </button>
-              <button
-                ref={transferBtnRef}
-                type="button"
-                className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
-                data-active={mode === 'transfer' ? 'true' : 'false'}
-                onClick={() => handleSwitchMode('transfer')}
-                aria-label="Transfer"
-                title="Transfer Funds"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                <ArrowRightLeftIcon size={14} />
-                <span>Transfer</span>
-              </button>
-            </div>
+            {initialItem ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    letterSpacing: '-0.01em',
+                    background: mode === 'income'
+                      ? 'rgba(34, 197, 94, 0.12)'
+                      : (mode === 'transfer'
+                        ? 'rgba(59, 130, 246, 0.12)'
+                        : 'var(--surface-subtle, rgba(255, 255, 255, 0.05))'),
+                    color: mode === 'income'
+                      ? 'var(--success, #22c55e)'
+                      : (mode === 'transfer'
+                        ? 'var(--accent, #3b82f6)'
+                        : 'var(--text)'),
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  {mode === 'log' && <ZapIcon size={14} />}
+                  {mode === 'income' && <TrendingUpIcon size={14} />}
+                  {mode === 'plan' && <PlusIcon size={14} />}
+                  {mode === 'transfer' && <ArrowRightLeftIcon size={14} />}
+                  <span>
+                    {mode === 'log' && (isRefund ? 'Editing Credit / Refund' : 'Editing Settled Expense')}
+                    {mode === 'income' && (initialItem.origin === 'salary' ? 'Editing Salary Credit' : 'Editing Income Credit')}
+                    {mode === 'plan' && (initialItem.type === 'recurring' ? 'Editing Recurring Commitment' : 'Editing Planned Commitment')}
+                    {mode === 'transfer' && 'Editing Transfer'}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 500,
+                      opacity: 0.7,
+                      paddingLeft: '6px',
+                      marginLeft: '2px',
+                      borderLeft: '1px solid var(--border)'
+                    }}
+                    title="Type is locked during edit to maintain ledger consistency"
+                  >
+                    🔒 Type Locked
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="modal-tab-track" style={{ flex: 1, maxWidth: '440px' }}>
+                <div ref={indicatorRef} className="modal-tab-indicator" />
+                <button
+                  ref={logBtnRef}
+                  type="button"
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
+                  data-active={mode === 'log' ? 'true' : 'false'}
+                  onClick={() => handleSwitchMode('log')}
+                  aria-label="Spending"
+                  title="Log Spending"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <ZapIcon size={14} />
+                  <span>Spending</span>
+                </button>
+                <button
+                  ref={incomeBtnRef}
+                  type="button"
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
+                  data-active={mode === 'income' ? 'true' : 'false'}
+                  onClick={() => handleSwitchMode('income')}
+                  aria-label="Income"
+                  title="Log Income"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <TrendingUpIcon size={14} />
+                  <span>Income</span>
+                </button>
+                <button
+                  ref={planBtnRef}
+                  type="button"
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
+                  data-active={mode === 'plan' ? 'true' : 'false'}
+                  onClick={() => handleSwitchMode('plan')}
+                  aria-label="Plan Transaction"
+                  title="Plan Transaction"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <PlusIcon size={14} />
+                  <span>Plan</span>
+                </button>
+                <button
+                  ref={transferBtnRef}
+                  type="button"
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
+                  data-active={mode === 'transfer' ? 'true' : 'false'}
+                  onClick={() => handleSwitchMode('transfer')}
+                  aria-label="Transfer"
+                  title="Transfer Funds"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <ArrowRightLeftIcon size={14} />
+                  <span>Transfer</span>
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -1517,6 +1586,78 @@ export function UnifiedEntryModal({
                   />
                 </>
               )}
+
+              {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
+              {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && (
+                <div style={{ marginTop: '10px' }}>
+                  <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Update Scope</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className={`btn-subtle ${cascadeScope === 'single' ? 'active-scope' : ''}`}
+                      onClick={() => setCascadeScope('single')}
+                      style={{
+                        padding: '8px 12px',
+                        textAlign: 'left',
+                        borderRadius: '8px',
+                        border: cascadeScope === 'single' ? '1.5px solid var(--text)' : '1px solid var(--border)',
+                        background: cascadeScope === 'single' ? 'var(--surface-active, rgba(255, 255, 255, 0.08))' : 'var(--surface-subtle)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>This month only</div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>One-time override</div>
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-subtle ${cascadeScope === 'all_future' ? 'active-scope' : ''}`}
+                      onClick={() => setCascadeScope('all_future')}
+                      style={{
+                        padding: '8px 12px',
+                        textAlign: 'left',
+                        borderRadius: '8px',
+                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid var(--border)',
+                        background: cascadeScope === 'all_future' ? 'rgba(59, 130, 246, 0.12)' : 'var(--surface-subtle)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary, #3b82f6)' : 'var(--text)' }}>This & all future</div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>Update baseline</div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Salary Template Sync for Salary Income Edit */}
+              {initialItem && mode === 'income' && (initialItem.origin === 'salary' || incomeTag === 'Salary') && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    background: updateSalaryTemplate ? 'rgba(34, 197, 94, 0.08)' : 'var(--surface-subtle)',
+                    borderRadius: '8px',
+                    border: updateSalaryTemplate ? '1px solid var(--success, #22c55e)' : '1px solid var(--border)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', margin: 0 }}>
+                    <div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success, #22c55e)' : 'var(--text)' }}>
+                        Update monthly salary template
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        Applies this salary amount to upcoming months' safe-to-spend projections.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={updateSalaryTemplate}
+                      onChange={(e) => setUpdateSalaryTemplate(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* ---------------------------------------------------------------------
@@ -1611,7 +1752,7 @@ export function UnifiedEntryModal({
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Saving...')
                       : (initialItem
-                          ? 'Update planned transaction'
+                          ? 'Update Planned Item'
                           : (itemType === 'recurring' ? 'Save recurring item' : 'Save planned item'))}
                   </button>
                 )}
@@ -1623,7 +1764,9 @@ export function UnifiedEntryModal({
                     disabled={isSubmitting}
                     style={{ padding: '10px 20px' }}
                   >
-                    {isSubmitting ? 'Recording...' : 'Record Transfer'}
+                    {isSubmitting
+                      ? (initialItem ? 'Updating...' : 'Recording...')
+                      : (initialItem ? 'Update Transfer' : 'Record Transfer')}
                   </button>
                 )}
               </div>

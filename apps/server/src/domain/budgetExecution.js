@@ -602,59 +602,238 @@ export const BudgetExecution = {
   },
 
   /**
-   * Updates an existing transaction.
+   * Updates an existing transaction or planned item polymorphically, safely rebalancing
+   * ledger account balances, cascading dual-table updates, and handling recurrence scopes.
    */
   async updateTransaction(userId, txId, payload = {}) {
-    const tx = await db.query.transactions.findFirst({
-      where: and(eq(s.transactions.id, txId), eq(s.transactions.userId, userId))
-    });
-
-    if (!tx) {
+    if (!txId) {
       throw new NotFoundError('Transaction not found');
     }
 
-    if (tx.monthId) {
-      const month = await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) });
+    // 1. Search in s.transactions
+    const tx = await db.query.transactions.findFirst({
+      where: and(
+        or(
+          eq(s.transactions.id, txId),
+          eq(s.transactions.legacyItemId, txId),
+          eq(s.transactions.plannedItemId, txId)
+        ),
+        eq(s.transactions.userId, userId)
+      )
+    });
+
+    if (tx) {
+      if (tx.monthId) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) });
+        if (month && month.isClosed) {
+          throw new ValidationError('Cannot modify transactions in a closed review period. Review periods are strictly read-only.');
+        }
+      }
+
+      const updates = { updatedAt: new Date() };
+      const effectiveName = payload.name !== undefined ? payload.name : payload.title;
+      if (effectiveName !== undefined) updates.name = String(effectiveName).trim();
+      if (payload.amount !== undefined) updates.amount = Math.round(Number(payload.amount));
+      if (payload.date) {
+        updates.date = String(payload.date).trim();
+        // If date moved to another month period, dynamically re-link monthId
+        const parts = updates.date.split('-');
+        if (parts.length >= 2) {
+          const yr = Number(parts[0]);
+          const mo = Number(parts[1]);
+          if (!isNaN(yr) && !isNaN(mo)) {
+            const targetMonth = await db.query.months.findFirst({
+              where: and(eq(s.months.userId, userId), eq(s.months.year, yr), eq(s.months.month, mo))
+            });
+            if (targetMonth) {
+              updates.monthId = targetMonth.id;
+            }
+          }
+        }
+      }
+      if (payload.plannedAmount !== undefined) updates.plannedAmount = Math.round(Number(payload.plannedAmount));
+      if (payload.plannedDate !== undefined) updates.plannedDate = payload.plannedDate;
+      if (payload.category) updates.category = String(payload.category).trim();
+      if (payload.note !== undefined) updates.note = String(payload.note).trim();
+      if (payload.accountId !== undefined) updates.accountId = payload.accountId;
+      if (payload.destinationAccountId !== undefined) updates.destinationAccountId = payload.destinationAccountId;
+      if (payload.isIncome !== undefined) updates.isIncome = Boolean(payload.isIncome);
+      if (payload.recurrence !== undefined) updates.recurrence = payload.recurrence;
+
+      const [updated] = await db.update(s.transactions)
+        .set(updates)
+        .where(eq(s.transactions.id, tx.id))
+        .returning();
+
+      // Synchronize ledger account balance if this transaction is settled
+      try {
+        await LedgerService.handleTransactionUpdateBalance(tx, updated);
+      } catch (balErr) {
+        console.error('Failed to update materialized account balance:', balErr);
+      }
+
+      // If linked to a transfer, update the transfer record
+      if (tx.transferId) {
+        await db.update(s.transfers).set({
+          sourceAccountId: updates.accountId || tx.accountId,
+          destinationAccountId: updates.destinationAccountId || tx.destinationAccountId,
+          amount: updates.amount !== undefined ? updates.amount : tx.amount,
+          date: updates.date || tx.date,
+          note: updates.note !== undefined ? updates.note : tx.note,
+          updatedAt: new Date()
+        }).where(eq(s.transfers.id, tx.transferId));
+      }
+
+      // If linked to an item in items table, synchronize it
+      const linkedItemId = tx.plannedItemId || tx.legacyItemId;
+      if (linkedItemId) {
+        await db.update(s.items).set({
+          name: updates.name !== undefined ? updates.name : tx.name,
+          amount: updates.amount !== undefined ? updates.amount : tx.amount,
+          date: updates.date || tx.date,
+          category: updates.category || tx.category,
+          accountId: updates.accountId !== undefined ? updates.accountId : tx.accountId,
+          updatedAt: new Date()
+        }).where(and(eq(s.items.id, linkedItemId), eq(s.items.userId, userId)));
+      }
+
+      // Recurrence cascade if requested
+      if (payload.cascadeScope === 'all_future') {
+        const effectiveDate = updates.date || tx.date;
+        const targetName = updates.name || tx.name;
+        if (targetName && effectiveDate) {
+          await db.update(s.items).set({
+            amount: updates.amount !== undefined ? updates.amount : tx.amount,
+            category: updates.category || tx.category,
+            accountId: updates.accountId !== undefined ? updates.accountId : tx.accountId,
+            updatedAt: new Date()
+          }).where(
+            and(
+              eq(s.items.userId, userId),
+              eq(s.items.name, targetName),
+              gte(s.items.date, effectiveDate)
+            )
+          );
+        }
+      }
+
+      // Salary Template sync if user checked "Update standard monthly salary"
+      if (payload.updateSalaryTemplate && (tx.origin === 'salary' || tx.category === 'Salary') && updates.amount) {
+        await db.update(s.salaryTemplates).set({
+          monthlyAmount: updates.amount,
+          updatedAt: new Date()
+        }).where(eq(s.salaryTemplates.userId, userId));
+      }
+
+      const month = updated.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, updated.monthId) }) : null;
+      if (month) {
+        if (updated.isIncome || (tx.amount > updated.amount)) {
+          await this._reEvaluateAndReviveGoals(userId, month);
+        } else if (!updated.isIncome && updated.amount > tx.amount) {
+          await this._reEvaluateAndDeferGoals(userId, month);
+        }
+      }
+
+      return serialize(updated);
+    }
+
+    // 2. Fallback: check if txId exists in s.items
+    const item = await db.query.items.findFirst({
+      where: and(eq(s.items.id, txId), eq(s.items.userId, userId))
+    });
+
+    if (!item) {
+      throw new NotFoundError('Transaction not found');
+    }
+
+    if (item.monthId) {
+      const month = await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) });
       if (month && month.isClosed) {
         throw new ValidationError('Cannot modify transactions in a closed review period. Review periods are strictly read-only.');
       }
     }
 
-    const updates = { updatedAt: new Date() };
+    const itemUpdates = { updatedAt: new Date() };
     const effectiveName = payload.name !== undefined ? payload.name : payload.title;
-    if (effectiveName !== undefined) updates.name = String(effectiveName).trim();
-    if (payload.amount !== undefined) updates.amount = Math.round(Number(payload.amount));
-    if (payload.date) updates.date = String(payload.date).trim();
-    if (payload.plannedAmount !== undefined) updates.plannedAmount = Math.round(Number(payload.plannedAmount));
-    if (payload.plannedDate !== undefined) updates.plannedDate = payload.plannedDate;
-    if (payload.category) updates.category = String(payload.category).trim();
-    if (payload.note !== undefined) updates.note = String(payload.note).trim();
-    if (payload.accountId !== undefined) updates.accountId = payload.accountId;
-    if (payload.destinationAccountId !== undefined) updates.destinationAccountId = payload.destinationAccountId;
-    if (payload.isIncome !== undefined) updates.isIncome = Boolean(payload.isIncome);
-    if (payload.recurrence !== undefined) updates.recurrence = payload.recurrence;
+    if (effectiveName !== undefined) itemUpdates.name = String(effectiveName).trim();
+    if (payload.amount !== undefined) itemUpdates.amount = Math.round(Number(payload.amount));
+    if (payload.date) {
+      itemUpdates.date = String(payload.date).trim();
+      const parts = itemUpdates.date.split('-');
+      if (parts.length >= 2) {
+        const yr = Number(parts[0]);
+        const mo = Number(parts[1]);
+        if (!isNaN(yr) && !isNaN(mo)) {
+          const targetMonth = await db.query.months.findFirst({
+            where: and(eq(s.months.userId, userId), eq(s.months.year, yr), eq(s.months.month, mo))
+          });
+          if (targetMonth) {
+            itemUpdates.monthId = targetMonth.id;
+          }
+        }
+      }
+    }
+    if (payload.category) itemUpdates.category = String(payload.category).trim();
+    if (payload.accountId !== undefined) itemUpdates.accountId = payload.accountId;
+    if (payload.isIncome !== undefined) itemUpdates.isIncome = Boolean(payload.isIncome);
+    if (payload.type !== undefined) itemUpdates.type = payload.type;
 
-    const [updated] = await db.update(s.transactions)
-      .set(updates)
-      .where(eq(s.transactions.id, txId))
+    const [updatedItem] = await db.update(s.items)
+      .set(itemUpdates)
+      .where(eq(s.items.id, item.id))
       .returning();
 
-    try {
-      await LedgerService.handleTransactionUpdateBalance(tx, updated);
-    } catch (balErr) {
-      console.error('Failed to update materialized account balance:', balErr);
+    // If linked transactions exist, synchronize them and rebalance
+    const linkedTxs = await db.query.transactions.findMany({
+      where: and(
+        eq(s.transactions.userId, userId),
+        or(
+          eq(s.transactions.id, item.id),
+          eq(s.transactions.plannedItemId, item.id),
+          eq(s.transactions.legacyItemId, item.id)
+        )
+      )
+    });
+
+    for (const ltx of linkedTxs) {
+      const [uTx] = await db.update(s.transactions).set({
+        name: updatedItem.name,
+        amount: updatedItem.amount,
+        date: updatedItem.date,
+        monthId: updatedItem.monthId,
+        category: updatedItem.category,
+        accountId: updatedItem.accountId,
+        updatedAt: new Date()
+      }).where(eq(s.transactions.id, ltx.id)).returning();
+
+      await LedgerService.handleTransactionUpdateBalance(ltx, uTx);
     }
 
-    const month = tx.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, tx.monthId) }) : null;
-    if (month) {
-      if (updated.isIncome || (tx.amount > updated.amount)) {
-        await this._reEvaluateAndReviveGoals(userId, month);
-      } else if (!updated.isIncome && updated.amount > tx.amount) {
-        await this._reEvaluateAndDeferGoals(userId, month);
+    if (payload.cascadeScope === 'all_future') {
+      const effectiveDate = updatedItem.date || item.date;
+      const targetName = updatedItem.name || item.name;
+      if (targetName && effectiveDate) {
+        await db.update(s.items).set({
+          amount: updatedItem.amount,
+          category: updatedItem.category,
+          accountId: updatedItem.accountId,
+          updatedAt: new Date()
+        }).where(
+          and(
+            eq(s.items.userId, userId),
+            eq(s.items.name, targetName),
+            gte(s.items.date, effectiveDate)
+          )
+        );
       }
     }
 
-    return serialize(updated);
+    const month = updatedItem.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, updatedItem.monthId) }) : null;
+    if (month && !updatedItem.isIncome && updatedItem.amount > item.amount) {
+      await this._reEvaluateAndDeferGoals(userId, month);
+    }
+
+    return serialize(updatedItem);
   },
 
   /**

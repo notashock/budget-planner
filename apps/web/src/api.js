@@ -145,6 +145,7 @@ export const api = {
   // Transfers
   getTransfers: (monthId) => request(`/api/transfers${monthId ? `?monthId=${monthId}` : ''}`),
   createTransfer: (data) => request('/api/transfers', { method: 'POST', body: JSON.stringify(data) }),
+  updateTransfer: (id, data) => request(`/api/transfers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTransfer: (id) => request(`/api/transfers/${id}`, { method: 'DELETE' }),
 
   // AI Assistant (Gated by settings toggle)

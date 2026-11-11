@@ -243,4 +243,137 @@ describe('Planned Transactions and Months Lifecycle Integration', () => {
     const [accAfter] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [testAccountId]).then(r => r.rows);
     expect(Number(accAfter.current_balance)).toBe(balanceBeforePay);
   });
+
+  it('polymorphic updateTransaction amount change dynamically rebalances account balance', async () => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const curMonthStr = String(curMonth).padStart(2, '0');
+
+    // 1. Create a settled expense transaction of ₹2,000 (200000 cents)
+    const [tx] = await db.insert(s.transactions).values({
+      userId: testUserId,
+      monthId: currentMonthId,
+      name: 'Dinner Out',
+      status: 'successful',
+      origin: 'spot',
+      amount: 200000,
+      date: `${curYear}-${curMonthStr}-12`,
+      accountId: testAccountId
+    }).returning();
+
+    // Recompute and record balance
+    await LedgerService.recomputeAccountBalance(testAccountId);
+    const [accBefore] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [testAccountId]).then(r => r.rows);
+    const initialBal = Number(accBefore.current_balance);
+
+    // 2. Update transaction amount to ₹3,500 (350000 cents)
+    const updated = await BudgetExecution.updateTransaction(testUserId, tx.id, {
+      amount: 350000,
+      name: 'Dinner Out (Fancy)'
+    });
+    expect(updated.amount).toBe(350000);
+    expect(updated.name).toBe('Dinner Out (Fancy)');
+
+    // 3. Verify ledger account balance automatically debited the extra ₹1,500 (150000 cents)
+    const [accAfter] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [testAccountId]).then(r => r.rows);
+    expect(Number(accAfter.current_balance)).toBe(initialBal - 150000);
+  });
+
+  it('polymorphic updateTransaction account swap restores old account and debits new account', async () => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const curMonthStr = String(curMonth).padStart(2, '0');
+
+    // 1. Create a secondary wallet account
+    const [secondaryAccount] = await db.insert(s.accounts).values({
+      userId: testUserId,
+      name: 'Cash Wallet',
+      type: 'wallet',
+      subtype: 'cash',
+      openingBalance: 1000000, // ₹10,000
+      currentBalance: 1000000,
+      minimumBalance: 0,
+      isPrimary: false
+    }).returning();
+
+    // 2. Create settled transaction on Primary Bank for ₹1,000
+    const [tx] = await db.insert(s.transactions).values({
+      userId: testUserId,
+      monthId: currentMonthId,
+      name: 'Coffee Stash',
+      status: 'successful',
+      origin: 'spot',
+      amount: 100000,
+      date: `${curYear}-${curMonthStr}-13`,
+      accountId: testAccountId
+    }).returning();
+
+    await LedgerService.recomputeAccountBalance(testAccountId);
+    const [primaryBefore] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [testAccountId]).then(r => r.rows);
+    const [secondaryBefore] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [secondaryAccount.id]).then(r => r.rows);
+
+    // 3. Swap account attribution from testAccountId to secondaryAccount.id
+    await BudgetExecution.updateTransaction(testUserId, tx.id, {
+      accountId: secondaryAccount.id
+    });
+
+    // 4. Primary account should be credited back ₹1,000 (100000), Secondary account debited ₹1,000
+    const [primaryAfter] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [testAccountId]).then(r => r.rows);
+    const [secondaryAfter] = await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [secondaryAccount.id]).then(r => r.rows);
+
+    expect(Number(primaryAfter.current_balance)).toBe(Number(primaryBefore.current_balance) + 100000);
+    expect(Number(secondaryAfter.current_balance)).toBe(Number(secondaryBefore.current_balance) - 100000);
+  });
+
+  it('recurrence cascade with cascadeScope: all_future updates future recurring items', async () => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const curMonthStr = String(curMonth).padStart(2, '0');
+
+    const nextYear = curMonth === 12 ? curYear + 1 : curYear;
+    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
+    const nextMonthStr = String(nextMonth).padStart(2, '0');
+
+    // 1. Create recurring item in current month
+    const [itemCurrent] = await db.insert(s.items).values({
+      userId: testUserId,
+      monthId: currentMonthId,
+      type: 'recurring',
+      name: 'Cloud VPS',
+      category: 'Hosting',
+      amount: 80000, // ₹800
+      date: `${curYear}-${curMonthStr}-14`,
+      accountId: testAccountId,
+      isPaid: false
+    }).returning();
+
+    // 2. Create matching recurring item in future month
+    const [itemFuture] = await db.insert(s.items).values({
+      userId: testUserId,
+      monthId: futureMonthId,
+      type: 'recurring',
+      name: 'Cloud VPS',
+      category: 'Hosting',
+      amount: 80000, // ₹800
+      date: `${nextYear}-${nextMonthStr}-14`,
+      accountId: testAccountId,
+      isPaid: false
+    }).returning();
+
+    // 3. Update current item with cascadeScope: 'all_future' to ₹1,200 (120000 cents)
+    await BudgetExecution.updateTransaction(testUserId, itemCurrent.id, {
+      amount: 120000,
+      cascadeScope: 'all_future'
+    });
+
+    // 4. Verify both items have updated amount
+    const checkCurrent = await db.query.items.findFirst({ where: eq(s.items.id, itemCurrent.id) });
+    const checkFuture = await db.query.items.findFirst({ where: eq(s.items.id, itemFuture.id) });
+
+    expect(checkCurrent.amount).toBe(120000);
+    expect(checkFuture.amount).toBe(120000);
+  });
 });

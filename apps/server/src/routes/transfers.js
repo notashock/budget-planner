@@ -5,6 +5,7 @@ import * as s from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { serialize } from '../utils/serializer.js';
+import { LedgerService } from '../domain/ledgerService.js';
 
 export const transfersRouter = express.Router();
 transfersRouter.use(requireAuth);
@@ -127,6 +128,66 @@ transfersRouter.post('/', async (req, res) => {
   } catch (err) {
     console.error('Create transfer error:', err);
     return res.status(500).json({ error: 'Failed to create transfer' });
+  }
+});
+
+// Update a transfer
+transfersRouter.put('/:id', async (req, res) => {
+  try {
+    const userId = req.userId || req.session?.userId;
+    const transferId = req.params.id;
+    const { date, amount, note, description } = req.body;
+    const sourceAccountId = req.body.sourceAccountId || req.body.sourceBankAccountId || req.body.sourceWalletId || req.body.sourceId;
+    const destAccountId = req.body.destinationAccountId || req.body.destinationBankAccountId || req.body.destinationWalletId || req.body.destinationId;
+
+    const existingTransfer = await db.query.transfers.findFirst({
+      where: and(eq(s.transfers.id, transferId), eq(s.transfers.userId, userId))
+    });
+    if (!existingTransfer) {
+      return res.status(404).json({ error: 'Transfer not found' });
+    }
+
+    const effectiveSource = sourceAccountId || existingTransfer.sourceAccountId;
+    const effectiveDest = destAccountId || existingTransfer.destinationAccountId;
+    if (String(effectiveSource) === String(effectiveDest)) {
+      return res.status(400).json({ error: 'Source and destination accounts must be different' });
+    }
+
+    const effectiveAmount = amount !== undefined ? Math.round(Number(amount)) : existingTransfer.amount;
+    const effectiveDate = date ? String(date).trim() : existingTransfer.date;
+    const transferNote = note !== undefined ? String(note).trim() : (description !== undefined ? String(description).trim() : existingTransfer.note);
+
+    const [updatedTransfer] = await db.update(s.transfers).set({
+      sourceAccountId: effectiveSource,
+      destinationAccountId: effectiveDest,
+      amount: effectiveAmount,
+      date: effectiveDate,
+      note: transferNote,
+      updatedAt: new Date()
+    }).where(eq(s.transfers.id, transferId)).returning();
+
+    // Find and update the corresponding transaction record
+    const existingTx = await db.query.transactions.findFirst({
+      where: and(eq(s.transactions.userId, userId), eq(s.transactions.transferId, transferId))
+    });
+
+    if (existingTx) {
+      const [updatedTx] = await db.update(s.transactions).set({
+        accountId: effectiveSource,
+        destinationAccountId: effectiveDest,
+        amount: effectiveAmount,
+        date: effectiveDate,
+        note: transferNote,
+        updatedAt: new Date()
+      }).where(eq(s.transactions.id, existingTx.id)).returning();
+
+      await LedgerService.handleTransactionUpdateBalance(existingTx, updatedTx);
+    }
+
+    return res.json(serialize(updatedTransfer));
+  } catch (err) {
+    console.error('Update transfer error:', err);
+    return res.status(500).json({ error: 'Failed to update transfer' });
   }
 });
 

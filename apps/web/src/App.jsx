@@ -494,6 +494,7 @@ export default function App() {
       }
 
       setUnifiedEntryOpen(false);
+      setEditingItem(null);
       if (currentMonth) {
         await Promise.all([
           loadMonthDetails(currentMonth.year, currentMonth.month),
@@ -627,6 +628,7 @@ export default function App() {
         setTransactions(globalTxs || []);
       }
       setUnifiedEntryOpen(false);
+      setEditingItem(null);
       setEditingItem(null);
       if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
@@ -840,13 +842,27 @@ export default function App() {
   // Transfer handlers
   const handleCreateTransfer = async (transferData) => {
     try {
-      const created = await api.createTransfer({
-        ...transferData,
-        monthId: currentMonth._id
-      });
+      let res;
+      if (editingItem) {
+        const transferId = editingItem.transferId || editingItem.id || editingItem._id;
+        res = await api.updateTransfer(transferId, {
+          ...transferData,
+          monthId: currentMonth?._id || currentMonth?.id
+        });
+        setEditingItem(null);
+      } else {
+        res = await api.createTransfer({
+          ...transferData,
+          monthId: currentMonth?._id || currentMonth?.id
+        });
+      }
+      setUnifiedEntryOpen(false);
+      setEditingItem(null);
       await loadAccounts();
-      await loadMonthDetails(currentMonth.year, currentMonth.month);
-      return created;
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
+      return res;
     } catch (err) {
       throw err;
     }
@@ -1194,6 +1210,7 @@ export default function App() {
         accountSimulations={serverAccountSimulations}
         onClose={() => {
           setUnifiedEntryOpen(false);
+      setEditingItem(null);
           setEditingItem(null);
         }}
         onLogTransaction={handleLogTransaction}
