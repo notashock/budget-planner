@@ -543,23 +543,26 @@ export function TimelineList({
                         )}
                         <span className="timeline-event-type">{metaDescription}</span>
                       </span>
-                      <span className="tx-date-inline tabular-nums">• {formatDisplayDate(evt.date, true)}</span>
+                      <span className="tx-date-inline tabular-nums">
+                        • {formatDisplayDate(evt.date, true)}
+                        {relativeDate && ` (${relativeDate.label})`}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Center Zone: Date Badge */}
+                  {/* Center Zone: Date Badge & Relative Badge */}
                   <div className="tx-card-center timeline-event-date">
                     <span className={`tx-date-badge event-date-text tabular-nums ${isOverdue ? 'date-overdue' : (isDue ? 'date-due' : '')}`}>
                       {formatDisplayDate(evt.date, true)}
                     </span>
+                    {relativeDate && (
+                      <span className={`relative-date-pill ${relativeDate.type}`}>
+                        {relativeDate.label}
+                      </span>
+                    )}
                     {isPreMonth && (
                       <span className="day-offset-pill tabular-nums">
                         Day {evt.day}
-                      </span>
-                    )}
-                    {isToday && !isPreMonth && (
-                      <span className="today-pill">
-                        Today
                       </span>
                     )}
                   </div>
@@ -587,7 +590,7 @@ export function TimelineList({
                           title="Mark as paid (confirm actual amount and date)"
                           aria-label="Mark as Paid (Settle)"
                         >
-                          <CheckCircleIcon size={12} />
+                          <CheckCircleIcon size={13} strokeWidth={2.4} />
                           <span>Mark as Paid</span>
                         </button>
                       </div>
