@@ -1428,26 +1428,28 @@ main {
 }
 
 @media (max-width: 599px) {
+  .app-brand-text,
   .beta-badge {
     display: none !important;
   }
-  .app-brand-text {
-    font-size: 13.5px;
-    letter-spacing: -0.01em;
-  }
   .header-btn-text {
-    display: none;
+    display: none !important;
   }
   .app-header-inner {
     padding: 8px 12px;
     gap: 6px;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .app-header-left {
     gap: 6px;
     min-width: 0;
+    flex-shrink: 1;
   }
   .app-header-right {
     gap: 6px;
+    flex-shrink: 0;
   }
 }
 
@@ -1458,10 +1460,10 @@ main {
   left: 50% !important;
   transform: translateX(-50%) !important;
   margin: 0 auto;
-  width: calc(100% - 24px) !important;
-  max-width: min(400px, calc(100vw - 24px)) !important;
+  width: calc(100vw - 24px) !important;
+  max-width: min(390px, calc(100vw - 24px)) !important;
   min-width: 0 !important;
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   background: var(--dock-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -3327,18 +3329,23 @@ main {
     letter-spacing: 0.03em;
   }
 
-  /* Mobile Chart Enlargement & Breathing Room */
+  /* Mobile Chart Responsive Containment */
   .dashboard-chart-panel .chart-container {
-    min-height: 250px;
+    min-height: 0;
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
   }
 
   .dashboard-chart-panel .chart-svg {
-    width: 100%;
-    min-height: 240px;
-    height: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
   }
 
   /* Compact Summary & Safe Velocity */
@@ -3539,11 +3546,22 @@ main {
   main,
   .card,
   .surface-card,
-  .chart-container {
+  .chart-container,
+  .chart-svg-container,
+  .dashboard-chart-panel,
+  .dashboard-chart-panel .card {
     max-width: 100vw !important;
     width: 100% !important;
+    min-width: 0 !important;
     overflow-x: hidden;
     box-sizing: border-box;
+  }
+
+  .chart-svg {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
 
   .salary-scheduled-banner {
@@ -3557,11 +3575,30 @@ main {
     justify-content: flex-end !important;
   }
 
+  .tx-header-top-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tx-search-box.compact {
+    flex: 1 1 0 !important;
+    min-width: 160px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tx-header-top-actions {
+    flex-shrink: 0 !important;
+  }
+
   .bottom-nav {
     width: calc(100vw - 24px) !important;
-    max-width: min(400px, calc(100vw - 24px)) !important;
+    max-width: min(390px, calc(100vw - 24px)) !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
+    box-sizing: border-box !important;
   }
 
   .summary-grid,
