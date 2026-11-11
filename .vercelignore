@@ -8,3 +8,9 @@ tests/
 audits/
 docs/
 coverage/
+
+# Exclude mobile, vendor dependencies, and local artifacts
+apps/mobile/
+node_modules/
+.git/
+.gemini/
