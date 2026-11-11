@@ -516,8 +516,10 @@ export default function App() {
   const handleDeleteTransaction = async (id) => {
     if (!window.confirm('Delete this transaction?')) return;
     try {
+      // Optimistically evict from both transactions and items states
+      setTransactions((prev) => prev.filter((t) => (t.id || t._id) !== id && t.plannedItemId !== id && t.legacyItemId !== id));
+      setItems((prev) => prev.filter((i) => (i.id || i._id) !== id));
       await api.deleteTransaction(id);
-      setTransactions((prev) => prev.filter((t) => (t.id || t._id) !== id));
       if (currentMonth) {
         await Promise.all([
           loadMonthDetails(currentMonth.year, currentMonth.month),
@@ -532,6 +534,9 @@ export default function App() {
       }
     } catch (err) {
       alert(err.message || 'Failed to delete transaction');
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
     }
   };
 
@@ -636,11 +641,21 @@ export default function App() {
   const handleDeleteItem = async (id) => {
     if (!window.confirm('Delete this item from the month?')) return;
     try {
+      // Optimistically evict from both items and transactions states
+      setItems((prev) => prev.filter((i) => (i.id || i._id) !== id));
+      setTransactions((prev) => prev.filter((t) => (t.id || t._id) !== id && t.plannedItemId !== id && t.legacyItemId !== id));
       await api.deleteItem(id);
-      setItems((prev) => prev.filter((i) => i._id !== id));
-      await loadMonthDetails(currentMonth.year, currentMonth.month);
+      if (currentMonth) {
+        await Promise.all([
+          loadMonthDetails(currentMonth.year, currentMonth.month),
+          loadAccounts()
+        ]);
+      }
     } catch (err) {
       alert(err.message || 'Failed to delete item');
+      if (currentMonth) {
+        await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
     }
   };
 

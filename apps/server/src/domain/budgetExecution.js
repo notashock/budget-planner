@@ -781,53 +781,124 @@ export const BudgetExecution = {
   },
 
   /**
-   * Deletes a transaction and re-evaluates goals.
+   * Deletes a transaction or planned budget item polymorphically, cascades related entities,
+   * reverses materialized ledger account balances if settled, and re-evaluates goals.
+   * Idempotent: returns success message if already removed.
    */
   async deleteTransaction(userId, txId) {
+    if (!txId) {
+      return { message: 'Transaction already removed' };
+    }
+
+    // 1. Check if record exists in transactions
     const existing = await db.query.transactions.findFirst({
       where: and(eq(s.transactions.id, txId), eq(s.transactions.userId, userId))
     });
 
-    if (!existing) {
-      throw new NotFoundError('Transaction not found');
-    }
-
-    if (existing.monthId) {
-      const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
-      if (month && month.isClosed) {
-        throw new ValidationError('Cannot delete transactions in a closed review period. Review periods are strictly read-only.');
+    if (existing) {
+      if (existing.monthId) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
+        if (month && month.isClosed) {
+          throw new ValidationError('Cannot delete transactions in a closed review period. Review periods are strictly read-only.');
+        }
       }
+
+      if (existing.transferId) {
+        await db.delete(s.transfers).where(eq(s.transfers.id, existing.transferId));
+      } else if (existing.origin === 'transfer') {
+        await db.delete(s.transfers).where(
+          and(
+            eq(s.transfers.userId, userId),
+            eq(s.transfers.sourceAccountId, existing.accountId),
+            eq(s.transfers.destinationAccountId, existing.destinationAccountId),
+            eq(s.transfers.date, existing.date)
+          )
+        );
+      }
+
+      if (existing.status === 'successful') {
+        try {
+          await LedgerService.applyTransactionBalance(existing, -1);
+        } catch (balErr) {
+          console.error('Failed to reverse materialized account balance on delete:', balErr);
+        }
+      }
+
+      // Delete the transaction
+      await db.delete(s.transactions).where(eq(s.transactions.id, txId));
+
+      // Cascade delete any corresponding planned item in items table
+      const linkedItemId = existing.plannedItemId || existing.legacyItemId;
+      if (linkedItemId) {
+        await db.delete(s.items).where(and(eq(s.items.id, linkedItemId), eq(s.items.userId, userId)));
+      }
+      // Also delete any item that shares the exact same id
+      await db.delete(s.items).where(and(eq(s.items.id, txId), eq(s.items.userId, userId)));
+
+      if (existing.monthId && !existing.isIncome && existing.amount > 0) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
+        if (month) {
+          await this._reEvaluateAndReviveGoals(userId, month);
+        }
+      }
+
+      return { message: 'Transaction deleted successfully' };
     }
 
-    if (existing.transferId) {
-      await db.delete(s.transfers).where(eq(s.transfers.id, existing.transferId));
-    } else if (existing.origin === 'transfer') {
-      await db.delete(s.transfers).where(
-        and(
-          eq(s.transfers.userId, userId),
-          eq(s.transfers.sourceAccountId, existing.accountId),
-          eq(s.transfers.destinationAccountId, existing.destinationAccountId),
-          eq(s.transfers.date, existing.date)
+    // 2. Fallback: check if txId references an item in s.items (bridged planned transaction or item deletion)
+    const item = await db.query.items.findFirst({
+      where: and(eq(s.items.id, txId), eq(s.items.userId, userId))
+    });
+
+    if (item) {
+      if (item.monthId) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) });
+        if (month && month.isClosed) {
+          throw new ValidationError('Cannot delete transactions in a closed review period. Review periods are strictly read-only.');
+        }
+      }
+
+      // Find any linked transactions in transactions table
+      const linkedTransactions = await db.query.transactions.findMany({
+        where: and(
+          eq(s.transactions.userId, userId),
+          or(
+            eq(s.transactions.id, item.id),
+            eq(s.transactions.plannedItemId, item.id),
+            eq(s.transactions.legacyItemId, item.id)
+          )
         )
-      );
+      });
+
+      for (const linkedTx of linkedTransactions) {
+        if (linkedTx.transferId) {
+          await db.delete(s.transfers).where(eq(s.transfers.id, linkedTx.transferId));
+        }
+        if (linkedTx.status === 'successful') {
+          try {
+            await LedgerService.applyTransactionBalance(linkedTx, -1);
+          } catch (balErr) {
+            console.error('Failed to reverse materialized account balance on delete (linked item):', balErr);
+          }
+        }
+        await db.delete(s.transactions).where(eq(s.transactions.id, linkedTx.id));
+      }
+
+      // Delete the item itself
+      await db.delete(s.items).where(eq(s.items.id, item.id));
+
+      if (item.monthId && !item.isIncome && item.amount > 0) {
+        const month = await db.query.months.findFirst({ where: eq(s.months.id, item.monthId) });
+        if (month) {
+          await this._reEvaluateAndReviveGoals(userId, month);
+        }
+      }
+
+      return { message: 'Transaction deleted successfully' };
     }
 
-    if (existing.status === 'successful') {
-      try {
-        await LedgerService.applyTransactionBalance(existing, -1);
-      } catch (balErr) {
-        console.error('Failed to reverse materialized account balance on delete:', balErr);
-      }
-    }
-
-    await db.delete(s.transactions).where(eq(s.transactions.id, txId));
-    if (existing.monthId && !existing.isIncome && existing.amount > 0) {
-      const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
-      if (month) {
-        await this._reEvaluateAndReviveGoals(userId, month);
-      }
-    }
-    return { message: 'Transaction deleted successfully' };
+    // 3. Idempotent success: record is already deleted
+    return { message: 'Transaction already removed' };
   },
 
   /**

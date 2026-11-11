@@ -5,6 +5,7 @@ import * as s from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { serialize } from '../utils/serializer.js';
+import { BudgetExecution } from '../domain/budgetExecution.js';
 
 export const itemsRouter = express.Router();
 itemsRouter.use(requireAuth);
@@ -209,22 +210,14 @@ itemsRouter.put('/items/:id', async (req, res) => {
 });
 
 // Delete item
-itemsRouter.delete('/items/:id', async (req, res) => {
+itemsRouter.delete('/items/:id', async (req, res, next) => {
   try {
     const userId = req.userId || req.session?.userId;
     const itemId = req.params.id;
 
-    await db.delete(s.transactions).where(
-      and(
-        or(eq(s.transactions.id, itemId), eq(s.transactions.legacyItemId, itemId)),
-        eq(s.transactions.userId, userId)
-      )
-    );
-    await db.delete(s.items).where(and(eq(s.items.id, itemId), eq(s.items.userId, userId)));
-
-    return res.success({ message: 'Item deleted successfully' });
+    const result = await BudgetExecution.deleteTransaction(userId, itemId);
+    return res.success(result);
   } catch (err) {
-    console.error('Delete item error:', err);
-    return res.status(500).json({ error: 'Failed to delete item' });
+    next(err);
   }
 });
