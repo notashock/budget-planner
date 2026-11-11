@@ -1091,7 +1091,7 @@ export default function App() {
           </div>
         )}
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
         <ErrorBoundary title="Screen rendering error">
           {activeTab === 'plan' && (
             <PlanScreen

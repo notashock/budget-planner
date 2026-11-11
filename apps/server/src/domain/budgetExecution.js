@@ -659,6 +659,12 @@ export const BudgetExecution = {
       if (payload.destinationAccountId !== undefined) updates.destinationAccountId = payload.destinationAccountId;
       if (payload.isIncome !== undefined) updates.isIncome = Boolean(payload.isIncome);
       if (payload.recurrence !== undefined) updates.recurrence = payload.recurrence;
+      if (payload.isPaid !== undefined) {
+        updates.status = payload.isPaid ? 'successful' : 'planned';
+      }
+      if (payload.status !== undefined) {
+        updates.status = payload.status;
+      }
 
       const [updated] = await db.update(s.transactions)
         .set(updates)
@@ -734,7 +740,10 @@ export const BudgetExecution = {
         }
       }
 
-      return serialize(updated);
+      return serialize({
+        ...updated,
+        isPaid: updated.status === 'successful'
+      });
     }
 
     // 2. Fallback: check if txId exists in s.items
@@ -777,6 +786,8 @@ export const BudgetExecution = {
     if (payload.accountId !== undefined) itemUpdates.accountId = payload.accountId;
     if (payload.isIncome !== undefined) itemUpdates.isIncome = Boolean(payload.isIncome);
     if (payload.type !== undefined) itemUpdates.type = payload.type;
+    if (payload.isPaid !== undefined) itemUpdates.isPaid = Boolean(payload.isPaid);
+    if (payload.status !== undefined) itemUpdates.isPaid = payload.status === 'successful';
 
     const [updatedItem] = await db.update(s.items)
       .set(itemUpdates)
@@ -833,7 +844,10 @@ export const BudgetExecution = {
       await this._reEvaluateAndDeferGoals(userId, month);
     }
 
-    return serialize(updatedItem);
+    return serialize({
+      ...updatedItem,
+      isPaid: updatedItem.isPaid !== undefined ? updatedItem.isPaid : (updatedItem.status === 'successful')
+    });
   },
 
   /**

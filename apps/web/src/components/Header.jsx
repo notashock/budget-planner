@@ -132,7 +132,7 @@ export function Header({
             <span className="beta-badge">beta</span>
           </span>
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', zIndex: monthDropdownOpen ? 99999 : 'auto' }}>
             <button
               type="button"
               className="month-picker-btn"
@@ -382,7 +382,7 @@ export function Header({
 
           {/* User Settings Dropdown */}
           {user && (
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', zIndex: userMenuOpen ? 99999 : 'auto' }}>
               <button
                 type="button"
                 className="header-avatar-btn"

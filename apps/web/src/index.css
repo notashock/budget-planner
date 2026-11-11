@@ -528,14 +528,14 @@ input[type="number"] {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 9990;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .app-header:has(.app-dropdown-menu),
 .app-header.has-active-dropdown {
-  z-index: 1050 !important;
+  z-index: 99999 !important;
 }
 
 .app-header-inner {
@@ -863,13 +863,23 @@ main {
 }
 
 /* Account Filter Toolbar & Symmetrical Pills */
+.account-filter-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .account-filter-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 0;
-  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .account-filter-track {
@@ -878,6 +888,9 @@ main {
   gap: 6px;
   overflow-x: auto;
   padding: 2px 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -1303,7 +1316,7 @@ main {
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  z-index: 1100 !important;
+  z-index: 99999 !important;
   min-width: 220px;
   display: flex;
   flex-direction: column;
@@ -1432,8 +1445,9 @@ main {
   left: 50% !important;
   transform: translateX(-50%) !important;
   margin: 0 auto;
-  width: calc(100% - 24px);
-  max-width: 420px;
+  width: calc(100% - 24px) !important;
+  max-width: min(400px, calc(100vw - 24px)) !important;
+  min-width: 0 !important;
   box-sizing: border-box;
   background: var(--dock-bg);
   border: 1px solid var(--border);
@@ -3496,14 +3510,26 @@ main {
   html, body {
     overflow-x: hidden;
     max-width: 100vw;
+    width: 100%;
   }
 
   .app-header-inner,
   .app-container,
-  .screen-content {
-    max-width: 100vw;
+  .screen-content,
+  .dashboard-layout,
+  main,
+  .card,
+  .surface-card,
+  .chart-container {
+    max-width: 100vw !important;
+    width: 100% !important;
     overflow-x: hidden;
     box-sizing: border-box;
+  }
+
+  .bottom-nav {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
   }
 
   .summary-grid {
