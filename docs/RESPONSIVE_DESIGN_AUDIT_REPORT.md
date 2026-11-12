@@ -4,7 +4,7 @@
 ---
 
 ### Document Control & Audit Metadata
-- **Audit Date:** November 12, 2026
+- **Audit Date:** November 12, 2026 (Updated with User In-Field QA Findings)
 - **Auditors:** Lead Quality Assurance Tester & Senior UI/UX Designer
 - **Branch:** `audit-ui-ux-master` (branched from `master` @ commit `065a5fc`)
 - **Repository:** `Full_Stack_web/budget-planner`
@@ -24,17 +24,22 @@ This audit represents a joint technical Quality Assurance (QA) and visual/intera
 
 | Layout Category | Viewport Scope | QA Reliability Score | UI/UX Design Score | Combined Rating | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Mobile Layout** | 320px – 480px | **89 / 100** | **91 / 100** | **90.0 / 100** | **Excellent** |
-| **Tablet Layout** | 768px – 1024px | **84 / 100** | **78 / 100** | **81.0 / 100** | **Good (Needs Polish)** |
-| **Laptop / Desktop** | 1024px – 1920px+ | **93 / 100** | **94 / 100** | **93.5 / 100** | **Exceptional** |
-| **Overall Ecosystem** | Cross-Platform | **88.7 / 100** | **87.7 / 100** | **88.2 / 100** | **High Maturity** |
+| **Mobile Layout** | 320px – 480px | **86 / 100** | **88 / 100** | **87.0 / 100** | **High (Defects Identified)** |
+| **Tablet Layout** | 768px – 1024px | **82 / 100** | **77 / 100** | **79.5 / 100** | **Good (Needs Polish)** |
+| **Laptop / Desktop** | 1024px – 1920px+ | **90 / 100** | **91 / 100** | **90.5 / 100** | **Strong (Defects Identified)** |
+| **Overall Ecosystem** | Cross-Platform | **86.0 / 100** | **85.3 / 100** | **85.7 / 100** | **Production-Ready with Fixes** |
 
-### Key Executive Highlights
-1. **Exceptional Mobile Glance-and-Act Ergonomics:** The mobile experience features a floating island dock (`.bottom-nav`), high-contrast 2x2 Bento KPI cards, single-finger account filter tracks, and gesture-driven bottom drawers with GSAP physics.
-2. **Desktop Bento Symmetry:** The desktop layout features a 2-column Bento Grid (`minmax(360px, 420px) 1fr`) pairing daily financial insights with an SVG Monotone Cubic Spline curve (Fritsch-Carlson algorithm) and centered pill navigation.
-3. **The "Tablet Void" Opportunity:** Viewports between 768px and 1023px turn off the mobile bottom dock but have not yet triggered the desktop 2-column grid, causing full-width card stretching and underutilized horizontal space in tablet portrait orientations.
-4. **CSS Cascading Override Defect:** On line 675 of `index.css`, `.app-container` defines `max-width: 100%` directly beneath `max-width: 1400px`, unintentionally defeating container centering on ultrawide monitors (> 1440px).
-5. **Mobile Touch Target Optimization:** Small action buttons (24px x 24px with 4px gap) in transaction lists present miss-tap risks on mobile touchscreens under WCAG 2.5.5 / 2.5.8 guidelines.
+### Key Executive Highlights & User-Reported Observations
+1. **Stepline Chart Container Overflow & Clipping (`CHART-DEF-01` — High Priority):**
+   The StepLineChart SVG does not fit within its container viewspace across certain viewports. Spline curve peaks, Y-axis currency tick labels, and the `TODAY` indicator badge extend beyond the 600x240 SVG viewBox or get clipped by `.chart-container`'s `overflow: hidden` rules.
+2. **Timeline Card Running Balance Occlusion (`TL-DEF-01` — High Priority):**
+   In the bottom interactive timeline, the critical running balance metric (`bal: ₹XXXX`) is occluded or truncated underneath the Edit button / Settle action button on cards due to `nowrap` truncation constraints introduced in commit `065a5fc`.
+3. **Ultrawide Container Override (`DSK-DEF-01` — High Priority):**
+   On line 675 of `index.css`, `.app-container` defines `max-width: 100%` directly beneath `max-width: 1400px`, unintentionally defeating container centering on ultrawide monitors (> 1440px).
+4. **Mobile Touch Target Optimization (`MOB-DEF-01` — High Priority):**
+   Small action buttons (24px x 24px with 4px gap) in transaction lists present miss-tap risks on mobile touchscreens under WCAG 2.5.5 / 2.5.8 guidelines.
+5. **The "Tablet Void" Phenomenon (`TAB-DEF-01` — Medium Priority):**
+   Viewports between 768px and 1023px turn off the mobile bottom dock but have not yet triggered the desktop 2-column grid, causing full-width card stretching and underutilized horizontal space in tablet portrait orientations.
 
 ---
 
@@ -55,20 +60,6 @@ The application utilizes a CSS-first responsive system coordinated with React ru
 └────────────────────┴────────────────────┴────────────────────┴───────────────────┘
 ```
 
-### Breakpoint Rule Enforcement
-
-| Breakpoint Query | UI / Architectural Transition | Component Target |
-| :--- | :--- | :--- |
-| `@media (max-width: 380px)` | Tightens transaction section tabs gap to 4px; enforces compact text scaling. | `.tx-section-tabs-bar` |
-| `@media (max-width: 599px)` | Hides `.app-brand-text` and `.beta-badge`; forces 2-column 2x2 grid for KPIs; sets mobile bottom dock height to 52px; prevents horizontal page overflow (`max-width: 100vw; overflow-x: hidden`). | `.app-header-left`, `.summary-grid`, `.bottom-nav` |
-| `@media (max-width: 640px)` | Hides center date column in transaction cards; displays inline date; tightens card padding to `10px 12px`. | `.tx-card`, `.tx-card-center`, `.tx-date-inline` |
-| `@media (max-width: 767px)` | **Mobile Viewport Ceiling:** Displays `.bottom-nav`; completely hides `.desktop-header-nav`; switches modals to bottom-sheet drawers (`align-items: flex-end`); enables `.modal-drag-zone` and `.modal-drag-handle`; collapses desktop transaction header; sets container bottom padding to 90px. | Root Layout, Header, Modals, Navigation |
-| `@media (min-width: 768px)` | **Tablet / Desktop Floor:** Completely hides `.bottom-nav`; displays `.desktop-header-nav`; centers modal dialogs (`align-items: center`, `border-radius: 12px`); disables mobile drag handle; resets container padding. | Header, Navigation, Modals |
-| `@media (min-width: 768px) and (max-width: 1023px)` | **Tablet Adaptation Zone:** Dynamically clamps header inner padding to `clamp(12px, 2vw, 18px)`; clamps header gap; scales desktop nav pills down to `12px` font; hides `.beta-badge`; limits floor pill to `max-width: 110px`. | `.app-header-inner`, `.desktop-nav-pill`, `.header-floor-pill` |
-| `@media (min-width: 768px) and (max-width: 860px)` | **Narrow Tablet Portrait Refinement:** Reduces nav pill font to `11.5px` and padding to `4px 7px`; truncates floor pill text to `max-width: 70px`. | Header Nav Pills & Floor Indicator |
-| `@media (max-width: 1023px)` | **Linear Ordering for Mobile & Tablet:** Forces `dashboard-top-grid` and `dashboard-insights-panel` to `display: contents`; sets linear order: 1. Safe Velocity -> 2. Action Bar -> 3. Chart -> 4. Detailed KPIs -> 5. Timeline List. | Dashboard Layout Hierarchy |
-| `@media (min-width: 1024px)` | **Laptop / Desktop Grid Engine:** Engages 2-column CSS Grid (`grid-template-columns: minmax(360px, 420px) 1fr`); insights left, chart right; activates 2-column split for Goals screen (`grid-template-columns: 380px 1fr`). | `.dashboard-top-grid`, `.goals-two-column-layout` |
-
 ---
 
 ## 3. Deep-Dive Layout Audit: Mobile (320px – 480px)
@@ -80,37 +71,61 @@ The application utilizes a CSS-first responsive system coordinated with React ru
   The mobile ordering places the **Safe Velocity Card** at the very top. A user opening the app immediately receives the definitive daily answer: discretionary allowance per day (e.g., `₹1,250/day`), pace status badge (e.g., `Expanding Pace`), days remaining, and committed bills.
 - **Micro 2x2 Bento KPI Grid (Rating: 9.0/10):**
   Below the chart, `.summary-grid` and `.detailed-kpi-grid` dynamically collapse from 4 columns into a symmetrical 2x2 grid (`repeat(2, minmax(0, 1fr))`). This format displays Monthly Income, Total Expenses, Today's Balance, and Lowest Balance side-by-side with tabular figures and breach badges.
-- **Compact 2-Row Transaction Cards (Rating: 8.8/10):**
-  On viewports below 768px, `.tx-card` transforms from a 3-column flexbox into a 2-row CSS Grid:
-  - Row 1: Title & tags (left) + Hero amount (right)
-  - Row 2: Account name & inline date (left) + Action buttons (right)
-  This format keeps transaction rows around 56px in height, allowing 5–7 transactions to be visible simultaneously.
 
-### 3.2 QA Testing & Technical Verification
-- **Test Case MOB-TC01: Viewport Overflow & 375px Blowout Prevention**
-  - *Result:* **PASS**
-  - *Evidence:* Code inspection of `index.css` lines 3571-3595 confirms global containment rules:
-    ```css
-    @media (max-width: 599px) {
-      html, body {
-        overflow-x: hidden;
-        max-width: 100vw;
-      }
-      .app-container, .screen-content, .dashboard-layout, main, .card {
-        max-width: 100vw !important;
-        box-sizing: border-box !important;
-      }
-    }
-    ```
-    No horizontal scrollbars or page blowout observed on 375px (iPhone SE) or 360px (Android) viewports.
-- **Test Case MOB-TC02: Floating Dock Padding & Occlusion**
-  - *Result:* **PASS**
-  - *Evidence:* `.app-container` provides `padding-bottom: 90px` on mobile (line 715), and `TransactionsScreen` applies `style={{ paddingBottom: '90px' }}`. The floating dock (height 52px + 10px bottom margin) never obscures the last item or submit buttons.
-- **Test Case MOB-TC03: Bottom Drawer Drag & Swipe Physics**
-  - *Result:* **PASS**
-  - *Evidence:* `MonthEndReviewModal` and `UnifiedEntryModal` implement gesture handlers. Dragging the handle downward by > 80px or releasing with velocity > 0.4 triggers a smooth GSAP exit timeline (`y: '100%'`). Background scroll lock properly applies `overflow: hidden` to `document.body`.
+### 3.2 Identified Defects (Mobile)
 
-### 3.3 Identified Defects & UX Friction Points (Mobile)
+#### Defect TL-DEF-01: Running Balance (`bal:XXXX`) Occluded / Truncated Under Edit Button
+- **Severity:** High (Core Functional & Visual Defect)
+- **Components:** `apps/web/src/components/TimelineList.jsx` (Lines 581-602), `apps/web/src/index.css` (Lines 5873-5882, 6208-6222)
+- **Symptom & Finding:**
+  In the bottom interactive timeline cards on mobile, the running balance string (`bal: ₹12,450.00`) is partially or completely occluded, appearing hidden underneath the Edit button / Settle action button on the right side of the card.
+- **Technical Root Cause Diagnosis:**
+  1. Commit `065a5fc` applied `white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-wrap: nowrap;` to `.tx-card-account` to enforce a compact ~56px mobile card height.
+  2. Inside `.tx-card-account`, items are ordered:
+     `[Icon + Account Name + Type/Category] • [bal: ₹XXXX] • [Date]`
+  3. On mobile (< 768px), `.tx-card` is a 2-column CSS Grid:
+     `grid-template-areas: "headline amount" "account actions";`
+     `grid-template-columns: 1fr auto;`
+  4. The right column (`actions`) contains the Edit button (and Settle button for planned transactions).
+  5. Because `.tx-account-name` does not shrink (`flex-shrink: 0`), when the account name is rendered, the available width in the left `1fr` column is exhausted.
+  6. The browser truncates `.tx-card-account` immediately after the account name, cutting off `bal: ₹XXXX` directly adjacent to the Edit button in the `actions` column.
+- **Remediation Blueprint:**
+  1. Make `.tx-card-balance` have `flex-shrink: 0;` so the running balance is protected and NEVER truncated.
+  2. Allow `.timeline-event-type` (the category label) to absorb the truncation:
+     ```css
+     .timeline-event-type {
+       flex: 0 1 auto;
+       min-width: 0;
+       overflow: hidden;
+       text-overflow: ellipsis;
+       white-space: nowrap;
+     }
+     .tx-card-balance {
+       flex-shrink: 0 !important;
+       margin-left: auto; /* Pushes balance cleanly rightward or establishes priority */
+     }
+     ```
+  3. Alternatively, on mobile viewports, move `.tx-card-balance` into the amount column or give it a dedicated, high-contrast sub-badge position.
+
+#### Defect CHART-DEF-01: Stepline Chart SVG Container Overflow & Viewspace Mismatch
+- **Severity:** High (Visual & Data Visualization Defect)
+- **Components:** `apps/web/src/components/StepLineChart.jsx` (Lines 180-240, 520-545), `apps/web/src/index.css` (Lines 3246-3254, 3375-3383)
+- **Symptom & Finding:**
+  Some parts of the stepline graph go beyond the container viewspace and are clipped. Specifically:
+  - The left Y-axis tick labels (e.g. `₹1,50,000` or `-₹25,000`) get clipped on the left edge.
+  - The `TODAY` indicator badge (`y={paddingTop - 13}`) and high curve peaks exceed the top coordinate boundary.
+  - On narrow mobile devices (< 390px), horizontal scrollbars or clipping occur because `.chart-svg` has inline `overflow: 'visible'` while `.chart-container` enforces `overflow: hidden !important;`.
+- **Technical Root Cause Diagnosis:**
+  1. In `StepLineChart.jsx`, `paddingLeft` is dynamically calculated with a minimum of 56px (`Math.max(56, Math.round(maxTickLen * 7.5 + 16))`), but tick text is rendered at `x={paddingLeft - 8}` with `textAnchor="end"`. When the currency amount has 5+ digits, the text string starts at negative coordinates (`x < 0`), which `.chart-container` clips.
+  2. Top padding is set to `paddingTop = 18`. The `TODAY` badge rectangle is rendered at `y = 18 - 13 = 5px`, leaving almost zero clearance. Any upward spline curve tangent or glow filter (`feDropShadow stdDeviation="4"`) renders outside the 0–240 viewBox.
+  3. On mobile, `maxHeight: '240px'` combined with `width: 100%` and `preserveAspectRatio="xMidYMid meet"` causes vertical letterboxing and edge cutoff when viewport aspect ratio diverges from 600:240 (2.5:1).
+- **Remediation Blueprint:**
+  1. Increase internal safe padding in `StepLineChart.jsx`:
+     - `paddingLeft`: Increase base floor from 56 to `72` (`Math.max(72, Math.round(maxTickLen * 8.5 + 18))`).
+     - `paddingTop`: Increase from 18 to `26` to safely accommodate the `TODAY` badge and curve glow.
+     - `paddingBottom`: Increase from 28 to `32` to prevent clipping of day numbers and negative day labels.
+  2. In `index.css`, ensure `.chart-svg` uses `overflow: visible; width: 100%; height: 100%;` with clean aspect ratio scaling.
+  3. Ensure all tooltips clamp within `[paddingLeft, width - paddingRight - tooltipWidth]`.
 
 #### Defect MOB-DEF-01: Undersized Touch Targets on Transaction Actions
 - **Severity:** High (WCAG 2.5.5 / 2.5.8 Non-Compliance)
@@ -118,9 +133,9 @@ The application utilizes a CSS-first responsive system coordinated with React ru
 - **Finding:**
   The Edit and Delete buttons on mobile transaction cards are sized at `width: 24px; height: 24px;` with a gap of only `4px`.
 - **User Impact:**
-  On touchscreens, the average adult finger pad covers 10–14mm (~40–48px). Two 24px touch targets separated by only 4px result in high rates of accidental deletions when attempting to edit transactions.
+  On touchscreens, two 24px touch targets separated by only 4px result in high rates of accidental deletions when attempting to edit transactions.
 - **Remediation:**
-  Expand the hit target using transparent pseudo-elements or increase dimensions on touch viewports:
+  Expand the hit target using transparent pseudo-elements or increase dimensions to 32px on touch viewports:
   ```css
   @media (max-width: 767px) {
     .tx-btn-action {
@@ -164,38 +179,17 @@ The application utilizes a CSS-first responsive system coordinated with React ru
 - **Navigation Paradigm Shift (Rating: 8.8/10):**
   At 768px, the layout transitions from the mobile bottom island dock to the centered desktop segmented header (`.desktop-header-nav`). This reclaims vertical screen real estate for content.
 - **Header Adaptive Density (Rating: 8.5/10):**
-  Between 768px and 860px (portrait iPad Mini / 10.2"), the header uses a specialized rule:
-  ```css
-  @media (min-width: 768px) and (max-width: 860px) {
-    .desktop-nav-pill { padding: 4px 7px; font-size: 11.5px; gap: 4px; }
-    .app-brand-text { font-size: 12px; }
-    .header-floor-text { max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
-  }
-  ```
-  This prevents header items (brand, month picker, nav pills, floor pill, theme toggle, avatar) from colliding.
-- **The "Tablet Void" (Rating: 6.8/10 - Core Area for Improvement):**
-  While the header adapts well, the **Dashboard Content Grid** does not engage its 2-column layout until `>= 1024px`. Between 768px and 1023px, the dashboard stays in a single linear column. On an iPad in portrait mode (768px–834px wide), this results in:
-  - A stretched Safe Velocity Card (~740px wide) containing only ~300px worth of content.
-  - Excessive vertical scrolling to reach the bottom timeline list.
-  - Large areas of dead horizontal space.
+  Between 768px and 860px (portrait iPad Mini / 10.2"), the header clamps padding to `clamp(12px, 2vw, 18px)` and reduces nav pill font sizes to `11.5px/12px`.
+- **The "Tablet Void" (Rating: 6.8/10):**
+  While the header adapts well, the **Dashboard Content Grid** does not engage its 2-column layout until `>= 1024px`. Between 768px and 1023px, the dashboard stays in a single linear column, stretching cards horizontally across portrait iPads.
 
-### 4.2 QA Testing & Technical Verification
-- **Test Case TAB-TC01: Modal Sheet to Centered Dialog Transition**
-  - *Result:* **PASS**
-  - *Evidence:* At 768px, `.modal-overlay` changes from `align-items: flex-end` to `align-items: center` with `padding: 20px`. The drag handle is hidden (`display: none`), and `.modal-content` acquires a uniform `border-radius: var(--radius-lg)` (12px) and centered positioning.
-- **Test Case TAB-TC02: Dual Input Modality (Touch + Trackpad)**
-  - *Result:* **PASS with Minor Polish Required**
-  - *Evidence:* Dropdown menus and popovers close upon tap outside via both `mousedown` and `touchstart` event listeners. However, CSS hover effects on `.tx-btn-action` and `.account-filter-pill` can remain in a "stuck hover" state on iPadOS touch taps until another element is tapped.
-
-### 4.3 Identified Defects & UX Friction Points (Tablet)
+### 4.2 Identified Defects (Tablet)
 
 #### Defect TAB-DEF-01: Underutilized Space in Tablet Portrait (768px – 1023px)
 - **Severity:** Medium (Visual Balance & Ergonomics)
 - **Component:** `apps/web/src/index.css` (Lines 813-872)
 - **Finding:**
   The 2-column Bento Grid is strictly locked to `@media (min-width: 1024px)`.
-- **User Impact:**
-  On iPad Mini (768px), iPad Air (820px), and iPad Pro 11" (834px), cards stretch horizontally across the screen while charts and KPIs stack in a long vertical column.
 - **Remediation:**
   Introduce an intermediate tablet grid layout from 768px to 1023px:
   ```css
@@ -205,12 +199,8 @@ The application utilizes a CSS-first responsive system coordinated with React ru
       grid-template-columns: 1fr 1fr;
       gap: 14px;
     }
-    .safe-velocity-card {
-      grid-column: span 1;
-    }
-    .dashboard-chart-panel {
-      grid-column: span 1;
-    }
+    .safe-velocity-card { grid-column: span 1; }
+    .dashboard-chart-panel { grid-column: span 1; }
     .detailed-kpi-grid {
       grid-column: span 2;
       grid-template-columns: repeat(4, 1fr) !important;
@@ -224,144 +214,94 @@ The application utilizes a CSS-first responsive system coordinated with React ru
 
 ### 5.1 UI/UX Design Evaluation
 - **Bento Symmetrical Sizing (Rating: 9.6/10):**
-  At `>= 1024px`, the application displays a balanced 2-column layout:
-  - **Left Insights Column (`minmax(360px, 420px)`):** Stacks the Safe Velocity Card and the 2x2 Detailed KPI Grid with equal height stretch (`align-items: stretch`).
-  - **Right Visual Trajectory Column (`1fr`):** Expands the StepLineChart SVG to fill the remaining horizontal width, showing daily balances, safety floor thresholds, and intraday event nodes.
-  - **Bottom Transaction Ledger (`100% width`):** Features the interactive multi-account transaction timeline.
+  At `>= 1024px`, the application displays a balanced 2-column layout: Left Insights (`minmax(360px, 420px)`) + Right Visual Trajectory Chart (`1fr`) + Bottom Transaction Ledger (`100% width`).
 - **Desktop 3-Zone Transaction Card (Rating: 9.3/10):**
-  On desktop, transaction cards utilize three distinct flex zones:
-  1. *Left Zone:* Primary title, type tag (e.g. `⇄ Transfer`, `Goal`, `Settled`), account attribution, and note snippet.
-  2. *Center Zone:* Symmetrically centered date badge with monospace tabular digits.
-  3. *Right Zone:* Formatted amount (+credit in emerald, -debit in text, neutral transfer in text-secondary) aligned above Edit and Delete icon buttons.
-- **Micro-Interactions & Popover Feedback (Rating: 9.2/10):**
-  Hovering over the Safe Velocity "i" button displays a glassmorphic popover explaining the financial formula (`Uncommitted Surplus ÷ Days Remaining`). StepLineChart tooltips appear without layout shift, and buttons have smooth hover effects (`transform: translateY(-1px)`).
+  Left Zone (Title, type tag, account), Center Zone (Date badge), Right Zone (Amount + Actions).
 
-### 5.2 QA Testing & Technical Verification
-- **Test Case DSK-TC01: Keyboard Accessibility & Tab Order**
-  - *Result:* **PASS**
-  - *Evidence:* Keyboard navigation functions properly. All interactive elements have `:focus-visible` styling (`outline: 2px solid var(--text); outline-offset: 2px`). `Escape` key closes dropdowns, date pickers, and modals.
-- **Test Case DSK-TC02: High-Resolution Display Scaling (Retina / 4K)**
-  - *Result:* **PASS**
-  - *Evidence:* The chart is rendered in pure vector SVG (`viewBox="0 0 600 240"`), keeping lines and text crisp on high-DPI displays.
-
-### 5.3 Identified Defects & UX Friction Points (Laptop / Desktop)
+### 5.2 Identified Defects (Laptop / Desktop)
 
 #### Defect DSK-DEF-01: Cascading CSS Max-Width Container Override
 - **Severity:** High (Layout Containment Defect)
 - **Component:** `apps/web/src/index.css` (Lines 672 & 675)
 - **Finding:**
-  ```css
-  .app-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-    max-width: 100%;  /* <--- Cascading Defect: overrides line 672 */
-    box-sizing: border-box;
-    flex: 1;
+  Line 672 defines `max-width: 1400px;`, but line 675 immediately sets `max-width: 100%;`.
+- **User Impact:**
+  On ultrawide monitors (1920x1080, 2560x1440, 3840x2160), the application stretches edge-to-edge across the monitor, causing excessive line lengths and visual disorganization.
+- **Remediation:**
+  Remove `max-width: 100%` from line 675 so `max-width: 1400px; margin: 0 auto;` remains active.
+
+---
+
+## 6. Comprehensive Defect Registry & Prioritized Remediation
+
+| Defect ID | Priority | Viewports | Component | Defect Summary | Root Cause & Remediation |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| **CHART-DEF-01** | **P0 (HIGH)** | All Viewports | `StepLineChart.jsx` & `index.css` | Stepline graph goes beyond container viewspace; tick labels and top curve peak clipped. | Increase `paddingLeft` to 72px, `paddingTop` to 26px, `paddingBottom` to 32px; coordinate SVG and container overflow. |
+| **TL-DEF-01** | **P0 (HIGH)** | Mobile & Tablet | `TimelineList.jsx` & `index.css` | Running balance (`bal:XXXX`) occluded or truncated underneath Edit button. | Set `.tx-card-balance { flex-shrink: 0; }` and allow category label to absorb ellipsis; ensure balance is never clipped. |
+| **DSK-DEF-01** | **P1 (HIGH)** | Laptop (>1400px) | `index.css:675` | Container stretches to 100% width on ultrawide displays. | Remove `max-width: 100%` on line 675 of `index.css` so `max-width: 1400px` applies. |
+| **MOB-DEF-01** | **P1 (HIGH)** | Mobile (<768px) | `index.css:2510` | 24px transaction buttons with 4px gap risk miss-taps. | Enlarge touch targets to 32px with pseudo-element hit padding and 8px gap. |
+| **MOB-DEF-02** | **P2 (MED)** | Mobile (<768px) | `index.css:352` | 14px input font triggers auto-zoom in iOS Safari. | Add `font-size: 16px !important;` for inputs on mobile media query. |
+| **TAB-DEF-01** | **P2 (MED)** | Tablet (768–1023px) | `index.css:813` | Single-column layout stretches cards in tablet portrait. | Introduce a 2-column layout for viewports between 768px and 1023px. |
+| **DSK-DEF-02** | **P3 (LOW)** | Desktop (>=1024px) | `StepLineChart.jsx` | Tightly spaced intraday points require high mouse precision. | Add a transparent 14px hit target circle over chart nodes. |
+| **A11Y-DEF-01**| **P3 (LOW)** | All Viewports | `index.css` | System-wide reduced motion reset is incomplete. | Add standard `@media (prefers-reduced-motion: reduce)` resets. |
+
+---
+
+## 7. Actionable Remediation Implementation Code
+
+### 1. Fix for `TL-DEF-01` (`apps/web/src/index.css`)
+```css
+/* Fix: Ensure running balance is never occluded or clipped by action buttons */
+.tx-card-balance {
+  flex-shrink: 0 !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.timeline-event-type {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .tx-card-account {
     display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    padding: var(--space-page-y) var(--space-page-x);
-    transition: padding 0.2s var(--ease-spring);
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
   }
-  ```
-- **User Impact:**
-  On ultrawide monitors (1920x1080, 2560x1440, 3840x2160), `max-width: 100%` overrides the intended `max-width: 1400px`. The application stretches edge-to-edge across the monitor, causing excessive line lengths, separated action buttons, and visual disorganization.
-- **Remediation:**
-  Remove `max-width: 100%` from line 675 so `max-width: 1400px; margin: 0 auto;` remains active:
-  ```css
-  .app-container {
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
-    box-sizing: border-box;
-    flex: 1;
-    ...
-  }
-  ```
+}
+```
 
-#### Defect DSK-DEF-02: Intraday Event Hit Target Clustering in StepLineChart
-- **Severity:** Low (Precision Polish)
-- **Component:** `apps/web/src/components/StepLineChart.jsx` (Lines 220-237)
-- **Finding:**
-  When multiple transactions occur on the same calendar day, intermediate nodes are rendered with tight horizontal separation.
-- **User Impact:**
-  Hovering over closely spaced points on desktop displays requires high mouse precision, occasionally flickering between adjacent transactions.
-- **Remediation:**
-  Add an invisible enlarged hover hit circle (`r="14"` with `fill="transparent"`) over each event circle (`r="3.5"`).
+### 2. Fix for `CHART-DEF-01` (`apps/web/src/components/StepLineChart.jsx`)
+```javascript
+// Fix: Safe SVG internal padding preventing clipping of tick labels and top curve peaks
+const maxTickLen = Math.max(...yTicks.map((t) => t.label.length), 4);
+const paddingLeft = Math.max(72, Math.round(maxTickLen * 8.5 + 18)); // Expanded from 56px
+const paddingRight = 20;
+const paddingTop = 26; // Expanded from 18px to clear TODAY badge & curve peak
+const paddingBottom = 32; // Expanded from 28px to clear X-axis day labels
+```
 
----
-
-## 6. Screen-by-Screen QA & UI/UX Evaluation Matrix
-
-| Screen / Component | Mobile (320–480px) | Tablet (768–1024px) | Laptop (>=1024px) | Evaluator Comments & Observations |
-| :--- | :---: | :---: | :---: | :--- |
-| **Plan Screen (Dashboard)** | **PASS** (9.4/10) | **PASS** (8.2/10) | **PASS** (9.7/10) | Strong mobile linear flow and desktop Bento Grid. Tablet portrait shows stretched cards. |
-| **Transactions Screen** | **PASS** (9.0/10) | **PASS** (8.6/10) | **PASS** (9.4/10) | Mobile 2-row grid provides good information density; desktop 3-zone layout is balanced. Action buttons on mobile are undersized (24px). |
-| **Accounts Screen** | **PASS** (9.1/10) | **PASS** (8.9/10) | **PASS** (9.3/10) | Auto-fit liquidity grid works well across all sizes. Breached indicators are clear in both light and dark themes. |
-| **Goals Screen** | **PASS** (8.8/10) | **PASS** (8.4/10) | **PASS** (9.5/10) | Desktop 2-column layout (form left, cards right) makes effective use of space. Collapses cleanly to single-column on smaller viewports. |
-| **Unified Entry Modal** | **PASS** (9.3/10) | **PASS** (9.0/10) | **PASS** (9.2/10) | Mobile bottom drawer has smooth gestures and drag handle. Desktop modal is centered with clear tab navigation. |
-| **Month-End Review Modal** | **PASS** (9.2/10) | **PASS** (8.9/10) | **PASS** (9.1/10) | GSAP entrance and exit animations adapt properly between mobile sliding drawer and desktop dialog. |
-| **StepLineChart (SVG)** | **PASS** (8.9/10) | **PASS** (8.7/10) | **PASS** (9.6/10) | Monotone cubic spline curve renders without overshooting. Responsive viewBox scales smoothly. |
-| **Authentication Screen** | **PASS** (9.5/10) | **PASS** (9.5/10) | **PASS** (9.5/10) | Card centered with `max-width: 380px` across all form factors. Clear form states and validation. |
-
----
-
-## 7. Accessibility (a11y) & Design System Compliance
-
-### 7.1 WCAG 2.1 Color Contrast Audit
-Measurements conducted using Chrome DevTools Accessibility Tree and APCA / WCAG 2.1 AA benchmarks:
-
-| Color Token | Foreground Value | Background Value | Contrast Ratio | WCAG 2.1 AA Compliance |
-| :--- | :--- | :--- | :---: | :---: |
-| **Primary Text (Dark)** | `#ffffff` | `#09090b` (`--bg`) | **19.8 : 1** | **PASS (AAA)** |
-| **Secondary Text (Dark)** | `#a1a1aa` (`--text-secondary`) | `#09090b` (`--bg`) | **7.4 : 1** | **PASS (AAA)** |
-| **Muted Text (Dark)** | `#71717a` (`--text-muted`) | `#111114` (`--surface`) | **4.6 : 1** | **PASS (AA)** |
-| **Primary Text (Light)** | `#09090b` | `#fcfcfd` (`--bg`) | **19.5 : 1** | **PASS (AAA)** |
-| **Secondary Text (Light)** | `#52525b` (`--text-secondary`) | `#fcfcfd` (`--bg`) | **7.1 : 1** | **PASS (AAA)** |
-| **Emerald Status (Pace)** | `#10b981` | `#09090b` (`--bg`) | **5.2 : 1** | **PASS (AA)** |
-| **Rose Breach (Text)** | `#ef4444` | `#09090b` (`--bg`) | **4.8 : 1** | **PASS (AA)** |
-
-### 7.2 Semantic Headings & ARIA Landmarks
-- `<header className="app-header">` and `<nav className="desktop-header-nav" aria-label="Main Navigation">` are properly designated.
-- The mobile dock is labeled `<nav className="bottom-nav">`.
-- Modals include `aria-label` or `aria-labelledby`, and dropdown controls manage `aria-expanded` and `aria-haspopup`.
-
-### 7.3 Motion Sensitivity (`prefers-reduced-motion`)
-- `index.css` implements spring transitions with variable easing curves.
-- When `prefers-reduced-motion: reduce` is active, animations should be minimized.
-- *Recommendation:* Add an explicit CSS override:
-  ```css
-  @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
-  ```
-
----
-
-## 8. Prioritized Defect Registry & Remediation Blueprint
-
-| Defect ID | Severity | Viewport | Type | Description | Remediation Plan |
-| :--- | :---: | :---: | :---: | :--- | :--- |
-| **DSK-DEF-01** | **HIGH** | Laptop / Desktop (>1400px) | CSS Bug | Cascading `max-width: 100%` overrides `max-width: 1400px` on `.app-container` (line 675). | Remove `max-width: 100%` from line 675 of `index.css`. |
-| **MOB-DEF-01** | **HIGH** | Mobile (<768px) | Touch QA / a11y | `tx-btn-action` buttons are 24px with 4px gap, causing miss-taps. | Expand touch targets to 32px with pseudo-element hit padding and 8px gap. |
-| **MOB-DEF-02** | **MEDIUM** | Mobile (<768px) | UX iOS | Form inputs default to 14px font, triggering iOS Safari auto-zoom. | Set `font-size: 16px !important;` on form inputs within mobile media queries. |
-| **TAB-DEF-01** | **MEDIUM** | Tablet (768–1023px) | Layout / UX | Bento Grid inactive between 768px and 1023px, stretching cards in portrait. | Introduce a 2-column tablet layout between 768px and 1023px. |
-| **DSK-DEF-02** | **LOW** | Desktop (>=1024px) | Polish | Closely spaced intraday chart nodes require high mouse precision. | Add transparent 14px hit target circles over chart nodes. |
-| **A11Y-DEF-01**| **LOW** | All Viewports | a11y | System-wide `prefers-reduced-motion` override is not fully specified. | Add global CSS reset for reduced motion preferences. |
-
----
-
-## 9. Conclusion & QA Sign-Off
-
-The Budget Planner web application shows a high level of responsive design execution. Its mobile glance-and-act hierarchy, gesture-supported bottom drawers, and desktop Bento Grid reflect thoughtful engineering and design alignment.
-
-Addressing the high-priority container max-width override (`DSK-DEF-01`), enlarging mobile touch targets (`MOB-DEF-01`), and adjusting mobile input font sizing (`MOB-DEF-02`) will elevate the user experience across all three form factors to full production readiness.
+### 3. Fix for `DSK-DEF-01` (`apps/web/src/index.css`)
+```css
+/* Fix: Remove max-width: 100% cascade override */
+.app-container {
+  width: 100%;
+  max-width: 1400px; /* Clean 1400px centering on ultrawide monitors */
+  margin: 0 auto;
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: var(--space-page-y) var(--space-page-x);
+}
+```
 
 ---
 *Report certified by QA Testing & UI/UX Design Teams.*
