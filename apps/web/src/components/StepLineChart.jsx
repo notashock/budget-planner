@@ -185,14 +185,15 @@ export function StepLineChart({
 
     // Dynamically calculate left padding based on longest tick label length
     const maxTickLen = Math.max(...yTicks.map((t) => t.label.length), 4);
-    const paddingLeft = Math.max(56, Math.round(maxTickLen * 7.5 + 16));
+    const basePadding = isMobile ? 68 : 76;
+    const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 8.5 + 18));
 
-    // Responsive SVG coordinate space (600 x 240 viewBox)
-    const width = 600;
-    const height = 240;
+    // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
+    const width = isMobile ? 540 : 600;
+    const height = isMobile ? 260 : 200;
     const paddingRight = 18;
-    const paddingTop = 18;
-    const paddingBottom = 28;
+    const paddingTop = 26;
+    const paddingBottom = 32;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
@@ -424,15 +425,15 @@ export function StepLineChart({
     ? (activeAccount ? (isBreached ? 142 : 124) : (isBreached ? 122 : 106))
     : (isBreached ? 96 : 84);
   let tooltipX = activePoint ? activePoint.x - tooltipWidth / 2 : 0;
-  if (tooltipX < paddingLeft) tooltipX = paddingLeft;
-  if (tooltipX + tooltipWidth > width - paddingRight) tooltipX = width - paddingRight - tooltipWidth;
+  if (tooltipX < 6) tooltipX = 6;
+  if (tooltipX + tooltipWidth > width - 6) tooltipX = width - tooltipWidth - 6;
 
   let tooltipY = activePoint ? activePoint.y - tooltipHeight - 12 : 0;
-  if (tooltipY < paddingTop) {
-    tooltipY = activePoint ? activePoint.y + 12 : paddingTop;
+  if (tooltipY < 6) {
+    tooltipY = activePoint ? activePoint.y + 12 : 6;
   }
-  if (tooltipY + tooltipHeight > height - 4) {
-    tooltipY = height - tooltipHeight - 4;
+  if (tooltipY + tooltipHeight > height - 6) {
+    tooltipY = height - tooltipHeight - 6;
   }
 
   const todayPoint = typeof currentDay === 'number' ? dailyBalances.find((p) => p.day === currentDay) : null;
@@ -737,7 +738,7 @@ export function StepLineChart({
                 <circle
                   cx={x}
                   cy={y}
-                  r={pt.isIntermediate ? '12' : '16'}
+                  r={pt.isIntermediate ? '14' : '18'}
                   fill="transparent"
                   style={{ cursor: 'pointer' }}
                   onMouseEnter={() => {

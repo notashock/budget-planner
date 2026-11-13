@@ -609,11 +609,17 @@ export function TimelineList({
                     </span>
                   </div>
 
-                  {/* Right Zone: Amount on Top, Actions Underneath */}
+                  {/* Right Zone: Amounts, Balance & Settle/Edit Action */}
                   <div className="tx-card-right timeline-event-numbers">
-                    <span className={`tx-amount-display timeline-event-amount tabular-nums ${amountClass}`}>
-                      {formattedAmount}
-                    </span>
+                    <div className="tx-card-amount-col">
+                      <span className={`tx-amount-display timeline-event-amount tabular-nums ${amountClass}`}>
+                        {formattedAmount}
+                      </span>
+                      <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
+                        {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
+                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
+                      </span>
+                    </div>
 
                     {/* Action buttons: Mark as Paid for planned, Edit button */}
                     {(Boolean(onEditTransaction) || isPlanned) && (
