@@ -2925,12 +2925,12 @@ main {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 1200 !important;
+  z-index: 110000 !important;
   overflow: hidden;
   touch-action: none;
   will-change: opacity;
@@ -2977,17 +2977,17 @@ main {
   background: var(--surface);
   width: 100%;
   max-width: 520px;
-  max-height: min(70vh, max-content);
-  overflow-y: auto;
+  max-height: min(85dvh, calc(100dvh - 12px));
+  overflow: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
-  padding: 18px 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  padding: 16px 18px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   will-change: transform, opacity;
   box-shadow: 0 -10px 40px -5px rgba(0, 0, 0, 0.55);
   touch-action: pan-y;
@@ -2999,21 +2999,240 @@ main {
   border-radius: 20px 20px 0 0;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .modal-content {
-    max-height: 85vh;
+    max-width: 500px;
+    max-height: 82vh;
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    padding-bottom: 20px;
+    border-radius: var(--radius-lg, 16px);
+    padding: 18px 20px;
     box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
     transition: none;
   }
 
   .modal-content.is-expanded {
-    max-height: 85vh;
-    border-radius: var(--radius-lg);
+    max-height: 82vh;
+    border-radius: var(--radius-lg, 16px);
   }
+}
+
+@media (min-width: 1024px) {
+  .modal-content {
+    max-width: 520px;
+    max-height: 85vh;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 16px);
+    padding: 20px 22px;
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+    transition: none;
+  }
+
+  .modal-content.is-expanded {
+    max-height: 85vh;
+    border-radius: var(--radius-lg, 16px);
+  }
+}
+
+/* 3-Tier Modal Form Architecture */
+.modal-form-scroll-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 2px 6px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+/* Hero Amount Dock */
+.modal-amount-dock {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius, 8px);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  overflow: hidden;
+}
+
+.modal-amount-dock:focus-within {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+  background: var(--surface);
+}
+
+.modal-amount-prefix {
+  padding-left: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  user-select: none;
+  font-family: var(--font-mono, monospace);
+  flex-shrink: 0;
+}
+
+.modal-amount-input {
+  width: 100%;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font-size: 22px;
+  font-weight: 700;
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+}
+
+.modal-amount-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.modal-amount-clear-btn {
+  margin-right: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s ease;
+  flex-shrink: 0;
+}
+
+.modal-amount-clear-btn:hover {
+  color: var(--text);
+}
+
+/* Transfer Conduit & Interactive Pivot */
+.modal-transfer-conduit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  padding: 12px;
+}
+
+.modal-conduit-pivot-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: -2px 0;
+}
+
+.modal-conduit-pivot-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.modal-conduit-swap-btn {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease;
+}
+
+.modal-conduit-swap-btn:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.modal-conduit-swap-btn:active {
+  transform: scale(0.95);
+}
+
+.modal-conduit-swap-btn.swapping .modal-conduit-swap-icon {
+  transform: rotate(180deg);
+}
+
+.modal-conduit-swap-icon {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+/* Category Pill Grid */
+.category-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-pill-btn {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  user-select: none;
+}
+
+/* Compact Switch Card */
+.compact-switch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.compact-switch-card:hover {
+  border-color: var(--border-strong);
+}
+
+.compact-switch-card.active {
+  border-color: var(--text);
+  background: var(--surface);
+}
+
+/* Modal Stacking Protections */
+.modal-overlay .custom-select-dropdown,
+.modal-overlay .app-dropdown-menu,
+.modal-overlay .searchable-item-picker-menu {
+  z-index: 115000 !important;
+}
+
+[data-testid="floor-breach-modal"],
+[data-testid="under-spend-modal"] {
+  z-index: 120000 !important;
 }
 
 /* Month Review Modal Optimization */
