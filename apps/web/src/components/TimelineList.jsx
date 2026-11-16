@@ -497,6 +497,11 @@ export function TimelineList({
                         ? 'row-planned'
                         : 'row-settled';
 
+            const floorVal = safetyFloor || 0;
+            const isBreached = evt.isBreach || (floorVal > 0 && evt.displayBalance < floorVal);
+            const isNearFloor = !isBreached && floorVal > 0 && evt.displayBalance <= floorVal * 1.15;
+            const healthClass = isBreached ? 'balance-breached' : (isNearFloor ? 'balance-warning' : 'balance-healthy');
+
             return (
               <React.Fragment key={`${evt.date}-${evt.sourceIndex || idx}`}>
                 {showTodayMarker && (
@@ -511,7 +516,7 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${evt.isBreach ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
+                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${isBreached ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
@@ -578,6 +583,15 @@ export function TimelineList({
                       )}
                     </div>
 
+                    {/* Status-Colored Health Micro-Banner under description, above metadata */}
+                    {evt.displayBalance !== undefined && evt.displayBalance !== null && (
+                      <div className={`tx-balance-chip timeline-event-balance ${healthClass} tabular-nums`}>
+                        {isBreached && <span className="inline-breach-glyph">▲ </span>}
+                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
+                      </div>
+                    )}
+
+                    {/* Metadata Row: Only account and date */}
                     <div className="tx-card-account">
                       <span className="tx-account-name">
                         {isTransfer ? (
@@ -587,17 +601,11 @@ export function TimelineList({
                         ) : (
                           <BuildingLibraryIcon size={11} />
                         )}
-                        <span className="timeline-event-type">{metaDescription}</span>
-                      </span>
-                      <span className="tx-meta-dot">•</span>
-                      <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
-                        {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
-                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
+                        <span className="timeline-event-type">{evt.transferDetail || accountName}</span>
                       </span>
                       <span className="tx-date-inline tabular-nums">
                         <span className="tx-meta-dot">•</span>
                         {formatDisplayDate(evt.date, true)}
-                        {relativeDate && ` (${relativeDate.label})`}
                       </span>
                     </div>
                   </div>
@@ -609,15 +617,11 @@ export function TimelineList({
                     </span>
                   </div>
 
-                  {/* Right Zone: Amounts, Balance & Settle/Edit Action */}
+                  {/* Right Zone: Amounts & Settle/Edit Action */}
                   <div className="tx-card-right timeline-event-numbers">
                     <div className="tx-card-amount-col">
                       <span className={`tx-amount-display timeline-event-amount tabular-nums ${amountClass}`}>
                         {formattedAmount}
-                      </span>
-                      <span className={`tx-card-balance timeline-event-balance tabular-nums ${evt.isBreach ? 'text-breached' : ''}`}>
-                        {evt.isBreach && <span className="inline-breach-glyph">▲ </span>}
-                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
                       </span>
                     </div>
 

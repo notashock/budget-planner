@@ -193,4 +193,125 @@ describe('Today Transactions Card Redesign (TimelineList)', () => {
 
     expect(handleSelectDay).toHaveBeenCalledWith(10);
   });
+
+  describe('Transaction Card Redesign & De-duplication', () => {
+    const tieredEvents = [
+      {
+        sourceIndex: 10,
+        day: 5,
+        date: '2026-11-05',
+        label: 'Healthy Coffee',
+        amount: -200,
+        displayAmount: -200,
+        balanceAfter: 15000,
+        displayBalance: 15000, // Safety floor is 10,000. 15,000 > 11,500 -> HEALTHY
+        itemType: 'transaction',
+        bankAccountId: 'bank-1'
+      },
+      {
+        sourceIndex: 11,
+        day: 6,
+        date: '2026-11-06',
+        label: 'Near-Floor Dinner',
+        amount: -4000,
+        displayAmount: -4000,
+        balanceAfter: 11000,
+        displayBalance: 11000, // Safety floor is 10,000. 11,000 <= 11,500 (15% buffer) -> WARNING
+        itemType: 'transaction',
+        bankAccountId: 'bank-1'
+      },
+      {
+        sourceIndex: 12,
+        day: 7,
+        date: '2026-11-07',
+        label: 'Breach Flight Ticket',
+        amount: -3000,
+        displayAmount: -3000,
+        balanceAfter: 8000,
+        displayBalance: 8000, // Safety floor is 10,000. 8,000 < 10,000 -> BREACHED
+        itemType: 'transaction',
+        bankAccountId: 'bank-1'
+      }
+    ];
+
+    it('renders bal: XXXX exactly once per card within a status-colored micro-banner on the left side', () => {
+      const { container } = render(
+        <TimelineList
+          events={tieredEvents}
+          month={mockMonth}
+          currencySymbol="₹"
+          safetyFloor={10000}
+          bankAccounts={[mockBank]}
+          wallets={[mockWallet]}
+        />
+      );
+
+      const cards = container.querySelectorAll('.tx-card');
+      expect(cards.length).toBe(3);
+
+      cards.forEach((card) => {
+        // Must contain exactly 1 .tx-balance-chip
+        const chips = card.querySelectorAll('.tx-balance-chip');
+        expect(chips.length).toBe(1);
+
+        // Must NOT contain balance in right amount column
+        const rightCol = card.querySelector('.tx-card-amount-col');
+        expect(rightCol.textContent).not.toMatch(/bal:/i);
+
+        // Must NOT contain duplicate balance in metadata row
+        const metaRow = card.querySelector('.tx-card-account');
+        expect(metaRow.textContent).not.toMatch(/bal:/i);
+      });
+    });
+
+    it('applies 3-tier status health classes correctly based on 15% safety floor buffer', () => {
+      const { container } = render(
+        <TimelineList
+          events={tieredEvents}
+          month={mockMonth}
+          currencySymbol="₹"
+          safetyFloor={10000}
+          bankAccounts={[mockBank]}
+          wallets={[mockWallet]}
+        />
+      );
+
+      // Card 1: Healthy (>11.5k)
+      const healthyCard = screen.getByText('Healthy Coffee').closest('.tx-card');
+      const healthyChip = healthyCard.querySelector('.tx-balance-chip');
+      expect(healthyChip).toHaveClass('balance-healthy');
+      expect(healthyChip.textContent).toContain('bal: ₹150.00');
+
+      // Card 2: Warning (10k <= bal <= 11.5k)
+      const warningCard = screen.getByText('Near-Floor Dinner').closest('.tx-card');
+      const warningChip = warningCard.querySelector('.tx-balance-chip');
+      expect(warningChip).toHaveClass('balance-warning');
+      expect(warningChip.textContent).toContain('bal: ₹110.00');
+
+      // Card 3: Breached (<10k)
+      const breachCard = screen.getByText('Breach Flight Ticket').closest('.tx-card');
+      const breachChip = breachCard.querySelector('.tx-balance-chip');
+      expect(breachChip).toHaveClass('balance-breached');
+      expect(breachChip.textContent).toContain('bal: ₹80.00');
+      expect(breachChip.querySelector('.inline-breach-glyph')).toBeInTheDocument();
+    });
+
+    it('renders clean metadata row containing exclusively account and date', () => {
+      render(
+        <TimelineList
+          events={tieredEvents}
+          month={mockMonth}
+          currencySymbol="₹"
+          safetyFloor={10000}
+          bankAccounts={[mockBank]}
+          wallets={[mockWallet]}
+        />
+      );
+
+      const card = screen.getByText('Healthy Coffee').closest('.tx-card');
+      const metaRow = card.querySelector('.tx-card-account');
+      expect(metaRow).toHaveTextContent('HDFC Salary Checking');
+      expect(metaRow).toHaveTextContent('Nov 5');
+    });
+  });
 });
