@@ -319,71 +319,80 @@ export function TransactionsScreen({
   return (
     <div className="transactions-screen" style={{ paddingBottom: '90px' }}>
       {/* =========================================================================
-          TIER 1: APPLE NAVIGATION BAR (Title, Centered Segmented Control, New Entry)
+          ROW 1: APPLE TITLE & EMBEDDED SEARCH-SORT CAPSULE
           ========================================================================= */}
-      <div className="apple-tx-nav-header">
+      <div className="apple-tx-header-row-1">
         {/* Left: Cupertino Large Title & Subtitle */}
-        <div className="apple-tx-nav-left tx-desktop-header">
+        <div className="apple-tx-title-group tx-desktop-header">
           <h1 className="tx-header-title">Transactions</h1>
           <p className="tx-header-sub">Unified record of commitments and actual cash movement.</p>
         </div>
 
-        {/* Center: Apple Cupertino Segmented Control Switcher */}
-        <div className="apple-tx-nav-center">
-          <div className="apple-segmented-bar tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
-            <button
-              type="button"
-              role="tab"
-              id="tab-transactions"
-              data-testid="tab-transactions"
-              aria-selected={activeSegment === 'transactions'}
-              aria-controls="panel-transactions"
-              className={`apple-segmented-tab tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
-              onClick={() => setActiveSegment('transactions')}
-            >
-              <InboxIcon size={14} />
-              <span className="tx-section-tab-label">TRANSACTIONS</span>
-              <span className="apple-segmented-count tx-section-tab-count">{displayedSuccessful.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-planned"
-              data-testid="tab-planned"
-              aria-selected={activeSegment === 'planned'}
-              aria-controls="panel-planned"
-              className={`apple-segmented-tab tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
-              onClick={() => setActiveSegment('planned')}
-            >
-              <SendIcon size={13} />
-              <span className="tx-section-tab-label">PLANNED</span>
-              {hasUrgentCommitments ? (
-                <span className="tx-tab-urgent-pill">
-                  {overdueCount > 0 ? `${overdueCount} Overdue` : `${dueCount} Due`}
-                </span>
-              ) : (
-                <span className="apple-segmented-count tx-section-tab-count">{displayedPlanned.length}</span>
-              )}
-            </button>
-          </div>
-        </div>
+        {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
+        <div className="apple-tx-row1-actions">
+          <div className="apple-search-sort-capsule tx-search-box compact">
+            <span className="apple-search-icon tx-search-icon">
+              <SearchIcon size={14} />
+            </span>
+            <input
+              type="text"
+              className="apple-search-input tx-search-input"
+              placeholder="Search transactions, notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search transactions"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="apple-search-clear tx-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                <XIcon size={12} />
+              </button>
+            )}
 
-        {/* Right: Apple Primary Action (+ New Entry) */}
-        <div className="apple-tx-nav-right tx-header-top-actions">
+            <span className="apple-search-sort-divider" />
+
+            {/* Embedded Cupertino Sort Selector */}
+            <div className="apple-sort-trigger-wrapper">
+              <select
+                className="apple-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                aria-label="Sort transactions"
+              >
+                <option value="recent">Recent</option>
+                <option value="oldest">Oldest</option>
+                <option value="amount-desc">Amount: High to Low</option>
+                <option value="amount-asc">Amount: Low to High</option>
+              </select>
+              <div className="apple-sort-display" aria-hidden="true">
+                <ArrowRightLeftIcon size={12} />
+                <span className="apple-sort-label">
+                  {sortBy === 'recent' ? 'Recent' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'amount-desc' ? 'Amount ↓' : 'Amount ↑'}
+                </span>
+                <ChevronDownIcon size={10} className="apple-sort-chevron" />
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop-only New Entry Button (Hidden on Mobile as bottom nav handles entry) */}
           {!isReviewMode && (
             <button
               type="button"
-              className="btn-primary apple-tx-add-btn"
+              className="btn-primary apple-tx-add-btn desktop-only"
               onClick={() => onOpenUnifiedEntry?.('log')}
               title="Add a new transaction or planned expense"
             >
-              <PlusIcon size={14} />
+              <PlusIcon size={13} />
               <span className="apple-tx-add-label">New Entry</span>
             </button>
           )}
 
           {isReviewMode && (
-            <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
+            <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
               <span>👁️</span> Read-Only Review
             </span>
           )}
@@ -391,106 +400,52 @@ export function TransactionsScreen({
       </div>
 
       {/* =========================================================================
-          TIER 2: UNIFIED APPLE CONTROL & FILTER TOOLBAR
+          ROW 2: UNIFIED CONTINUOUS INLINE FILTER STRIP (NO BACKGROUND CONTAINER)
           ========================================================================= */}
-      <div className="apple-tx-toolbar">
-        {/* Apple Inset Search Input */}
-        <div className="apple-search-box tx-search-box compact">
-          <span className="apple-search-icon tx-search-icon">
-            <SearchIcon size={14} />
-          </span>
-          <input
-            type="text"
-            className="apple-search-input tx-search-input"
-            placeholder="Search transactions, notes, or accounts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search transactions"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="apple-search-clear tx-search-clear"
-              onClick={() => setSearchQuery('')}
-              title="Clear search"
-            >
-              <XIcon size={12} />
-            </button>
-          )}
+      <div className="apple-filter-strip-row account-filter-scroll-row" role="toolbar" aria-label="Filters and Sections">
+        {/* Apple Segmented Switcher in Title Case (First letter caps) */}
+        <div className="apple-segmented-bar tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
+          <button
+            type="button"
+            role="tab"
+            id="tab-transactions"
+            data-testid="tab-transactions"
+            aria-selected={activeSegment === 'transactions'}
+            aria-controls="panel-transactions"
+            className={`apple-segmented-tab tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
+            onClick={() => setActiveSegment('transactions')}
+          >
+            <InboxIcon size={14} />
+            <span className="tx-section-tab-label">Transactions</span>
+            <span className="apple-segmented-count tx-section-tab-count">{displayedSuccessful.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-planned"
+            data-testid="tab-planned"
+            aria-selected={activeSegment === 'planned'}
+            aria-controls="panel-planned"
+            className={`apple-segmented-tab tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
+            onClick={() => setActiveSegment('planned')}
+          >
+            <SendIcon size={13} />
+            <span className="tx-section-tab-label">Planned</span>
+            {hasUrgentCommitments ? (
+              <span className="tx-tab-urgent-pill">
+                {overdueCount > 0 ? `${overdueCount} Overdue` : `${dueCount} Due`}
+              </span>
+            ) : (
+              <span className="apple-segmented-count tx-section-tab-count">{displayedPlanned.length}</span>
+            )}
+          </button>
         </div>
 
-        {/* Apple Contextual Selectors (Account & Sort) */}
-        <div className="apple-toolbar-filters">
-          {/* Account Filter Dropdown */}
-          <div className="apple-filter-menu-wrapper">
-            <select
-              className="apple-filter-select"
-              value={selectedAccountFilter}
-              onChange={(e) => setSelectedAccountFilter(e.target.value)}
-              aria-label="Filter by account"
-            >
-              <option value="all">All Accounts</option>
-              {bankAccounts.length > 0 && (
-                <optgroup label="Bank Accounts">
-                  {bankAccounts.map((b) => (
-                    <option key={b.id || b._id} value={b.id || b._id}>
-                      🏦 {b.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {wallets.length > 0 && (
-                <optgroup label="Wallets">
-                  {wallets.map((w) => (
-                    <option key={w.id || w._id} value={w.id || w._id}>
-                      👛 {w.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <ChevronDownIcon size={12} className="apple-select-chevron" />
-          </div>
+        {/* Subtle Hairline Separator */}
+        <span className="apple-filter-strip-divider" aria-hidden="true" />
 
-          {/* Sort Selector Dropdown */}
-          <div className="apple-filter-menu-wrapper">
-            <select
-              className="apple-filter-select"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              aria-label="Sort transactions"
-            >
-              <option value="recent">Recent First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="amount-desc">Amount: High to Low</option>
-              <option value="amount-asc">Amount: Low to High</option>
-            </select>
-            <ChevronDownIcon size={12} className="apple-select-chevron" />
-          </div>
-
-          {/* Planned Status Filter (visible only on planned segment) */}
-          {activeSegment === 'planned' && (
-            <div className="apple-filter-menu-wrapper">
-              <select
-                className="apple-filter-select"
-                value={plannedFilter}
-                onChange={(e) => setPlannedFilter(e.target.value)}
-                aria-label="Filter by commitment status"
-              >
-                <option value="all">All Commitments</option>
-                <option value="due">Due Only</option>
-                <option value="overdue">Overdue Only</option>
-                <option value="upcoming">Upcoming Only</option>
-              </select>
-              <ChevronDownIcon size={12} className="apple-select-chevron" />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tactile Account Filter Quick-Chips (One-tap switching across viewports) */}
-      {allAccounts.length > 0 && (
-        <div className="account-filter-scroll-row apple-account-chips-row">
+        {/* Continuous Account Filter Quick-Chips */}
+        <div className="apple-account-chips-inline">
           <button
             type="button"
             className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === 'all' ? 'active' : ''}`}
@@ -521,7 +476,44 @@ export function TransactionsScreen({
             </button>
           ))}
         </div>
-      )}
+
+        {/* Contextual Commitment Status Chips when in Planned view */}
+        {activeSegment === 'planned' && (
+          <>
+            <span className="apple-filter-strip-divider" aria-hidden="true" />
+            <div className="apple-status-chips-inline">
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('all')}
+              >
+                All Status
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'due' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('due')}
+              >
+                Due Only
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'overdue' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('overdue')}
+              >
+                Overdue Only
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'upcoming' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('upcoming')}
+              >
+                Upcoming
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Main Content Area */}
       {activeSegment === 'transactions' ? (
