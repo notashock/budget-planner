@@ -17,7 +17,8 @@ import {
   CheckCircleIcon,
   BuildingLibraryIcon,
   WalletIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  CalendarIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
@@ -276,12 +277,19 @@ export function UnifiedEntryModal({
     }
   }, [isOpen, initialItem, initialMode, month, bankAccounts, wallets, todayStr]);
 
-  // Click outside to dismiss variable info popover
+  // Click outside and escape key to dismiss variable info popover
   useEffect(() => {
     if (!showVariableInfo) return;
     const handleClickOutside = () => setShowVariableInfo(false);
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowVariableInfo(false);
+    };
     window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [showVariableInfo]);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
@@ -1251,7 +1259,7 @@ export function UnifiedEntryModal({
                   {/* Mode = Plan: Compact Variable Checkbox + Info Icon */}
                   {mode === 'plan' && (
                     <div
-                      className={`modal-variable-pill ${!isFixed ? 'active' : ''}`}
+                      className={`modal-variable-pill ${!isFixed ? 'active' : ''} ${showVariableInfo ? 'has-popover-open' : ''}`}
                       onClick={() => setIsFixed((prev) => !prev)}
                       role="checkbox"
                       aria-checked={!isFixed}
@@ -1284,27 +1292,38 @@ export function UnifiedEntryModal({
                         <div
                           className="variable-info-popover"
                           onClick={(e) => e.stopPropagation()}
+                          role="tooltip"
                         >
-                          <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
-                            Expense Type
+                          <div className="variable-info-header">
+                            <span className="variable-info-title">Expense Rollover Mode</span>
+                            <button
+                              type="button"
+                              className="variable-info-close"
+                              onClick={() => setShowVariableInfo(false)}
+                              aria-label="Close info"
+                            >
+                              ✕
+                            </button>
                           </div>
-                          <div style={{ marginBottom: '6px' }}>
-                            <strong>Unchecked (Fixed):</strong> Automatically carries forward into upcoming months' safe-to-spend projections on rollover.
+
+                          <div className="variable-info-item">
+                            <div className="variable-badge fixed">Fixed (Default)</div>
+                            <p className="variable-info-desc">
+                              Automatically carries forward into next month's safe-to-spend allowance on rollover.
+                            </p>
                           </div>
-                          <div>
-                            <strong>Checked (Variable):</strong> Flexible one-time commitment for this month only; does not carry forward.
+
+                          <div className="variable-info-item">
+                            <div className="variable-badge variable">Variable</div>
+                            <p className="variable-info-desc">
+                              One-time commitment for this month only; drops automatically upon rollover.
+                            </p>
                           </div>
+
                           <button
                             type="button"
-                            className="btn-subtle"
+                            className="variable-info-gotit"
                             onClick={() => setShowVariableInfo(false)}
-                            style={{
-                              marginTop: '8px',
-                              width: '100%',
-                              padding: '3px 8px',
-                              fontSize: '10px',
-                              justifyContent: 'center'
-                            }}
                           >
                             Got it
                           </button>
