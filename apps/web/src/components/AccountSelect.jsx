@@ -83,8 +83,8 @@ export function AccountSelect({
 
   const getAccountBalance = (acc) => {
     if (!acc) return 0;
-    const aId = String(acc.id || acc._id || '');
-    if (aId) {
+    const idCandidates = [acc.id, acc._id].filter(Boolean).map(String);
+    for (const aId of idCandidates) {
       if (accountSimulations?.[aId]?.todayBalance !== undefined) {
         return accountSimulations[aId].todayBalance;
       }
@@ -92,7 +92,13 @@ export function AccountSelect({
         return simulation.accounts[aId].todayBalance;
       }
     }
-    return acc.currentBalance ?? acc.balance ?? acc.openingBalance ?? 0;
+    if (typeof acc.currentBalance === 'number' && acc.currentBalance !== 0) {
+      return acc.currentBalance;
+    }
+    if (typeof acc.balance === 'number' && acc.balance !== 0) {
+      return acc.balance;
+    }
+    return acc.openingBalance ?? acc.currentBalance ?? acc.balance ?? 0;
   };
 
   const handleSelect = (type, targetId) => {

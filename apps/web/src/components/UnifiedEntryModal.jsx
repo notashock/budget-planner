@@ -579,6 +579,41 @@ export function UnifiedEntryModal({
   // SUBMISSION LOGIC
   // =========================================================================
 
+  // Resolve live balance from authoritative simulation, with safe fallback to opening/current balance
+  const getAccountLiveBalance = useCallback((acc) => {
+    if (!acc) return 0;
+    const idCandidates = [acc.id, acc._id].filter(Boolean).map(String);
+    for (const aId of idCandidates) {
+      if (accountSimulations?.[aId]?.todayBalance !== undefined) {
+        return accountSimulations[aId].todayBalance;
+      }
+      if (simulation?.accounts?.[aId]?.todayBalance !== undefined) {
+        return simulation.accounts[aId].todayBalance;
+      }
+    }
+    if (typeof acc.currentBalance === 'number' && acc.currentBalance !== 0) {
+      return acc.currentBalance;
+    }
+    if (typeof acc.balance === 'number' && acc.balance !== 0) {
+      return acc.balance;
+    }
+    return acc.openingBalance ?? acc.currentBalance ?? acc.balance ?? 0;
+  }, [accountSimulations, simulation]);
+
+  const getAccountMinimumBalance = useCallback((acc) => {
+    if (!acc) return 0;
+    const idCandidates = [acc.id, acc._id].filter(Boolean).map(String);
+    for (const aId of idCandidates) {
+      if (accountSimulations?.[aId]?.minimumBalance !== undefined) {
+        return Number(accountSimulations[aId].minimumBalance) || 0;
+      }
+      if (simulation?.accounts?.[aId]?.minimumBalance !== undefined) {
+        return Number(simulation.accounts[aId].minimumBalance) || 0;
+      }
+    }
+    return Number(acc.minimumBalance || acc.safetyFloor || 0);
+  }, [accountSimulations, simulation]);
+
   // Mode 1: Log Spending Submission
   const handleTransactionSubmit = async (e, forcedUnderSpendAction = null, bypassFloorCheck = false) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -596,12 +631,12 @@ export function UnifiedEntryModal({
     // Safety Floor Check
     if (!isRefund && !bypassFloorCheck) {
       const selectedAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => (b.id || b._id) === accountId)
-        : wallets.find((w) => (w.id || w._id) === accountId);
+        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
+        : wallets.find((w) => String(w.id || w._id) === String(accountId));
 
       if (selectedAccount) {
-        const accBal = selectedAccount.currentBalance ?? selectedAccount.balance ?? selectedAccount.openingBalance ?? 0;
-        const minBal = selectedAccount.minimumBalance || 0;
+        const accBal = getAccountLiveBalance(selectedAccount);
+        const minBal = getAccountMinimumBalance(selectedAccount);
         const existingDebit = initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
         const netDebitChange = baseAmount - existingDebit;
         if (minBal > 0 && (accBal - netDebitChange) < minBal) {
@@ -807,12 +842,12 @@ export function UnifiedEntryModal({
     // Safety Floor Check on source account
     if (!bypassFloorCheck) {
       const sourceAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => (b.id || b._id) === accountId)
-        : wallets.find((w) => (w.id || w._id) === accountId);
+        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
+        : wallets.find((w) => String(w.id || w._id) === String(accountId));
 
       if (sourceAccount) {
-        const sourceBal = sourceAccount.currentBalance ?? sourceAccount.balance ?? sourceAccount.openingBalance ?? 0;
-        const sourceMin = sourceAccount.minimumBalance || 0;
+        const sourceBal = getAccountLiveBalance(sourceAccount);
+        const sourceMin = getAccountMinimumBalance(sourceAccount);
         if (sourceMin > 0 && (sourceBal - xferAmt) < sourceMin) {
           setFloorBreachData({
             type: 'transfer',
