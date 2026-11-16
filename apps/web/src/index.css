@@ -8073,3 +8073,282 @@ main {
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================================
+   PLAN PAGE TIMELINE — TRANSACTIONS-PARITY INSET LIST
+   The timeline reuses the Transactions page's inset-grouped rows
+   (.apple-tx-group / .apple-tx-row). These rules drop the outer card chrome
+   (no card-in-card), neutralise the legacy .timeline-event-* typography that
+   still leaks into the rows, and add the states the Transactions list
+   doesn't need: chart-day selection, floor breach and the "Today" marker.
+   ========================================================================= */
+.apple-timeline-section {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.apple-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.apple-timeline-title-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.apple-timeline-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.apple-timeline-meta-chip,
+.apple-timeline-day-chip {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.apple-timeline-meta-chip {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.apple-timeline-meta-muted {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.apple-timeline-day-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.apple-timeline-day-chip {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Timeline filters as an Apple segmented control (same look as the Transactions
+   section tabs). Selectors out-rank the legacy .timeline-filters-row /
+   .timeline-filter-btn pill styles that still exist for other consumers. */
+.timeline-segmented-bar.apple-segmented-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  width: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 10px;
+  padding: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.timeline-segmented-bar.apple-segmented-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-segmented-bar .apple-segmented-tab.timeline-filter-btn {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.timeline-segmented-bar .apple-segmented-tab.timeline-filter-btn::after {
+  display: none;
+}
+
+.timeline-segmented-bar .apple-segmented-tab.timeline-filter-btn:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.timeline-segmented-bar .apple-segmented-tab.timeline-filter-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0.5px 1px rgba(0, 0, 0, 0.04);
+}
+
+.timeline-segmented-bar .timeline-filter-btn .filter-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.timeline-segmented-bar .timeline-filter-btn.active .filter-count {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 767px) {
+  .timeline-segmented-bar .apple-segmented-tab.timeline-filter-btn {
+    min-height: 0;
+    height: 28px;
+    padding: 0 10px;
+  }
+}
+
+.apple-timeline-section .apple-tx-empty-state .apple-chip {
+  margin-top: 6px;
+}
+
+/* Neutralise legacy timeline typography inside the inset group */
+.apple-tx-group .timeline-event-label {
+  display: block !important;
+  -webkit-line-clamp: unset;
+}
+
+.apple-tx-group .timeline-event-type {
+  font-size: inherit !important;
+  color: inherit !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apple-tx-group .tx-account-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apple-tx-group .timeline-event-date,
+.apple-tx-group .timeline-event-numbers {
+  min-width: 0 !important;
+}
+
+.apple-tx-group .timeline-event-balance {
+  margin: 1px 0 0 !important;
+  font-size: 10.5px !important;
+}
+
+/* Tag tone for credited salary (replaces the old inline style) */
+.tx-tag.tag-credited {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--positive, #10b981);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+/* Chart-day selection: leading accent bar + tint (Transactions rows have no selection) */
+.apple-tx-group .apple-tx-row.tx-card.timeline-event-row.selected {
+  background: var(--surface-subtle) !important;
+}
+
+.apple-tx-group .apple-tx-row.tx-card.timeline-event-row.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--text);
+}
+
+/* Floor breach: faint rose wash so it reads at a glance without a heavy border */
+.apple-tx-group .apple-tx-row.tx-card.timeline-event-row.row-breached {
+  background: var(--rose-subtle, rgba(244, 63, 94, 0.06)) !important;
+}
+
+.apple-tx-group .apple-tx-row.tx-card.timeline-event-row.row-breached:hover {
+  background: rgba(244, 63, 94, 0.1) !important;
+}
+
+/* "Today" marker as an inset section separator inside the grouped list */
+.apple-tx-group .timeline-today-divider {
+  margin: 0;
+  padding: 6px 18px;
+  gap: 10px;
+  background: var(--surface-subtle);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.apple-tx-group .timeline-today-divider:first-child {
+  border-top: none;
+}
+
+.apple-tx-group .timeline-today-divider .today-line {
+  background: var(--border);
+}
+
+.apple-tx-group .timeline-today-divider .today-badge {
+  background: var(--surface);
+  border-color: var(--border);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+/* Row directly above the Today marker shouldn't draw its hairline into the divider */
+.apple-tx-group .apple-tx-row.tx-card:has(+ .timeline-today-divider)::after {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .apple-timeline-title {
+    font-size: 18px;
+  }
+
+  .apple-tx-group .timeline-today-divider {
+    padding: 6px 14px;
+  }
+
+  .apple-timeline-meta-muted {
+    display: none;
+  }
+
+  /* Keep row actions compact: the global mobile `button { min-height: 34px }`
+     otherwise inflates Mark as Paid / edit inside the inset list (both pages). */
+  .apple-tx-group .tx-btn-settle {
+    min-height: 0;
+    height: 26px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .apple-tx-group .apple-tx-btn-action {
+    min-height: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+}

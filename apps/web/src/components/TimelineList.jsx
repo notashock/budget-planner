@@ -240,26 +240,29 @@ export function TimelineList({
 
   if (!processedEvents || processedEvents.length === 0) {
     return (
-      <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        {isFilteringAccount ? (
-          <div>
-            <p style={{ margin: '0 0 10px 0', fontSize: '13px' }}>
-              No timeline events recorded for <strong>{selectedAccount?.name || 'this account'}</strong> this month.
-            </p>
-            {onSelectDay && selectedDay !== null && (
-              <button
-                type="button"
-                className="btn-subtle"
-                style={{ fontSize: '12px', padding: '4px 10px' }}
-                onClick={() => onSelectDay(null)}
-              >
-                Reset day filter
-              </button>
-            )}
+      <div className="apple-timeline-section">
+        <div className="apple-tx-empty-state tx-empty-state">
+          <div className="apple-tx-empty-icon">
+            <CalendarIcon size={24} />
           </div>
-        ) : (
-          'No timeline events generated for this month.'
-        )}
+          <div className="apple-tx-empty-title tx-empty-text">No Timeline Events</div>
+          <p className="apple-tx-empty-sub">
+            {isFilteringAccount ? (
+              <>No timeline events recorded for <strong>{selectedAccount?.name || 'this account'}</strong> this month.</>
+            ) : (
+              'No timeline events generated for this month.'
+            )}
+          </p>
+          {isFilteringAccount && onSelectDay && selectedDay !== null && (
+            <button
+              type="button"
+              className="filter-pill apple-chip"
+              onClick={() => onSelectDay(null)}
+            >
+              Reset day filter
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -312,51 +315,28 @@ export function TimelineList({
   };
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span className="card-title">Interactive timeline</span>
+    <div className="apple-timeline-section">
+      {/* Section header — mirrors the Transactions page: title left, contextual chips right */}
+      <div className="apple-timeline-header">
+        <div className="apple-timeline-title-group">
+          <h2 className="apple-timeline-title">Timeline</h2>
           {isFilteringAccount && selectedAccount && (
-            <span
-              style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                background: 'var(--surface-subtle)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-                borderRadius: '12px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
+            <span className="apple-timeline-meta-chip">
+              {selectedAccount.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
               <span>{selectedAccount.name}</span>
               {safetyFloor > 0 && (
-                <span style={{ opacity: 0.75 }}>• Min Floor: {formatCurrency(safetyFloor, currencySymbol)}</span>
+                <span className="apple-timeline-meta-muted">• Min Floor {formatCurrency(safetyFloor, currencySymbol)}</span>
               )}
             </span>
           )}
         </div>
 
         {selectedDay !== null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                background: 'var(--accent-subtle)',
-                color: 'var(--accent)',
-                borderRadius: '12px',
-                fontWeight: 600
-              }}
-            >
-              Day {selectedDay} filtered
-            </span>
+          <div className="apple-timeline-day-filter">
+            <span className="apple-timeline-day-chip">Day {selectedDay} filtered</span>
             <button
               type="button"
-              className="btn-subtle"
-              style={{ fontSize: '11px', padding: '2px 6px' }}
+              className="filter-pill apple-chip"
               onClick={() => onSelectDay?.(null)}
             >
               Show all days
@@ -366,7 +346,7 @@ export function TimelineList({
       </div>
 
       {/* Filter Tabs / Pills */}
-      <div className="timeline-filters-row">
+      <div className="timeline-filters-row apple-segmented-bar timeline-segmented-bar" role="tablist" aria-label="Timeline Filters">
         {[
           { id: 'all', label: 'All', count: counts.all },
           { id: 'incomes', label: 'Incomes', count: counts.incomes },
@@ -378,34 +358,36 @@ export function TimelineList({
           <button
             key={tab.id}
             type="button"
-            className={`timeline-filter-btn ${filterType === tab.id ? 'active' : ''}`}
+            role="tab"
+            aria-selected={filterType === tab.id}
+            className={`apple-segmented-tab timeline-filter-btn ${filterType === tab.id ? 'active' : ''}`}
             onClick={() => setFilterType(tab.id)}
           >
             <span>{tab.label}</span>
-            <span className="filter-count tabular-nums">{tab.count}</span>
+            <span className="apple-segmented-count filter-count tabular-nums">{tab.count}</span>
           </button>
         ))}
       </div>
 
       {filteredEvents.length === 0 ? (
-        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          No events match the selected filter.
-          <div style={{ marginTop: '8px' }}>
-            <button
-              type="button"
-              className="btn-subtle"
-              style={{ fontSize: '12px' }}
-              onClick={() => {
-                setFilterType('all');
-                onSelectDay?.(null);
-              }}
-            >
-              Reset all filters
-            </button>
+        <div className="apple-tx-empty-state tx-empty-state">
+          <div className="apple-tx-empty-icon">
+            <CheckCircleIcon size={24} />
           </div>
+          <p className="apple-tx-empty-sub">No events match the selected filter.</p>
+          <button
+            type="button"
+            className="filter-pill apple-chip"
+            onClick={() => {
+              setFilterType('all');
+              onSelectDay?.(null);
+            }}
+          >
+            Reset all filters
+          </button>
         </div>
       ) : (
-        <div className="timeline-list">
+        <div className="timeline-list apple-tx-group tx-cards-container">
           {filteredEvents.map((evt, idx) => {
             const isPreMonth = evt.day < 0;
             const isSelected = selectedDay === evt.day;
@@ -503,6 +485,23 @@ export function TimelineList({
             const isNearFloor = !isBreached && floorVal > 0 && evt.displayBalance <= floorVal * 1.15;
             const healthClass = isBreached ? 'balance-breached' : (isNearFloor ? 'balance-warning' : 'balance-healthy');
 
+            // Leading glyph tone — same palette as the Transactions page rows
+            const glyphClass = isTransfer
+              ? 'transfer'
+              : evt.origin === 'goal'
+                ? 'goal'
+                : isCredit
+                  ? 'credit'
+                  : isOverdue
+                    ? 'overdue'
+                    : isDue
+                      ? 'due'
+                      : isWallet
+                        ? 'wallet'
+                        : isPlanned
+                          ? 'upcoming'
+                          : 'debit';
+
             return (
               <React.Fragment key={`${evt.date}-${evt.sourceIndex || idx}`}>
                 {showTodayMarker && (
@@ -517,10 +516,15 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${isBreached ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
+                  className={`apple-tx-row tx-card timeline-card timeline-event-row ${isSelected ? 'selected' : ''} ${isBreached ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
+                  {/* Left Glyph Badge */}
+                  <div className={`apple-tx-icon-box ${glyphClass}`}>
+                    <CategoryIcon size={16} />
+                  </div>
+
                   {/* Left Zone: Title, Status Tags & Account Attribution */}
                   <div className="tx-card-left timeline-event-info">
                     <div className="tx-card-headline">
@@ -528,72 +532,61 @@ export function TimelineList({
 
                       {/* Status / Type Tags */}
                       {isTransfer && (
-                        <span className="tx-tag tag-transfer">
+                        <span className="apple-tx-tag tx-tag tag-transfer">
                           <ArrowRightLeftIcon size={10} />
                           <span>Transfer</span>
                         </span>
                       )}
                       {evt.origin === 'goal' && (
-                        <span className="tx-tag tag-goal">
+                        <span className="apple-tx-tag tx-tag tag-goal">
                           <TargetIcon size={10} />
                           <span>Goal</span>
                         </span>
                       )}
                       {evt.isPending && (
                         <span
-                          className="pending-status-pill tx-tag tag-overdue"
+                          className="pending-status-pill apple-tx-tag tx-tag tag-overdue"
                           title={`Scheduled for Day ${evt.originalDay} but unpaid; cash remains in today's balance.`}
                         >
                           Pending
                         </span>
                       )}
                       {isSalary && evt.isActual && (
-                        <span className="tx-tag tag-settled" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#16a34a', borderColor: 'rgba(34, 197, 94, 0.25)' }}>
+                        <span className="apple-tx-tag tx-tag tag-settled tag-credited">
                           ✓ Credited
                         </span>
                       )}
                       {evt.isPaid && evt.originalDay && evt.originalDay !== evt.day && !evt.isPending && (
                         <span
-                          className="tx-tag tag-settled"
+                          className="apple-tx-tag tx-tag tag-settled"
                           title={`Paid on Day ${evt.day} (originally scheduled for Day ${evt.originalDay})`}
                         >
                           Orig Day {evt.originalDay}
                         </span>
                       )}
                       {isPlanned && isOverdue && (
-                        <span className="tx-tag tag-overdue">
+                        <span className="apple-tx-tag tx-tag tag-overdue">
                           <AlertTriangleIcon size={10} />
                           <span>Overdue</span>
                         </span>
                       )}
                       {isPlanned && isDue && (
-                        <span className="tx-tag tag-due">
+                        <span className="apple-tx-tag tx-tag tag-due">
                           <CalendarIcon size={10} />
                           <span>Due</span>
                         </span>
                       )}
                       {isPlanned && isUpcoming && (
-                        <span className="tx-tag tag-upcoming">
+                        <span className="apple-tx-tag tx-tag tag-upcoming">
                           Upcoming
                         </span>
                       )}
                       {!isPlanned && !isTransfer && !isSalary && (evt.isActual || evt.isPaid || evt.status === 'successful') && (
-                        <span className="tx-tag tag-settled">
+                        <span className="apple-tx-tag tx-tag tag-settled">
                           Settled
                         </span>
                       )}
                     </div>
-
-                    {/* Status-Colored Health Micro-Banner under description, above metadata */}
-                    {evt.displayBalance !== undefined && evt.displayBalance !== null && (
-                      <div
-                        className={`tx-balance-chip timeline-event-balance ${healthClass} tabular-nums`}
-                        style={{ width: 'fit-content', maxWidth: 'max-content' }}
-                      >
-                        {isBreached && <span className="inline-breach-glyph">▲ </span>}
-                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
-                      </div>
-                    )}
 
                     {/* Metadata Row: Only account and date */}
                     <div className="tx-card-account">
@@ -614,6 +607,15 @@ export function TimelineList({
                         {formatDisplayDate(evt.date, true)}
                       </span>
                     </div>
+                    {/* Running balance: compact status-colored chip as a trailing third line (left zone) */}
+                    {evt.displayBalance !== undefined && evt.displayBalance !== null && (
+                      <div
+                        className={`tx-balance-chip timeline-event-balance ${healthClass} tabular-nums`}
+                      >
+                        {isBreached && <span className="inline-breach-glyph">▲ </span>}
+                        bal: {formatCurrency(evt.displayBalance, currencySymbol)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Center Zone: Date Badge */}
@@ -637,7 +639,7 @@ export function TimelineList({
                         {isPlanned && (
                           <button
                             type="button"
-                            className="tx-btn-settle"
+                            className="apple-tx-btn-settle tx-btn-settle"
                             onClick={() => handleQuickPay(evt)}
                             title="Mark as paid (confirm actual amount and date)"
                             aria-label="Mark as Paid (Settle)"
@@ -649,12 +651,12 @@ export function TimelineList({
                         {onEditTransaction && (
                           <button
                             type="button"
-                            className="tx-btn-action"
+                            className="apple-tx-btn-action tx-btn-action"
                             onClick={() => onEditTransaction(resolveTargetItem(evt))}
                             title="Edit entry"
                             aria-label="Edit entry"
                           >
-                            <EditIcon size={12} strokeWidth={2.2} />
+                            <EditIcon size={13} />
                           </button>
                         )}
                       </div>
