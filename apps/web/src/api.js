@@ -1,41 +1,104 @@
 const BASE_API_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'budget_auth_token';
 
+// In-flight request deduplication map to eliminate redundant concurrent network calls
+const pendingRequests = new Map();
+
+// Micro-cache for idempotent GET calls (TTL-based with automatic mutation invalidation)
+const responseCache = new Map();
+const DEFAULT_CACHE_TTL_MS = 25000; // 25 seconds
+
+export function clearApiCache(pattern = null) {
+  if (!pattern) {
+    responseCache.clear();
+    return;
+  }
+  for (const key of responseCache.keys()) {
+    if (key.includes(pattern)) {
+      responseCache.delete(key);
+    }
+  }
+}
+
 async function request(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
   const fullUrl = url.startsWith('http') ? url : `${BASE_API_URL}${url}`;
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  const isGet = method === 'GET';
+
+  // Invalidate cache on mutations to prevent stale UI state
+  if (!isGet) {
+    clearApiCache();
   }
 
-  const res = await fetch(fullUrl, {
-    ...options,
-    headers
+  // Check TTL cache for GET requests
+  const cacheKey = `${token || 'anon'}:${fullUrl}`;
+  if (isGet && !options.bypassCache) {
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < (options.cacheTtlMs || DEFAULT_CACHE_TTL_MS)) {
+      return cached.data;
+    }
+  }
+
+  // Deduplicate simultaneous in-flight GET requests
+  if (isGet && pendingRequests.has(cacheKey)) {
+    return pendingRequests.get(cacheKey);
+  }
+
+  const executeRequest = async () => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(fullUrl, {
+      ...options,
+      headers,
+      signal: options.signal,
+      keepalive: options.keepalive ?? isGet
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errorMsg = (payload.error && payload.error.message) || payload.error || `Request failed with status ${res.status}`;
+      const err = new Error(errorMsg);
+      err.code = payload.error?.code || 'REQUEST_FAILED';
+      err.details = payload.error?.details || null;
+      err.status = res.status;
+      throw err;
+    }
+
+    // Transparently unwrap standard response envelope
+    const data = (payload && payload.status === 'success' && payload.data !== undefined)
+      ? payload.data
+      : payload;
+
+    // Cache successful GET responses
+    if (isGet && !options.bypassCache) {
+      responseCache.set(cacheKey, { timestamp: Date.now(), data });
+    }
+
+    return data;
+  };
+
+  const reqPromise = executeRequest().finally(() => {
+    if (isGet) {
+      pendingRequests.delete(cacheKey);
+    }
   });
 
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const errorMsg = (payload.error && payload.error.message) || payload.error || `Request failed with status ${res.status}`;
-    const err = new Error(errorMsg);
-    err.code = payload.error?.code || 'REQUEST_FAILED';
-    err.details = payload.error?.details || null;
-    err.status = res.status;
-    throw err;
+  if (isGet) {
+    pendingRequests.set(cacheKey, reqPromise);
   }
 
-  // Transparently unwrap standard response envelope
-  if (payload && payload.status === 'success' && payload.data !== undefined) {
-    return payload.data;
-  }
-
-  return payload;
+  return reqPromise;
 }
 
 export const api = {
+  clearCache: clearApiCache,
   // Auth
   register: async (email, password) => {
     const data = await request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });

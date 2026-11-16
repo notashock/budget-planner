@@ -17,6 +17,7 @@ import { MonthRolloverModal } from './components/MonthRolloverModal.jsx';
 import { AuthScreen } from './components/AuthScreen.jsx';
 import { OnboardingModal } from './components/OnboardingModal.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { DashboardSkeleton } from './components/DashboardSkeleton.jsx';
 
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 
@@ -271,13 +272,19 @@ export default function App() {
   const loadMonthDetails = async (year, monthNum) => {
     setDataLoading(true);
     try {
-      const res = await api.getMonthDetail(year, monthNum);
+      // Parallelize month details and goals query to minimize network roundtrip latency
+      const [res, goalsList] = await Promise.all([
+        api.getMonthDetail(year, monthNum),
+        api.getGoals(year, monthNum).catch(() => [])
+      ]);
+
       setCurrentMonth(res.month);
       setItems(res.items);
       setTransactions(res.transactions || []);
       setTransfers(res.transfers || []);
       setBankAccounts(res.bankAccounts || []);
       setWallets(res.wallets || []);
+      setGoals(goalsList || []);
 
       if (res.simulation) {
         setServerSimulation(res.simulation);
@@ -291,8 +298,6 @@ export default function App() {
           localStorage.setItem('budget_cached_acc_simulations', JSON.stringify(res.accountSimulations));
         } catch (_) {}
       }
-
-      await loadGoals(year, monthNum);
     } catch (err) {
       console.error('Failed to load month details:', err);
     } finally {
@@ -302,12 +307,22 @@ export default function App() {
 
   const loadAccounts = async () => {
     try {
-      const [banks, wals] = await Promise.all([
-        api.getBankAccounts(),
-        api.getWallets()
-      ]);
-      setBankAccounts(banks || []);
-      setWallets(wals || []);
+      // High-performance single-hop account fetch
+      const accountsRes = await api.getAllAccounts();
+      if (accountsRes && (accountsRes.bankAccounts || accountsRes.wallets)) {
+        setBankAccounts(accountsRes.bankAccounts || []);
+        setWallets(accountsRes.wallets || []);
+      } else if (Array.isArray(accountsRes)) {
+        setBankAccounts(accountsRes.filter((a) => a.type === 'bank'));
+        setWallets(accountsRes.filter((a) => a.type === 'wallet'));
+      } else {
+        const [banks, wals] = await Promise.all([
+          api.getBankAccounts(),
+          api.getWallets()
+        ]);
+        setBankAccounts(banks || []);
+        setWallets(wals || []);
+      }
       setAccountsLoaded(true);
     } catch (err) {
       console.error('Failed to load accounts:', err);
@@ -957,7 +972,7 @@ export default function App() {
 
   const isInitialApiWaiting = user && (!accountsLoaded || (dataLoading && !currentMonth && months.length > 0));
 
-  if (authLoading || isInitialApiWaiting) {
+  if (authLoading) {
     return (
       <div className="app-splash-screen" role="status" aria-label="Loading application">
         <AnimatedLogo size={36} />
@@ -965,7 +980,7 @@ export default function App() {
           <div className="app-splash-loader-progress" />
         </div>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-          {authLoading ? 'Initializing Budget Planner' : 'Loading your financial plan...'}
+          Initializing Budget Planner
         </span>
       </div>
     );
@@ -987,6 +1002,19 @@ export default function App() {
             await loadMonths();
           }}
         />
+      </div>
+    );
+  }
+
+  if (isInitialApiWaiting) {
+    return (
+      <div className="app-shell">
+        <div className="top-activity-bar">
+          <div className="top-activity-line" />
+        </div>
+        <div className="app-container">
+          <DashboardSkeleton />
+        </div>
       </div>
     );
   }
@@ -1100,28 +1128,32 @@ export default function App() {
       <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
         <ErrorBoundary title="Screen rendering error">
           {activeTab === 'plan' && (
-            <PlanScreen
-              month={currentMonth}
-              items={items}
-              transactions={transactions}
-              settings={settings}
-              simulation={activeSimulation}
-              accountSimulations={serverAccountSimulations}
-              bankAccounts={bankAccounts}
-              wallets={wallets}
-              migrationEligible={migrationEligible}
-              isReviewMode={isReviewMode}
-              onOpenMigration={() => setMigrationModalOpen(true)}
-              onOpenUnifiedEntry={handleOpenUnifiedEntry}
-              onTogglePaid={handleTogglePaid}
-              onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
-              onOpenReview={(accId) => {
-                setReviewAccountId(accId || 'all');
-                setReviewOpen(true);
-              }}
-              onPayTransaction={handlePayTransaction}
-              onEditTransaction={handleEditItem}
-            />
+            (dataLoading && !currentMonth) ? (
+              <DashboardSkeleton />
+            ) : (
+              <PlanScreen
+                month={currentMonth}
+                items={items}
+                transactions={transactions}
+                settings={settings}
+                simulation={activeSimulation}
+                accountSimulations={serverAccountSimulations}
+                bankAccounts={bankAccounts}
+                wallets={wallets}
+                migrationEligible={migrationEligible}
+                isReviewMode={isReviewMode}
+                onOpenMigration={() => setMigrationModalOpen(true)}
+                onOpenUnifiedEntry={handleOpenUnifiedEntry}
+                onTogglePaid={handleTogglePaid}
+                onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
+                onOpenReview={(accId) => {
+                  setReviewAccountId(accId || 'all');
+                  setReviewOpen(true);
+                }}
+                onPayTransaction={handlePayTransaction}
+                onEditTransaction={handleEditItem}
+              />
+            )
           )}
 
           {(activeTab === 'transactions' || activeTab === 'items') && (

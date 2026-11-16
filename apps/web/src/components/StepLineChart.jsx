@@ -165,16 +165,42 @@ export function StepLineChart({
 
   // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
   const chartData = useMemo(() => {
-    const balances = dailyBalances.map((d) => d.balance);
-    const actualMin = Math.min(...balances, safetyFloor);
+    // Collect all balance values across daily snapshots, intraday intermediate events, and timeline events
+    const allBalances = [
+      ...dailyBalances.map((d) => d.balance),
+      safetyFloor,
+      1000
+    ];
+
+    dailyBalances.forEach((point) => {
+      const dayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
+        ? point.intradayEvents
+        : (events || []).filter((e) => e.day === point.day || e.date === point.date);
+
+      dayEvents.forEach((ev) => {
+        const bal = ev.balanceAfter ?? ev.displayBalance;
+        if (typeof bal === 'number' && !isNaN(bal)) {
+          allBalances.push(bal);
+        }
+      });
+    });
+
+    (events || []).forEach((e) => {
+      const bal = e.balanceAfter ?? e.displayBalance;
+      if (typeof bal === 'number' && !isNaN(bal)) {
+        allBalances.push(bal);
+      }
+    });
+
+    const actualMin = Math.min(...allBalances);
     const minVal = actualMin < 0 ? actualMin : 0;
-    const maxVal = Math.max(...balances, safetyFloor, 1000);
+    const maxVal = Math.max(...allBalances);
 
     // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0.
-    // Tight yMax margin removes dead space above the highest curve peak.
+    // 12% headroom removes clipping on high peaks, intraday step-ups, and curved bezier arcs.
     const range = maxVal - minVal || 1000;
-    const yMin = minVal < 0 ? minVal - range * 0.03 : 0;
-    const yMax = maxVal + range * 0.02;
+    const yMin = minVal < 0 ? minVal - range * 0.04 : 0;
+    const yMax = maxVal + range * 0.12;
 
     // Format y-axis tick values (top, middle, bottom)
     const yTicks = [
@@ -208,7 +234,9 @@ export function StepLineChart({
 
     const getY = (val) => {
       const norm = (val - yMin) / (yMax - yMin || 1);
-      return height - paddingBottom - norm * chartHeight;
+      const rawY = height - paddingBottom - norm * chartHeight;
+      // Strictly clamp to chart coordinate box: guarantees zero overflow outside component view area
+      return Math.max(paddingTop + 6, Math.min(height - paddingBottom, rawY));
     };
 
     // Build smooth monotonic curved spline path with zero overshoot,

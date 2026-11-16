@@ -1927,6 +1927,58 @@ main {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.kpi-title-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.kpi-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.kpi-icon-badge.kpi-income {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.kpi-icon-badge.kpi-expense {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+}
+
+.kpi-icon-badge.kpi-balance {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.kpi-icon-badge.kpi-lowest {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.kpi-icon-badge.kpi-breach {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
 }
 
 .kpi-card-breached {
@@ -1953,6 +2005,53 @@ main {
 .kpi-subtext {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* Skeleton Loading Screen */
+@keyframes skeletonPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-dashboard-root {
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+.skeleton-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    var(--surface-subtle) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-subtle) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.8s ease-in-out infinite;
+}
+
+.skeleton-shimmer-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 2.2s linear infinite;
+  pointer-events: none;
 }
 
 /* Floor Alert Banner */

@@ -1,5 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import {
+  TrendingUpIcon,
+  TrendingDownIcon,
+  WalletIcon,
+  ShieldAlertIcon
+} from './Icons.jsx';
 
 export function SafeVelocityCard({
   safeVelocity = null,
@@ -169,8 +175,13 @@ export function DetailedKpiGrid({
   return (
     <div className="detailed-kpi-grid summary-grid">
       <div className="summary-card kpi-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="summary-label">Monthly income</span>
+        <div className="kpi-card-header">
+          <div className="kpi-title-with-icon">
+            <span className="kpi-icon-badge kpi-income" aria-hidden="true">
+              <TrendingUpIcon size={13} strokeWidth={2.4} />
+            </span>
+            <span className="summary-label">Monthly income</span>
+          </div>
           {canEditSalary && isCreditEffective && (
             <span className="pace-status-badge on-pace" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
               ✓ Credited
@@ -190,7 +201,14 @@ export function DetailedKpiGrid({
       </div>
 
       <div className="summary-card kpi-card">
-        <span className="summary-label">Total expenses</span>
+        <div className="kpi-card-header">
+          <div className="kpi-title-with-icon">
+            <span className="kpi-icon-badge kpi-expense" aria-hidden="true">
+              <TrendingDownIcon size={13} strokeWidth={2.4} />
+            </span>
+            <span className="summary-label">Total expenses</span>
+          </div>
+        </div>
         <span className="summary-value tabular-nums">
           {formatCurrency(totalOutflow, currencySymbol)}
         </span>
@@ -200,7 +218,14 @@ export function DetailedKpiGrid({
       </div>
 
       <div className="summary-card kpi-card">
-        <span className="summary-label">Today's balance</span>
+        <div className="kpi-card-header">
+          <div className="kpi-title-with-icon">
+            <span className="kpi-icon-badge kpi-balance" aria-hidden="true">
+              <WalletIcon size={13} strokeWidth={2.2} />
+            </span>
+            <span className="summary-label">Today's balance</span>
+          </div>
+        </div>
         <span className="summary-value tabular-nums">
           {formatCurrency(todayBalance !== undefined ? todayBalance : endingBalance, currencySymbol)}
         </span>
@@ -210,8 +235,13 @@ export function DetailedKpiGrid({
       </div>
 
       <div className={`summary-card kpi-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="summary-label">Lowest balance</span>
+        <div className="kpi-card-header">
+          <div className="kpi-title-with-icon">
+            <span className={`kpi-icon-badge ${floorBreached ? 'kpi-breach' : 'kpi-lowest'}`} aria-hidden="true">
+              <ShieldAlertIcon size={13} strokeWidth={2.2} />
+            </span>
+            <span className="summary-label">Lowest balance</span>
+          </div>
           {floorBreached && (
             <span className="kpi-breach-badge">
               ▲ BREACH

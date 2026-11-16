@@ -166,24 +166,26 @@ export const MonthLifecycle = {
    * Retrieves full month details, items, transactions, transfers, accounts, and dual simulations.
    */
   async getMonthDetails(userId, year, monthNum) {
-    const rawMonth = await db.query.months.findFirst({
-      where: and(
-        eq(s.months.userId, userId),
-        eq(s.months.year, year),
-        eq(s.months.month, monthNum)
-      )
-    });
+    // Parallelize month header lookup and user account discovery
+    const [rawMonth, allAccounts] = await Promise.all([
+      db.query.months.findFirst({
+        where: and(
+          eq(s.months.userId, userId),
+          eq(s.months.year, year),
+          eq(s.months.month, monthNum)
+        )
+      }),
+      db.query.accounts.findMany({
+        where: and(eq(s.accounts.userId, userId), eq(s.accounts.isArchived, false)),
+        orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
+      })
+    ]);
 
     if (!rawMonth) {
       throw new NotFoundError(`Month ${year}-${monthNum} not found`);
     }
 
     const month = await attachAccountOpeningsToMonth(rawMonth);
-
-    const allAccounts = await db.query.accounts.findMany({
-      where: and(eq(s.accounts.userId, userId), eq(s.accounts.isArchived, false)),
-      orderBy: [desc(s.accounts.isPrimary), asc(s.accounts.createdAt)]
-    });
     const bankAccounts = allAccounts.filter(a => a.type === 'bank');
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
