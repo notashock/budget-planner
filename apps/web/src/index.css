@@ -1133,10 +1133,10 @@ main {
 
 /* Concentric Activity Rings Telemetry */
 .apple-concentric-container {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 18px);
-  padding: 20px 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 12px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
