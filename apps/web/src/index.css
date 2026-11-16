@@ -3223,11 +3223,202 @@ main {
   background: var(--surface);
 }
 
+/* Side-by-Side Amount & Date Row */
+.modal-amount-date-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+@media (max-width: 767px) {
+  .modal-amount-date-grid {
+    gap: 6px;
+  }
+}
+
+/* Compact DatePicker Integration */
+.datepicker-container.compact {
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+.datepicker-trigger.compact {
+  width: auto;
+  min-width: 105px;
+  height: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--surface-subtle);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.datepicker-trigger.compact:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.datepicker-trigger.compact.open,
+.datepicker-trigger.compact:focus {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+  background: var(--surface);
+}
+
+/* Recurring Day-of-Month Dock */
+.modal-day-stepper-dock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--surface-subtle);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.modal-day-stepper-dock input {
+  width: 44px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+  padding: 0;
+}
+
+/* Pills Row & Variable Checkbox */
+.modal-pills-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.modal-pills-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.modal-variable-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  user-select: none;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.modal-variable-pill.active {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.modal-variable-checkbox {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  margin: 0;
+  accent-color: var(--text);
+}
+
+.variable-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  transition: color 0.12s ease;
+}
+
+.variable-info-btn:hover {
+  color: var(--text);
+}
+
+.variable-info-popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 116000;
+  width: 250px;
+  max-width: 280px;
+  background: var(--surface-elevated, #18181b);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  padding: 10px 12px;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  pointer-events: auto;
+  text-align: left;
+}
+
+.variable-info-popover strong {
+  color: var(--text);
+}
+
 /* Modal Stacking Protections */
 .modal-overlay .custom-select-dropdown,
 .modal-overlay .app-dropdown-menu,
-.modal-overlay .searchable-item-picker-menu {
+.modal-overlay .searchable-item-picker-menu,
+.modal-overlay .datepicker-popover {
   z-index: 115000 !important;
+}
+
+/* Mobile Scaling Tier (< 768px) */
+@media (max-width: 767px) {
+  .quick-amt-chip {
+    padding: 2.5px 7px !important;
+    font-size: 10px !important;
+  }
+  .category-pill-btn {
+    padding: 4px 9px !important;
+    font-size: 11px !important;
+  }
+  .modal-variable-pill {
+    padding: 2.5px 7px !important;
+    font-size: 10.5px !important;
+  }
 }
 
 [data-testid="floor-breach-modal"],

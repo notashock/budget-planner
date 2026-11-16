@@ -10,7 +10,8 @@ export function DatePicker({
   month = null,
   required = false,
   maxDate = null,
-  minDate = null
+  minDate = null,
+  compact = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState('down');
@@ -271,28 +272,42 @@ export function DatePicker({
   };
 
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+  const renderCompactLabel = () => {
+    if (!value) {
+      return <span style={{ color: 'var(--text-muted)' }}>{placeholder || 'Date'}</span>;
+    }
+    const d = new Date(value + 'T00:00:00');
+    if (isNaN(d.getTime())) return value;
+    const monthStr = monthNames[d.getMonth()]?.slice(0, 3);
+    const dayStr = d.getDate();
+    return <span className="tabular-nums" style={{ fontWeight: 600 }}>{`${dayStr} ${monthStr}`}</span>;
+  };
 
   return (
-    <div ref={containerRef} className={`datepicker-container ${isOpen ? 'open is-open' : ''}`}>
+    <div ref={containerRef} className={`datepicker-container ${compact ? 'compact' : ''} ${isOpen ? 'open is-open' : ''}`}>
       <button
         type="button"
-        className={`datepicker-trigger ${isOpen ? 'open' : ''}`}
+        className={`datepicker-trigger ${compact ? 'compact' : ''} ${isOpen ? 'open' : ''}`}
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: compact ? '6px' : '8px' }}>
           <CalendarIcon size={14} color="var(--text-secondary)" />
-          {renderTriggerLabel()}
+          {compact ? renderCompactLabel() : renderTriggerLabel()}
         </span>
-        <span style={{ display: 'inline-flex', color: 'var(--text-muted)', marginLeft: '8px' }}>
+        <span style={{ display: 'inline-flex', color: 'var(--text-muted)', marginLeft: compact ? '4px' : '8px' }}>
           {isOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
         </span>
       </button>
 
       {isOpen && (
-        <div className={`datepicker-popover placement-${placement} ${alignRight ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
+        <div className={`datepicker-popover placement-${placement} ${alignRight || compact ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
           {/* Quick Shortcuts Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
             <button
@@ -313,7 +328,14 @@ export function DatePicker({
             <button
               type="button"
               className="btn-subtle"
-              style={{ flex: 1, fontSize: '11px', padding: '3px 8px', justifyContent: 'center' }}
+              disabled={Boolean((minDate && yesterdayStr < minDate) || (maxDate && yesterdayStr > maxDate))}
+              style={{
+                flex: 1,
+                fontSize: '11px',
+                padding: '3px 8px',
+                justifyContent: 'center',
+                opacity: (minDate && yesterdayStr < minDate) ? 0.3 : 1
+              }}
               onClick={handleSelectYesterday}
             >
               Yesterday

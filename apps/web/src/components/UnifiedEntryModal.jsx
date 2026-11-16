@@ -96,11 +96,12 @@ export function UnifiedEntryModal({
   const [itemType, setItemType] = useState('one-time'); // 'one-time' | 'recurring'
   const [dayOfMonth, setDayOfMonth] = useState(now.getDate() || 1);
   const [priority, setPriority] = useState(0);
-  const [isFixed, setIsFixed] = useState(false);
+  const [isFixed, setIsFixed] = useState(true);
   const [isPaid, setIsPaid] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState('');
   const [cascadeScope, setCascadeScope] = useState('single'); // 'single' | 'all_future'
   const [updateSalaryTemplate, setUpdateSalaryTemplate] = useState(false);
+  const [showVariableInfo, setShowVariableInfo] = useState(false);
 
   // UI status states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -265,14 +266,23 @@ export function UnifiedEntryModal({
         // Plan defaults
         setItemType('one-time');
         setPriority(0);
-        setIsFixed(false);
+        setIsFixed(true);
         setIsPaid(false);
         setDayOfMonth(now.getDate() || 1);
+        setShowVariableInfo(false);
       }
     } else {
       triggerExit();
     }
   }, [isOpen, initialItem, initialMode, month, bankAccounts, wallets, todayStr]);
+
+  // Click outside to dismiss variable info popover
+  useEffect(() => {
+    if (!showVariableInfo) return;
+    const handleClickOutside = () => setShowVariableInfo(false);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [showVariableInfo]);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
@@ -1049,12 +1059,28 @@ export function UnifiedEntryModal({
                  --------------------------------------------------------------------- */}
               <div className="form-group" style={{ margin: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label className="form-label" style={{ margin: 0 }}>
-                    {mode === 'log' && `Amount (${currencySymbol})`}
-                    {mode === 'income' && `Income Amount (${currencySymbol}) *`}
-                    {mode === 'plan' && `Planned amount (${currencySymbol})`}
-                    {mode === 'transfer' && `Transfer Amount (${currencySymbol}) *`}
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      {mode === 'log' && `Amount (${currencySymbol})`}
+                      {mode === 'income' && `Income Amount (${currencySymbol}) *`}
+                      {mode === 'plan' && `Planned amount (${currencySymbol})`}
+                      {mode === 'transfer' && `Transfer Amount (${currencySymbol}) *`}
+                    </label>
+
+                    {mode === 'plan' && !isPaid && itemType !== 'recurring' && (
+                      <button
+                        type="button"
+                        className="sparkle-action-link"
+                        onClick={handleRecommendDate}
+                        disabled={recommending}
+                        title="Recommend best safe date based on spending pace, balance, and floor buffer"
+                        style={{ fontSize: '11px', padding: '1px 6px' }}
+                      >
+                        <SparklesIcon size={11} className={recommending ? 'sparkle-spin-icon' : ''} />
+                        <span>{recommending ? 'Analyzing...' : 'Auto date'}</span>
+                      </button>
+                    )}
+                  </div>
 
                   {/* Slot 1 Modifier Pill / Segment */}
                   {mode === 'log' && (
@@ -1146,50 +1172,146 @@ export function UnifiedEntryModal({
                   )}
                 </div>
 
-                {/* Big Numerical Amount Input with Docked Currency */}
-                <div className="modal-amount-dock">
-                  <span className="modal-amount-prefix">{currencySymbol}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min={mode === 'transfer' ? '0.01' : undefined}
-                    required
-                    autoFocus
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="tabular-nums modal-amount-input"
-                    style={{
-                      fontSize: '22px',
-                      fontWeight: 700,
-                      color: 'var(--text)'
-                    }}
-                  />
-                  {amount && (
-                    <button
-                      type="button"
-                      className="modal-amount-clear-btn"
-                      onClick={handleQuickClear}
-                      title="Clear amount"
-                    >
-                      Clear
-                    </button>
+                {/* Hero Amount & Date Side-by-Side Grid */}
+                <div className="modal-amount-date-grid">
+                  <div className="modal-amount-dock">
+                    <span className="modal-amount-prefix">{currencySymbol}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min={mode === 'transfer' ? '0.01' : undefined}
+                      required
+                      autoFocus
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="tabular-nums modal-amount-input"
+                      style={{
+                        fontSize: '22px',
+                        fontWeight: 700,
+                        color: 'var(--text)'
+                      }}
+                    />
+                    {amount && (
+                      <button
+                        type="button"
+                        className="modal-amount-clear-btn"
+                        onClick={handleQuickClear}
+                        title="Clear amount"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Docked Date Companion */}
+                  {mode === 'plan' && itemType === 'recurring' ? (
+                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
+                      <CalendarIcon size={14} color="var(--text-secondary)" />
+                      <span>Day</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="31"
+                        required
+                        value={dayOfMonth}
+                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
+                      />
+                    </div>
+                  ) : (
+                    <DatePicker
+                      compact
+                      value={date}
+                      onChange={(d) => setDate(d)}
+                      placeholder="Date"
+                      month={month}
+                      required={mode !== 'plan'}
+                      minDate={mode === 'plan' ? todayStr : null}
+                    />
                   )}
                 </div>
 
-                {/* Quick Increment Shortcut Chips */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                  {(QUICK_INCREMENTS[mode] || [100, 500, 1000, 2000]).map((inc) => (
-                    <button
-                      key={`quick-${inc}`}
-                      type="button"
-                      className="quick-amt-chip"
-                      onClick={() => handleQuickIncrement(inc)}
+                {/* Quick Increment Shortcut Chips & Compact Variable Checkbox */}
+                <div className="modal-pills-row">
+                  <div className="modal-pills-left">
+                    {(QUICK_INCREMENTS[mode] || [100, 500, 1000, 2000]).map((inc) => (
+                      <button
+                        key={`quick-${inc}`}
+                        type="button"
+                        className="quick-amt-chip"
+                        onClick={() => handleQuickIncrement(inc)}
+                      >
+                        +{inc >= 1000 ? `${inc / 1000}k` : inc}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Mode = Plan: Compact Variable Checkbox + Info Icon */}
+                  {mode === 'plan' && (
+                    <div
+                      className={`modal-variable-pill ${!isFixed ? 'active' : ''}`}
+                      onClick={() => setIsFixed((prev) => !prev)}
+                      role="checkbox"
+                      aria-checked={!isFixed}
+                      title={!isFixed ? 'Variable expense (click to make Fixed)' : 'Fixed expense (click to make Variable)'}
                     >
-                      +{inc >= 1000 ? `${inc / 1000}k` : inc}
-                    </button>
-                  ))}
+                      <input
+                        type="checkbox"
+                        checked={!isFixed}
+                        onChange={(e) => setIsFixed(!e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="modal-variable-checkbox"
+                        aria-label="Variable expense"
+                      />
+                      <span>Variable</span>
+                      <button
+                        type="button"
+                        className="variable-info-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowVariableInfo((prev) => !prev);
+                        }}
+                        title="About Variable vs Fixed expenses"
+                        aria-label="About Variable vs Fixed expenses"
+                      >
+                        ℹ
+                      </button>
+
+                      {/* Interactive Micro-Popover */}
+                      {showVariableInfo && (
+                        <div
+                          className="variable-info-popover"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                            Expense Type
+                          </div>
+                          <div style={{ marginBottom: '6px' }}>
+                            <strong>Unchecked (Fixed):</strong> Automatically carries forward into upcoming months' safe-to-spend projections on rollover.
+                          </div>
+                          <div>
+                            <strong>Checked (Variable):</strong> Flexible one-time commitment for this month only; does not carry forward.
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-subtle"
+                            onClick={() => setShowVariableInfo(false)}
+                            style={{
+                              marginTop: '8px',
+                              width: '100%',
+                              padding: '3px 8px',
+                              fontSize: '10px',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            Got it
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1503,38 +1625,6 @@ export function UnifiedEntryModal({
                       })}
                     </div>
                   </div>
-
-                  {/* Fixed need toggle */}
-                  <div
-                    className={`compact-switch-card ${isFixed ? 'active' : ''}`}
-                    onClick={() => setIsFixed((prev) => !prev)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setIsFixed((prev) => !prev);
-                      }
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 600 }}>
-                        {isFixed ? 'Fixed expense (auto-carry forward)' : 'Variable expense (flexible)'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                        {isFixed
-                          ? 'Carries forward to next month automatically on rollover.'
-                          : 'Flexible variable expense specific to this cycle.'}
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={isFixed}
-                      onChange={(e) => setIsFixed(e.target.checked)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                  </div>
                 </div>
               )}
 
@@ -1546,55 +1636,7 @@ export function UnifiedEntryModal({
               )}
             </div>
 
-            {/* ---------------------------------------------------------------------
-                SLOT 5: DATE & SCHEDULE SELECTOR
-               --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
-              {mode === 'plan' && itemType === 'recurring' ? (
-                <>
-                  <label className="form-label">Day of month (1 - 31)</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="31"
-                    required
-                    value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
-                  />
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>
-                      {mode === 'plan' ? 'Planned payment date' : 'Date'}
-                    </label>
-
-                    {mode === 'plan' && !isPaid && (
-                      <button
-                        type="button"
-                        className="sparkle-action-link"
-                        onClick={handleRecommendDate}
-                        disabled={recommending}
-                        title="Recommend best safe date based on spending pace, balance, and floor buffer"
-                      >
-                        <SparklesIcon size={12} className={recommending ? 'sparkle-spin-icon' : ''} />
-                        <span>{recommending ? 'Analyzing...' : 'Recommend best date'}</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <DatePicker
-                    value={date}
-                    onChange={(d) => setDate(d)}
-                    placeholder={mode === 'plan' ? 'Leave blank for auto-recommended safe date' : undefined}
-                    month={month}
-                    required={mode !== 'plan'}
-                  />
-                </>
-              )}
-
-              {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
+            {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
               {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && (
                 <div style={{ marginTop: '10px' }}>
                   <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Update Scope</label>
@@ -1665,8 +1707,6 @@ export function UnifiedEntryModal({
                   </label>
                 </div>
               )}
-            </div>
-
             </div>
 
             {/* ---------------------------------------------------------------------
