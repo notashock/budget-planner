@@ -17,7 +17,8 @@ import {
   CheckCircleIcon,
   BuildingLibraryIcon,
   WalletIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  CalendarIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
@@ -96,11 +97,12 @@ export function UnifiedEntryModal({
   const [itemType, setItemType] = useState('one-time'); // 'one-time' | 'recurring'
   const [dayOfMonth, setDayOfMonth] = useState(now.getDate() || 1);
   const [priority, setPriority] = useState(0);
-  const [isFixed, setIsFixed] = useState(false);
+  const [isFixed, setIsFixed] = useState(true);
   const [isPaid, setIsPaid] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState('');
   const [cascadeScope, setCascadeScope] = useState('single'); // 'single' | 'all_future'
   const [updateSalaryTemplate, setUpdateSalaryTemplate] = useState(false);
+  const [showVariableInfo, setShowVariableInfo] = useState(false);
 
   // UI status states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -265,14 +267,30 @@ export function UnifiedEntryModal({
         // Plan defaults
         setItemType('one-time');
         setPriority(0);
-        setIsFixed(false);
+        setIsFixed(true);
         setIsPaid(false);
         setDayOfMonth(now.getDate() || 1);
+        setShowVariableInfo(false);
       }
     } else {
       triggerExit();
     }
   }, [isOpen, initialItem, initialMode, month, bankAccounts, wallets, todayStr]);
+
+  // Click outside and escape key to dismiss variable info popover
+  useEffect(() => {
+    if (!showVariableInfo) return;
+    const handleClickOutside = () => setShowVariableInfo(false);
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowVariableInfo(false);
+    };
+    window.addEventListener('click', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showVariableInfo]);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
@@ -1041,156 +1059,280 @@ export function UnifiedEntryModal({
           <form
             ref={formRef}
             onSubmit={handleSubmitRouter}
-            style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}
           >
-            {/* ---------------------------------------------------------------------
-                SLOT 1: HERO AMOUNT & PRIMARY DIRECTION MODIFIER
-               --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label className="form-label" style={{ margin: 0 }}>
-                  {mode === 'log' && `Amount (${currencySymbol})`}
-                  {mode === 'income' && `Income Amount (${currencySymbol}) *`}
-                  {mode === 'plan' && `Planned amount (${currencySymbol})`}
-                  {mode === 'transfer' && `Transfer Amount (${currencySymbol}) *`}
-                </label>
+            <div className="modal-form-scroll-body">
+              {/* ---------------------------------------------------------------------
+                  SLOT 1: HERO AMOUNT & PRIMARY DIRECTION MODIFIER
+                 --------------------------------------------------------------------- */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      {mode === 'log' && `Amount (${currencySymbol})`}
+                      {mode === 'income' && `Income Amount (${currencySymbol}) *`}
+                      {mode === 'plan' && `Planned amount (${currencySymbol})`}
+                      {mode === 'transfer' && `Transfer Amount (${currencySymbol}) *`}
+                    </label>
 
-                {/* Slot 1 Modifier Pill / Segment */}
-                {mode === 'log' && (
-                  <button
-                    type="button"
-                    className={`btn-subtle ${isRefund ? 'credit-active-btn' : ''}`}
-                    style={{
-                      padding: '3px 10px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      border: isRefund ? '1px solid var(--text)' : '1px solid var(--border)',
-                      background: isRefund ? 'var(--text)' : 'var(--surface)',
-                      color: isRefund ? 'var(--bg)' : 'var(--text-secondary)',
-                      transition: 'all 0.15s ease',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    onClick={(e) => handleMicroPress(e, () => setIsRefund((prev) => !prev))}
-                  >
-                    {isRefund ? (
-                      <>
-                        <CheckCircleIcon size={12} />
-                        <span>Credit / Refund</span>
-                      </>
-                    ) : (
-                      'Expense Debit'
+                    {mode === 'plan' && !isPaid && itemType !== 'recurring' && (
+                      <button
+                        type="button"
+                        className="sparkle-action-link"
+                        onClick={handleRecommendDate}
+                        disabled={recommending}
+                        title="Recommend best safe date based on spending pace, balance, and floor buffer"
+                        style={{ fontSize: '11px', padding: '1px 6px' }}
+                      >
+                        <SparklesIcon size={11} className={recommending ? 'sparkle-spin-icon' : ''} />
+                        <span>{recommending ? 'Analyzing...' : 'Auto date'}</span>
+                      </button>
                     )}
-                  </button>
-                )}
-
-                {mode === 'income' && (
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      background: 'var(--success-subtle, rgba(34, 197, 94, 0.12))',
-                      color: 'var(--success)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <TrendingUpIcon size={12} />
-                    <span>Direct Inflow</span>
-                  </span>
-                )}
-
-                {mode === 'plan' && (
-                  <div style={{ display: 'inline-flex', borderRadius: '4px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-                    <button
-                      type="button"
-                      className={itemType === 'one-time' ? 'btn-primary' : 'btn-subtle'}
-                      onClick={(e) => handleMicroPress(e, () => setItemType('one-time'))}
-                      style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
-                    >
-                      One-Time
-                    </button>
-                    <button
-                      type="button"
-                      className={itemType === 'recurring' ? 'btn-primary' : 'btn-subtle'}
-                      onClick={(e) => handleMicroPress(e, () => setItemType('recurring'))}
-                      style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
-                    >
-                      Recurring
-                    </button>
                   </div>
-                )}
 
-                {mode === 'transfer' && (
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      background: 'var(--surface-subtle)',
-                      color: 'var(--text-secondary)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <ArrowRightLeftIcon size={12} />
-                    <span>Zero-Sum</span>
-                  </span>
-                )}
+                  {/* Slot 1 Modifier Pill / Segment */}
+                  {mode === 'log' && (
+                    <button
+                      type="button"
+                      className={`btn-subtle ${isRefund ? 'credit-active-btn' : ''}`}
+                      style={{
+                        padding: '3px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        border: isRefund ? '1px solid var(--text)' : '1px solid var(--border)',
+                        background: isRefund ? 'var(--text)' : 'var(--surface)',
+                        color: isRefund ? 'var(--bg)' : 'var(--text-secondary)',
+                        transition: 'all 0.15s ease',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      onClick={(e) => handleMicroPress(e, () => setIsRefund((prev) => !prev))}
+                    >
+                      {isRefund ? (
+                        <>
+                          <CheckCircleIcon size={12} />
+                          <span>Credit / Refund</span>
+                        </>
+                      ) : (
+                        'Expense Debit'
+                      )}
+                    </button>
+                  )}
+
+                  {mode === 'income' && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'var(--success-subtle, rgba(34, 197, 94, 0.12))',
+                        color: 'var(--success)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <TrendingUpIcon size={12} />
+                      <span>Direct Inflow</span>
+                    </span>
+                  )}
+
+                  {mode === 'plan' && (
+                    <div style={{ display: 'inline-flex', borderRadius: '4px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        className={itemType === 'one-time' ? 'btn-primary' : 'btn-subtle'}
+                        onClick={(e) => handleMicroPress(e, () => setItemType('one-time'))}
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                      >
+                        One-Time
+                      </button>
+                      <button
+                        type="button"
+                        className={itemType === 'recurring' ? 'btn-primary' : 'btn-subtle'}
+                        onClick={(e) => handleMicroPress(e, () => setItemType('recurring'))}
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                      >
+                        Recurring
+                      </button>
+                    </div>
+                  )}
+
+                  {mode === 'transfer' && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'var(--surface-subtle)',
+                        color: 'var(--text-secondary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <ArrowRightLeftIcon size={12} />
+                      <span>Zero-Sum</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Hero Amount & Date Side-by-Side Grid */}
+                <div className="modal-amount-date-grid">
+                  <div className="modal-amount-dock">
+                    <span className="modal-amount-prefix">{currencySymbol}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min={mode === 'transfer' ? '0.01' : undefined}
+                      required
+                      autoFocus
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="tabular-nums modal-amount-input"
+                      style={{
+                        fontSize: '22px',
+                        fontWeight: 700,
+                        color: 'var(--text)'
+                      }}
+                    />
+                    {amount && (
+                      <button
+                        type="button"
+                        className="modal-amount-clear-btn"
+                        onClick={handleQuickClear}
+                        title="Clear amount"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Docked Date Companion */}
+                  {mode === 'plan' && itemType === 'recurring' ? (
+                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
+                      <CalendarIcon size={14} color="var(--text-secondary)" />
+                      <span>Day</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="31"
+                        required
+                        value={dayOfMonth}
+                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
+                      />
+                    </div>
+                  ) : (
+                    <DatePicker
+                      compact
+                      value={date}
+                      onChange={(d) => setDate(d)}
+                      placeholder="Date"
+                      month={month}
+                      required={mode !== 'plan'}
+                      minDate={mode === 'plan' ? todayStr : null}
+                    />
+                  )}
+                </div>
+
+                {/* Quick Increment Shortcut Chips & Compact Variable Checkbox */}
+                <div className="modal-pills-row">
+                  <div className="modal-pills-left">
+                    {(QUICK_INCREMENTS[mode] || [100, 500, 1000, 2000]).map((inc) => (
+                      <button
+                        key={`quick-${inc}`}
+                        type="button"
+                        className="quick-amt-chip"
+                        onClick={() => handleQuickIncrement(inc)}
+                      >
+                        +{inc >= 1000 ? `${inc / 1000}k` : inc}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Mode = Plan: Compact Variable Checkbox + Info Icon */}
+                  {mode === 'plan' && (
+                    <div
+                      className={`modal-variable-pill ${!isFixed ? 'active' : ''} ${showVariableInfo ? 'has-popover-open' : ''}`}
+                      onClick={() => setIsFixed((prev) => !prev)}
+                      role="checkbox"
+                      aria-checked={!isFixed}
+                      title={!isFixed ? 'Variable expense (click to make Fixed)' : 'Fixed expense (click to make Variable)'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!isFixed}
+                        onChange={(e) => setIsFixed(!e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="modal-variable-checkbox"
+                        aria-label="Variable expense"
+                      />
+                      <span>Variable</span>
+                      <button
+                        type="button"
+                        className="variable-info-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowVariableInfo((prev) => !prev);
+                        }}
+                        title="About Variable vs Fixed expenses"
+                        aria-label="About Variable vs Fixed expenses"
+                      >
+                        ℹ
+                      </button>
+
+                      {/* Interactive Micro-Popover */}
+                      {showVariableInfo && (
+                        <div
+                          className="variable-info-popover"
+                          onClick={(e) => e.stopPropagation()}
+                          role="tooltip"
+                        >
+                          <div className="variable-info-header">
+                            <span className="variable-info-title">Expense Rollover Mode</span>
+                            <button
+                              type="button"
+                              className="variable-info-close"
+                              onClick={() => setShowVariableInfo(false)}
+                              aria-label="Close info"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          <div className="variable-info-item">
+                            <div className="variable-badge fixed">Fixed (Default)</div>
+                            <p className="variable-info-desc">
+                              Automatically carries forward into next month's safe-to-spend allowance on rollover.
+                            </p>
+                          </div>
+
+                          <div className="variable-info-item">
+                            <div className="variable-badge variable">Variable</div>
+                            <p className="variable-info-desc">
+                              One-time commitment for this month only; drops automatically upon rollover.
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="variable-info-gotit"
+                            onClick={() => setShowVariableInfo(false)}
+                          >
+                            Got it
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {/* Big Numerical Amount Input */}
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min={mode === 'transfer' ? '0.01' : undefined}
-                required
-                autoFocus
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="tabular-nums"
-                style={{
-                  fontSize: '22px',
-                  fontWeight: 700,
-                  padding: '10px 14px',
-                  color: 'var(--text)',
-                  borderColor: isRefund ? 'var(--text)' : undefined,
-                  width: '100%'
-                }}
-              />
-
-              {/* Quick Increment Shortcut Chips */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                {(QUICK_INCREMENTS[mode] || [100, 500, 1000, 2000]).map((inc) => (
-                  <button
-                    key={`quick-${inc}`}
-                    type="button"
-                    className="quick-amt-chip"
-                    onClick={() => handleQuickIncrement(inc)}
-                  >
-                    +{inc >= 1000 ? `${inc / 1000}k` : inc}
-                  </button>
-                ))}
-                {amount && (
-                  <button
-                    type="button"
-                    className="quick-amt-chip"
-                    onClick={handleQuickClear}
-                    style={{ color: 'var(--rose, #f43f5e)', borderColor: 'var(--rose-subtle, rgba(244,63,94,0.2))' }}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
 
             {/* ---------------------------------------------------------------------
                 SLOT 2: PRIMARY ACCOUNT SELECTOR
@@ -1260,19 +1402,16 @@ export function UnifiedEntryModal({
                     {mode === 'income' && 'Income Category / Source'}
                     {mode === 'plan' && 'Category & Classification'}
                   </label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  <div className="category-pill-grid">
                     {mode === 'income'
                       ? ['Bonus', 'Freelance', 'Investment', 'Other'].map((t) => (
                           <button
                             key={t}
                             type="button"
-                            className={incomeTag === t ? 'btn-primary' : 'btn-subtle'}
+                            className={`category-pill-btn ${incomeTag === t ? 'btn-primary' : 'btn-subtle'}`}
                             onClick={(e) => handleMicroPress(e, () => setIncomeTag(t))}
                             style={{
-                              padding: '5px 12px',
-                              fontSize: '11.5px',
                               fontWeight: incomeTag === t ? 600 : 400,
-                              borderRadius: '6px',
                               border: incomeTag === t ? undefined : '1px solid var(--border)'
                             }}
                           >
@@ -1283,13 +1422,10 @@ export function UnifiedEntryModal({
                           <button
                             key={t}
                             type="button"
-                            className={tag === t ? 'btn-primary' : 'btn-subtle'}
+                            className={`category-pill-btn ${tag === t ? 'btn-primary' : 'btn-subtle'}`}
                             onClick={(e) => handleMicroPress(e, () => setTag(t))}
                             style={{
-                              padding: '5px 12px',
-                              fontSize: '11.5px',
                               fontWeight: tag === t ? 600 : 400,
-                              borderRadius: '6px',
                               border: tag === t ? undefined : '1px solid var(--border)'
                             }}
                           >
@@ -1309,12 +1445,19 @@ export function UnifiedEntryModal({
                     <label className="form-label" style={{ margin: 0 }}>Destination Account (Inflow) *</label>
                     <button
                       type="button"
-                      className="btn-subtle"
-                      onClick={handleInvertTransferAccounts}
+                      className="btn-subtle modal-conduit-swap-btn"
+                      onClick={(e) => {
+                        const icon = e.currentTarget.querySelector('.modal-conduit-swap-icon');
+                        if (icon) {
+                          icon.style.transform = icon.style.transform === 'rotate(180deg)' ? 'rotate(0deg)' : 'rotate(180deg)';
+                        }
+                        handleInvertTransferAccounts();
+                      }}
                       style={{ fontSize: '11px', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       title="Swap source and destination"
                     >
-                      <span>⇅ Invert</span>
+                      <span className="modal-conduit-swap-icon">⇅</span>
+                      <span>Invert</span>
                     </button>
                   </div>
                   <AccountSelect
@@ -1501,36 +1644,6 @@ export function UnifiedEntryModal({
                       })}
                     </div>
                   </div>
-
-                  {/* Fixed need toggle */}
-                  <div
-                    style={{
-                      padding: '8px 12px',
-                      background: isFixed ? 'var(--surface)' : 'var(--surface-subtle)',
-                      borderRadius: 'var(--radius, 8px)',
-                      border: isFixed ? '1px solid var(--text)' : '1px solid var(--border)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', margin: 0 }}>
-                      <div>
-                        <div style={{ fontSize: '12.5px', fontWeight: 600 }}>
-                          {isFixed ? 'Fixed expense (auto-carry forward)' : 'Variable expense (flexible)'}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          {isFixed
-                            ? 'Carries forward to next month automatically on rollover.'
-                            : 'Flexible variable expense specific to this cycle.'}
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={isFixed}
-                        onChange={(e) => setIsFixed(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                    </label>
-                  </div>
                 </div>
               )}
 
@@ -1542,55 +1655,7 @@ export function UnifiedEntryModal({
               )}
             </div>
 
-            {/* ---------------------------------------------------------------------
-                SLOT 5: DATE & SCHEDULE SELECTOR
-               --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
-              {mode === 'plan' && itemType === 'recurring' ? (
-                <>
-                  <label className="form-label">Day of month (1 - 31)</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="31"
-                    required
-                    value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
-                  />
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>
-                      {mode === 'plan' ? 'Planned payment date' : 'Date'}
-                    </label>
-
-                    {mode === 'plan' && !isPaid && (
-                      <button
-                        type="button"
-                        className="sparkle-action-link"
-                        onClick={handleRecommendDate}
-                        disabled={recommending}
-                        title="Recommend best safe date based on spending pace, balance, and floor buffer"
-                      >
-                        <SparklesIcon size={12} className={recommending ? 'sparkle-spin-icon' : ''} />
-                        <span>{recommending ? 'Analyzing...' : 'Recommend best date'}</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <DatePicker
-                    value={date}
-                    onChange={(d) => setDate(d)}
-                    placeholder={mode === 'plan' ? 'Leave blank for auto-recommended safe date' : undefined}
-                    month={month}
-                    required={mode !== 'plan'}
-                  />
-                </>
-              )}
-
-              {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
+            {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
               {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && (
                 <div style={{ marginTop: '10px' }}>
                   <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Update Scope</label>
@@ -1664,19 +1729,9 @@ export function UnifiedEntryModal({
             </div>
 
             {/* ---------------------------------------------------------------------
-                SLOT 6: UNIFIED ACTION FOOTER
+                SLOT 6: UNIFIED ACTION FOOTER (FIXED DOCKED FOOTER)
                --------------------------------------------------------------------- */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                marginTop: '8px',
-                paddingTop: '12px',
-                borderTop: '1px solid var(--border)'
-              }}
-            >
+            <div className="modal-footer-row">
               {/* Left corner: Payment status toggle for Plan mode */}
               {mode === 'plan' ? (
                 <div
@@ -1705,7 +1760,7 @@ export function UnifiedEntryModal({
 
               {/* Right corner: Symmetrical Cancel & Submit Actions */}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" onClick={() => triggerExit()}>
+                <button type="button" className="btn-subtle" onClick={() => triggerExit()}>
                   Cancel
                 </button>
 
@@ -1790,7 +1845,7 @@ export function UnifiedEntryModal({
                 inset: 0,
                 backgroundColor: 'rgba(15, 23, 42, 0.75)',
                 backdropFilter: 'blur(5px)',
-                zIndex: 1105,
+                zIndex: 120000,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1872,7 +1927,7 @@ export function UnifiedEntryModal({
                 inset: 0,
                 backgroundColor: 'rgba(15, 23, 42, 0.75)',
                 backdropFilter: 'blur(5px)',
-                zIndex: 1100,
+                zIndex: 120000,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

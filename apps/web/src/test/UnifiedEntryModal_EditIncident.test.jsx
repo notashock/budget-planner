@@ -110,3 +110,73 @@ describe('QA Incident: Editing Income Transaction opens Plan form instead of Inc
     }));
   });
 });
+
+describe('UnifiedEntryModal - Plan Mode Recurring switch & Variable Info Popover', () => {
+  const mockBankAccounts = [
+    { _id: 'bank-1', id: 'bank-1', name: 'HDFC Salary', openingBalance: 5000000, isPrimary: true }
+  ];
+  const mockWallets = [
+    { _id: 'wallet-1', id: 'wallet-1', name: 'Paytm Cash', openingBalance: 200000 }
+  ];
+
+  it('renders Plan mode, switches to Recurring without throwing, and shows day stepper dock', () => {
+    const { container } = render(
+      <UnifiedEntryModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLogTransaction={vi.fn()}
+        onSaveItem={vi.fn()}
+        initialMode="plan"
+        month="2026-11"
+        bankAccounts={mockBankAccounts}
+        wallets={mockWallets}
+      />
+    );
+
+    // Click "Recurring" switch
+    const recurringBtn = screen.getByRole('button', { name: /Recurring/i });
+    fireEvent.click(recurringBtn);
+
+    // Verify day-of-month stepper dock is visible and contains day input
+    const dayDock = container.querySelector('.modal-day-stepper-dock');
+    expect(dayDock).toBeTruthy();
+    expect(dayDock.textContent).toContain('Day');
+    const dayInput = dayDock.querySelector('input[type="number"]');
+    expect(dayInput).toBeTruthy();
+  });
+
+  it('opens and closes the Variable Info popover with clear Fixed vs Variable descriptions', () => {
+    render(
+      <UnifiedEntryModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onLogTransaction={vi.fn()}
+        onSaveItem={vi.fn()}
+        initialMode="plan"
+        month="2026-11"
+        bankAccounts={mockBankAccounts}
+        wallets={mockWallets}
+      />
+    );
+
+    // Initially popover is not visible
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // Click the "ℹ" info button
+    const infoBtn = screen.getByRole('button', { name: /About Variable vs Fixed expenses/i });
+    fireEvent.click(infoBtn);
+
+    // Popover is now visible
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toBeTruthy();
+    expect(screen.getByText('Expense Rollover Mode')).toBeTruthy();
+    expect(screen.getByText(/Fixed \(Default\)/i)).toBeTruthy();
+    expect(tooltip.querySelector('.variable-badge.variable')).toBeTruthy();
+
+    // Click "Got it" button to dismiss
+    const gotItBtn = screen.getByRole('button', { name: /Got it/i });
+    fireEvent.click(gotItBtn);
+
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+});
