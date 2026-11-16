@@ -330,13 +330,17 @@ export function TransactionsScreen({
 
         {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
         <div className="apple-tx-row1-actions">
-          <div className="apple-search-sort-capsule tx-search-box compact">
-            <span className="apple-search-icon tx-search-icon">
+          {/* NOTE: intentionally no legacy `tx-search-*` classes here — their higher-specificity
+              rules (e.g. `.tx-search-box.compact .tx-search-input`) re-add a border, pill radius
+              and 32px left padding to the input, and absolutely position the clear button over
+              the sort control, which misaligns the whole capsule. */}
+          <div className="apple-search-sort-capsule">
+            <span className="apple-search-icon">
               <SearchIcon size={14} />
             </span>
             <input
               type="text"
-              className="apple-search-input tx-search-input"
+              className="apple-search-input"
               placeholder="Search transactions, notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -345,7 +349,7 @@ export function TransactionsScreen({
             {searchQuery && (
               <button
                 type="button"
-                className="apple-search-clear tx-search-clear"
+                className="apple-search-clear"
                 onClick={() => setSearchQuery('')}
                 title="Clear search"
               >
