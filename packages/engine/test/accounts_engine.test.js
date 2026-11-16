@@ -714,6 +714,73 @@ describe('Phase 2 - Multi-Account & Wallet Simulation Engine', () => {
       expect(sim.dailyBalances[4].balance).toBe(75000); // Day 5 (index 4): today
       expect(sim.endingBalance).toBe(75000);
     });
+
+    it('attaches account-specific intradayEvents without leaking global balanceAfter on days with multiple events', () => {
+      const bankA = {
+        id: 'bank-a',
+        name: 'Bank A',
+        type: 'bank',
+        openingBalance: 1200000, // ₹12,000
+        isPrimary: true
+      };
+      const bankB = {
+        id: 'bank-b',
+        name: 'Bank B',
+        type: 'bank',
+        openingBalance: 910000, // ₹9,100 -> Total unified = ₹21,100
+        isPrimary: false
+      };
+
+      const settings = {
+        openingBalance: 2110000,
+        accounts: [bankA, bankB],
+        accountOpeningBalances: [
+          { accountId: 'bank-a', amount: 1200000 },
+          { accountId: 'bank-b', amount: 910000 }
+        ]
+      };
+
+      const transactions = [
+        {
+          id: 'tx-1',
+          day: 3,
+          date: '2026-10-03',
+          amount: 50000, // ₹500 expense on Bank A
+          bankAccountId: 'bank-a',
+          status: 'successful'
+        },
+        {
+          id: 'tx-2',
+          day: 3,
+          date: '2026-10-03',
+          amount: 100000, // ₹1,000 expense on Bank A
+          bankAccountId: 'bank-a',
+          status: 'successful'
+        }
+      ];
+
+      const sim = simulate(settings, [], { year: 2026, month: 10 }, transactions);
+
+      // Verify global daily balance on Day 3:
+      const day3Global = sim.dailyBalances.find((d) => d.day === 3);
+      expect(day3Global.intradayEvents.length).toBe(2);
+      expect(day3Global.intradayEvents[0].balanceAfter).toBe(2060000); // 21.1k - 0.5k = 20.6k global
+      expect(day3Global.intradayEvents[1].balanceAfter).toBe(1960000); // 20.6k - 1.0k = 19.6k global
+
+      // Verify Bank A's daily balances on Day 3:
+      const day3BankA = sim.accountDailyBalances['bank-a'].find((d) => d.day === 3);
+      expect(day3BankA).toBeDefined();
+      expect(day3BankA.balance).toBe(1050000); // 12k - 1.5k = 10.5k
+      expect(day3BankA.intradayEvents.length).toBe(2);
+      // Intraday events for Bank A MUST reflect Bank A's balance, NOT global 20.6k / 19.6k!
+      expect(day3BankA.intradayEvents[0].balanceAfter).toBe(1150000); // 12k - 0.5k = 11.5k
+      expect(day3BankA.intradayEvents[1].balanceAfter).toBe(1050000); // 11.5k - 1.0k = 10.5k
+
+      // Verify Bank B's daily balances on Day 3: untouched
+      const day3BankB = sim.accountDailyBalances['bank-b'].find((d) => d.day === 3);
+      expect(day3BankB.balance).toBe(910000);
+      expect(day3BankB.intradayEvents.length).toBe(0);
+    });
   });
 });
 

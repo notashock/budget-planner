@@ -905,6 +905,12 @@ export function simulate(
 
     const dateStr = getDateFromRelativeDay(d, year, monthNum);
     const dayEventsList = [];
+    const dayAccountEvents = {};
+    normalizedAccounts.forEach((acc) => {
+      dayAccountEvents[acc.id] = [];
+    });
+    dayAccountEvents['unassigned'] = [];
+
     while (eventIdx < events.length && events[eventIdx].day === d) {
       const e = events[eventIdx];
       dayBalance = e.balanceAfter;
@@ -919,18 +925,62 @@ export function simulate(
 
         if (sBank && currentDayAccBalances[sBank] !== undefined) {
           currentDayAccBalances[sBank] -= trAmt;
+          if (dayAccountEvents[sBank]) {
+            dayAccountEvents[sBank].push({
+              ...e,
+              amount: -trAmt,
+              balanceAfter: currentDayAccBalances[sBank],
+              accountBalanceAfter: currentDayAccBalances[sBank]
+            });
+          }
         } else if (sWall && currentDayAccBalances[sWall] !== undefined) {
           currentDayAccBalances[sWall] -= trAmt;
+          if (dayAccountEvents[sWall]) {
+            dayAccountEvents[sWall].push({
+              ...e,
+              amount: -trAmt,
+              balanceAfter: currentDayAccBalances[sWall],
+              accountBalanceAfter: currentDayAccBalances[sWall]
+            });
+          }
         } else {
           currentUnassignedDayBalance -= trAmt;
+          dayAccountEvents['unassigned'].push({
+            ...e,
+            amount: -trAmt,
+            balanceAfter: currentUnassignedDayBalance,
+            accountBalanceAfter: currentUnassignedDayBalance
+          });
         }
 
         if (dBank && currentDayAccBalances[dBank] !== undefined) {
           currentDayAccBalances[dBank] += trAmt;
+          if (dayAccountEvents[dBank]) {
+            dayAccountEvents[dBank].push({
+              ...e,
+              amount: trAmt,
+              balanceAfter: currentDayAccBalances[dBank],
+              accountBalanceAfter: currentDayAccBalances[dBank]
+            });
+          }
         } else if (dWall && currentDayAccBalances[dWall] !== undefined) {
           currentDayAccBalances[dWall] += trAmt;
+          if (dayAccountEvents[dWall]) {
+            dayAccountEvents[dWall].push({
+              ...e,
+              amount: trAmt,
+              balanceAfter: currentDayAccBalances[dWall],
+              accountBalanceAfter: currentDayAccBalances[dWall]
+            });
+          }
         } else {
           currentUnassignedDayBalance += trAmt;
+          dayAccountEvents['unassigned'].push({
+            ...e,
+            amount: trAmt,
+            balanceAfter: currentUnassignedDayBalance,
+            accountBalanceAfter: currentUnassignedDayBalance
+          });
         }
       } else {
         const bId = getCanonicalAccId(e.bankAccountId);
@@ -943,10 +993,29 @@ export function simulate(
 
         if (targetBankId && currentDayAccBalances[targetBankId] !== undefined) {
           currentDayAccBalances[targetBankId] += e.amount;
+          if (dayAccountEvents[targetBankId]) {
+            dayAccountEvents[targetBankId].push({
+              ...e,
+              balanceAfter: currentDayAccBalances[targetBankId],
+              accountBalanceAfter: currentDayAccBalances[targetBankId]
+            });
+          }
         } else if (wId && currentDayAccBalances[wId] !== undefined) {
           currentDayAccBalances[wId] += e.amount;
+          if (dayAccountEvents[wId]) {
+            dayAccountEvents[wId].push({
+              ...e,
+              balanceAfter: currentDayAccBalances[wId],
+              accountBalanceAfter: currentDayAccBalances[wId]
+            });
+          }
         } else {
           currentUnassignedDayBalance += e.amount;
+          dayAccountEvents['unassigned'].push({
+            ...e,
+            balanceAfter: currentUnassignedDayBalance,
+            accountBalanceAfter: currentUnassignedDayBalance
+          });
         }
       }
 
@@ -964,14 +1033,16 @@ export function simulate(
       accountDailyBalances[acc.id].push({
         day: d,
         date: dateStr,
-        balance: currentDayAccBalances[acc.id]
+        balance: currentDayAccBalances[acc.id],
+        intradayEvents: dayAccountEvents[acc.id] || []
       });
     });
 
     accountDailyBalances['unassigned'].push({
       day: d,
       date: dateStr,
-      balance: currentUnassignedDayBalance
+      balance: currentUnassignedDayBalance,
+      intradayEvents: dayAccountEvents['unassigned'] || []
     });
   }
 

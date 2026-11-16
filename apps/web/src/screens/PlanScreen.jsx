@@ -175,7 +175,7 @@ export function PlanScreen({
         (alt3 && idStr === alt3);
     };
 
-    return allSimulationEvents.filter((ev) => {
+    const filteredEvents = allSimulationEvents.filter((ev) => {
       const sBankId = ev.sourceBankAccountId ? String(ev.sourceBankAccountId._id || ev.sourceBankAccountId.id || ev.sourceBankAccountId) : null;
       const sWalletId = ev.sourceWalletId ? String(ev.sourceWalletId._id || ev.sourceWalletId.id || ev.sourceWalletId) : null;
       const dBankId = ev.destinationBankAccountId ? String(ev.destinationBankAccountId._id || ev.destinationBankAccountId.id || ev.destinationBankAccountId) : null;
@@ -203,6 +203,37 @@ export function PlanScreen({
       }
 
       return false;
+    });
+
+    return filteredEvents.map((ev) => {
+      let acctBal = null;
+      if (ev.accountBalances) {
+        if (ev.accountBalances[normSelectedId] !== undefined) acctBal = ev.accountBalances[normSelectedId];
+        else if (alt1 && ev.accountBalances[alt1] !== undefined) acctBal = ev.accountBalances[alt1];
+        else if (alt2 && ev.accountBalances[alt2] !== undefined) acctBal = ev.accountBalances[alt2];
+        else if (alt3 && ev.accountBalances[alt3] !== undefined) acctBal = ev.accountBalances[alt3];
+      }
+
+      if (acctBal === null) {
+        if (ev.itemType === 'transfer') {
+          const sBankId = ev.sourceBankAccountId ? String(ev.sourceBankAccountId._id || ev.sourceBankAccountId.id || ev.sourceBankAccountId) : null;
+          const sWalletId = ev.sourceWalletId ? String(ev.sourceWalletId._id || ev.sourceWalletId.id || ev.sourceWalletId) : null;
+          if (matchesAccount(sBankId) || matchesAccount(sWalletId)) {
+            acctBal = ev.sourceAccountBalanceAfter;
+          } else {
+            acctBal = ev.destinationAccountBalanceAfter;
+          }
+        } else {
+          acctBal = ev.accountBalanceAfter;
+        }
+      }
+
+      return {
+        ...ev,
+        balanceAfter: acctBal !== null && acctBal !== undefined ? acctBal : ev.balanceAfter,
+        globalBalanceAfter: ev.balanceAfter,
+        accountBalanceAfter: acctBal !== null && acctBal !== undefined ? acctBal : ev.accountBalanceAfter
+      };
     });
   }, [isFilteringAccount, allSimulationEvents, simEvents, normSelectedId, selectedAccount, selectedBank, month, bankAccounts]);
 
@@ -778,6 +809,8 @@ export function PlanScreen({
               onOpenReview={isReviewMode && onOpenReview ? () => onOpenReview(selectedAccountId) : null}
               bankAccounts={bankAccounts}
               wallets={wallets}
+              selectedAccountId={selectedAccountId}
+              selectedAccount={selectedAccount}
             />
           </ErrorBoundary>
         </div>

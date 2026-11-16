@@ -106,12 +106,92 @@ export function StepLineChart({
   currentDay = null,
   onOpenReview = null,
   bankAccounts = [],
-  wallets = []
+  wallets = [],
+  selectedAccountId = 'all',
+  selectedAccount = null
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
   const [hoveredPointId, setHoveredPointId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const containerRef = useRef(null);
+
+  const isFilteringAccount = selectedAccountId && selectedAccountId !== 'all';
+  const normSelectedId = String(selectedAccountId || '');
+  const alt1 = String(selectedAccount?._id || '');
+  const alt2 = String(selectedAccount?.id || '');
+  const alt3 = String(selectedAccount?.altId || '');
+
+  const matchesSelectedAccount = (ev) => {
+    if (!isFilteringAccount) return true;
+    if (!ev) return false;
+
+    const checkMatch = (val) => {
+      if (!val) return false;
+      const s = String(val._id || val.id || val);
+      return s === normSelectedId || (alt1 && s === alt1) || (alt2 && s === alt2) || (alt3 && s === alt3);
+    };
+
+    if (checkMatch(ev.bankAccountId) || checkMatch(ev.walletId) || checkMatch(ev.accountId)) return true;
+    if (checkMatch(ev.sourceBankAccountId) || checkMatch(ev.sourceWalletId) || checkMatch(ev.sourceAccountId)) return true;
+    if (checkMatch(ev.destinationBankAccountId) || checkMatch(ev.destinationWalletId) || checkMatch(ev.destinationAccountId)) return true;
+    if (ev.accountBalances) {
+      if (ev.accountBalances[normSelectedId] !== undefined) return true;
+      if (alt1 && ev.accountBalances[alt1] !== undefined) return true;
+      if (alt2 && ev.accountBalances[alt2] !== undefined) return true;
+      if (alt3 && ev.accountBalances[alt3] !== undefined) return true;
+    }
+    return false;
+  };
+
+  const getEventBalance = (ev, fallbackBalance) => {
+    if (!ev) return fallbackBalance;
+    if (!isFilteringAccount) {
+      return (typeof ev.balanceAfter === 'number' && !isNaN(ev.balanceAfter))
+        ? ev.balanceAfter
+        : ((typeof ev.displayBalance === 'number' && !isNaN(ev.displayBalance)) ? ev.displayBalance : fallbackBalance);
+    }
+
+    // 1. Precise snapshot from accountBalances map
+    if (ev.accountBalances) {
+      if (ev.accountBalances[normSelectedId] !== undefined) return ev.accountBalances[normSelectedId];
+      if (alt1 && ev.accountBalances[alt1] !== undefined) return ev.accountBalances[alt1];
+      if (alt2 && ev.accountBalances[alt2] !== undefined) return ev.accountBalances[alt2];
+      if (alt3 && ev.accountBalances[alt3] !== undefined) return ev.accountBalances[alt3];
+    }
+
+    // 2. Transfers
+    if (ev.itemType === 'transfer') {
+      const sBank = String(ev.sourceBankAccountId?._id || ev.sourceBankAccountId?.id || ev.sourceBankAccountId || ev.sourceAccountId || '');
+      const sWall = String(ev.sourceWalletId?._id || ev.sourceWalletId?.id || ev.sourceWalletId || '');
+      if ((sBank && (sBank === normSelectedId || sBank === alt1 || sBank === alt2)) || (sWall && (sWall === normSelectedId || sWall === alt1 || sWall === alt2))) {
+        if (typeof ev.sourceAccountBalanceAfter === 'number' && !isNaN(ev.sourceAccountBalanceAfter)) {
+          return ev.sourceAccountBalanceAfter;
+        }
+      }
+      const dBank = String(ev.destinationBankAccountId?._id || ev.destinationBankAccountId?.id || ev.destinationBankAccountId || ev.destinationAccountId || '');
+      const dWall = String(ev.destinationWalletId?._id || ev.destinationWalletId?.id || ev.destinationWalletId || '');
+      if ((dBank && (dBank === normSelectedId || dBank === alt1 || dBank === alt2)) || (dWall && (dWall === normSelectedId || dWall === alt1 || dWall === alt2))) {
+        if (typeof ev.destinationAccountBalanceAfter === 'number' && !isNaN(ev.destinationAccountBalanceAfter)) {
+          return ev.destinationAccountBalanceAfter;
+        }
+      }
+    }
+
+    // 3. Direct account balance properties
+    if (typeof ev.accountBalanceAfter === 'number' && !isNaN(ev.accountBalanceAfter)) {
+      return ev.accountBalanceAfter;
+    }
+    if (typeof ev.displayBalance === 'number' && !isNaN(ev.displayBalance)) {
+      return ev.displayBalance;
+    }
+
+    // 4. If ev.globalBalanceAfter is set, ev.balanceAfter is already mapped to account balance
+    if (ev.globalBalanceAfter !== undefined && typeof ev.balanceAfter === 'number' && !isNaN(ev.balanceAfter)) {
+      return ev.balanceAfter;
+    }
+
+    return fallbackBalance;
+  };
 
   // Fast account lookup for tooltip account identification
   const accountMap = useMemo(() => {
@@ -173,20 +253,28 @@ export function StepLineChart({
     ];
 
     dailyBalances.forEach((point) => {
-      const dayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
+      const rawDayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
         ? point.intradayEvents
         : (events || []).filter((e) => e.day === point.day || e.date === point.date);
 
+      const dayEvents = isFilteringAccount
+        ? rawDayEvents.filter(matchesSelectedAccount)
+        : rawDayEvents;
+
       dayEvents.forEach((ev) => {
-        const bal = ev.balanceAfter ?? ev.displayBalance;
+        const bal = getEventBalance(ev, point.balance);
         if (typeof bal === 'number' && !isNaN(bal)) {
           allBalances.push(bal);
         }
       });
     });
 
-    (events || []).forEach((e) => {
-      const bal = e.balanceAfter ?? e.displayBalance;
+    const filteredEvents = isFilteringAccount
+      ? (events || []).filter(matchesSelectedAccount)
+      : (events || []);
+
+    filteredEvents.forEach((e) => {
+      const bal = getEventBalance(e, null);
       if (typeof bal === 'number' && !isNaN(bal)) {
         allBalances.push(bal);
       }
@@ -243,9 +331,13 @@ export function StepLineChart({
     // including fractional intraday transaction steps
     const points = [];
     dailyBalances.forEach((point) => {
-      const dayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
+      const rawDayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
         ? point.intradayEvents
         : (events || []).filter((e) => e.day === point.day || e.date === point.date);
+
+      const dayEvents = isFilteringAccount
+        ? rawDayEvents.filter(matchesSelectedAccount)
+        : rawDayEvents;
 
       if (dayEvents.length > 1) {
         // Multiple transactions on same day: generate intermediate steps with fractional offsets
@@ -253,27 +345,30 @@ export function StepLineChart({
         dayEvents.forEach((ev, idx) => {
           // Spread across +/- 0.35 of a day
           const frac = -0.35 + ((idx + 1) / (n + 1)) * 0.7;
+          const evBal = getEventBalance(ev, point.balance);
           points.push({
             x: getX(point.day, frac),
-            y: getY(ev.balanceAfter ?? point.balance),
+            y: getY(evBal),
             day: point.day,
             date: point.date,
-            balance: ev.balanceAfter ?? point.balance,
+            balance: evBal,
             isIntermediate: true,
             event: ev,
             eventId: ev.transactionId || ev.itemId || `${point.day}-${idx}`
           });
         });
       } else {
+        const singleEv = dayEvents[0] || null;
+        const singleBal = singleEv ? getEventBalance(singleEv, point.balance) : point.balance;
         points.push({
           x: getX(point.day, 0),
-          y: getY(point.balance),
+          y: getY(singleBal),
           day: point.day,
           date: point.date,
-          balance: point.balance,
+          balance: singleBal,
           isIntermediate: false,
-          event: dayEvents[0] || null,
-          eventId: dayEvents[0]?.transactionId || dayEvents[0]?.itemId || `${point.day}-0`
+          event: singleEv,
+          eventId: singleEv?.transactionId || singleEv?.itemId || `${point.day}-0`
         });
       }
     });
@@ -420,11 +515,15 @@ export function StepLineChart({
 
   // Day calculations: opening balance, spending on that day, and closing balance
   const closingBalance = activePoint ? activePoint.balance : 0;
-  const dayEvents = activePoint
+  const rawDayEvents = activePoint
     ? ((activeDayObj && activeDayObj.intradayEvents && activeDayObj.intradayEvents.length > 0)
         ? activeDayObj.intradayEvents
         : (events || []).filter((e) => e.day === activePoint.day || e.date === activePoint.date))
     : [];
+
+  const dayEvents = isFilteringAccount
+    ? rawDayEvents.filter(matchesSelectedAccount)
+    : rawDayEvents;
 
   const eventSpend = dayEvents.reduce((sum, e) => {
     return e.amount < 0 ? sum + Math.abs(e.amount) : sum;
