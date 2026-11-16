@@ -14,7 +14,8 @@ import {
   EditIcon,
   PlusIcon,
   InboxIcon,
-  SendIcon
+  SendIcon,
+  ArrowRightLeftIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
@@ -334,8 +335,8 @@ export function TransactionsScreen({
         </div>
       </div>
 
-      {/* Second Row: Clean Section Switcher (Application Themed Style) */}
-      <div className="tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
+      {/* Second Row: Clean Apple Segmented Control Switcher */}
+      <div className="apple-segmented-bar tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
         <button
           type="button"
           role="tab"
@@ -343,12 +344,12 @@ export function TransactionsScreen({
           data-testid="tab-transactions"
           aria-selected={activeSegment === 'transactions'}
           aria-controls="panel-transactions"
-          className={`tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
+          className={`apple-segmented-tab tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
           onClick={() => setActiveSegment('transactions')}
         >
-          <InboxIcon size={15} />
+          <InboxIcon size={14} />
           <span className="tx-section-tab-label">TRANSACTIONS</span>
-          <span className="tx-section-tab-count">{displayedSuccessful.length}</span>
+          <span className="apple-segmented-count tx-section-tab-count">{displayedSuccessful.length}</span>
         </button>
         <button
           type="button"
@@ -357,17 +358,17 @@ export function TransactionsScreen({
           data-testid="tab-planned"
           aria-selected={activeSegment === 'planned'}
           aria-controls="panel-planned"
-          className={`tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
+          className={`apple-segmented-tab tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
           onClick={() => setActiveSegment('planned')}
         >
-          <SendIcon size={14} />
+          <SendIcon size={13} />
           <span className="tx-section-tab-label">PLANNED</span>
           {hasUrgentCommitments ? (
             <span className="tx-tab-urgent-pill">
               {overdueCount > 0 ? `${overdueCount} Overdue` : `${dueCount} Due`}
             </span>
           ) : (
-            <span className="tx-section-tab-count">{displayedPlanned.length}</span>
+            <span className="apple-segmented-count tx-section-tab-count">{displayedPlanned.length}</span>
           )}
         </button>
       </div>
@@ -411,14 +412,17 @@ export function TransactionsScreen({
       {activeSegment === 'transactions' ? (
         <div id="panel-transactions" role="tabpanel" aria-labelledby="tab-transactions">
           {displayedSuccessful.length === 0 ? (
-            <div className="tx-empty-state">
-              <div className="tx-empty-text">ALL TRANSACTIONS LOGGED</div>
-              <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div className="apple-tx-empty-state tx-empty-state">
+              <div className="apple-tx-empty-icon">
+                <CheckCircleIcon size={24} />
+              </div>
+              <div className="apple-tx-empty-title tx-empty-text">ALL TRANSACTIONS LOGGED</div>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                 No completed transactions found for the selected filter.
               </p>
             </div>
           ) : (
-            <div className="tx-cards-container">
+            <div className="apple-tx-group tx-cards-container">
               {displayedSuccessful.map((tx) => {
                 const isTransfer = tx.origin === 'transfer';
                 const sourceAcc = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
@@ -443,27 +447,48 @@ export function TransactionsScreen({
                   amountClass = 'amount-debit';
                 }
 
+                let glyphClass = 'bank';
+                let glyphIcon = <BuildingLibraryIcon size={16} />;
+                if (isTransfer) {
+                  glyphClass = 'transfer';
+                  glyphIcon = <ArrowRightLeftIcon size={16} />;
+                } else if (tx.origin === 'goal') {
+                  glyphClass = 'goal';
+                  glyphIcon = <TargetIcon size={16} />;
+                } else if (isCredit) {
+                  glyphClass = 'income';
+                  glyphIcon = <BuildingLibraryIcon size={16} />;
+                } else if (account?.accountType === 'wallet') {
+                  glyphClass = 'wallet';
+                  glyphIcon = <WalletIcon size={16} />;
+                }
+
                 return (
-                  <div key={tx.id || tx._id} className="tx-card">
-                    {/* Left Zone: Description (Title) + Bank Account Underneath (Category Removed) */}
+                  <div key={tx.id || tx._id} className="apple-tx-row tx-card">
+                    {/* Left Glyph Badge */}
+                    <div className={`apple-tx-icon-box ${glyphClass}`}>
+                      {glyphIcon}
+                    </div>
+
+                    {/* Left Zone: Description (Title) + Bank Account Underneath */}
                     <div className="tx-card-left">
                       <div className="tx-card-headline">
                         <span className="tx-card-title">
                           {isTransfer ? (tx.name || 'Inter-Account Transfer') : (tx.name || tx.note || tx.category || 'Transaction')}
                         </span>
                         {isTransfer && (
-                          <span className="tx-tag tag-transfer">
+                          <span className="apple-tx-tag tag-transfer tx-tag">
                             ⇄ Transfer
                           </span>
                         )}
                         {tx.origin === 'goal' && (
-                          <span className="tx-tag tag-goal">
+                          <span className="apple-tx-tag tag-goal tx-tag">
                             <TargetIcon size={10} />
                             <span>Goal</span>
                           </span>
                         )}
                         {tx.origin === 'planned' && (
-                          <span className="tx-tag tag-settled">
+                          <span className="apple-tx-tag tag-settled tx-tag">
                             Settled
                           </span>
                         )}
@@ -511,7 +536,7 @@ export function TransactionsScreen({
                         <div className="tx-card-actions">
                           <button
                             type="button"
-                            className="tx-btn-action"
+                            className="apple-tx-btn-action tx-btn-action"
                             onClick={() => onEditTransaction?.(tx)}
                             title="Edit transaction"
                             aria-label="Edit transaction"
@@ -520,7 +545,7 @@ export function TransactionsScreen({
                           </button>
                           <button
                             type="button"
-                            className="tx-btn-action delete"
+                            className="apple-tx-btn-action delete tx-btn-action"
                             onClick={() => onDeleteTransaction?.(tx.id || tx._id)}
                             title={isTransfer ? "Delete transfer" : "Delete transaction"}
                             aria-label="Delete transaction"
@@ -539,48 +564,72 @@ export function TransactionsScreen({
       ) : (
         <div id="panel-planned" role="tabpanel" aria-labelledby="tab-planned">
           {displayedPlanned.length === 0 ? (
-            <div className="tx-empty-state">
-              <div className="tx-empty-text">ALL COMMITMENTS SETTLED</div>
-              <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div className="apple-tx-empty-state tx-empty-state">
+              <div className="apple-tx-empty-icon">
+                <SendIcon size={24} />
+              </div>
+              <div className="apple-tx-empty-title tx-empty-text">ALL COMMITMENTS SETTLED</div>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                 No planned commitments found for this filter.
               </p>
             </div>
           ) : (
-            <div className="tx-cards-container">
+            <div className="apple-tx-group tx-cards-container">
               {displayedPlanned.map((tx) => {
                 const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
                 const isOverdue = tx.derivedStatus === 'overdue';
                 const isDue = tx.derivedStatus === 'due';
                 const plannedAmt = tx.plannedAmount !== undefined && tx.plannedAmount !== null ? tx.plannedAmount : Math.abs(tx.amount || 0);
 
+                let glyphClass = 'upcoming';
+                let glyphIcon = <CalendarIcon size={16} />;
+                if (isOverdue) {
+                  glyphClass = 'overdue';
+                  glyphIcon = <AlertTriangleIcon size={16} />;
+                } else if (isDue) {
+                  glyphClass = 'due';
+                  glyphIcon = <CalendarIcon size={16} />;
+                } else if (tx.origin === 'goal') {
+                  glyphClass = 'goal';
+                  glyphIcon = <TargetIcon size={16} />;
+                } else if (account?.accountType === 'wallet') {
+                  glyphClass = 'wallet';
+                  glyphIcon = <WalletIcon size={16} />;
+                }
+
                 return (
                   <div
                     key={tx.id || tx._id}
-                    className={`tx-card planned ${isOverdue ? 'overdue' : (isDue ? 'due' : '')}`}
+                    className={`apple-tx-row tx-card planned ${isOverdue ? 'overdue' : (isDue ? 'due' : '')}`}
                   >
-                    {/* Left Zone: Description + Bank Account Underneath (Category Removed) */}
+                    {/* Left Glyph Badge */}
+                    <div className={`apple-tx-icon-box ${glyphClass}`}>
+                      {glyphIcon}
+                    </div>
+
+                    {/* Left Zone: Description + Bank Account Underneath */}
                     <div className="tx-card-left">
                       <div className="tx-card-headline">
                         <span className="tx-card-title">{tx.name || tx.category}</span>
                         {isOverdue && (
-                          <span className="tx-tag tag-overdue">
+                          <span className="apple-tx-tag tag-overdue tx-tag">
                             <AlertTriangleIcon size={10} />
                             <span>Overdue</span>
                           </span>
                         )}
                         {isDue && (
-                          <span className="tx-tag tag-due">
+                          <span className="apple-tx-tag tag-due tx-tag">
                             <CalendarIcon size={10} />
                             <span>Due</span>
                           </span>
                         )}
                         {!isOverdue && !isDue && (
-                          <span className="tx-tag tag-upcoming">
+                          <span className="apple-tx-tag tag-upcoming tx-tag">
                             Upcoming
                           </span>
                         )}
                         {tx.origin === 'goal' && (
-                          <span className="tx-tag tag-goal">
+                          <span className="apple-tx-tag tag-goal tx-tag">
                             <TargetIcon size={10} />
                             <span>Goal</span>
                           </span>
@@ -618,7 +667,7 @@ export function TransactionsScreen({
                         <div className="tx-card-actions">
                           <button
                             type="button"
-                            className="tx-btn-settle"
+                            className="apple-tx-btn-settle tx-btn-settle"
                             onClick={() => openPayPrompt(tx)}
                             title={tx.isIncome ? "Confirm salary deposit" : "Mark as paid (confirm actual amount and date)"}
                             aria-label="Mark Paid"
@@ -629,7 +678,7 @@ export function TransactionsScreen({
 
                           <button
                             type="button"
-                            className="tx-btn-action delete"
+                            className="apple-tx-btn-action delete tx-btn-action"
                             onClick={() => handlePromptCancel(tx)}
                             title="Cancel planned transaction"
                             aria-label="Cancel commitment"
