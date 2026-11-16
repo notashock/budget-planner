@@ -96,11 +96,11 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       expect(screen.getByText('All Accounts (Unified)')).toBeInTheDocument();
-      expect(screen.getByText('HDFC Salary Account')).toBeInTheDocument();
+      expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
       // Click on HDFC Salary Account filter pill
-      const bankPill = screen.getByText('HDFC Salary Account').closest('button');
+      const bankPill = screen.getAllByText('HDFC Salary Account')[0].closest('button');
       fireEvent.click(bankPill);
 
       expect(screen.getByText(/Viewing isolated trajectory for/i)).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       expect(screen.getByText('₹61,000.00')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
-      fireEvent.click(screen.getByText('HDFC Salary Account').closest('button'));
+      fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
 
       // Isolated Today's balance for HDFC Salary Account is ₹49,000.00 (appears in filter pill and KPI card)
       expect(screen.getAllByText('₹49,000.00').length).toBeGreaterThanOrEqual(2);

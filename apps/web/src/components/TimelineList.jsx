@@ -413,6 +413,7 @@ export function TimelineList({
 
             const isTransfer = evt.itemType === 'transfer';
             const isSalary = Boolean(evt.isSalary || evt.itemType === 'salary');
+            const isIncome = isSalary || evt.itemType === 'actual-income' || evt.type === 'income' || evt.itemType === 'income';
 
             // Planned identification:
             // Settled items, actuals, transfers, or paid items are NOT planned.
@@ -585,7 +586,10 @@ export function TimelineList({
 
                     {/* Status-Colored Health Micro-Banner under description, above metadata */}
                     {evt.displayBalance !== undefined && evt.displayBalance !== null && (
-                      <div className={`tx-balance-chip timeline-event-balance ${healthClass} tabular-nums`}>
+                      <div
+                        className={`tx-balance-chip timeline-event-balance ${healthClass} tabular-nums`}
+                        style={{ width: 'fit-content', maxWidth: 'max-content' }}
+                      >
                         {isBreached && <span className="inline-breach-glyph">▲ </span>}
                         bal: {formatCurrency(evt.displayBalance, currencySymbol)}
                       </div>
@@ -601,7 +605,9 @@ export function TimelineList({
                         ) : (
                           <BuildingLibraryIcon size={11} />
                         )}
-                        <span className="timeline-event-type">{evt.transferDetail || accountName}</span>
+                        <span className="timeline-event-type">
+                          {isTransfer ? (evt.transferDetail || 'Transfer') : (isIncome ? (evt.transferDetail || accountName) : accountName)}
+                        </span>
                       </span>
                       <span className="tx-date-inline tabular-nums">
                         <span className="tx-meta-dot">•</span>

@@ -889,6 +889,9 @@ export function UnifiedEntryModal({
             {initialItem ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                 <div
+                  role="button"
+                  aria-label={mode === 'income' ? 'Income' : (mode === 'log' ? 'Spending' : (mode === 'transfer' ? 'Transfer' : 'Plan Transaction'))}
+                  data-active="true"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
