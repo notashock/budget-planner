@@ -39,18 +39,6 @@ function ConcentricActivityRings({
   const offWallets = cWallets - (cWallets * (walletPct / 100));
   const offTransfers = transferPct > 0 ? 0 : cTransfers;
 
-  const centerValue = activeSegment === 'banks'
-    ? formatCurrency(totalBankBalance, currencySymbol)
-    : activeSegment === 'wallets'
-      ? formatCurrency(totalWalletBalance, currencySymbol)
-      : `${transfersCount} Transfers`;
-
-  const centerColor = activeSegment === 'banks'
-    ? '#3b82f6'
-    : activeSegment === 'wallets'
-      ? '#f59e0b'
-      : '#10b981';
-
   return (
     <div className="apple-concentric-container">
       <div className="apple-rings-wrapper">
@@ -85,12 +73,6 @@ function ConcentricActivityRings({
             style={{ color: '#10b981' }}
           />
         </svg>
-
-        <div className="apple-rings-center">
-          <span className="apple-rings-center-val tabular-nums" style={{ color: centerColor }}>
-            {centerValue}
-          </span>
-        </div>
       </div>
 
       <div className="apple-rings-pills">
