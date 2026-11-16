@@ -1095,6 +1095,359 @@ main {
   padding-top: 4px;
 }
 
+/* ==========================================================================
+   Apple HIG Accounts & Wallets Redesign
+   ========================================================================== */
+
+.accounts-header-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.accounts-hero-total {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.accounts-laptop-split {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+@media (min-width: 1024px) {
+  .accounts-laptop-split {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+/* Concentric Activity Rings Telemetry */
+.apple-concentric-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 18px);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+@media (min-width: 1024px) {
+  .apple-concentric-container {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+.apple-rings-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apple-rings-svg {
+  width: 140px;
+  height: 140px;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.apple-rings-svg .ring-track {
+  fill: none;
+  opacity: 0.15;
+  stroke-linecap: round;
+}
+
+.apple-rings-svg .ring-fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, stroke-width 0.2s ease;
+  cursor: pointer;
+}
+
+.apple-rings-svg .ring-fill:hover {
+  stroke-width: 8.5px;
+}
+
+.apple-rings-svg .ring-active {
+  filter: drop-shadow(0 0 7px currentColor);
+  stroke-width: 8px;
+}
+
+.apple-rings-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  max-width: 100px;
+}
+
+.apple-rings-center-val {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.apple-rings-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.apple-ring-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  opacity: 0.65;
+}
+
+.apple-ring-pill:hover {
+  opacity: 1;
+  border-color: var(--border-strong);
+}
+
+.apple-ring-pill.active {
+  opacity: 1;
+  border-color: currentColor;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.apple-ring-pill.banks.active {
+  color: #3b82f6;
+}
+
+.apple-ring-pill.wallets.active {
+  color: #f59e0b;
+}
+
+.apple-ring-pill.transfers.active {
+  color: #10b981;
+}
+
+.apple-ring-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Apple Account Card Redesign */
+.apple-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .apple-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.apple-account-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 18px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.apple-account-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.apple-account-card.breached {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+.apple-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apple-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.apple-card-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.apple-card-icon-box.bank {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.apple-card-icon-box.wallet {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.apple-card-hero-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apple-card-balance {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.apple-card-projected {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.apple-card-projected strong {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 3px;
+}
+
+.apple-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: auto;
+}
+
+.apple-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 8.5px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.apple-status-chip.healthy {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.apple-status-chip.warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+
+.apple-status-chip.breached {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+}
+
+.apple-status-dot {
+  width: 5.5px;
+  height: 5.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.apple-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Apple Wallet Inset Table (Transfers) */
+.apple-inset-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 18px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.apple-inset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s ease;
+}
+
+.apple-inset-row:last-child {
+  border-bottom: none;
+}
+
+.apple-inset-row:hover {
+  background: var(--card-hover);
+}
+
+.apple-empty-card {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg, 18px);
+  background: var(--surface-subtle);
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
 .app-title-group {
   display: flex;
   flex-direction: column;

@@ -18,6 +18,119 @@ import {
 
 gsap.registerPlugin(useGSAP);
 
+function ConcentricActivityRings({
+  totalBankBalance,
+  totalWalletBalance,
+  transfersCount,
+  activeSegment,
+  onSelectSegment,
+  currencySymbol
+}) {
+  const total = (totalBankBalance || 0) + (totalWalletBalance || 0);
+  const bankPct = total > 0 ? Math.min(100, Math.max(8, Math.round((totalBankBalance / total) * 100))) : 0;
+  const walletPct = total > 0 ? Math.min(100, Math.max(8, Math.round((totalWalletBalance / total) * 100))) : 0;
+  const transferPct = transfersCount > 0 ? 100 : 0;
+
+  const cBanks = 257.6;
+  const cWallets = 188.5;
+  const cTransfers = 119.4;
+
+  const offBanks = cBanks - (cBanks * (bankPct / 100));
+  const offWallets = cWallets - (cWallets * (walletPct / 100));
+  const offTransfers = transferPct > 0 ? 0 : cTransfers;
+
+  const centerValue = activeSegment === 'banks'
+    ? formatCurrency(totalBankBalance, currencySymbol)
+    : activeSegment === 'wallets'
+      ? formatCurrency(totalWalletBalance, currencySymbol)
+      : `${transfersCount} Transfers`;
+
+  const centerColor = activeSegment === 'banks'
+    ? '#3b82f6'
+    : activeSegment === 'wallets'
+      ? '#f59e0b'
+      : '#10b981';
+
+  return (
+    <div className="apple-concentric-container">
+      <div className="apple-rings-wrapper">
+        <svg className="apple-rings-svg" viewBox="0 0 100 100">
+          {/* Outer Track & Ring: Banks (Blue) */}
+          <circle cx="50" cy="50" r="41" stroke="#3b82f6" strokeWidth="6.5" className="ring-track" />
+          <circle
+            cx="50" cy="50" r="41" stroke="#3b82f6" strokeWidth="6.5"
+            strokeDasharray={cBanks} strokeDashoffset={offBanks}
+            className={`ring-fill ring-clickable ${activeSegment === 'banks' ? 'ring-active' : ''}`}
+            onClick={() => onSelectSegment('banks')}
+            style={{ color: '#3b82f6' }}
+          />
+
+          {/* Middle Track & Ring: Wallets (Amber) */}
+          <circle cx="50" cy="50" r="30" stroke="#f59e0b" strokeWidth="6.5" className="ring-track" />
+          <circle
+            cx="50" cy="50" r="30" stroke="#f59e0b" strokeWidth="6.5"
+            strokeDasharray={cWallets} strokeDashoffset={offWallets}
+            className={`ring-fill ring-clickable ${activeSegment === 'wallets' ? 'ring-active' : ''}`}
+            onClick={() => onSelectSegment('wallets')}
+            style={{ color: '#f59e0b' }}
+          />
+
+          {/* Inner Track & Ring: Transfers (Emerald) */}
+          <circle cx="50" cy="50" r="19" stroke="#10b981" strokeWidth="6.5" className="ring-track" />
+          <circle
+            cx="50" cy="50" r="19" stroke="#10b981" strokeWidth="6.5"
+            strokeDasharray={cTransfers} strokeDashoffset={offTransfers}
+            className={`ring-fill ring-clickable ${activeSegment === 'transfers' ? 'ring-active' : ''}`}
+            onClick={() => onSelectSegment('transfers')}
+            style={{ color: '#10b981' }}
+          />
+        </svg>
+
+        <div className="apple-rings-center">
+          <span className="apple-rings-center-val tabular-nums" style={{ color: centerColor }}>
+            {centerValue}
+          </span>
+        </div>
+      </div>
+
+      <div className="apple-rings-pills">
+        <button
+          type="button"
+          role="button"
+          aria-label="Bank Accounts"
+          onClick={() => onSelectSegment('banks')}
+          className={`apple-ring-pill banks ${activeSegment === 'banks' ? 'active' : ''}`}
+        >
+          <span className="apple-ring-dot" style={{ background: '#3b82f6' }} />
+          <span className="tabular-nums">{formatCurrency(totalBankBalance, currencySymbol)}</span>
+        </button>
+
+        <button
+          type="button"
+          role="button"
+          aria-label="Wallets"
+          onClick={() => onSelectSegment('wallets')}
+          className={`apple-ring-pill wallets ${activeSegment === 'wallets' ? 'active' : ''}`}
+        >
+          <span className="apple-ring-dot" style={{ background: '#f59e0b' }} />
+          <span className="tabular-nums">{formatCurrency(totalWalletBalance, currencySymbol)}</span>
+        </button>
+
+        <button
+          type="button"
+          role="button"
+          aria-label="Transfers"
+          onClick={() => onSelectSegment('transfers')}
+          className={`apple-ring-pill transfers ${activeSegment === 'transfers' ? 'active' : ''}`}
+        >
+          <span className="apple-ring-dot" style={{ background: '#10b981' }} />
+          <span className="tabular-nums">Net {currencySymbol}0</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AccountsScreen({
   bankAccounts = [],
   wallets = [],
@@ -123,6 +236,8 @@ export function AccountsScreen({
     const acc = accountsMap[key] || accountsMap[w._id || w.id];
     return sum + (acc ? acc.todayBalance : (w.openingBalance || 0));
   }, 0);
+
+  const totalPortfolioBalance = totalBankBalance + totalWalletBalance;
 
   const handleOpenAddBank = () => {
     setEditingBank(null);
@@ -350,13 +465,16 @@ export function AccountsScreen({
   return (
     <div className="screen-content">
       {/* Header and Quick Stats */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="accounts-header-minimal">
         <div>
-          <h2>Accounts & Wallets</h2>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Manage bank depositories, cash envelopes, and zero-sum inter-account transfers.
+          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+            Portfolio Liquidity
+          </div>
+          <div className="accounts-hero-total tabular-nums">
+            {formatCurrency(totalPortfolioBalance, currencySymbol)}
           </div>
         </div>
+
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isReviewMode ? (
             <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
@@ -368,6 +486,7 @@ export function AccountsScreen({
                 type="button"
                 className="btn-secondary"
                 onClick={() => handleOpenTransfer()}
+                aria-label="Transfer Funds"
                 style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <ArrowRightLeftIcon size={14} />
@@ -452,476 +571,434 @@ export function AccountsScreen({
         </div>
       )}
 
-      {/* Aggregate Overview Cards */}
-      <div className="summary-cards-grid" style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <BuildingLibraryIcon size={14} />
-            <span>Bank Liquidity</span>
-          </div>
-          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
-            {formatCurrency(totalBankBalance, currencySymbol)}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {bankAccounts.length} active {bankAccounts.length === 1 ? 'account' : 'accounts'}
-          </div>
-        </div>
+      {/* Laptop / Desktop Horizontal Split Layout */}
+      <div className="accounts-laptop-split">
+        {/* Left Section: Interactive Concentric Activity Rings Telemetry */}
+        <ConcentricActivityRings
+          totalBankBalance={totalBankBalance}
+          totalWalletBalance={totalWalletBalance}
+          transfersCount={transfers.length}
+          activeSegment={activeSegment}
+          onSelectSegment={setActiveSegment}
+          currencySymbol={currencySymbol}
+        />
 
-        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <WalletIcon size={14} />
-            <span>Wallet Liquidity</span>
-          </div>
-          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
-            {formatCurrency(totalWalletBalance, currencySymbol)}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {wallets.length} active {wallets.length === 1 ? 'wallet' : 'wallets'}
-          </div>
-        </div>
+        {/* Right Section: Responsive Cards Grid */}
+        <div ref={cardsContainerRef}>
+          {/* Segment 1: Bank Accounts */}
+          {activeSegment === 'banks' && (
+            <div>
+              {bankAccounts.length === 0 ? (
+                <div className="apple-empty-card">
+                  <BuildingLibraryIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleOpenAddBank}
+                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                  >
+                    + Create Depository
+                  </button>
+                </div>
+              ) : (
+                <div className="apple-cards-grid">
+                  {bankAccounts.map((bank) => {
+                    const key = String(bank._id || bank.id || '');
+                    const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
+                    const bankId = bank._id || bank.id;
+                    const snap = isReviewMode && month?.closingBalances ? month.closingBalances[bankId] : null;
+                    const currentBal = simAcc ? simAcc.todayBalance : (bank.openingBalance || 0);
+                    const endingBal = simAcc ? simAcc.endingBalance : (bank.openingBalance || 0);
+                    const minBal = bank.minimumBalance || 0;
+                    const hasBreach = !isReviewMode && (simAcc ? simAcc.floorBreached : (currentBal < minBal));
+                    const isSalaryDepository = Boolean(
+                      month?.salaryBankAccountId &&
+                      (String(month.salaryBankAccountId._id || month.salaryBankAccountId) === String(bank._id || bank.id))
+                    );
 
-        <div className="summary-card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div className="summary-card-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ArrowRightLeftIcon size={14} />
-            <span>Transfers Logged</span>
-          </div>
-          <div className="summary-card-value tabular-nums" style={{ fontSize: '22px', fontWeight: 700 }}>
-            {transfers.length}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Zero-sum movements
-          </div>
-        </div>
-      </div>
+                    return (
+                      <div key={bank._id || bank.id} className={`apple-account-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
+                        {/* Top Row: Identity */}
+                        <div className="apple-card-top">
+                          <div className="apple-card-identity">
+                            <div className="apple-card-icon-box bank">
+                              <BuildingLibraryIcon size={16} />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="bento-card-title">{bank.name}</span>
+                                {bank.isPrimary && (
+                                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    Primary
+                                  </span>
+                                )}
+                                {isSalaryDepository && (
+                                  <span
+                                    data-testid="salary-depository-badge"
+                                    style={{
+                                      fontSize: '9px',
+                                      padding: '1px 5px',
+                                      borderRadius: '3px',
+                                      background: 'var(--surface-subtle)',
+                                      border: '1px solid var(--border-strong)',
+                                      color: 'var(--text)',
+                                      fontWeight: 600,
+                                      textTransform: 'uppercase'
+                                    }}
+                                  >
+                                    Salary
+                                  </span>
+                                )}
+                                {isReviewMode && (
+                                  <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                    Closed Scorecard
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• •••• ${bank.accountNumberMasked.slice(-4)}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
-      {/* Segmented Switcher */}
-      <div className="timeline-filters-row" style={{ marginTop: '20px' }}>
-        <div ref={switcherRef} className="modal-tab-track" style={{ width: '100%', maxWidth: '460px' }}>
-          <div ref={tabIndicatorRef} className="modal-tab-indicator" />
-          <button
-            ref={banksBtnRef}
-            type="button"
-            className={`modal-tab-btn timeline-filter-btn ${activeSegment === 'banks' ? 'active' : ''}`}
-            onClick={() => setActiveSegment('banks')}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            <BuildingLibraryIcon size={14} />
-            <span>Bank Accounts</span>
-            <span className="filter-count tabular-nums">{bankAccounts.length}</span>
-          </button>
-
-          <button
-            ref={walletsBtnRef}
-            type="button"
-            className={`modal-tab-btn timeline-filter-btn ${activeSegment === 'wallets' ? 'active' : ''}`}
-            onClick={() => setActiveSegment('wallets')}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            <WalletIcon size={14} />
-            <span>Wallets</span>
-            <span className="filter-count tabular-nums">{wallets.length}</span>
-          </button>
-
-          <button
-            ref={transfersBtnRef}
-            type="button"
-            className={`modal-tab-btn timeline-filter-btn ${activeSegment === 'transfers' ? 'active' : ''}`}
-            onClick={() => setActiveSegment('transfers')}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            <ArrowRightLeftIcon size={14} />
-            <span>Transfers</span>
-            <span className="filter-count tabular-nums">{transfers.length}</span>
-          </button>
-        </div>
-      </div>
-
-      <div ref={cardsContainerRef}>
-        {/* Segment 1: Bank Accounts */}
-        {activeSegment === 'banks' && (
-          <div style={{ marginTop: '16px' }}>
-            {bankAccounts.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
-                No bank accounts configured yet. Tap "Add Bank" to connect your checking, savings, or salary accounts.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
-                {bankAccounts.map((bank) => {
-                  const key = String(bank._id || bank.id || '');
-                  const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
-                  const bankId = bank._id || bank.id;
-                  const snap = isReviewMode && month?.closingBalances ? month.closingBalances[bankId] : null;
-                  const currentBal = simAcc ? simAcc.todayBalance : (bank.openingBalance || 0);
-                  const endingBal = simAcc ? simAcc.endingBalance : (bank.openingBalance || 0);
-                  const lowestBal = simAcc ? simAcc.lowestBalance : (bank.openingBalance || 0);
-                  const minBal = bank.minimumBalance || 0;
-                  const hasBreach = !isReviewMode && (simAcc ? simAcc.floorBreached : (currentBal < minBal));
-                  const isSalaryDepository = Boolean(
-                    month?.salaryBankAccountId &&
-                    (String(month.salaryBankAccountId._id || month.salaryBankAccountId) === String(bank._id || bank.id))
-                  );
-
-                  return (
-                    <div key={bank._id || bank.id} className={`bento-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
-                      {/* Tier 1: Identity & Badges */}
-                      <div className="bento-card-header">
-                        <div className="bento-card-identity">
-                          <BuildingLibraryIcon size={16} />
+                        {/* Hero Metric Row: Balance on left, Projected end on right */}
+                        <div className="apple-card-hero-row">
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="bento-card-title">{bank.name}</span>
-                              {bank.isPrimary && (
-                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
-                                  Primary
-                                </span>
-                              )}
-                              {isSalaryDepository && (
-                                <span
-                                  data-testid="salary-depository-badge"
-                                  style={{
-                                    fontSize: '9px',
-                                    padding: '1px 5px',
-                                    borderRadius: '3px',
-                                    background: 'var(--surface-subtle)',
-                                    border: '1px solid var(--border-strong)',
-                                    color: 'var(--text)',
-                                    fontWeight: 600,
-                                    textTransform: 'uppercase'
-                                  }}
-                                >
-                                  Salary
-                                </span>
-                              )}
-                              {isReviewMode && (
-                                <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                                  Closed Scorecard
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                              {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• ${bank.accountNumberMasked}` : ''}
+                            {isReviewMode && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                                Closing Balance (Snapshotted)
+                              </div>
+                            )}
+                            <div className="apple-card-balance tabular-nums">
+                              {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
                             </div>
                           </div>
-                        </div>
-
-                        {!isReviewMode && (
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <button
-                              type="button"
-                              className="btn-icon"
-                              onClick={() => handleOpenEditBank(bank)}
-                              title="Edit Account"
-                              style={{ padding: '5px' }}
-                            >
-                              <EditIcon size={13} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-icon"
-                              onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
-                              title="Archive Account"
-                              style={{ padding: '5px' }}
-                            >
-                              <TrashIcon size={13} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tier 2: Hero Balance Metric */}
-                      <div className="bento-hero-metric">
-                        <span className="bento-hero-label">{isReviewMode ? 'Closing Balance (Snapshotted)' : 'Current Balance'}</span>
-                        <span className="bento-hero-value tabular-nums">
-                          {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
-                        </span>
-                      </div>
-
-                      {/* High-Contrast Breach Indicator if breached */}
-                      {hasBreach && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
-                          <AlertTriangleIcon size={13} />
-                          <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
-                        </div>
-                      )}
-
-                      {/* Tier 3: 2x2 Specs Grid */}
-                      {snap ? (
-                        <div className="bento-spec-grid">
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Opening Balance</span>
-                            <span className="bento-spec-val tabular-nums">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Total Inflow</span>
-                            <span className="bento-spec-val tabular-nums" style={{ color: 'var(--positive, #10b981)' }}>
-                              +{formatCurrency(snap.totalInflow, currencySymbol)}
-                            </span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Total Outflow</span>
-                            <span className="bento-spec-val tabular-nums">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Net Movement</span>
-                            <span className="bento-spec-val tabular-nums" style={{ fontWeight: 700 }}>
-                              {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bento-spec-grid">
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Projected End</span>
-                            <span className="bento-spec-val tabular-nums">{formatCurrency(endingBal, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Safety Floor</span>
-                            <span className="bento-spec-val tabular-nums">{minBal > 0 ? formatCurrency(minBal, currencySymbol) : '₹0'}</span>
-                          </div>
-                          {isSalaryDepository && month?.incomeAmount > 0 && (
-                            <div className="bento-spec-cell" style={{ gridColumn: '1 / -1' }}>
-                              <span className="bento-spec-label">Payroll Inflow</span>
-                              <span className="bento-spec-val tabular-nums" style={{ fontSize: '11px' }}>
-                                +{formatCurrency(month.incomeAmount, currencySymbol)} on {month.incomeCreditDate ? formatDisplayDate(month.incomeCreditDate, true) : `Day ${month.incomeCreditDay || 1}`}
-                              </span>
+                          {!isReviewMode && (
+                            <div className="apple-card-projected tabular-nums">
+                              Projected end <strong>{formatCurrency(endingBal, currencySymbol)}</strong>
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {/* Action Button */}
-                      {!isReviewMode && (
-                        <div className="bento-actions-row">
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
-                            style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          >
-                            <ArrowRightLeftIcon size={13} />
-                            <span>Transfer from Account</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Segment 2: Wallets */}
-        {activeSegment === 'wallets' && (
-          <div style={{ marginTop: '16px' }}>
-            {wallets.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
-                No wallets configured yet. Tap "Add Wallet" to track physical cash envelopes or digital wallets.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
-                {wallets.map((wallet) => {
-                  const key = String(wallet._id || wallet.id || '');
-                  const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
-                  const walletId = wallet._id || wallet.id;
-                  const snap = isReviewMode && month?.closingBalances ? month.closingBalances[walletId] : null;
-                  const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
-                  const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
-                  const minBal = wallet.minimumBalance || 0;
-                  const hasBreach = !isReviewMode && ((currentBal < minBal) || (simAcc && simAcc.floorBreached));
-
-                  return (
-                    <div key={wallet._id || wallet.id} className={`bento-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
-                      {/* Tier 1: Identity & Badges */}
-                      <div className="bento-card-header">
-                        <div className="bento-card-identity">
-                          <WalletIcon size={16} />
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="bento-card-title">{wallet.name}</span>
-                              {wallet.isPrimary && (
-                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
-                                  Primary
-                                </span>
-                              )}
-                              {isReviewMode && (
-                                <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                                  Closed Scorecard
-                                </span>
-                              )}
+                        {/* Snapshotted 2x2 Specs Grid in Review Mode */}
+                        {snap && (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                              {wallet.walletType} Wallet
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                                +{formatCurrency(snap.totalInflow, currencySymbol)}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700 }}>
+                                {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* High-Contrast Breach Indicator if breached */}
+                        {hasBreach && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={13} />
+                            <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
+                          </div>
+                        )}
+
+                        {/* Bottom Row: Status on Bottom Left, Action Buttons on Bottom Right */}
+                        <div className="apple-card-footer">
+                          <span className={`apple-status-chip ${hasBreach ? 'breached' : 'healthy'}`}>
+                            <span className="apple-status-dot" />
+                            <span>{hasBreach ? 'Breached' : 'Healthy'}</span>
+                          </span>
+
+                          {!isReviewMode && (
+                            <div className="apple-card-actions">
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
+                                title="Transfer Funds"
+                                aria-label="Transfer from Account"
+                                style={{ padding: '6px' }}
+                              >
+                                <ArrowRightLeftIcon size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => handleOpenEditBank(bank)}
+                                title="Edit Account"
+                                style={{ padding: '6px' }}
+                              >
+                                <EditIcon size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
+                                title="Archive Account"
+                                style={{ padding: '6px' }}
+                              >
+                                <TrashIcon size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Segment 2: Wallets */}
+          {activeSegment === 'wallets' && (
+            <div>
+              {wallets.length === 0 ? (
+                <div className="apple-empty-card">
+                  <WalletIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleOpenAddWallet}
+                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                  >
+                    + Create Wallet
+                  </button>
+                </div>
+              ) : (
+                <div className="apple-cards-grid">
+                  {wallets.map((wallet) => {
+                    const key = String(wallet._id || wallet.id || '');
+                    const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
+                    const walletId = wallet._id || wallet.id;
+                    const snap = isReviewMode && month?.closingBalances ? month.closingBalances[walletId] : null;
+                    const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
+                    const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
+                    const minBal = wallet.minimumBalance || 0;
+                    const hasBreach = !isReviewMode && ((currentBal < minBal) || (simAcc && simAcc.floorBreached));
+
+                    return (
+                      <div key={wallet._id || wallet.id} className={`apple-account-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
+                        {/* Top Row: Identity */}
+                        <div className="apple-card-top">
+                          <div className="apple-card-identity">
+                            <div className="apple-card-icon-box wallet">
+                              <WalletIcon size={16} />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="bento-card-title">{wallet.name}</span>
+                                {wallet.isPrimary && (
+                                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    Primary
+                                  </span>
+                                )}
+                                {isReviewMode && (
+                                  <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                    Closed Scorecard
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                                {wallet.walletType} Wallet
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        {!isReviewMode && (
-                          <div style={{ display: 'flex', gap: '4px' }}>
+                        {/* Hero Metric Row: Balance on left, Projected end on right */}
+                        <div className="apple-card-hero-row">
+                          <div>
+                            {isReviewMode && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                                Closing Balance (Snapshotted)
+                              </div>
+                            )}
+                            <div className="apple-card-balance tabular-nums">
+                              {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
+                            </div>
+                          </div>
+                          {!isReviewMode && (
+                            <div className="apple-card-projected tabular-nums">
+                              Projected end <strong>{formatCurrency(endingBal, currencySymbol)}</strong>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Snapshotted 2x2 Specs Grid in Review Mode */}
+                        {snap && (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                                +{formatCurrency(snap.totalInflow, currencySymbol)}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
+                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700 }}>
+                                {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* High-Contrast Breach Indicator if breached */}
+                        {hasBreach && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={13} />
+                            <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
+                          </div>
+                        )}
+
+                        {/* Bottom Row: Status on Bottom Left, Action Buttons on Bottom Right */}
+                        <div className="apple-card-footer">
+                          <span className={`apple-status-chip ${hasBreach ? 'breached' : 'healthy'}`}>
+                            <span className="apple-status-dot" />
+                            <span>{hasBreach ? 'Breached' : 'Healthy'}</span>
+                          </span>
+
+                          {!isReviewMode && (
+                            <div className="apple-card-actions">
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
+                                title="Transfer Funds"
+                                aria-label="Transfer from Wallet"
+                                style={{ padding: '6px' }}
+                              >
+                                <ArrowRightLeftIcon size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => handleOpenEditWallet(wallet)}
+                                title="Edit Wallet"
+                                style={{ padding: '6px' }}
+                              >
+                                <EditIcon size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
+                                title="Archive Wallet"
+                                style={{ padding: '6px' }}
+                              >
+                                <TrashIcon size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Segment 3: Transfers (Option A: Apple Wallet Inset Table) */}
+          {activeSegment === 'transfers' && (
+            <div>
+              {transfers.length === 0 ? (
+                <div className="apple-empty-card">
+                  <ArrowRightLeftIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => handleOpenTransfer()}
+                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                  >
+                    + Transfer Funds
+                  </button>
+                </div>
+              ) : (
+                <div className="apple-inset-group account-card-anim">
+                  {transfers.map((tr) => {
+                    const allAccountsList = [...(bankAccounts || []), ...(wallets || [])];
+                    const sBankId = tr.sourceBankAccountId?._id || tr.sourceBankAccountId;
+                    const sWalletId = tr.sourceWalletId?._id || tr.sourceWalletId;
+                    const sBank = bankAccounts.find((b) => (b._id || b.id) === sBankId) || (typeof tr.sourceBankAccountId === 'object' ? tr.sourceBankAccountId : null);
+                    const sWallet = wallets.find((w) => (w._id || w.id) === sWalletId) || (typeof tr.sourceWalletId === 'object' ? tr.sourceWalletId : null);
+                    const sAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.sourceAccountId || sBankId || sWalletId));
+                    const sourceName = sAcc?.name || sBank?.name || sWallet?.name || 'Source Account';
+
+                    const dBankId = tr.destinationBankAccountId?._id || tr.destinationBankAccountId;
+                    const dWalletId = tr.destinationWalletId?._id || tr.destinationWalletId;
+                    const dBank = bankAccounts.find((b) => (b._id || b.id) === dBankId) || (typeof tr.destinationBankAccountId === 'object' ? tr.destinationBankAccountId : null);
+                    const dWallet = wallets.find((w) => (w._id || w.id) === dWalletId) || (typeof tr.destinationWalletId === 'object' ? tr.destinationWalletId : null);
+                    const dAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.destinationAccountId || dBankId || dWalletId));
+                    const destName = dAcc?.name || dBank?.name || dWallet?.name || 'Destination Account';
+
+                    return (
+                      <div key={tr._id || tr.id} className="apple-inset-row">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-subtle)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ArrowRightLeftIcon size={14} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{sourceName}</span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>➔</span>
+                              <span>{destName}</span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              <span className="tabular-nums">{formatDisplayDate(tr.date, true)}</span>
+                              {tr.note ? ` • ${tr.note}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div className="tabular-nums" style={{ fontSize: '14.5px', fontWeight: 700 }}>
+                            {formatCurrency(tr.amount, currencySymbol)}
+                          </div>
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-500">
+                            Settled
+                          </span>
+                          {!isReviewMode && (
                             <button
                               type="button"
                               className="btn-icon"
-                              onClick={() => handleOpenEditWallet(wallet)}
-                              title="Edit Wallet"
-                              style={{ padding: '5px' }}
-                            >
-                              <EditIcon size={13} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-icon"
-                              onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
-                              title="Archive Wallet"
+                              onClick={() => onDeleteTransfer?.(tr._id || tr.id)}
+                              title="Delete Transfer"
                               style={{ padding: '5px' }}
                             >
                               <TrashIcon size={13} />
                             </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tier 2: Hero Balance Metric */}
-                      <div className="bento-hero-metric">
-                        <span className="bento-hero-label">{isReviewMode ? 'Closing Balance (Snapshotted)' : 'Current Balance'}</span>
-                        <span className="bento-hero-value tabular-nums">
-                          {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
-                        </span>
-                      </div>
-
-                      {/* High-Contrast Breach Indicator if breached */}
-                      {hasBreach && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
-                          <AlertTriangleIcon size={13} />
-                          <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
-                        </div>
-                      )}
-
-                      {/* Tier 3: 2x2 Specs Grid */}
-                      {snap ? (
-                        <div className="bento-spec-grid">
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Opening Balance</span>
-                            <span className="bento-spec-val tabular-nums">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Total Inflow</span>
-                            <span className="bento-spec-val tabular-nums" style={{ color: 'var(--positive, #10b981)' }}>
-                              +{formatCurrency(snap.totalInflow, currencySymbol)}
-                            </span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Total Outflow</span>
-                            <span className="bento-spec-val tabular-nums">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Net Movement</span>
-                            <span className="bento-spec-val tabular-nums" style={{ fontWeight: 700 }}>
-                              {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bento-spec-grid">
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Projected End</span>
-                            <span className="bento-spec-val tabular-nums">{formatCurrency(endingBal, currencySymbol)}</span>
-                          </div>
-                          <div className="bento-spec-cell">
-                            <span className="bento-spec-label">Safety Floor</span>
-                            <span className="bento-spec-val tabular-nums">{minBal > 0 ? formatCurrency(minBal, currencySymbol) : '₹0'}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Action Button */}
-                      {!isReviewMode && (
-                        <div className="bento-actions-row">
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
-                            style={{ width: '100%', fontSize: '12px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          >
-                            <ArrowRightLeftIcon size={13} />
-                            <span>Transfer from Wallet</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-      {/* Segment 3: Transfers */}
-      {activeSegment === 'transfers' && (
-        <div style={{ marginTop: '16px' }}>
-          {transfers.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
-              No transfers recorded yet this month. Tap "Transfer Funds" above to reallocate money between accounts.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {transfers.map((tr) => {
-                const allAccountsList = [...(bankAccounts || []), ...(wallets || [])];
-                const sBankId = tr.sourceBankAccountId?._id || tr.sourceBankAccountId;
-                const sWalletId = tr.sourceWalletId?._id || tr.sourceWalletId;
-                const sBank = bankAccounts.find((b) => (b._id || b.id) === sBankId) || (typeof tr.sourceBankAccountId === 'object' ? tr.sourceBankAccountId : null);
-                const sWallet = wallets.find((w) => (w._id || w.id) === sWalletId) || (typeof tr.sourceWalletId === 'object' ? tr.sourceWalletId : null);
-                const sAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.sourceAccountId || sBankId || sWalletId));
-                const sourceName = sAcc?.name || sBank?.name || sWallet?.name || 'Source Account';
-
-                const dBankId = tr.destinationBankAccountId?._id || tr.destinationBankAccountId;
-                const dWalletId = tr.destinationWalletId?._id || tr.destinationWalletId;
-                const dBank = bankAccounts.find((b) => (b._id || b.id) === dBankId) || (typeof tr.destinationBankAccountId === 'object' ? tr.destinationBankAccountId : null);
-                const dWallet = wallets.find((w) => (w._id || w.id) === dWalletId) || (typeof tr.destinationWalletId === 'object' ? tr.destinationWalletId : null);
-                const dAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.destinationAccountId || dBankId || dWalletId));
-                const destName = dAcc?.name || dBank?.name || dWallet?.name || 'Destination Account';
-
-                return (
-                  <div key={tr._id || tr.id} className="card account-card-anim" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ padding: '8px', borderRadius: '50%', background: 'var(--card-hover)', color: 'var(--text)' }}>
-                        <ArrowRightLeftIcon size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{sourceName}</span>
-                          <span style={{ color: 'var(--text-secondary)' }}>➔</span>
-                          <span>{destName}</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          <span className="tabular-nums">{formatDisplayDate(tr.date, true)}</span>
-                          {tr.note ? ` • ${tr.note}` : ''}
+                          )}
                         </div>
                       </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div className="tabular-nums" style={{ fontSize: '15px', fontWeight: 700 }}>
-                        {formatCurrency(tr.amount, currencySymbol)}
-                      </div>
-                      {!isReviewMode && (
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => onDeleteTransfer?.(tr._id || tr.id)}
-                          title="Delete Transfer"
-                          style={{ padding: '6px' }}
-                        >
-                          <TrashIcon size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
       </div>
 
       {/* Modal: Add/Edit Bank Account */}
