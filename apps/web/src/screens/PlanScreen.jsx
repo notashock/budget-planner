@@ -374,37 +374,85 @@ export function PlanScreen({
     const yearly = irregularMetrics.yearly || [];
 
     return (
-      <div className="dashboard-layout" ref={containerRef}>
-        {/* Dual Mode Switcher if user has both salary & irregular */}
-        {settings?.incomeMode === 'both' && month && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            <div style={{ display: 'inline-flex', background: 'var(--surface-subtle)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-              <button
-                type="button"
-                onClick={() => setViewSubmode('monthly')}
-                className={`filter-pill ${viewSubmode === 'monthly' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
-              >
-                Monthly Budget
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewSubmode('irregular')}
-                className={`filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
-              >
-                Runway & Irregular Cashflow
-              </button>
-            </div>
+      <div className="dashboard-layout plan-screen" ref={containerRef}>
+        {/* =========================================================================
+            ROW 1: APPLE TITLE & RUNWAY MODE HEADER
+            ========================================================================= */}
+        <div className="apple-tx-header-row-1 apple-plan-header-row-1">
+          <div className="apple-tx-title-group tx-desktop-header">
+            <h1 className="tx-header-title plan-header-title">Plan</h1>
+            <p className="tx-header-sub plan-header-sub">
+              Decoupled runway analysis and cashflow volatility projection.
+            </p>
           </div>
-        )}
 
-        {/* Account Filter Bar */}
-        <div className="account-filter-bar">
-          <div className="account-filter-track">
+          <div className="apple-tx-row1-actions apple-plan-row1-actions">
+            {/* Dual Mode Switcher if user has both salary & irregular */}
+            {settings?.incomeMode === 'both' && month && (
+              <div className="apple-segmented-bar" style={{ padding: '2.5px', height: '34px', display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setViewSubmode('monthly')}
+                  className={`apple-segmented-tab filter-pill ${viewSubmode === 'monthly' ? 'active' : ''}`}
+                  style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                >
+                  Monthly Plan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewSubmode('irregular')}
+                  className={`apple-segmented-tab filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
+                  style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                >
+                  Runway View
+                </button>
+              </div>
+            )}
+
+            {!isReviewMode ? (
+              <div className="desktop-only-btn" style={{ display: 'inline-flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-primary apple-tx-add-btn desktop-only"
+                  onClick={() => onOpenUnifiedEntry('income')}
+                >
+                  <PlusIcon size={13} />
+                  <span>Log Income</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary apple-tx-add-btn desktop-only"
+                  style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  onClick={() => onOpenUnifiedEntry('log')}
+                >
+                  <span>Log Expense</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary apple-tx-add-btn desktop-only"
+                  style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  onClick={() => onOpenUnifiedEntry('transfer')}
+                >
+                  <ArrowRightLeftIcon size={12} />
+                  <span>Transfer</span>
+                </button>
+              </div>
+            ) : (
+              <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
+                <span>👁️</span> Historical Snapshot
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* =========================================================================
+            ROW 2: UNIFIED CONTINUOUS INLINE ACCOUNT FILTER STRIP
+            ========================================================================= */}
+        <div className="apple-filter-strip-row account-filter-scroll-row account-filter-bar" role="toolbar" aria-label="Account Filters">
+          <div className="apple-account-chips-inline account-filter-track">
             <button
               type="button"
-              className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
+              className={`filter-pill account-filter-pill apple-chip ${selectedAccountId === 'all' ? 'active' : ''}`}
               onClick={() => setSelectedAccountId('all')}
             >
               <span>All Accounts ({formatCurrency(irregularMetrics.currentBalance, currencySymbol)})</span>
@@ -413,52 +461,31 @@ export function PlanScreen({
               <button
                 key={b._id || b.id}
                 type="button"
-                className={`filter-pill account-filter-pill ${selectedAccountId === (b._id || b.id) ? 'active' : ''}`}
+                className={`filter-pill account-filter-pill apple-chip ${selectedAccountId === (b._id || b.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(b._id || b.id)}
               >
-                <span>{b.name} ({formatCurrency(b.openingBalance, currencySymbol)})</span>
+                <BuildingLibraryIcon size={12} />
+                <span>{b.name}</span>
+                <span className="tabular-nums" style={{ opacity: selectedAccountId === (b._id || b.id) ? 1 : 0.85 }}>
+                  {formatCurrency(b.openingBalance, currencySymbol)}
+                </span>
               </button>
             ))}
             {wallets.map((w) => (
               <button
                 key={w._id || w.id}
                 type="button"
-                className={`filter-pill account-filter-pill ${selectedAccountId === (w._id || w.id) ? 'active' : ''}`}
+                className={`filter-pill account-filter-pill apple-chip ${selectedAccountId === (w._id || w.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(w._id || w.id)}
               >
-                <span>{w.name} ({formatCurrency(w.openingBalance, currencySymbol)})</span>
+                <WalletIcon size={12} />
+                <span>{w.name}</span>
+                <span className="tabular-nums" style={{ opacity: selectedAccountId === (w._id || w.id) ? 1 : 0.85 }}>
+                  {formatCurrency(w.openingBalance, currencySymbol)}
+                </span>
               </button>
             ))}
           </div>
-
-          {!isReviewMode && (
-            <div className="desktop-only-btn" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
-                onClick={() => onOpenUnifiedEntry('income')}
-              >
-                + Log Income
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
-                onClick={() => onOpenUnifiedEntry('log')}
-              >
-                - Log Expense
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
-                onClick={() => onOpenUnifiedEntry('transfer')}
-              >
-                <ArrowRightLeftIcon size={12} /> Transfer
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Hero KPI Cards: Runway, Smoothed Income, Liquid Balance, Avg Monthly Spending */}
@@ -595,18 +622,72 @@ export function PlanScreen({
   }
 
   return (
-    <div className="dashboard-layout" ref={containerRef}>
+    <div className="dashboard-layout plan-screen" ref={containerRef}>
+      {/* =========================================================================
+          ROW 1: APPLE TITLE & ACTION HEADER
+          ========================================================================= */}
+      <div className="apple-tx-header-row-1 apple-plan-header-row-1">
+        <div className="apple-tx-title-group tx-desktop-header">
+          <h1 className="tx-header-title plan-header-title">Plan</h1>
+          <p className="tx-header-sub plan-header-sub">
+            {month
+              ? `Daily safe velocity and simulated balance trajectory for ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month.month - 1] || ''} ${month.year}`
+              : 'Daily safe velocity and simulated trajectory.'}
+          </p>
+        </div>
+
+        <div className="apple-tx-row1-actions apple-plan-row1-actions">
+          {/* Dual Mode Switcher if user has both salary & irregular */}
+          {settings?.incomeMode === 'both' && month && (
+            <div className="apple-segmented-bar" style={{ padding: '2.5px', height: '34px', display: 'inline-flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setViewSubmode('monthly')}
+                className={`apple-segmented-tab filter-pill ${viewSubmode === 'monthly' ? 'active' : ''}`}
+                style={{ fontSize: '11.5px', padding: '4px 10px' }}
+              >
+                Monthly Plan
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewSubmode('irregular')}
+                className={`apple-segmented-tab filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
+                style={{ fontSize: '11.5px', padding: '4px 10px' }}
+              >
+                Runway View
+              </button>
+            </div>
+          )}
+
+          {!isReviewMode ? (
+            <button
+              type="button"
+              className="btn-primary apple-tx-add-btn desktop-only"
+              onClick={() => onOpenUnifiedEntry?.('log')}
+              title="Add a new transaction or planned expense"
+            >
+              <PlusIcon size={13} />
+              <span className="apple-tx-add-label">New Entry</span>
+            </button>
+          ) : (
+            <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
+              <span>👁️</span> Historical Snapshot
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Prominent Data Transfer Banner */}
       {migrationEligible && (
         <div
-          className="card"
+          className="card apple-bento-card"
           style={{
             background: 'var(--surface-subtle)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-lg)',
             boxShadow: 'var(--shadow-subtle)',
             padding: '16px',
-            marginBottom: '14px',
+            marginBottom: '10px',
             display: 'flex',
             flexDirection: 'column',
             gap: '10px'
@@ -639,122 +720,127 @@ export function PlanScreen({
         </div>
       )}
 
-      {/* Account Filter & Action Toolbar */}
-      <div className="account-filter-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div className="account-filter-bar">
-        <div className="account-filter-track">
-          {hasAccounts && (
-            <>
+      {/* =========================================================================
+          ROW 2: UNIFIED CONTINUOUS INLINE ACCOUNT FILTER STRIP
+          ========================================================================= */}
+      <div className="account-filter-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+        <div className="apple-filter-strip-row account-filter-scroll-row account-filter-bar" role="toolbar" aria-label="Account Filters">
+          <div className="apple-account-chips-inline account-filter-track">
+            {hasAccounts && (
+              <>
+                <button
+                  type="button"
+                  className={`filter-pill account-filter-pill apple-chip ${selectedAccountId === 'all' ? 'active' : ''}`}
+                  onClick={() => setSelectedAccountId('all')}
+                >
+                  <span>All Accounts (Unified)</span>
+                </button>
+
+                {bankAccounts.map((b) => {
+                  const accId = b._id || b.id;
+                  const isSelected = selectedAccountId === accId;
+                  const accSim = simulation?.accounts?.[accId];
+                  const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
+                  const hasBreach = accSim?.floorBreached;
+
+                  return (
+                    <button
+                      key={accId}
+                      type="button"
+                      className={`filter-pill account-filter-pill apple-chip ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                      onClick={() => setSelectedAccountId(accId)}
+                    >
+                      <BuildingLibraryIcon size={12} />
+                      <span>{b.name}</span>
+                      <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.85, fontWeight: isSelected ? 700 : 500 }}>
+                        {formatCurrency(bal, month.currencySymbol)}
+                      </span>
+                      {hasBreach && <AlertTriangleIcon size={11} color="var(--rose, #f43f5e)" />}
+                    </button>
+                  );
+                })}
+
+                {wallets.map((w) => {
+                  const accId = w._id || w.id;
+                  const isSelected = selectedAccountId === accId;
+                  const accSim = simulation?.accounts?.[accId];
+                  const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
+                  const hasBreach = accSim?.floorBreached;
+
+                  return (
+                    <button
+                      key={accId}
+                      type="button"
+                      className={`filter-pill account-filter-pill apple-chip ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                      onClick={() => setSelectedAccountId(accId)}
+                    >
+                      <WalletIcon size={12} />
+                      <span>{w.name}</span>
+                      <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.85, fontWeight: isSelected ? 700 : 500 }}>
+                        {formatCurrency(bal, month.currencySymbol)}
+                      </span>
+                      {hasBreach && <AlertTriangleIcon size={11} color="var(--rose, #f43f5e)" />}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          <div className="account-toolbar-actions desktop-only">
+            {isReviewMode ? (
+              <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}>
+                <span>👁️</span> Historical Preview
+              </span>
+            ) : (
               <button
                 type="button"
-                className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
-                onClick={() => setSelectedAccountId('all')}
+                className="btn-primary desktop-only-btn apple-tx-add-btn"
+                style={{ height: '28px', padding: '0 12px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                onClick={() => onOpenUnifiedEntry?.('log')}
               >
-                <span>All Accounts (Unified)</span>
+                <PlusIcon size={12} />
+                <span>New Entry</span>
               </button>
-
-              {bankAccounts.map((b) => {
-                const accId = b._id || b.id;
-                const isSelected = selectedAccountId === accId;
-                const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
-                const hasBreach = accSim?.floorBreached;
-
-                return (
-                  <button
-                    key={accId}
-                    type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
-                    onClick={() => setSelectedAccountId(accId)}
-                  >
-                    <BuildingLibraryIcon size={12} />
-                    <span>{b.name}</span>
-                    <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
-                      {formatCurrency(bal, month.currencySymbol)}
-                    </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
-                  </button>
-                );
-              })}
-
-              {wallets.map((w) => {
-                const accId = w._id || w.id;
-                const isSelected = selectedAccountId === accId;
-                const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
-                const hasBreach = accSim?.floorBreached;
-
-                return (
-                  <button
-                    key={accId}
-                    type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
-                    onClick={() => setSelectedAccountId(accId)}
-                  >
-                    <WalletIcon size={12} />
-                    <span>{w.name}</span>
-                    <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
-                      {formatCurrency(bal, month.currencySymbol)}
-                    </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
-                  </button>
-                );
-              })}
-            </>
-          )}
+            )}
+          </div>
         </div>
 
-        <div className="account-toolbar-actions">
-          {isReviewMode ? (
-            <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}>
-              <span>👁️</span> Historical Preview
-            </span>
-          ) : (
+        {/* Account Isolated Notification Pill (Apple Dynamic Capsule) */}
+        {isFilteringAccount && (
+          <div
+            className="apple-isolated-account-capsule"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '7px 14px',
+              borderRadius: '12px',
+              background: 'var(--surface-subtle)',
+              border: '1px solid var(--border)',
+              fontSize: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: selectedBank ? '#3b82f6' : '#f59e0b', display: 'flex', alignItems: 'center' }}>
+                {selectedBank ? <BuildingLibraryIcon size={13} /> : <WalletIcon size={13} />}
+              </span>
+              <span>
+                Viewing isolated trajectory for <strong>{selectedAccount.name}</strong>
+                {selectedAccount?.minimumBalance ? ` • Min Floor: ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
+                {activeAccountSummary ? ` • Projected End: ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
+              </span>
+            </div>
             <button
               type="button"
-              className="btn-primary desktop-only-btn"
-              style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-              onClick={() => onOpenUnifiedEntry?.('log')}
+              className="btn-subtle apple-chip"
+              onClick={() => setSelectedAccountId('all')}
+              style={{ fontSize: '11px', height: '22px', padding: '0 8px' }}
             >
-              <PlusIcon size={14} />
-              <span>New Entry</span>
+              Reset
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Account Isolated Notification Pill */}
-      {isFilteringAccount && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '7px 12px',
-            borderRadius: 'var(--radius)',
-            background: 'var(--surface-subtle)',
-            border: '1px solid var(--border)',
-            fontSize: '12px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {selectedBank ? <BuildingLibraryIcon size={13} /> : <WalletIcon size={13} />}
-            <span>
-              Viewing isolated trajectory for <strong>{selectedAccount.name}</strong>
-              {selectedAccount?.minimumBalance ? ` • Min Balance: ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
-              {activeAccountSummary ? ` • Projected End: ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
-            </span>
           </div>
-          <button
-            type="button"
-            className="btn-subtle"
-            onClick={() => setSelectedAccountId('all')}
-            style={{ fontSize: '11px', padding: '2px 8px' }}
-          >
-            Reset
-          </button>
-        </div>
-      )}
+        )}
       </div>
 
       {/* Top Split: Symmetrical Bento Left Insights and Right Timeline Curve */}

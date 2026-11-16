@@ -56,14 +56,14 @@ export function SafeVelocityCard({
   const burn = safeVelocity?.burnRatePerDay ?? safeVelocity?.burnRate ?? 0;
 
   return (
-    <div className="summary-card safe-velocity-card">
+    <div className="summary-card safe-velocity-card apple-hero-card">
       <div className="card-top-row">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="summary-label">
+          <span className="summary-label apple-hero-label">
             Safe Velocity
           </span>
           <div
-            className={`pace-status-badge velocity-status-indicator ${statusKey}`}
+            className={`pace-status-badge velocity-status-indicator apple-status-capsule ${statusKey}`}
             title={`Status: ${statusLabel}`}
           >
             <span className={`status-micro-dot ${statusKey}`} />
@@ -71,7 +71,7 @@ export function SafeVelocityCard({
           </div>
           <button
             type="button"
-            className="velocity-info-btn"
+            className="velocity-info-btn apple-info-trigger"
             onClick={() => setShowInfo((prev) => !prev)}
             aria-label="Safe Velocity Explanation"
             title="What is Safe Velocity? Click for breakdown"
@@ -83,14 +83,14 @@ export function SafeVelocityCard({
             </svg>
           </button>
         </div>
-        <span className="days-remaining-pill">
+        <span className="days-remaining-pill apple-hero-days">
           {remainingDays} days left
         </span>
       </div>
 
       {/* Interactive Glassmorphism Explanation Popover */}
       {showInfo && (
-        <div ref={popoverRef} className="velocity-popover">
+        <div ref={popoverRef} className="velocity-popover apple-glass-popover">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontWeight: 700, fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Safe Velocity Mechanics
@@ -124,14 +124,14 @@ export function SafeVelocityCard({
         </div>
       )}
 
-      <div className="safe-velocity-hero">
-        <span className="safe-velocity-value tabular-nums">
+      <div className="safe-velocity-hero apple-velocity-hero">
+        <span className="safe-velocity-value apple-hero-number tabular-nums">
           {formatCurrency(rate, currencySymbol)}
         </span>
-        <span className="safe-velocity-per-day">/ day</span>
+        <span className="safe-velocity-per-day apple-hero-unit">/ day</span>
       </div>
 
-      <div className="safe-velocity-footer">
+      <div className="safe-velocity-footer apple-hero-footer">
         <span className="safe-velocity-meta-item">
           Committed: <strong className="tabular-nums">{formatCurrency(committed, currencySymbol)}</strong>
         </span>
@@ -173,85 +173,85 @@ export function DetailedKpiGrid({
   const floorBreached = lowestBalance < safetyFloor;
 
   return (
-    <div className="detailed-kpi-grid summary-grid">
-      <div className="summary-card kpi-card">
+    <div className="detailed-kpi-grid summary-grid apple-bento-grid">
+      <div className="summary-card kpi-card apple-bento-card">
         <div className="kpi-card-header">
           <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-income" aria-hidden="true">
-              <TrendingUpIcon size={13} strokeWidth={2.4} />
+            <span className="kpi-icon-badge apple-kpi-icon-box kpi-income" aria-hidden="true">
+              <TrendingUpIcon size={14} strokeWidth={2.4} />
             </span>
-            <span className="summary-label">Monthly income</span>
+            <span className="summary-label apple-kpi-label">Monthly income</span>
           </div>
           {canEditSalary && isCreditEffective && (
-            <span className="pace-status-badge on-pace" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
+            <span className="pace-status-badge on-pace apple-chip" style={{ fontSize: '10px', height: '20px', padding: '0 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
               ✓ Credited
             </span>
           )}
         </div>
 
-        <span className="summary-value tabular-nums">
+        <span className="summary-value apple-bento-value tabular-nums">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
 
-        <span className="kpi-subtext">
+        <span className="kpi-subtext apple-bento-subtext">
           {canEditSalary && isCreditEffective
             ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
             : `Credited on day ${incomeCreditDay}`}
         </span>
       </div>
 
-      <div className="summary-card kpi-card">
+      <div className="summary-card kpi-card apple-bento-card">
         <div className="kpi-card-header">
           <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-expense" aria-hidden="true">
-              <TrendingDownIcon size={13} strokeWidth={2.4} />
+            <span className="kpi-icon-badge apple-kpi-icon-box kpi-expense" aria-hidden="true">
+              <TrendingDownIcon size={14} strokeWidth={2.4} />
             </span>
-            <span className="summary-label">Total expenses</span>
+            <span className="summary-label apple-kpi-label">Total expenses</span>
           </div>
         </div>
-        <span className="summary-value tabular-nums">
+        <span className="summary-value apple-bento-value tabular-nums">
           {formatCurrency(totalOutflow, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
+        <span className="kpi-subtext apple-bento-subtext">
           {events.filter((e) => e.amount < 0).length} occurrences
         </span>
       </div>
 
-      <div className="summary-card kpi-card">
+      <div className="summary-card kpi-card apple-bento-card">
         <div className="kpi-card-header">
           <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-balance" aria-hidden="true">
-              <WalletIcon size={13} strokeWidth={2.2} />
+            <span className="kpi-icon-badge apple-kpi-icon-box kpi-balance" aria-hidden="true">
+              <WalletIcon size={14} strokeWidth={2.2} />
             </span>
-            <span className="summary-label">Today's balance</span>
+            <span className="summary-label apple-kpi-label">Today's balance</span>
           </div>
         </div>
-        <span className="summary-value tabular-nums">
+        <span className="summary-value apple-bento-value tabular-nums">
           {formatCurrency(todayBalance !== undefined ? todayBalance : endingBalance, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
+        <span className="kpi-subtext apple-bento-subtext">
           Month-end: <span className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</span>
         </span>
       </div>
 
-      <div className={`summary-card kpi-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
+      <div className={`summary-card kpi-card apple-bento-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
         <div className="kpi-card-header">
           <div className="kpi-title-with-icon">
-            <span className={`kpi-icon-badge ${floorBreached ? 'kpi-breach' : 'kpi-lowest'}`} aria-hidden="true">
-              <ShieldAlertIcon size={13} strokeWidth={2.2} />
+            <span className={`kpi-icon-badge apple-kpi-icon-box ${floorBreached ? 'kpi-breach' : 'kpi-lowest'}`} aria-hidden="true">
+              <ShieldAlertIcon size={14} strokeWidth={2.2} />
             </span>
-            <span className="summary-label">Lowest balance</span>
+            <span className="summary-label apple-kpi-label">Lowest balance</span>
           </div>
           {floorBreached && (
-            <span className="kpi-breach-badge">
+            <span className="kpi-breach-badge apple-chip breached" style={{ height: '20px', padding: '0 6px', fontSize: '10px' }}>
               ▲ BREACH
             </span>
           )}
         </div>
-        <span className={`summary-value tabular-nums ${floorBreached ? 'text-breached' : ''}`}>
+        <span className={`summary-value apple-bento-value tabular-nums ${floorBreached ? 'text-breached' : ''}`}>
           {formatCurrency(lowestBalance, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
+        <span className="kpi-subtext apple-bento-subtext">
           On {lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A'}
         </span>
       </div>
@@ -280,66 +280,66 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
   } = metrics || {};
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
       {/* Runway Card */}
-      <div className="summary-card safe-velocity-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
+      <div className="summary-card safe-velocity-card apple-bento-card p-4 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <span className="summary-label text-xs uppercase tracking-wider font-mono" style={{ color: 'var(--text-secondary)' }}>
           Emergency Runway
         </span>
         <div className="safe-velocity-hero my-2">
-          <span className="safe-velocity-value tabular-nums text-2xl font-bold text-white">
+          <span className="safe-velocity-value tabular-nums text-2xl font-bold" style={{ color: 'var(--text)' }}>
             {runwayDisplay}
           </span>
         </div>
-        <div className="safe-velocity-footer text-xs text-zinc-400">
+        <div className="safe-velocity-footer text-xs" style={{ color: 'var(--text-muted)' }}>
           {isIndefinite ? 'Zero expenses recorded' : 'Current Balance / Avg Monthly Burn'}
         </div>
       </div>
 
       {/* Smoothed Monthly Income Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
+      <div className="summary-card kpi-card apple-bento-card p-4 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <span className="summary-label text-xs uppercase tracking-wider font-mono" style={{ color: 'var(--text-secondary)' }}>
           Smoothed Income
         </span>
         <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-emerald-400">
+          <span className="summary-value tabular-nums text-2xl font-bold" style={{ color: 'var(--success, #10b981)' }}>
             {formatCurrency(smoothedMonthlyIncome, currencySymbol)}
           </span>
-          <span className="text-xs text-zinc-400 ml-1">/ mo</span>
+          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>/ mo</span>
         </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
-          T12M: <strong className="text-zinc-200 tabular-nums">{formatCurrency(trailing12mIncome, currencySymbol)}</strong>
+        <div className="kpi-subtext text-xs" style={{ color: 'var(--text-muted)' }}>
+          T12M: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(trailing12mIncome, currencySymbol)}</strong>
         </div>
       </div>
 
       {/* Current Total Balance Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
+      <div className="summary-card kpi-card apple-bento-card p-4 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <span className="summary-label text-xs uppercase tracking-wider font-mono" style={{ color: 'var(--text-secondary)' }}>
           Total Liquid Balance
         </span>
         <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-white">
+          <span className="summary-value tabular-nums text-2xl font-bold" style={{ color: 'var(--text)' }}>
             {formatCurrency(currentBalance, currencySymbol)}
           </span>
         </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
+        <div className="kpi-subtext text-xs" style={{ color: 'var(--text-muted)' }}>
           Across all accounts
         </div>
       </div>
 
       {/* Average Monthly Spending Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
+      <div className="summary-card kpi-card apple-bento-card p-4 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <span className="summary-label text-xs uppercase tracking-wider font-mono" style={{ color: 'var(--text-secondary)' }}>
           Avg Monthly Spending
         </span>
         <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-zinc-200">
+          <span className="summary-value tabular-nums text-2xl font-bold" style={{ color: 'var(--text)' }}>
             {formatCurrency(avgMonthlySpending, currencySymbol)}
           </span>
-          <span className="text-xs text-zinc-400 ml-1">/ mo</span>
+          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>/ mo</span>
         </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
-          T12M: <strong className="text-zinc-200 tabular-nums">{formatCurrency(trailing12mSpending, currencySymbol)}</strong>
+        <div className="kpi-subtext text-xs" style={{ color: 'var(--text-muted)' }}>
+          T12M: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(trailing12mSpending, currencySymbol)}</strong>
         </div>
       </div>
     </div>
@@ -349,31 +349,31 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
 export function QuarterlyBreakdownTable({ quarters = [], currencySymbol = '₹' }) {
   if (!quarters || quarters.length === 0) {
     return (
-      <div className="p-8 text-center rounded-xl border border-zinc-800 bg-zinc-950/60 text-zinc-400">
+      <div className="p-8 text-center rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
         <p className="text-sm">No quarterly transaction history found yet.</p>
-        <p className="text-xs text-zinc-400 mt-1">Transactions you log will be automatically aggregated by quarter and year.</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Transactions you log will be automatically aggregated by quarter and year.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950">
+    <div className="overflow-x-auto rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <table className="w-full text-left text-xs border-collapse">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/60 font-mono text-zinc-400 uppercase">
+          <tr className="border-b font-mono uppercase" style={{ background: 'var(--surface-subtle)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
             <th className="py-3 px-4">Period</th>
             <th className="py-3 px-4">Income</th>
             <th className="py-3 px-4">Spending</th>
             <th className="py-3 px-4">Net Savings</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800/60">
+        <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
           {quarters.map((q) => (
-            <tr key={q.key} className="hover:bg-zinc-900/40 transition-colors">
-              <td className="py-3 px-4 font-semibold text-white font-mono">{q.key}</td>
-              <td className="py-3 px-4 tabular-nums text-emerald-400">+{formatCurrency(q.income, currencySymbol)}</td>
-              <td className="py-3 px-4 tabular-nums text-zinc-300">-{formatCurrency(q.spending, currencySymbol)}</td>
-              <td className={`py-3 px-4 tabular-nums font-semibold ${q.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <tr key={q.key} className="transition-colors hover:bg-[var(--surface-hover)]">
+              <td className="py-3 px-4 font-semibold font-mono" style={{ color: 'var(--text)' }}>{q.key}</td>
+              <td className="py-3 px-4 tabular-nums" style={{ color: 'var(--success, #10b981)' }}>+{formatCurrency(q.income, currencySymbol)}</td>
+              <td className="py-3 px-4 tabular-nums" style={{ color: 'var(--text-secondary)' }}>-{formatCurrency(q.spending, currencySymbol)}</td>
+              <td className={`py-3 px-4 tabular-nums font-semibold ${q.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {q.net >= 0 ? '+' : ''}{formatCurrency(q.net, currencySymbol)}
               </td>
             </tr>

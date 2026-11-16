@@ -366,7 +366,7 @@ export function TimelineList({
       </div>
 
       {/* Filter Tabs / Pills */}
-      <div className="timeline-filters-row">
+      <div className="timeline-filters-row apple-segmented-bar timeline-segmented-bar" role="tablist" aria-label="Timeline Filters">
         {[
           { id: 'all', label: 'All', count: counts.all },
           { id: 'incomes', label: 'Incomes', count: counts.incomes },
@@ -378,11 +378,13 @@ export function TimelineList({
           <button
             key={tab.id}
             type="button"
-            className={`timeline-filter-btn ${filterType === tab.id ? 'active' : ''}`}
+            role="tab"
+            aria-selected={filterType === tab.id}
+            className={`apple-segmented-tab timeline-filter-btn ${filterType === tab.id ? 'active' : ''}`}
             onClick={() => setFilterType(tab.id)}
           >
             <span>{tab.label}</span>
-            <span className="filter-count tabular-nums">{tab.count}</span>
+            <span className="apple-segmented-count filter-count tabular-nums">{tab.count}</span>
           </button>
         ))}
       </div>
@@ -405,7 +407,7 @@ export function TimelineList({
           </div>
         </div>
       ) : (
-        <div className="timeline-list">
+        <div className="timeline-list apple-tx-group tx-cards-container">
           {filteredEvents.map((evt, idx) => {
             const isPreMonth = evt.day < 0;
             const isSelected = selectedDay === evt.day;
@@ -503,6 +505,22 @@ export function TimelineList({
             const isNearFloor = !isBreached && floorVal > 0 && evt.displayBalance <= floorVal * 1.15;
             const healthClass = isBreached ? 'balance-breached' : (isNearFloor ? 'balance-warning' : 'balance-healthy');
 
+            const glyphClass = isTransfer
+              ? 'transfer'
+              : evt.origin === 'goal'
+                ? 'goal'
+                : isCredit
+                  ? 'credit'
+                  : isOverdue
+                    ? 'overdue'
+                    : isDue
+                      ? 'due'
+                      : isWallet
+                        ? 'wallet'
+                        : isPlanned
+                          ? 'upcoming'
+                          : 'debit';
+
             return (
               <React.Fragment key={`${evt.date}-${evt.sourceIndex || idx}`}>
                 {showTodayMarker && (
@@ -517,10 +535,15 @@ export function TimelineList({
                 )}
 
                 <div
-                  className={`tx-card timeline-event-row ${isSelected ? 'selected' : ''} ${isBreached ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
+                  className={`apple-tx-row tx-card timeline-card timeline-event-row ${isSelected ? 'selected' : ''} ${isBreached ? 'row-breached' : ''} ${isPlanned ? 'planned' : 'settled'} ${cardTypeClass}`}
                   onClick={() => onSelectDay?.(isSelected ? null : evt.day)}
                   title="Click to focus this day on the balance chart"
                 >
+                  {/* Left Glyph Badge */}
+                  <div className={`apple-tx-icon-box ${glyphClass}`}>
+                    <CategoryIcon size={16} />
+                  </div>
+
                   {/* Left Zone: Title, Status Tags & Account Attribution */}
                   <div className="tx-card-left timeline-event-info">
                     <div className="tx-card-headline">

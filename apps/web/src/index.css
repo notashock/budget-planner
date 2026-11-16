@@ -8064,6 +8064,329 @@ main {
   }
 }
 
+/* ==========================================================================
+   APPLE PLAN PAGE REDESIGN STYLES (CUPERTINO BENTO, HERO, & INSET TIMELINE)
+   ========================================================================== */
+
+/* Apple Plan Header Row 1 */
+.apple-plan-header-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.apple-plan-title-group {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.plan-header-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.plan-header-sub {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+  white-space: nowrap;
+}
+
+.apple-plan-row1-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Apple Glanceable Hero Card (Safe Velocity) */
+.apple-hero-card.safe-velocity-card {
+  border-radius: 20px;
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-hero-card.safe-velocity-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.apple-hero-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.apple-status-capsule {
+  border-radius: 9999px !important;
+  font-weight: 600;
+}
+
+.apple-hero-days {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-subtle);
+  padding: 3px 9px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+}
+
+.apple-hero-number {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--text);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.apple-hero-unit {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.apple-glass-popover {
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Pulsing Micro-Indicator Dot */
+.status-micro-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-micro-dot.expanding {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.status-micro-dot.tight {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.status-micro-dot.critical {
+  background: #f43f5e;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
+  animation: applePulse 1.6s infinite ease-in-out;
+}
+
+.status-micro-dot.stable {
+  background: var(--text-secondary);
+}
+
+@keyframes applePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+/* Apple Symmetrical Bento Cards & KPIs */
+.apple-bento-grid {
+  gap: 12px !important;
+}
+
+.apple-bento-card {
+  border-radius: 16px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  padding: 14px 16px !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.apple-bento-card:hover {
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-2px);
+}
+
+.apple-kpi-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.apple-kpi-icon-box.kpi-income {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #10b981 !important;
+}
+
+.apple-kpi-icon-box.kpi-expense {
+  background: rgba(244, 63, 94, 0.12) !important;
+  color: #f43f5e !important;
+}
+
+.apple-kpi-icon-box.kpi-balance {
+  background: rgba(59, 130, 246, 0.12) !important;
+  color: #3b82f6 !important;
+}
+
+.apple-kpi-icon-box.kpi-lowest {
+  background: rgba(168, 85, 247, 0.12) !important;
+  color: #a855f7 !important;
+}
+
+.apple-kpi-icon-box.kpi-breach {
+  background: rgba(244, 63, 94, 0.16) !important;
+  color: #f43f5e !important;
+}
+
+.apple-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+
+.apple-bento-value {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.apple-bento-subtext {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+/* Apple Chart Card */
+.apple-chart-card {
+  border-radius: 20px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  padding: 18px 20px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Apple Dynamic Isolated Account Capsule */
+.apple-isolated-account-capsule {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Apple Segmented Bar for Timeline Filters */
+.timeline-segmented-bar.apple-segmented-bar {
+  max-width: 100%;
+  width: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+  padding: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: inline-flex;
+}
+
+.timeline-segmented-bar.apple-segmented-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-segmented-bar .apple-segmented-tab {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.timeline-segmented-bar .apple-segmented-tab:hover {
+  color: var(--text);
+}
+
+.timeline-segmented-bar .apple-segmented-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0.5px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Mobile Media Queries for Apple Plan Page */
+@media (max-width: 767px) {
+  .apple-plan-header-row-1 {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .apple-plan-title-group.tx-desktop-header {
+    display: block !important;
+  }
+
+  .apple-plan-title-group .tx-header-title {
+    font-size: 22px;
+  }
+
+  .apple-plan-title-group .tx-header-sub {
+    display: none;
+  }
+
+  .apple-plan-row1-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .apple-hero-number {
+    font-size: 28px;
+  }
+
+  .apple-hero-card.safe-velocity-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .apple-chart-card {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+}
+
 /* Accessibility: prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

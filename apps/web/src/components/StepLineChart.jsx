@@ -590,7 +590,7 @@ export function StepLineChart({
   };
 
   return (
-    <div className="card">
+    <div className="card apple-chart-card">
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '6px', marginBottom: '2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="card-title">Daily balance timeline</span>
@@ -663,9 +663,9 @@ export function StepLineChart({
           {/* Defs for soft ambient curve glow & modern area gradient */}
           <defs>
             <linearGradient id="monochromeCurveGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--text)" stopOpacity="0.16" />
-              <stop offset="60%" stopColor="var(--text)" stopOpacity="0.04" />
-              <stop offset="100%" stopColor="var(--text)" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--primary, #3b82f6)" stopOpacity="0.16" />
+              <stop offset="60%" stopColor="var(--primary, #3b82f6)" stopOpacity="0.04" />
+              <stop offset="100%" stopColor="var(--primary, #3b82f6)" stopOpacity="0.0" />
             </linearGradient>
             <filter id="chartCurveGlow" x="-10%" y="-20%" width="120%" height="150%">
               <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="var(--text)" floodOpacity="0.15" />
