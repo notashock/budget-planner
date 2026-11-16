@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 import {
   BuildingLibraryIcon,
@@ -14,7 +14,9 @@ import {
   EditIcon,
   PlusIcon,
   InboxIcon,
-  SendIcon
+  SendIcon,
+  ArrowRightLeftIcon,
+  ChevronDownIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
@@ -129,91 +131,133 @@ export function TransactionsScreen({
     }
   };
 
-  // Filtering function for search, origin, and account
-  const matchesFilter = (tx) => {
-    if (originFilter !== 'all' && tx.origin !== originFilter) return false;
-    if (selectedAccountFilter !== 'all') {
-      if (tx.origin === 'transfer') {
-        const srcId = tx.accountId;
-        const dstId = tx.destinationAccountId;
-        if (srcId !== selectedAccountFilter && dstId !== selectedAccountFilter) {
-          return false;
-        }
-      } else {
-        const accId = tx.accountId;
-        if (accId !== selectedAccountFilter) return false;
+  // O(1) Indexed Account Map for lightning-fast search & filtering
+  const accountLookupMap = useMemo(() => {
+    const map = new Map();
+    for (const acc of allAccounts) {
+      const id = acc.id || acc._id;
+      if (id) {
+        map.set(String(id), {
+          id: String(id),
+          name: acc.name,
+          nameLower: (acc.name || '').toLowerCase(),
+          accountType: acc.accountType
+        });
       }
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const name = (tx.name || '').toLowerCase();
-      const note = (tx.note || '').toLowerCase();
-      const cat = (tx.category || '').toLowerCase();
-      const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
-      const destAccount = allAccounts.find((a) => (a.id || a._id) === tx.destinationAccountId);
-      const accName = account ? account.name.toLowerCase() : '';
-      const destName = destAccount ? destAccount.name.toLowerCase() : '';
-      if (!name.includes(q) && !note.includes(q) && !cat.includes(q) && !accName.includes(q) && !destName.includes(q)) {
-        return false;
-      }
+    return map;
+  }, [allAccounts]);
+
+  // React 18 useDeferredValue for 120fps responsive typing
+  const deferredSearch = useDeferredValue(searchQuery);
+
+  // Pre-tokenized search query (split once per search query change, not per transaction)
+  const searchTokens = useMemo(() => {
+    const q = deferredSearch?.trim()?.toLowerCase();
+    if (!q) return null;
+    return q.split(/\s+/).filter(Boolean);
+  }, [deferredSearch]);
+
+  // High-performance transaction comparator avoiding localeCompare overhead
+  const compareTransactions = (a, b, sortType, isPlanned = false) => {
+    if (sortType === 'amount-desc') {
+      const amtA = isPlanned ? Math.abs(a.plannedAmount ?? a.amount ?? 0) : Math.abs(a.amount ?? 0);
+      const amtB = isPlanned ? Math.abs(b.plannedAmount ?? b.amount ?? 0) : Math.abs(b.amount ?? 0);
+      return amtB - amtA;
     }
-    return true;
+    if (sortType === 'amount-asc') {
+      const amtA = isPlanned ? Math.abs(a.plannedAmount ?? a.amount ?? 0) : Math.abs(a.amount ?? 0);
+      const amtB = isPlanned ? Math.abs(b.plannedAmount ?? b.amount ?? 0) : Math.abs(b.amount ?? 0);
+      return amtA - amtB;
+    }
+    if (sortType === 'oldest') {
+      const dateA = (isPlanned ? (a.plannedDate || a.date) : a.date) || '';
+      const dateB = (isPlanned ? (b.plannedDate || b.date) : b.date) || '';
+      return dateA > dateB ? 1 : dateA < dateB ? -1 : 0;
+    }
+    // Default 'recent'
+    if (isPlanned) {
+      if (a.derivedStatus === 'overdue' && b.derivedStatus !== 'overdue') return -1;
+      if (b.derivedStatus === 'overdue' && a.derivedStatus !== 'overdue') return 1;
+      if (a.derivedStatus === 'due' && b.derivedStatus !== 'due') return -1;
+      if (b.derivedStatus === 'due' && a.derivedStatus !== 'due') return 1;
+      const dateA = a.plannedDate || a.date || '';
+      const dateB = b.plannedDate || b.date || '';
+      return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
+    }
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    return dateB > dateA ? 1 : dateB < dateA ? -1 : 0;
   };
 
-  // Filtered successful transactions with sorting
+  // Fast single-pass filtered and sorted successful transactions
   const displayedSuccessful = useMemo(() => {
-    return [...successfulTransactions]
-      .filter(matchesFilter)
-      .sort((a, b) => {
-        if (sortBy === 'recent') {
-          return (b.date || '').localeCompare(a.date || '');
+    if (!successfulTransactions.length) return [];
+    const list = [];
+    for (let i = 0; i < successfulTransactions.length; i++) {
+      const tx = successfulTransactions[i];
+      if (originFilter !== 'all' && tx.origin !== originFilter) continue;
+      if (selectedAccountFilter !== 'all') {
+        if (tx.origin === 'transfer') {
+          if (tx.accountId !== selectedAccountFilter && tx.destinationAccountId !== selectedAccountFilter) continue;
+        } else if (tx.accountId !== selectedAccountFilter) {
+          continue;
         }
-        if (sortBy === 'oldest') {
-          return (a.date || '').localeCompare(b.date || '');
+      }
+      if (searchTokens) {
+        const acc = accountLookupMap.get(String(tx.accountId));
+        const destAcc = accountLookupMap.get(String(tx.destinationAccountId));
+        const haystack = `${tx.name || ''} ${tx.note || ''} ${tx.category || ''} ${acc?.nameLower || ''} ${destAcc?.nameLower || ''}`.toLowerCase();
+        let matches = true;
+        for (let t = 0; t < searchTokens.length; t++) {
+          if (!haystack.includes(searchTokens[t])) {
+            matches = false;
+            break;
+          }
         }
-        if (sortBy === 'amount-desc') {
-          return Math.abs(b.amount || 0) - Math.abs(a.amount || 0);
-        }
-        if (sortBy === 'amount-asc') {
-          return Math.abs(a.amount || 0) - Math.abs(b.amount || 0);
-        }
-        return (b.date || '').localeCompare(a.date || '');
-      });
-  }, [successfulTransactions, matchesFilter, sortBy]);
+        if (!matches) continue;
+      }
+      list.push(tx);
+    }
+    return list.sort((a, b) => compareTransactions(a, b, sortBy, false));
+  }, [successfulTransactions, originFilter, selectedAccountFilter, searchTokens, accountLookupMap, sortBy]);
 
-  // Filtered planned transactions with sorting
+  // Fast single-pass filtered and sorted planned transactions
   const displayedPlanned = useMemo(() => {
-    return [...plannedTransactions]
-      .filter((tx) => {
-        if (!matchesFilter(tx)) return false;
-        if (plannedFilter === 'all') return true;
-        if (plannedFilter === 'due') return tx.derivedStatus === 'due';
-        if (plannedFilter === 'overdue') return tx.derivedStatus === 'overdue';
-        if (plannedFilter === 'upcoming') return tx.derivedStatus === 'planned';
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'amount-desc') {
-          return Math.abs(b.plannedAmount || b.amount || 0) - Math.abs(a.plannedAmount || a.amount || 0);
+    if (!plannedTransactions.length) return [];
+    const list = [];
+    for (let i = 0; i < plannedTransactions.length; i++) {
+      const tx = plannedTransactions[i];
+      if (originFilter !== 'all' && tx.origin !== originFilter) continue;
+      if (selectedAccountFilter !== 'all') {
+        if (tx.origin === 'transfer') {
+          if (tx.accountId !== selectedAccountFilter && tx.destinationAccountId !== selectedAccountFilter) continue;
+        } else if (tx.accountId !== selectedAccountFilter) {
+          continue;
         }
-        if (sortBy === 'amount-asc') {
-          return Math.abs(a.plannedAmount || a.amount || 0) - Math.abs(b.plannedAmount || b.amount || 0);
+      }
+      if (plannedFilter !== 'all') {
+        if (plannedFilter === 'due' && tx.derivedStatus !== 'due') continue;
+        if (plannedFilter === 'overdue' && tx.derivedStatus !== 'overdue') continue;
+        if (plannedFilter === 'upcoming' && tx.derivedStatus !== 'planned') continue;
+      }
+      if (searchTokens) {
+        const acc = accountLookupMap.get(String(tx.accountId));
+        const destAcc = accountLookupMap.get(String(tx.destinationAccountId));
+        const haystack = `${tx.name || ''} ${tx.note || ''} ${tx.category || ''} ${acc?.nameLower || ''} ${destAcc?.nameLower || ''}`.toLowerCase();
+        let matches = true;
+        for (let t = 0; t < searchTokens.length; t++) {
+          if (!haystack.includes(searchTokens[t])) {
+            matches = false;
+            break;
+          }
         }
-        if (sortBy === 'oldest') {
-          const dateA = a.plannedDate || a.date || '';
-          const dateB = b.plannedDate || b.date || '';
-          return dateA.localeCompare(dateB);
-        }
-        // Default 'recent': Sort priority: overdue first, then due, then by plannedDate asc
-        if (a.derivedStatus === 'overdue' && b.derivedStatus !== 'overdue') return -1;
-        if (b.derivedStatus === 'overdue' && a.derivedStatus !== 'overdue') return 1;
-        if (a.derivedStatus === 'due' && b.derivedStatus !== 'due') return -1;
-        if (b.derivedStatus === 'due' && a.derivedStatus !== 'due') return 1;
-        const dateA = a.plannedDate || a.date || '';
-        const dateB = b.plannedDate || b.date || '';
-        return dateA.localeCompare(dateB);
-      });
-  }, [plannedTransactions, matchesFilter, plannedFilter, sortBy]);
+        if (!matches) continue;
+      }
+      list.push(tx);
+    }
+    return list.sort((a, b) => compareTransactions(a, b, sortBy, true));
+  }, [plannedTransactions, originFilter, selectedAccountFilter, plannedFilter, searchTokens, accountLookupMap, sortBy]);
 
   // Payment prompt opener
   const openPayPrompt = (tx) => {
@@ -274,110 +318,137 @@ export function TransactionsScreen({
 
   return (
     <div className="transactions-screen" style={{ paddingBottom: '90px' }}>
-      {/* Desktop Header */}
-      <div className="tx-desktop-header">
-        <h1 className="tx-header-title">Transactions</h1>
-        <p className="tx-header-sub">Unified record of commitments and actual cash movement.</p>
-      </div>
-      {/* Top Controls Row: Search on Left, New Entry on Right */}
-      <div className="tx-header-top-row">
-        <div className="tx-search-box compact">
-          <span className="tx-search-icon">
-            <SearchIcon size={14} />
-          </span>
-          <input
-            type="text"
-            className="tx-search-input"
-            placeholder="Search transactions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search transactions"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="tx-search-clear"
-              onClick={() => setSearchQuery('')}
-              title="Clear search"
-            >
-              <XIcon size={11} />
-            </button>
-          )}
+      {/* =========================================================================
+          ROW 1: APPLE TITLE & EMBEDDED SEARCH-SORT CAPSULE
+          ========================================================================= */}
+      <div className="apple-tx-header-row-1">
+        {/* Left: Cupertino Large Title & Subtitle */}
+        <div className="apple-tx-title-group tx-desktop-header">
+          <h1 className="tx-header-title">Transactions</h1>
+          <p className="tx-header-sub">Unified record of commitments and actual cash movement.</p>
         </div>
 
-        <div className="tx-header-top-actions">
+        {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
+        <div className="apple-tx-row1-actions">
+          <div className="apple-search-sort-capsule tx-search-box compact">
+            <span className="apple-search-icon tx-search-icon">
+              <SearchIcon size={14} />
+            </span>
+            <input
+              type="text"
+              className="apple-search-input tx-search-input"
+              placeholder="Search transactions, notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search transactions"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="apple-search-clear tx-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                <XIcon size={12} />
+              </button>
+            )}
+
+            <span className="apple-search-sort-divider" />
+
+            {/* Embedded Cupertino Sort Selector */}
+            <div className="apple-sort-trigger-wrapper">
+              <select
+                className="apple-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                aria-label="Sort transactions"
+              >
+                <option value="recent">Recent</option>
+                <option value="oldest">Oldest</option>
+                <option value="amount-desc">Amount: High to Low</option>
+                <option value="amount-asc">Amount: Low to High</option>
+              </select>
+              <div className="apple-sort-display" aria-hidden="true">
+                <ArrowRightLeftIcon size={12} />
+                <span className="apple-sort-label">
+                  {sortBy === 'recent' ? 'Recent' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'amount-desc' ? 'Amount ↓' : 'Amount ↑'}
+                </span>
+                <ChevronDownIcon size={10} className="apple-sort-chevron" />
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop-only New Entry Button (Hidden on Mobile as bottom nav handles entry) */}
           {!isReviewMode && (
             <button
               type="button"
-              className="btn-primary"
-              style={{
-                height: '34px',
-                padding: '0 14px',
-                fontSize: '12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className="btn-primary apple-tx-add-btn desktop-only"
               onClick={() => onOpenUnifiedEntry?.('log')}
               title="Add a new transaction or planned expense"
             >
               <PlusIcon size={13} />
-              <span>New Entry</span>
+              <span className="apple-tx-add-label">New Entry</span>
             </button>
           )}
 
           {isReviewMode && (
-            <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
+            <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
               <span>👁️</span> Read-Only Review
             </span>
           )}
         </div>
       </div>
 
-      {/* Second Row: Clean Section Switcher (Application Themed Style) */}
-      <div className="tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
-        <button
-          type="button"
-          role="tab"
-          id="tab-transactions"
-          data-testid="tab-transactions"
-          aria-selected={activeSegment === 'transactions'}
-          aria-controls="panel-transactions"
-          className={`tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
-          onClick={() => setActiveSegment('transactions')}
-        >
-          <InboxIcon size={15} />
-          <span className="tx-section-tab-label">TRANSACTIONS</span>
-          <span className="tx-section-tab-count">{displayedSuccessful.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-planned"
-          data-testid="tab-planned"
-          aria-selected={activeSegment === 'planned'}
-          aria-controls="panel-planned"
-          className={`tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
-          onClick={() => setActiveSegment('planned')}
-        >
-          <SendIcon size={14} />
-          <span className="tx-section-tab-label">PLANNED</span>
-          {hasUrgentCommitments ? (
-            <span className="tx-tab-urgent-pill">
-              {overdueCount > 0 ? `${overdueCount} Overdue` : `${dueCount} Due`}
-            </span>
-          ) : (
-            <span className="tx-section-tab-count">{displayedPlanned.length}</span>
-          )}
-        </button>
-      </div>
-
-      {/* Account Filter Pills Row */}
-      {allAccounts.length > 0 && (
-        <div className="account-filter-scroll-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 16px', overflowX: 'auto', paddingBottom: '4px' }}>
+      {/* =========================================================================
+          ROW 2: UNIFIED CONTINUOUS INLINE FILTER STRIP (NO BACKGROUND CONTAINER)
+          ========================================================================= */}
+      <div className="apple-filter-strip-row account-filter-scroll-row" role="toolbar" aria-label="Filters and Sections">
+        {/* Apple Segmented Switcher in Title Case (First letter caps) */}
+        <div className="apple-segmented-bar tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
           <button
             type="button"
-            className={`filter-pill account-filter-pill ${selectedAccountFilter === 'all' ? 'active' : ''}`}
+            role="tab"
+            id="tab-transactions"
+            data-testid="tab-transactions"
+            aria-selected={activeSegment === 'transactions'}
+            aria-controls="panel-transactions"
+            className={`apple-segmented-tab tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
+            onClick={() => setActiveSegment('transactions')}
+          >
+            <InboxIcon size={14} />
+            <span className="tx-section-tab-label">Transactions</span>
+            <span className="apple-segmented-count tx-section-tab-count">{displayedSuccessful.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-planned"
+            data-testid="tab-planned"
+            aria-selected={activeSegment === 'planned'}
+            aria-controls="panel-planned"
+            className={`apple-segmented-tab tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
+            onClick={() => setActiveSegment('planned')}
+          >
+            <SendIcon size={13} />
+            <span className="tx-section-tab-label">Planned</span>
+            {hasUrgentCommitments ? (
+              <span className="tx-tab-urgent-pill">
+                {overdueCount > 0 ? `${overdueCount} Overdue` : `${dueCount} Due`}
+              </span>
+            ) : (
+              <span className="apple-segmented-count tx-section-tab-count">{displayedPlanned.length}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Subtle Hairline Separator */}
+        <span className="apple-filter-strip-divider" aria-hidden="true" />
+
+        {/* Continuous Account Filter Quick-Chips */}
+        <div className="apple-account-chips-inline">
+          <button
+            type="button"
+            className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === 'all' ? 'active' : ''}`}
             onClick={() => setSelectedAccountFilter('all')}
           >
             All Accounts
@@ -386,7 +457,7 @@ export function TransactionsScreen({
             <button
               key={b.id || b._id}
               type="button"
-              className={`filter-pill account-filter-pill ${selectedAccountFilter === (b.id || b._id) ? 'active' : ''}`}
+              className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === (b.id || b._id) ? 'active' : ''}`}
               onClick={() => setSelectedAccountFilter(b.id || b._id)}
             >
               <BuildingLibraryIcon size={12} />
@@ -397,7 +468,7 @@ export function TransactionsScreen({
             <button
               key={w.id || w._id}
               type="button"
-              className={`filter-pill account-filter-pill ${selectedAccountFilter === (w.id || w._id) ? 'active' : ''}`}
+              className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === (w.id || w._id) ? 'active' : ''}`}
               onClick={() => setSelectedAccountFilter(w.id || w._id)}
             >
               <WalletIcon size={12} />
@@ -405,20 +476,60 @@ export function TransactionsScreen({
             </button>
           ))}
         </div>
-      )}
+
+        {/* Contextual Commitment Status Chips when in Planned view */}
+        {activeSegment === 'planned' && (
+          <>
+            <span className="apple-filter-strip-divider" aria-hidden="true" />
+            <div className="apple-status-chips-inline">
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('all')}
+              >
+                All Status
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'due' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('due')}
+              >
+                Due Only
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'overdue' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('overdue')}
+              >
+                Overdue Only
+              </button>
+              <button
+                type="button"
+                className={`filter-pill apple-chip ${plannedFilter === 'upcoming' ? 'active' : ''}`}
+                onClick={() => setPlannedFilter('upcoming')}
+              >
+                Upcoming
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Main Content Area */}
       {activeSegment === 'transactions' ? (
         <div id="panel-transactions" role="tabpanel" aria-labelledby="tab-transactions">
           {displayedSuccessful.length === 0 ? (
-            <div className="tx-empty-state">
-              <div className="tx-empty-text">ALL TRANSACTIONS LOGGED</div>
-              <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div className="apple-tx-empty-state tx-empty-state">
+              <div className="apple-tx-empty-icon">
+                <CheckCircleIcon size={24} />
+              </div>
+              <div className="apple-tx-empty-title tx-empty-text">ALL TRANSACTIONS LOGGED</div>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                 No completed transactions found for the selected filter.
               </p>
             </div>
           ) : (
-            <div className="tx-cards-container">
+            <div className="apple-tx-group tx-cards-container">
               {displayedSuccessful.map((tx) => {
                 const isTransfer = tx.origin === 'transfer';
                 const sourceAcc = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
@@ -443,27 +554,48 @@ export function TransactionsScreen({
                   amountClass = 'amount-debit';
                 }
 
+                let glyphClass = 'bank';
+                let glyphIcon = <BuildingLibraryIcon size={16} />;
+                if (isTransfer) {
+                  glyphClass = 'transfer';
+                  glyphIcon = <ArrowRightLeftIcon size={16} />;
+                } else if (tx.origin === 'goal') {
+                  glyphClass = 'goal';
+                  glyphIcon = <TargetIcon size={16} />;
+                } else if (isCredit) {
+                  glyphClass = 'income';
+                  glyphIcon = <BuildingLibraryIcon size={16} />;
+                } else if (account?.accountType === 'wallet') {
+                  glyphClass = 'wallet';
+                  glyphIcon = <WalletIcon size={16} />;
+                }
+
                 return (
-                  <div key={tx.id || tx._id} className="tx-card">
-                    {/* Left Zone: Description (Title) + Bank Account Underneath (Category Removed) */}
+                  <div key={tx.id || tx._id} className="apple-tx-row tx-card">
+                    {/* Left Glyph Badge */}
+                    <div className={`apple-tx-icon-box ${glyphClass}`}>
+                      {glyphIcon}
+                    </div>
+
+                    {/* Left Zone: Description (Title) + Bank Account Underneath */}
                     <div className="tx-card-left">
                       <div className="tx-card-headline">
                         <span className="tx-card-title">
                           {isTransfer ? (tx.name || 'Inter-Account Transfer') : (tx.name || tx.note || tx.category || 'Transaction')}
                         </span>
                         {isTransfer && (
-                          <span className="tx-tag tag-transfer">
+                          <span className="apple-tx-tag tag-transfer tx-tag">
                             ⇄ Transfer
                           </span>
                         )}
                         {tx.origin === 'goal' && (
-                          <span className="tx-tag tag-goal">
+                          <span className="apple-tx-tag tag-goal tx-tag">
                             <TargetIcon size={10} />
                             <span>Goal</span>
                           </span>
                         )}
                         {tx.origin === 'planned' && (
-                          <span className="tx-tag tag-settled">
+                          <span className="apple-tx-tag tag-settled tx-tag">
                             Settled
                           </span>
                         )}
@@ -511,7 +643,7 @@ export function TransactionsScreen({
                         <div className="tx-card-actions">
                           <button
                             type="button"
-                            className="tx-btn-action"
+                            className="apple-tx-btn-action tx-btn-action"
                             onClick={() => onEditTransaction?.(tx)}
                             title="Edit transaction"
                             aria-label="Edit transaction"
@@ -520,7 +652,7 @@ export function TransactionsScreen({
                           </button>
                           <button
                             type="button"
-                            className="tx-btn-action delete"
+                            className="apple-tx-btn-action delete tx-btn-action"
                             onClick={() => onDeleteTransaction?.(tx.id || tx._id)}
                             title={isTransfer ? "Delete transfer" : "Delete transaction"}
                             aria-label="Delete transaction"
@@ -539,48 +671,72 @@ export function TransactionsScreen({
       ) : (
         <div id="panel-planned" role="tabpanel" aria-labelledby="tab-planned">
           {displayedPlanned.length === 0 ? (
-            <div className="tx-empty-state">
-              <div className="tx-empty-text">ALL COMMITMENTS SETTLED</div>
-              <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div className="apple-tx-empty-state tx-empty-state">
+              <div className="apple-tx-empty-icon">
+                <SendIcon size={24} />
+              </div>
+              <div className="apple-tx-empty-title tx-empty-text">ALL COMMITMENTS SETTLED</div>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                 No planned commitments found for this filter.
               </p>
             </div>
           ) : (
-            <div className="tx-cards-container">
+            <div className="apple-tx-group tx-cards-container">
               {displayedPlanned.map((tx) => {
                 const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
                 const isOverdue = tx.derivedStatus === 'overdue';
                 const isDue = tx.derivedStatus === 'due';
                 const plannedAmt = tx.plannedAmount !== undefined && tx.plannedAmount !== null ? tx.plannedAmount : Math.abs(tx.amount || 0);
 
+                let glyphClass = 'upcoming';
+                let glyphIcon = <CalendarIcon size={16} />;
+                if (isOverdue) {
+                  glyphClass = 'overdue';
+                  glyphIcon = <AlertTriangleIcon size={16} />;
+                } else if (isDue) {
+                  glyphClass = 'due';
+                  glyphIcon = <CalendarIcon size={16} />;
+                } else if (tx.origin === 'goal') {
+                  glyphClass = 'goal';
+                  glyphIcon = <TargetIcon size={16} />;
+                } else if (account?.accountType === 'wallet') {
+                  glyphClass = 'wallet';
+                  glyphIcon = <WalletIcon size={16} />;
+                }
+
                 return (
                   <div
                     key={tx.id || tx._id}
-                    className={`tx-card planned ${isOverdue ? 'overdue' : (isDue ? 'due' : '')}`}
+                    className={`apple-tx-row tx-card planned ${isOverdue ? 'overdue' : (isDue ? 'due' : '')}`}
                   >
-                    {/* Left Zone: Description + Bank Account Underneath (Category Removed) */}
+                    {/* Left Glyph Badge */}
+                    <div className={`apple-tx-icon-box ${glyphClass}`}>
+                      {glyphIcon}
+                    </div>
+
+                    {/* Left Zone: Description + Bank Account Underneath */}
                     <div className="tx-card-left">
                       <div className="tx-card-headline">
                         <span className="tx-card-title">{tx.name || tx.category}</span>
                         {isOverdue && (
-                          <span className="tx-tag tag-overdue">
+                          <span className="apple-tx-tag tag-overdue tx-tag">
                             <AlertTriangleIcon size={10} />
                             <span>Overdue</span>
                           </span>
                         )}
                         {isDue && (
-                          <span className="tx-tag tag-due">
+                          <span className="apple-tx-tag tag-due tx-tag">
                             <CalendarIcon size={10} />
                             <span>Due</span>
                           </span>
                         )}
                         {!isOverdue && !isDue && (
-                          <span className="tx-tag tag-upcoming">
+                          <span className="apple-tx-tag tag-upcoming tx-tag">
                             Upcoming
                           </span>
                         )}
                         {tx.origin === 'goal' && (
-                          <span className="tx-tag tag-goal">
+                          <span className="apple-tx-tag tag-goal tx-tag">
                             <TargetIcon size={10} />
                             <span>Goal</span>
                           </span>
@@ -618,7 +774,7 @@ export function TransactionsScreen({
                         <div className="tx-card-actions">
                           <button
                             type="button"
-                            className="tx-btn-settle"
+                            className="apple-tx-btn-settle tx-btn-settle"
                             onClick={() => openPayPrompt(tx)}
                             title={tx.isIncome ? "Confirm salary deposit" : "Mark as paid (confirm actual amount and date)"}
                             aria-label="Mark Paid"
@@ -629,7 +785,7 @@ export function TransactionsScreen({
 
                           <button
                             type="button"
-                            className="tx-btn-action delete"
+                            className="apple-tx-btn-action delete tx-btn-action"
                             onClick={() => handlePromptCancel(tx)}
                             title="Cancel planned transaction"
                             aria-label="Cancel commitment"
