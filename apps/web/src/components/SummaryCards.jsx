@@ -149,8 +149,6 @@ export function DetailedKpiGrid({
 
 export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
   const {
-    runwayDisplay = 'Indefinite',
-    isIndefinite = true,
     smoothedMonthlyIncome = 0,
     trailing12mIncome = 0,
     currentBalance = 0,
@@ -158,69 +156,74 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
     trailing12mSpending = 0
   } = metrics || {};
 
+  const { net, savingsRate } = getNetPosition(trailing12mIncome, trailing12mSpending);
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
-      {/* Runway Card */}
-      <div className="summary-card safe-velocity-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
-          Emergency Runway
+    <div className="irr-hero-grid">
+      <div className="summary-card kpi-card">
+        <span className="summary-label">Smoothed income</span>
+        <span className="summary-value text-net-positive">
+          {formatCurrency(smoothedMonthlyIncome, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
-        <div className="safe-velocity-hero my-2">
-          <span className="safe-velocity-value tabular-nums text-2xl font-bold text-white">
-            {runwayDisplay}
-          </span>
-        </div>
-        <div className="safe-velocity-footer text-xs text-zinc-400">
-          {isIndefinite ? 'Zero expenses recorded' : 'Current Balance / Avg Monthly Burn'}
-        </div>
+        <span className="kpi-subtext">Last 12 months: {formatCurrency(trailing12mIncome, currencySymbol)}</span>
       </div>
 
-      {/* Smoothed Monthly Income Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
-          Smoothed Income
+      <div className="summary-card kpi-card">
+        <span className="summary-label">Avg monthly spending</span>
+        <span className="summary-value">
+          {formatCurrency(avgMonthlySpending, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
-        <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-emerald-400">
-            {formatCurrency(smoothedMonthlyIncome, currencySymbol)}
-          </span>
-          <span className="text-xs text-zinc-400 ml-1">/ mo</span>
-        </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
-          T12M: <strong className="text-zinc-200 tabular-nums">{formatCurrency(trailing12mIncome, currencySymbol)}</strong>
-        </div>
+        <span className="kpi-subtext">Last 12 months: {formatCurrency(trailing12mSpending, currencySymbol)}</span>
       </div>
 
-      {/* Current Total Balance Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
-          Total Liquid Balance
+      <div className={`summary-card kpi-card ${net < 0 ? 'kpi-card-negative' : ''}`}>
+        <span className="summary-label">Savings rate</span>
+        <span className={`summary-value ${net < 0 ? 'text-breached' : ''}`}>
+          {savingsRate === null ? '—' : `${Math.round(savingsRate * 100)}%`}
         </span>
-        <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-white">
-            {formatCurrency(currentBalance, currencySymbol)}
-          </span>
-        </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
-          Across all accounts
-        </div>
+        <span className="kpi-subtext">
+          {savingsRate === null
+            ? 'No income in the last 12 months'
+            : `${net >= 0 ? '+' : ''}${formatCurrency(net, currencySymbol)} kept over 12 months`}
+        </span>
       </div>
 
-      {/* Average Monthly Spending Card */}
-      <div className="summary-card kpi-card p-4 rounded-xl border border-zinc-800 bg-zinc-950">
-        <span className="summary-label text-xs uppercase tracking-wider text-zinc-400 font-mono">
-          Avg Monthly Spending
-        </span>
-        <div className="my-2">
-          <span className="summary-value tabular-nums text-2xl font-bold text-zinc-200">
-            {formatCurrency(avgMonthlySpending, currencySymbol)}
-          </span>
-          <span className="text-xs text-zinc-400 ml-1">/ mo</span>
-        </div>
-        <div className="kpi-subtext text-xs text-zinc-400">
-          T12M: <strong className="text-zinc-200 tabular-nums">{formatCurrency(trailing12mSpending, currencySymbol)}</strong>
-        </div>
+      <div className="summary-card kpi-card">
+        <span className="summary-label">Total liquid balance</span>
+        <span className="summary-value">{formatCurrency(currentBalance, currencySymbol)}</span>
+        <span className="kpi-subtext">Across all accounts</span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Quarter-by-quarter income vs spending as paired bars (two series, one
+ * shared scale), with net printed in text. The table below it carries the
+ * exact figures for screen readers and anyone who prefers numbers.
+ */
+export function QuarterlyBars({ quarters = [], currencySymbol = '₹' }) {
+  if (!quarters || quarters.length === 0) return null;
+  const max = quarters.reduce((m, q) => Math.max(m, q.income || 0, q.spending || 0), 0) || 1;
+
+  return (
+    <div className="qbars" aria-hidden="true">
+      <ul className="cat-legend">
+        <li><span className="cat-swatch qbar-income" />Income</li>
+        <li><span className="cat-swatch qbar-spending" />Spending</li>
+      </ul>
+      {quarters.map((q) => (
+        <div key={q.key} className="qbar-row">
+          <span className="qbar-label">{q.key}</span>
+          <span className="qbar-pair">
+            <span className="qbar qbar-income" style={{ width: `${((q.income || 0) / max) * 100}%` }} />
+            <span className="qbar qbar-spending" style={{ width: `${((q.spending || 0) / max) * 100}%` }} />
+          </span>
+          <span className={`qbar-net tabular-nums ${q.net >= 0 ? 'net-in' : 'net-out'}`}>
+            {q.net >= 0 ? '+' : ''}{formatCurrency(q.net, currencySymbol)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -228,37 +231,40 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
 export function QuarterlyBreakdownTable({ quarters = [], currencySymbol = '₹' }) {
   if (!quarters || quarters.length === 0) {
     return (
-      <div className="p-8 text-center rounded-xl border border-zinc-800 bg-zinc-950/60 text-zinc-400">
-        <p className="text-sm">No quarterly transaction history found yet.</p>
-        <p className="text-xs text-zinc-400 mt-1">Transactions you log will be automatically aggregated by quarter and year.</p>
+      <div className="irr-empty">
+        <p>No quarterly transaction history found yet.</p>
+        <p className="kpi-subtext">Transactions you log will be automatically aggregated by quarter and year.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950">
-      <table className="w-full text-left text-xs border-collapse">
-        <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/60 font-mono text-zinc-400 uppercase">
-            <th className="py-3 px-4">Period</th>
-            <th className="py-3 px-4">Income</th>
-            <th className="py-3 px-4">Spending</th>
-            <th className="py-3 px-4">Net Savings</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-800/60">
-          {quarters.map((q) => (
-            <tr key={q.key} className="hover:bg-zinc-900/40 transition-colors">
-              <td className="py-3 px-4 font-semibold text-white font-mono">{q.key}</td>
-              <td className="py-3 px-4 tabular-nums text-emerald-400">+{formatCurrency(q.income, currencySymbol)}</td>
-              <td className="py-3 px-4 tabular-nums text-zinc-300">-{formatCurrency(q.spending, currencySymbol)}</td>
-              <td className={`py-3 px-4 tabular-nums font-semibold ${q.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {q.net >= 0 ? '+' : ''}{formatCurrency(q.net, currencySymbol)}
-              </td>
+    <>
+      <QuarterlyBars quarters={quarters} currencySymbol={currencySymbol} />
+      <div className="irr-table-wrap">
+        <table className="irr-table">
+          <thead>
+            <tr>
+              <th scope="col">Period</th>
+              <th scope="col">Income</th>
+              <th scope="col">Spending</th>
+              <th scope="col">Net savings</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {quarters.map((q) => (
+              <tr key={q.key}>
+                <td className="irr-period">{q.key}</td>
+                <td className="tabular-nums text-net-positive">+{formatCurrency(q.income, currencySymbol)}</td>
+                <td className="tabular-nums">-{formatCurrency(q.spending, currencySymbol)}</td>
+                <td className={`tabular-nums irr-net ${q.net >= 0 ? 'text-net-positive' : 'text-breached'}`}>
+                  {q.net >= 0 ? '+' : ''}{formatCurrency(q.net, currencySymbol)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

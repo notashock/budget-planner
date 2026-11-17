@@ -11,6 +11,7 @@ import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
 import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
 import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
+import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
@@ -502,7 +503,16 @@ export function PlanScreen({
           )}
         </div>
 
-        {/* Hero KPI Cards: Runway, Smoothed Income, Liquid Balance, Avg Monthly Spending */}
+        {/* Runway first: the planner's headline measure for irregular income */}
+        <RunwayGauge
+          runwayMonths={irregularMetrics.runwayMonths}
+          isIndefinite={irregularMetrics.isIndefinite}
+          currentBalance={irregularMetrics.currentBalance}
+          avgMonthlySpending={irregularMetrics.avgMonthlySpending}
+          currencySymbol={currencySymbol}
+        />
+
+        {/* Smoothed income, average spending, savings rate, liquid balance */}
         <IrregularHeroCards metrics={irregularMetrics} currencySymbol={currencySymbol} />
 
         {/* Timeframe Selector & Report Content */}
@@ -551,7 +561,7 @@ export function PlanScreen({
           )}
 
           {timeframe === 'trailing12m' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="irr-two-col">
               <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                 <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   Trailing 12-Month Inflow
@@ -585,7 +595,7 @@ export function PlanScreen({
                   No yearly transaction records found.
                 </div>
               ) : (
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="irr-table">
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-subtle)', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '10px 14px' }}>Year</th>

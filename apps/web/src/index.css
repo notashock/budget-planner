@@ -9066,6 +9066,217 @@ main {
   .cat-share { display: none; }
 }
 
+/* ---- Irregular income view (replaces dead Tailwind utility classes) ---- */
+.irr-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.irr-unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.irr-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.irr-empty {
+  padding: 28px 16px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.irr-empty p { margin: 0; }
+
+.irr-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.irr-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.irr-table th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.irr-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.irr-table tr:last-child td { border-bottom: none; }
+.irr-table td:first-child,
+.irr-period { font-weight: 700; color: var(--text); }
+.irr-net { font-weight: 700; }
+
+/* Quarterly paired bars */
+.qbars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.qbar-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.qbar-label {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.qbar-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.qbar {
+  display: block;
+  height: 9px;
+  min-width: 3px;
+  border-radius: 0 4px 4px 0;
+}
+
+.qbar-income { background: var(--positive); }
+.qbar-spending { background: var(--indigo); }
+
+.qbar-net {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.qbar-net.net-in { color: var(--positive); }
+.qbar-net.net-out { color: var(--rose); }
+
+/* Runway gauge */
+.runway-card {
+  gap: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.runway-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.runway-status.band-healthy { background: var(--emerald-subtle); color: var(--positive); border-color: var(--emerald-border); }
+.runway-status.band-building { background: var(--amber-subtle); color: var(--amber); border-color: var(--amber-border); }
+.runway-status.band-low { background: var(--rose-subtle); color: var(--rose); border-color: var(--rose-border); }
+
+.runway-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.runway-value {
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.runway-unit {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.runway-gauge {
+  position: relative;
+  height: 12px;
+  margin-top: 6px;
+}
+
+.runway-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.runway-band.band-low { background: var(--rose-subtle); border-radius: var(--radius-pill) 0 0 var(--radius-pill); box-shadow: inset 0 0 0 1px var(--rose-border); }
+.runway-band.band-building { background: var(--amber-subtle); box-shadow: inset 0 0 0 1px var(--amber-border); }
+.runway-band.band-healthy { background: var(--emerald-subtle); border-radius: 0 var(--radius-pill) var(--radius-pill) 0; box-shadow: inset 0 0 0 1px var(--emerald-border); }
+
+.runway-marker {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.runway-scale {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.runway-scale span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.runway-scale span:first-child { transform: none; }
+.runway-scale span:last-child { transform: translateX(-100%); }
+
+@media (max-width: 899px) {
+  .irr-hero-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 599px) {
+  .irr-two-col { grid-template-columns: 1fr; }
+  .irr-hero-grid { gap: 8px; }
+}
+
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
 @media (max-width: 1023px) {
   .month-health-hero { order: 1; }

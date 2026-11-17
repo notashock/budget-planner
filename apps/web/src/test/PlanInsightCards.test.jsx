@@ -5,6 +5,8 @@ import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
 import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
+import { RunwayGauge } from '../components/RunwayGauge.jsx';
+import { IrregularHeroCards, QuarterlyBreakdownTable } from '../components/SummaryCards.jsx';
 
 describe('UpcomingOutflows', () => {
   const events = [
@@ -135,5 +137,54 @@ describe('TimelineList day grouping', () => {
     expect(headers[0]).toHaveTextContent('+₹10,000.00');
     expect(headers[1]).toHaveTextContent('1 entry');
     expect(headers[1]).toHaveTextContent('-₹450.00');
+  });
+});
+
+describe('Irregular income view', () => {
+  it('places runway in the 3–6 month band with the balance it covers', () => {
+    render(
+      <RunwayGauge runwayMonths={4.2} currentBalance={4200000} avgMonthlySpending={1000000} currencySymbol="₹" />
+    );
+    expect(screen.getByText('Emergency runway')).toBeInTheDocument();
+    expect(screen.getByText('4.2')).toBeInTheDocument();
+    expect(screen.getByText('3–6 months')).toBeInTheDocument();
+    expect(screen.getByText(/₹42,000.00 covers 4.2 months of average spending \(₹10,000.00\/mo\)/)).toBeInTheDocument();
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '4.2');
+  });
+
+  it('flags under three months and handles indefinite runway', () => {
+    const { rerender } = render(<RunwayGauge runwayMonths={1.5} currencySymbol="₹" />);
+    expect(screen.getByText('Below 3 months')).toBeInTheDocument();
+
+    rerender(<RunwayGauge isIndefinite runwayMonths={Infinity} currencySymbol="₹" />);
+    expect(screen.getByText('Indefinite')).toBeInTheDocument();
+    expect(screen.getByText('No spending recorded')).toBeInTheDocument();
+  });
+
+  it('shows a trailing-12-month savings rate among the hero tiles', () => {
+    render(
+      <IrregularHeroCards
+        currencySymbol="₹"
+        metrics={{ smoothedMonthlyIncome: 1500000, trailing12mIncome: 18000000, avgMonthlySpending: 900000, trailing12mSpending: 10800000, currentBalance: 5000000 }}
+      />
+    );
+    expect(screen.getByText('Savings rate')).toBeInTheDocument();
+    expect(screen.getByText('40%')).toBeInTheDocument();
+    expect(screen.getByText('+₹72,000.00 kept over 12 months')).toBeInTheDocument();
+  });
+
+  it('draws quarterly bars above the accessible table', () => {
+    const { container } = render(
+      <QuarterlyBreakdownTable
+        currencySymbol="₹"
+        quarters={[
+          { key: '2026-Q1', income: 600000, spending: 300000, net: 300000 },
+          { key: '2026-Q2', income: 100000, spending: 450000, net: -350000 }
+        ]}
+      />
+    );
+    expect(container.querySelectorAll('.qbar-row')).toHaveLength(2);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getAllByText('-₹3,500.00').length).toBeGreaterThanOrEqual(1);
   });
 });
