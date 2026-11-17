@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../engine/currency.dart';
-import '../engine/simulator.dart';
+import '../models/simulation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/transaction_detail_modal.dart';
