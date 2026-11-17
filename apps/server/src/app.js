@@ -9,6 +9,7 @@ import { config, isValidMongoUri } from './config.js';
 import { defenseFirewall } from './middleware/defense.js';
 import { responseEnvelope } from './middleware/envelope.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { csrfGuard } from './middleware/csrf.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -52,6 +53,9 @@ export function createApp(options = {}) {
 
   // Standardized Response Envelope Decorator
   app.use(responseEnvelope);
+
+  // Cookie-authenticated writes must carry X-Requested-With (CSRF guard)
+  app.use('/api', csrfGuard);
 
   // Configure Session Store
   const sessionTtlSeconds = (config.sessionMaxAgeDays || 14) * 24 * 60 * 60;

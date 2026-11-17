@@ -37,7 +37,9 @@ describe('PostgreSQL Server API & Defensive Architecture Suite', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('defensive core strictly intercepts and rejects malicious XSS payloads', async () => {
+  it('rejects markup in an email address through email validation', async () => {
+    // The regex "firewall" used to catch this; registration now validates the
+    // address itself, so markup can never be stored as an email.
     const res = await request(app)
       .post('/api/auth/register')
       .send({
@@ -46,9 +48,8 @@ describe('PostgreSQL Server API & Defensive Architecture Suite', () => {
       });
 
     expect(res.status).toBe(400);
-    expect(res.body.status).toBe('error');
-    expect(res.body.error.code).toBe('MALICIOUS_INPUT_DETECTED');
-    expect(res.body.error.message).toContain('cross-site scripting');
+    const message = res.body.error?.message || res.body.error;
+    expect(String(message)).toMatch(/valid email/i);
   });
 
   it('defensive core strictly blocks prototype pollution injection', async () => {

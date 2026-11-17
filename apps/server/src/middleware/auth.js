@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { verifyToken } from '../utils/jwt.js';
+import { readAuthCookie } from '../utils/authCookie.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,6 +29,22 @@ export function resolveAuthUser(req) {
     if (decoded && decoded.userId && isValidUuid(decoded.userId)) {
       req.userId = decoded.userId;
       req.user = decoded;
+      if (!req.session) {
+        req.session = {};
+      }
+      req.session.userId = decoded.userId;
+      return decoded;
+    }
+  }
+
+  // Web app: signed token in the httpOnly auth cookie
+  const cookieToken = readAuthCookie(req);
+  if (cookieToken) {
+    const decoded = verifyToken(cookieToken, config.jwtSecret);
+    if (decoded && decoded.userId && isValidUuid(decoded.userId)) {
+      req.userId = decoded.userId;
+      req.user = decoded;
+      req.authVia = 'cookie';
       if (!req.session) {
         req.session = {};
       }
