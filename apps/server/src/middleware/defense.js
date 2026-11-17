@@ -1,8 +1,8 @@
 import { MaliciousInputError } from '../utils/errors.js';
 
-const SCRIPT_PATTERN = /<\s*script\b[^>]*>|<\/\s*script\s*>|javascript\s*:|data\s*:\s*text\/html/i;
-const SQL_PROBE_PATTERN = /('|\b)(OR|AND)\s+('?1'?\s*=\s*'?1'|true)\b|UNION\s+SELECT|DROP\s+TABLE|INFORMATION_SCHEMA/i;
-const PATH_TRAVERSAL_PATTERN = /\.\.\/|\.\.\\/i;
+// Pattern-matching "firewall" rules (script tags, SQL keywords, "../") were removed:
+// they rejected ordinary notes such as "../receipts" or "split 1=1" while adding no
+// protection. SQL is parameterised (Drizzle) and React escapes all rendered text.
 const PROTOTYPE_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /**
@@ -16,21 +16,6 @@ function inspectAndSanitize(val, path = '') {
   if (typeof val === 'string') {
     // 1. Strip null bytes
     let cleaned = val.replace(/\0/g, '');
-
-    // 2. Reject malicious script injection
-    if (SCRIPT_PATTERN.test(cleaned)) {
-      throw new MaliciousInputError(`Potential cross-site scripting (XSS) detected in ${path || 'input'}`);
-    }
-
-    // 3. Reject active SQL injection probes
-    if (SQL_PROBE_PATTERN.test(cleaned)) {
-      throw new MaliciousInputError(`Potential SQL injection pattern detected in ${path || 'input'}`);
-    }
-
-    // 4. Reject directory traversal probes
-    if (PATH_TRAVERSAL_PATTERN.test(cleaned)) {
-      throw new MaliciousInputError(`Potential path traversal sequence detected in ${path || 'input'}`);
-    }
 
     return cleaned;
   }
