@@ -1,10 +1,17 @@
 # API v1 migration
 
-The web client (`apps/web/src/api.js`) now calls `/api/v1` for every resource
-that has a v1 route. The legacy routes stay mounted because the mobile app
-(`apps/mobile/lib/services/api_service.dart`) still uses them. Each hit on a
-legacy route logs one line, `[deprecated] METHOD /path (use /api/v1)`, and the
-response gets a `Deprecation: true` header (`apps/server/src/middleware/deprecation.js`).
+The web client (`apps/web/src/api.js`) and the mobile app
+(`apps/mobile/lib/services/api_service.dart`) call `/api/v1` for every resource
+that has a v1 route. The legacy routes stay mounted for installed mobile builds
+that predate the switch. Each hit on a legacy route logs one line,
+`[deprecated] METHOD /path (use /api/v1)`, and the response gets a
+`Deprecation: true` header (`apps/server/src/middleware/deprecation.js`).
+
+`apps/mobile/test/api_service_v1_test.dart` pins every mobile call to its method
+and v1 path. Moving the mobile app also fixed three calls that failed against
+the legacy routes: pay and cancel used POST where legacy only accepts PATCH, and
+"convert goal" called `/api/goals/:id/convert-to-transaction`, which never
+existed (it now calls `POST /api/v1/goals/:id/schedule`).
 
 ## How parity is kept
 
@@ -46,7 +53,7 @@ envelope. `request()` in `api.js` unwraps it.
 | `POST /api/goals/:id/{schedule,defer,reactivate}`, `DELETE /api/goals/:id` | same under `/api/v1/goals/:id` |
 | `/api/transfers` | `/api/v1/transfers` (`PUT` becomes `PATCH`; `DELETE` returns the transfer) |
 
-## Web calls not on v1 yet
+## Client calls not on v1 yet
 
 | Endpoint | Why |
 | --- | --- |
@@ -84,5 +91,5 @@ Because legacy and v1 now share one implementation, a few legacy behaviours chan
 
 ## Next step
 
-Move the mobile app to `/api/v1`, watch the deprecation log until legacy hits stop,
-then remove the legacy routers.
+Both clients are on `/api/v1`. Once the updated mobile build has rolled out and
+the deprecation log shows no more legacy hits, remove the legacy routers.
