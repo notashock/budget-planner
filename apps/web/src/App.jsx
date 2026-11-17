@@ -982,7 +982,7 @@ export default function App() {
         <div className="app-splash-loader-bar">
           <div className="app-splash-loader-progress" />
         </div>
-        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+        <span className="app-note">
           Initializing Budget Planner
         </span>
       </div>
@@ -995,7 +995,7 @@ export default function App() {
 
   if (showOnboarding) {
     return (
-      <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div className="app-shell app-row">
         <OnboardingModal
           currencySymbol={settings?.currencySymbol || '₹'}
           onCompleted={async () => {
@@ -1049,7 +1049,7 @@ export default function App() {
         verdict={activeTab === 'plan' ? planVerdict : null}
       />
 
-      <div className="app-container" style={{ position: 'relative', zIndex: 10 }}>
+      <div className="app-container app-box">
         {/* Continuous Tracking: Read-Only Period Review Banner */}
         {isReviewMode && (
           <div className="review-mode-banner">
@@ -1088,40 +1088,24 @@ export default function App() {
 
         {pendingSalaryTx && (
           <div
-            className="salary-scheduled-banner"
-            style={{
-              margin: '12px 0 0 0',
-              padding: '12px 14px',
-              maxWidth: '100%',
-              width: '100%',
-              boxSizing: 'border-box',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05))',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}
+            className="salary-scheduled-banner app-row-2"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
+            <div className="app-row-3">
               <BanknoteIcon size={20} style={{ flexShrink: 0, color: 'var(--positive)' }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="app-box-2">
+                <div className="app-text">
                   Salary Deposit Scheduled: {pendingSalaryTx.title} ({currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}{pendingSalaryTx.amount})
                 </div>
-                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
+                <div className="app-note-2">
                   Expected credit on {pendingSalaryTx.date}. Confirm deposit once received.
                 </div>
               </div>
             </div>
-            <div className="salary-scheduled-banner-actions" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <div className="salary-scheduled-banner-actions app-row-4">
               <button
                 type="button"
                 onClick={() => handleConfirmSalary(pendingSalaryTx)}
-                className="btn btn-primary"
-                style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px', background: 'var(--positive)', borderColor: 'var(--positive)' }}
+                className="btn btn-primary app-btn"
               >
                 Confirm Deposit
               </button>
@@ -1129,7 +1113,7 @@ export default function App() {
           </div>
         )}
 
-      <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+      <main className="app-box-3">
         <ErrorBoundary title="Screen rendering error">
           {activeTab === 'plan' && (
             (dataLoading && !currentMonth) ? (

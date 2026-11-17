@@ -1,26 +1,35 @@
-/* Load order matters: later files override earlier ones. */
-@import './tokens.css';
-@import './base.css';
-@import './layout.css';
-@import './screens/accounts.css';
-@import './components/controls.css';
-@import './components/bottom-nav.css';
-@import './components/cards.css';
-@import './components/timeline.css';
-@import './components/tx-card.css';
-@import './screens/items-goals.css';
-@import './components/modals.css';
-@import './components/chart.css';
-@import './responsive-mobile.css';
-@import './components/datepicker-misc.css';
-@import './screens/onboarding.css';
-@import './screens/transactions.css';
-@import './screens/statement-ledger.css';
-@import './screens/transactions-tabs.css';
-@import './screens/transactions-inset-list.css';
-@import './screens/transactions-header.css';
-@import './screens/transactions-filters.css';
-@import './components/timeline-rows.css';
-@import './screens/plan-timeline.css';
-@import './screens/plan-insights.css';
-@import './components/ui.css';
+/* Load order matters: later files override earlier ones.
+   All app styles sit in the "app" cascade layer. The files in moved/ hold what
+   used to be static inline style props; they stay unlayered so they outrank the
+   layer the same way inline styles did. */
+@import './tokens.css' layer(app);
+@import './base.css' layer(app);
+@import './layout.css' layer(app);
+@import './screens/accounts.css' layer(app);
+@import './components/controls.css' layer(app);
+@import './components/bottom-nav.css' layer(app);
+@import './components/cards.css' layer(app);
+@import './components/timeline.css' layer(app);
+@import './components/tx-card.css' layer(app);
+@import './screens/items-goals.css' layer(app);
+@import './components/modals.css' layer(app);
+@import './components/chart.css' layer(app);
+@import './responsive-mobile.css' layer(app);
+@import './components/datepicker-misc.css' layer(app);
+@import './screens/onboarding.css' layer(app);
+@import './screens/transactions.css' layer(app);
+@import './screens/statement-ledger.css' layer(app);
+@import './screens/transactions-tabs.css' layer(app);
+@import './screens/transactions-inset-list.css' layer(app);
+@import './screens/transactions-header.css' layer(app);
+@import './screens/transactions-filters.css' layer(app);
+@import './components/timeline-rows.css' layer(app);
+@import './screens/plan-timeline.css' layer(app);
+@import './screens/plan-insights.css' layer(app);
+@import './components/ui.css' layer(app);
+@import './moved/unified-entry-modal.css';
+@import './moved/accounts-screen.css';
+@import './moved/month-end-review.css';
+@import './moved/goals-screen.css';
+@import './moved/plan-screen.css';
+@import './moved/app-shell.css';

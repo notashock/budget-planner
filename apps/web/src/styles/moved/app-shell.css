@@ -1,0 +1,83 @@
+/* Styles moved out of App.jsx inline style props.
+   Unlayered, so they outrank the layered app styles exactly as inline styles did. */
+
+.app-note {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+.app-box {
+  position: relative;
+  z-index: 10;
+}
+
+.app-row-2 {
+  margin: 12px 0 0 0;
+  padding: 12px 14px;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app-row-3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.app-box-2 {
+  min-width: 0;
+}
+
+.app-text {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-note-2 {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.app-row-4 {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.app-btn {
+  font-size: var(--fs-xs);
+  padding: 6px 14px;
+  background: var(--positive);
+  border-color: var(--positive);
+}
+
+.app-box-3 {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}

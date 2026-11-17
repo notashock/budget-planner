@@ -87,7 +87,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('banks')}
           className={`apple-ring-pill banks ${activeSegment === 'banks' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: 'var(--cat-blue)' }} />
+          <span className="apple-ring-dot accounts-box" />
           <span className="tabular-nums">{formatCurrency(totalBankBalance, currencySymbol)}</span>
         </button>
 
@@ -98,7 +98,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('wallets')}
           className={`apple-ring-pill wallets ${activeSegment === 'wallets' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: 'var(--cat-amber)' }} />
+          <span className="apple-ring-dot accounts-box-2" />
           <span className="tabular-nums">{formatCurrency(totalWalletBalance, currencySymbol)}</span>
         </button>
 
@@ -109,7 +109,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('transfers')}
           className={`apple-ring-pill transfers ${activeSegment === 'transfers' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: 'var(--cat-green)' }} />
+          <span className="apple-ring-dot accounts-box-3" />
           <span className="tabular-nums">Net {currencySymbol}0</span>
         </button>
       </div>
@@ -447,27 +447,26 @@ export function AccountsScreen({
       {/* Header and Quick Stats */}
       <div className="accounts-header-minimal">
         <div>
-          <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-            Portfolio Liquidity
+          <div className="accounts-note">
+            Total across accounts
           </div>
           <div className="accounts-hero-total tabular-nums">
             {formatCurrency(totalPortfolioBalance, currencySymbol)}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="accounts-row">
           {isReviewMode ? (
-            <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
+            <span className="review-badge-tag accounts-row-2">
               <EyeIcon size={13} /> Month-end balances
             </span>
           ) : (
             <>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary accounts-btn"
                 onClick={() => handleOpenTransfer()}
                 aria-label="Transfer Funds"
-                style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <ArrowRightLeftIcon size={14} />
                 <span>Transfer Funds</span>
@@ -476,9 +475,8 @@ export function AccountsScreen({
               {activeSegment === 'banks' ? (
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="btn-primary accounts-btn"
                   onClick={handleOpenAddBank}
-                  style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <PlusIcon size={14} />
                   <span>Add Bank</span>
@@ -486,9 +484,8 @@ export function AccountsScreen({
               ) : activeSegment === 'wallets' ? (
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="btn-primary accounts-btn"
                   onClick={handleOpenAddWallet}
-                  style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <PlusIcon size={14} />
                   <span>Add Wallet</span>
@@ -501,50 +498,27 @@ export function AccountsScreen({
 
       {/* Legacy Migration Callout Banner */}
       {isMigrationEligible && (
-        <div
+        <div className="accounts-row-3"
           data-testid="migration-callout-banner"
-          style={{
-            marginTop: '16px',
-            padding: '14px 18px',
-            background: 'var(--surface-subtle)',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 'var(--radius)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: 'var(--radius)',
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
+          <div className="accounts-row-4">
+            <div className="accounts-row-5"
             >
               <BuildingLibraryIcon size={18} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
+              <div className="accounts-text">
                 Upgrade & Link Account
               </div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
+              <div className="accounts-note-2">
                 You have legacy balances and budget records ready to link into a designated primary bank account.
               </div>
             </div>
           </div>
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary accounts-btn-2"
             onClick={handleOpenAddBank}
-            style={{ padding: '7px 14px', fontSize: 'var(--fs-xs)' }}
           >
             Link Primary Account
           </button>
@@ -573,9 +547,8 @@ export function AccountsScreen({
                   <BuildingLibraryIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary accounts-btn-3"
                     onClick={handleOpenAddBank}
-                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Create Depository
                   </button>
@@ -605,37 +578,27 @@ export function AccountsScreen({
                               <BuildingLibraryIcon size={16} />
                             </div>
                             <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div className="accounts-row-6">
                                 <span className="bento-card-title">{bank.name}</span>
                                 {bank.isPrimary && (
-                                  <span style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  <span className="accounts-note-3">
                                     Primary
                                   </span>
                                 )}
                                 {isSalaryDepository && (
-                                  <span
+                                  <span className="accounts-note-4"
                                     data-testid="salary-depository-badge"
-                                    style={{
-                                      fontSize: 'var(--fs-2xs)',
-                                      padding: '1px 5px',
-                                      borderRadius: '3px',
-                                      background: 'var(--surface-subtle)',
-                                      border: '1px solid var(--border-strong)',
-                                      color: 'var(--text)',
-                                      fontWeight: 600,
-                                      textTransform: 'uppercase'
-                                    }}
                                   >
                                     Salary
                                   </span>
                                 )}
                                 {isReviewMode && (
-                                  <span className="review-badge-tag" style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px' }}>
+                                  <span className="review-badge-tag accounts-note-5">
                                     Closed Scorecard
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
+                              <div className="accounts-note-6">
                                 {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• •••• ${bank.accountNumberMasked.slice(-4)}` : ''}
                               </div>
                             </div>
@@ -646,7 +609,7 @@ export function AccountsScreen({
                         <div className="apple-card-hero-row">
                           <div>
                             {isReviewMode && (
-                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                              <div className="accounts-note-7">
                                 Closing Balance (Snapshotted)
                               </div>
                             )}
@@ -663,24 +626,24 @@ export function AccountsScreen({
 
                         {/* Snapshotted 2x2 Specs Grid in Review Mode */}
                         {snap && (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
+                          <div className="accounts-grid">
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
+                              <span className="accounts-note-8">Opening Balance</span>
+                              <span className="tabular-nums accounts-note-9">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--positive)' }}>
+                              <span className="accounts-note-8">Total Inflow</span>
+                              <span className="tabular-nums accounts-note-10">
                                 +{formatCurrency(snap.totalInflow, currencySymbol)}
                               </span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                              <span className="accounts-note-8">Total Outflow</span>
+                              <span className="tabular-nums accounts-note-9">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>
+                              <span className="accounts-note-8">Net Movement</span>
+                              <span className="tabular-nums accounts-note-11">
                                 {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
                               </span>
                             </div>
@@ -689,7 +652,7 @@ export function AccountsScreen({
 
                         {/* High-Contrast Breach Indicator if breached */}
                         {hasBreach && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
+                          <div className="accounts-row-7">
                             <AlertTriangleIcon size={13} />
                             <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
                           </div>
@@ -706,29 +669,26 @@ export function AccountsScreen({
                             <div className="apple-card-actions">
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
                                 title="Transfer Funds"
                                 aria-label="Transfer from Account"
-                                style={{ padding: '6px' }}
                               >
                                 <ArrowRightLeftIcon size={13} />
                               </button>
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => handleOpenEditBank(bank)}
                                 title="Edit Account"
-                                style={{ padding: '6px' }}
                               >
                                 <EditIcon size={13} />
                               </button>
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
                                 title="Archive Account"
-                                style={{ padding: '6px' }}
                               >
                                 <TrashIcon size={13} />
                               </button>
@@ -751,9 +711,8 @@ export function AccountsScreen({
                   <WalletIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary accounts-btn-3"
                     onClick={handleOpenAddWallet}
-                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Create Wallet
                   </button>
@@ -779,20 +738,20 @@ export function AccountsScreen({
                               <WalletIcon size={16} />
                             </div>
                             <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div className="accounts-row-6">
                                 <span className="bento-card-title">{wallet.name}</span>
                                 {wallet.isPrimary && (
-                                  <span style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  <span className="accounts-note-3">
                                     Primary
                                   </span>
                                 )}
                                 {isReviewMode && (
-                                  <span className="review-badge-tag" style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px' }}>
+                                  <span className="review-badge-tag accounts-note-5">
                                     Closed Scorecard
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                              <div className="accounts-note-12">
                                 {wallet.walletType} Wallet
                               </div>
                             </div>
@@ -803,7 +762,7 @@ export function AccountsScreen({
                         <div className="apple-card-hero-row">
                           <div>
                             {isReviewMode && (
-                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                              <div className="accounts-note-7">
                                 Closing Balance (Snapshotted)
                               </div>
                             )}
@@ -820,24 +779,24 @@ export function AccountsScreen({
 
                         {/* Snapshotted 2x2 Specs Grid in Review Mode */}
                         {snap && (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
+                          <div className="accounts-grid">
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
+                              <span className="accounts-note-8">Opening Balance</span>
+                              <span className="tabular-nums accounts-note-9">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--positive)' }}>
+                              <span className="accounts-note-8">Total Inflow</span>
+                              <span className="tabular-nums accounts-note-10">
                                 +{formatCurrency(snap.totalInflow, currencySymbol)}
                               </span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                              <span className="accounts-note-8">Total Outflow</span>
+                              <span className="tabular-nums accounts-note-9">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
-                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>
+                              <span className="accounts-note-8">Net Movement</span>
+                              <span className="tabular-nums accounts-note-11">
                                 {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
                               </span>
                             </div>
@@ -846,7 +805,7 @@ export function AccountsScreen({
 
                         {/* High-Contrast Breach Indicator if breached */}
                         {hasBreach && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
+                          <div className="accounts-row-7">
                             <AlertTriangleIcon size={13} />
                             <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
                           </div>
@@ -863,29 +822,26 @@ export function AccountsScreen({
                             <div className="apple-card-actions">
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
                                 title="Transfer Funds"
                                 aria-label="Transfer from Wallet"
-                                style={{ padding: '6px' }}
                               >
                                 <ArrowRightLeftIcon size={13} />
                               </button>
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => handleOpenEditWallet(wallet)}
                                 title="Edit Wallet"
-                                style={{ padding: '6px' }}
                               >
                                 <EditIcon size={13} />
                               </button>
                               <button
                                 type="button"
-                                className="btn-icon"
+                                className="btn-icon accounts-btn-4"
                                 onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
                                 title="Archive Wallet"
-                                style={{ padding: '6px' }}
                               >
                                 <TrashIcon size={13} />
                               </button>
@@ -908,9 +864,8 @@ export function AccountsScreen({
                   <ArrowRightLeftIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary accounts-btn-3"
                     onClick={() => handleOpenTransfer()}
-                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Transfer Funds
                   </button>
@@ -935,35 +890,34 @@ export function AccountsScreen({
 
                     return (
                       <div key={tr._id || tr.id} className="apple-inset-row">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-subtle)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div className="accounts-row-4">
+                          <div className="accounts-row-8">
                             <ArrowRightLeftIcon size={14} />
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: 'var(--fs-base)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div className="accounts-row-9">
                               <span>{sourceName}</span>
                               <ArrowRightIcon size={11} style={{ color: 'var(--text-secondary)' }} />
                               <span>{destName}</span>
                             </div>
-                            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <div className="accounts-note-13">
                               <span className="tabular-nums">{formatDisplayDate(tr.date, true)}</span>
                               {tr.note ? ` • ${tr.note}` : ''}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div className="tabular-nums" style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>
+                        <div className="accounts-row-4">
+                          <div className="tabular-nums accounts-text-2">
                             {formatCurrency(tr.amount, currencySymbol)}
                           </div>
                           <Chip tone="good">Settled</Chip>
                           {!isReviewMode && (
                             <button
                               type="button"
-                              className="btn-icon"
+                              className="btn-icon accounts-btn-5"
                               onClick={() => onDeleteTransfer?.(tr._id || tr.id)}
                               title="Delete Transfer"
-                              style={{ padding: '5px' }}
                             >
                               <TrashIcon size={13} />
                             </button>
@@ -989,14 +943,14 @@ export function AccountsScreen({
       >
         {({ requestClose }) => (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>{editingBank ? 'Edit Bank Account' : 'Add Bank Account'}</h3>
+            <div className="accounts-row-10">
+              <h3 className="accounts-heading">{editingBank ? 'Edit Bank Account' : 'Add Bank Account'}</h3>
               <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
                 <XIcon size={14} />
               </button>
             </div>
 
-            <form onSubmit={(e) => handleSaveBank(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form className="accounts-stack" onSubmit={(e) => handleSaveBank(e, requestClose)}>
               <div>
                 <label className="form-label" htmlFor="bank-name-input">Account Name *</label>
                 <input
@@ -1022,7 +976,7 @@ export function AccountsScreen({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="accounts-grid-2">
                 <div>
                   <label className="form-label" htmlFor="bank-type-select">Account Type</label>
                   <CustomSelect
@@ -1051,7 +1005,7 @@ export function AccountsScreen({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="accounts-grid-2">
                 <div>
                   <label className="form-label" htmlFor="bankOpeningBalance">
                     Opening Balance ({currencySymbol})
@@ -1081,19 +1035,19 @@ export function AccountsScreen({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <div className="accounts-row-11">
                 <input
                   type="checkbox"
                   id="bankIsPrimary"
                   checked={bankIsPrimary}
                   onChange={(e) => setBankIsPrimary(e.target.checked)}
                 />
-                <label htmlFor="bankIsPrimary" style={{ fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
+                <label className="accounts-label" htmlFor="bankIsPrimary">
                   Set as primary bank account (pre-selected in entries)
                 </label>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <div className="accounts-row-12">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
@@ -1116,14 +1070,14 @@ export function AccountsScreen({
       >
         {({ requestClose }) => (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>{editingWallet ? 'Edit Wallet' : 'Add Wallet'}</h3>
+            <div className="accounts-row-10">
+              <h3 className="accounts-heading">{editingWallet ? 'Edit Wallet' : 'Add Wallet'}</h3>
               <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
                 <XIcon size={14} />
               </button>
             </div>
 
-            <form onSubmit={(e) => handleSaveWallet(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form className="accounts-stack" onSubmit={(e) => handleSaveWallet(e, requestClose)}>
               <div>
                 <label className="form-label">Wallet Name *</label>
                 <input
@@ -1149,7 +1103,7 @@ export function AccountsScreen({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="accounts-grid-2">
                 <div>
                   <label className="form-label" htmlFor="walletOpeningBalance">Opening Balance ({currencySymbol})</label>
                   <input
@@ -1177,19 +1131,19 @@ export function AccountsScreen({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <div className="accounts-row-11">
                 <input
                   type="checkbox"
                   id="walletIsPrimary"
                   checked={walletIsPrimary}
                   onChange={(e) => setWalletIsPrimary(e.target.checked)}
                 />
-                <label htmlFor="walletIsPrimary" style={{ fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
+                <label className="accounts-label" htmlFor="walletIsPrimary">
                   Set as primary wallet (pre-selected in entries)
                 </label>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <div className="accounts-row-12">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
@@ -1212,10 +1166,10 @@ export function AccountsScreen({
       >
         {({ requestClose }) => (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="accounts-row-10">
+              <div className="accounts-row-13">
                 <ArrowRightLeftIcon size={18} />
-                <h3 style={{ margin: 0 }}>Paired Account Transfer</h3>
+                <h3 className="accounts-heading">Paired Account Transfer</h3>
               </div>
               <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
                 <XIcon size={14} />
@@ -1223,13 +1177,13 @@ export function AccountsScreen({
             </div>
 
             {transferError && (
-              <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-xs)', marginBottom: '12px', fontWeight: 600 }}>
+              <div className="accounts-note-14">
                 {transferError}
               </div>
             )}
 
-            <form onSubmit={(e) => handleSaveTransfer(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <form className="accounts-stack" onSubmit={(e) => handleSaveTransfer(e, requestClose)}>
+              <div className="accounts-grid-2">
                 <div>
                   <label className="form-label">Transfer Date *</label>
                   <input
@@ -1257,9 +1211,9 @@ export function AccountsScreen({
               </div>
 
               {/* Source Account Picker */}
-              <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-hover)' }}>
-                <label className="form-label" style={{ marginBottom: '6px' }}>Source Account (Outflow) *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+              <div className="accounts-box-4">
+                <label className="form-label accounts-label-2">Source Account (Outflow) *</label>
+                <div className="accounts-grid-3">
                   <select
                     className="input-field"
                     value={transferSourceType}
@@ -1300,9 +1254,9 @@ export function AccountsScreen({
               </div>
 
               {/* Destination Account Picker */}
-              <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-hover)' }}>
-                <label className="form-label" style={{ marginBottom: '6px' }}>Destination Account (Inflow) *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+              <div className="accounts-box-4">
+                <label className="form-label accounts-label-2">Destination Account (Inflow) *</label>
+                <div className="accounts-grid-3">
                   <select
                     className="input-field"
                     value={transferDestType}
@@ -1353,11 +1307,11 @@ export function AccountsScreen({
                 />
               </div>
 
-              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
+              <div className="accounts-note-6">
                 * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <div className="accounts-row-14">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
