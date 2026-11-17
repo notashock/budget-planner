@@ -1,44 +1,28 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/auth.js';
-import { PlanningPeriodService } from '../../domain/planningPeriodService.js';
-import { MonthLifecycle } from '../../domain/monthLifecycle.js';
+import { monthHandlers } from '../months.js';
+import { transactionHandlers } from '../transactions.js';
+import { goalHandlers } from '../goals.js';
 
+// Budget periods (months). Handlers are shared with the legacy /api/months routes.
 export const v1PeriodsRouter = express.Router();
 v1PeriodsRouter.use(requireAuth);
 
-// GET /api/v1/periods - Idempotent list of budget periods
-v1PeriodsRouter.get('/', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const periods = await PlanningPeriodService.listPeriods(userId);
-    return res.success(periods);
-  } catch (err) {
-    next(err);
-  }
-});
+v1PeriodsRouter.get('/', monthHandlers.list);
+v1PeriodsRouter.post('/', monthHandlers.create);
+v1PeriodsRouter.post('/rollover', monthHandlers.rollover);
 
-// GET /api/v1/periods/:year/:month - Idempotent period details and single-pass simulation
-v1PeriodsRouter.get('/:year/:month', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const month = Number(req.params.month);
-    const periodDetails = await PlanningPeriodService.getPeriodDetails(userId, year, month);
-    return res.success(periodDetails);
-  } catch (err) {
-    next(err);
-  }
-});
+v1PeriodsRouter.get('/:year/:month', monthHandlers.detail);
+v1PeriodsRouter.patch('/:year/:month', monthHandlers.update);
+v1PeriodsRouter.delete('/:year/:month', monthHandlers.remove);
+v1PeriodsRouter.post('/:year/:month/credit-salary', monthHandlers.creditSalary);
+v1PeriodsRouter.post('/:year/:month/rollover', monthHandlers.rollover);
+v1PeriodsRouter.post('/:year/:month/recommend-purchase-date', monthHandlers.recommendPurchaseDate);
 
-// POST /api/v1/periods/:year/:month/close - Explicit period closure
-v1PeriodsRouter.post('/:year/:month/close', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const month = Number(req.params.month);
-    const closed = await MonthLifecycle.closeMonth(userId, year, month, req.body);
-    return res.success(closed);
-  } catch (err) {
-    next(err);
-  }
-});
+v1PeriodsRouter.get('/:year/:month/transactions', transactionHandlers.listForMonth);
+v1PeriodsRouter.post('/:year/:month/transactions', transactionHandlers.createForMonth);
+v1PeriodsRouter.get('/:year/:month/month-end-review', transactionHandlers.monthEndReview);
+
+v1PeriodsRouter.get('/:year/:month/goals', goalHandlers.listForMonth);
+v1PeriodsRouter.post('/:year/:month/goals', goalHandlers.createForMonth);
+v1PeriodsRouter.post('/:year/:month/goals/recommend-date', goalHandlers.recommendDate);
