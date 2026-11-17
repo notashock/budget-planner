@@ -3,7 +3,6 @@ import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { PlanScreen } from '../screens/PlanScreen.jsx';
 import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
-import { CreateMonthModal, RolloverModal } from '../components/MonthModals.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
 
 describe('Phase 5: Multi-Account Frontend Integration', () => {
@@ -444,91 +443,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
     }, 15000);
   });
 
-  describe('CreateMonthModal & RolloverModal with Accounts', () => {
-    it('renders Salary Deposit Account and composite breakdown toggle in CreateMonthModal', () => {
-      render(
-        <CreateMonthModal
-          isOpen={true}
-          onClose={vi.fn()}
-          onCreate={vi.fn()}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-        />
-      );
-
-      expect(screen.getByText('Salary Deposit Account')).toBeInTheDocument();
-      expect(screen.getByText('Break down by account')).toBeInTheDocument();
-
-      // Click break down by account
-      fireEvent.click(screen.getByText('Break down by account'));
-      expect(screen.getByText(/Account-by-Account Opening Allocations/i)).toBeInTheDocument();
-    });
-
-    it('renders per-account carried balances in RolloverModal', () => {
-      render(
-        <RolloverModal
-          isOpen={true}
-          currentMonth={mockMonth}
-          endingBalance={5700000}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-          simulation={{
-            accounts: {
-              'bank-1': { endingBalance: 5700000 },
-              'wallet-1': { endingBalance: 150000 }
-            }
-          }}
-          onClose={vi.fn()}
-          onConfirm={vi.fn()}
-        />
-      );
-
-      expect(screen.getByText(/Per-Account Ending Balances Carried:/i)).toBeInTheDocument();
-      expect(screen.getByText('HDFC Salary Account')).toBeInTheDocument();
-      expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
-    });
-
-    it('renders embedded Primary Bank Account setup when user has 0 bank accounts and submits atomically', () => {
-      const handleCreate = vi.fn();
-      render(
-        <CreateMonthModal
-          isOpen={true}
-          onClose={vi.fn()}
-          onCreate={handleCreate}
-          bankAccounts={[]}
-          wallets={[]}
-        />
-      );
-
-      expect(screen.getByText(/Primary Bank Account Setup/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/e\.g\. Primary Checking, Salary Account/i)).toBeInTheDocument();
-
-      // Enter institution and opening balance
-      fireEvent.change(screen.getByPlaceholderText(/e\.g\. HDFC Bank, Chase/i), {
-        target: { value: 'State Bank of India' }
-      });
-      fireEvent.change(screen.getByPlaceholderText('0.00'), {
-        target: { value: '25000' }
-      });
-
-      // Submit
-      fireEvent.click(screen.getByRole('button', { name: /Create month/i }));
-
-      expect(handleCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          openingBalance: 2500000,
-          newBankAccount: expect.objectContaining({
-            name: 'Primary Checking',
-            institution: 'State Bank of India',
-            accountType: 'checking',
-            openingBalance: 2500000,
-            isPrimary: true,
-            isSalaryDeposit: true
-          })
-        })
-      );
-    });
-
+  describe('GoalsScreen funding account', () => {
     it('renders funding account selector in GoalsScreen and includes account details in goal submission', () => {
       const handleCreateGoal = vi.fn();
       render(

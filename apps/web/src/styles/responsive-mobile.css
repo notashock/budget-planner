@@ -134,19 +134,11 @@
   
 
   /* Compact Floor Banner */
-  .floor-banner {
-    padding: 8px 10px;
-    gap: 8px;
-  }
+  
 
-  .floor-banner-title {
-    font-size: var(--fs-xs);
-  }
+  
 
-  .floor-banner-desc {
-    font-size: var(--fs-2xs);
-    line-height: 1.35;
-  }
+  
 
   /* Compact Timeline List */
   .timeline-list {
@@ -233,19 +225,11 @@
   }
 
   /* Compact Items Grid on Mobile */
-  .items-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
+  
 
-  .item-bento-card {
-    padding: 10px 12px;
-    gap: 8px;
-  }
+  
 
-  .item-bento-amount {
-    font-size: var(--fs-lg);
-  }
+  
 
   /* Compact Goals Grid on Mobile */
   .goals-grid {

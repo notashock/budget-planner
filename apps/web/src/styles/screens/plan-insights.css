@@ -261,10 +261,6 @@
   overflow-wrap: anywhere;
 }
 
-
-
-
-
 /* Tablet: one row of four; phone and the laptop side panel: two by two */
 @media (min-width: 600px) and (max-width: 1023px) {
   .detailed-kpi-grid {

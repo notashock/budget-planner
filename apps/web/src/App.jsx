@@ -5,7 +5,6 @@ import { Header } from './components/Header.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
 import { TransactionsScreen } from './screens/TransactionsScreen.jsx';
-import { ItemsScreen } from './screens/ItemsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AccountsScreen } from './screens/AccountsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
@@ -1145,7 +1144,7 @@ export default function App() {
             )
           )}
 
-          {(activeTab === 'transactions' || activeTab === 'items') && (
+          {activeTab === 'transactions' && (
             <TransactionsScreen
               transactions={transactions}
               currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
