@@ -278,3 +278,46 @@ export function getHeadroom(balance = 0, minimum = 0) {
     status
   };
 }
+
+const RESERVING_GOAL_STATUSES = new Set(['active', 'logged', 'evaluating']);
+
+const goalFundingIds = (g) => [g?.fundingAccountId, g?.fundingBankAccountId, g?.fundingWalletId]
+  .filter(Boolean)
+  .map((v) => String(v._id || v.id || v));
+
+/**
+ * This month's share of each open goal: the money to set aside now so the
+ * goal is fully funded by its target date.
+ *
+ *   reserve = ceil(targetAmount / monthsRemaining)   (this month counts as 1)
+ *
+ * Only goals still being saved for reserve money:
+ * - 'active' / 'logged' / 'evaluating' with a target date this month or later
+ * - 'scheduled' goals are already planned transactions (inside committed bills),
+ *   so reserving for them would count the money twice
+ * - goals without a target date, and achieved / dropped / deferred goals, reserve 0
+ *
+ * @param {Array<object>} goals
+ * @param {{ year: number, month: number }} period
+ * @returns {{ total: number, items: Array<{ goal: object, reserve: number, monthsRemaining: number, fundingIds: string[] }> }}
+ */
+export function getGoalMonthlyReserve(goals = [], { year, month } = {}) {
+  const items = [];
+  if (!year || !month) return { total: 0, items };
+  const periodIndex = Number(year) * 12 + (Number(month) - 1);
+
+  (goals || []).forEach((g) => {
+    if (!g || !RESERVING_GOAL_STATUSES.has(String(g.status || 'logged').toLowerCase())) return;
+    const target = toInt(g.targetAmount);
+    if (target <= 0 || !g.targetDate) return;
+    const [ty, tm] = String(g.targetDate).split('-').map(Number);
+    if (!ty || !tm) return;
+    const targetIndex = ty * 12 + (tm - 1);
+    if (targetIndex < periodIndex) return; // target date already passed
+    const monthsRemaining = targetIndex - periodIndex + 1;
+    const reserve = Math.ceil(target / monthsRemaining);
+    items.push({ goal: g, reserve, monthsRemaining, fundingIds: goalFundingIds(g) });
+  });
+
+  return { total: items.reduce((s, i) => s + i.reserve, 0), items };
+}
