@@ -366,25 +366,6 @@ export async function ensureDatabaseInitialized() {
         console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
       }
 
-      // Data Engineering Check: If PostgreSQL database has 0 users and MongoDB URI is available, trigger migration
-      const targetMongoUri = config.mongoUri || process.env.MONGODB_URI;
-      if (targetMongoUri) {
-        try {
-          const countUsers = await pool.query('SELECT count(*)::int AS count FROM public.users;');
-          if (countUsers.rows[0]?.count === 0) {
-            console.log('[Data Engineer Auto-Migration] Target users table has 0 records and MONGODB_URI is configured. Launching initial data migration...');
-            const { migrateMongoToSupabase } = await import('../scripts/migrate_mongo_to_supabase.js');
-            await migrateMongoToSupabase({
-              databaseUrl: config.databaseUrl,
-              mongoUri: targetMongoUri
-            });
-            console.log('[Data Engineer Auto-Migration] Initial data migration completed.');
-          }
-        } catch (etlErr) {
-          console.warn('[Data Engineer Auto-Migration] Initial data migration notice:', etlErr.message);
-        }
-      }
-
       isInitialized = true;
     } catch (err) {
       console.warn('[DevOps Auto-Init] Database auto-initialization error:', err.message || err);

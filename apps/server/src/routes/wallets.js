@@ -19,7 +19,7 @@ function parseCurrencyInt(val) {
 // List all wallets
 walletsRouter.get('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const conditions = [
       eq(s.accounts.userId, userId),
       eq(s.accounts.type, 'wallet')
@@ -43,7 +43,7 @@ walletsRouter.get('/', async (req, res) => {
 // Create a new wallet
 walletsRouter.post('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const {
       name,
       walletType,
@@ -85,7 +85,7 @@ walletsRouter.post('/', async (req, res) => {
 // Update a wallet
 walletsRouter.put('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const walletId = req.params.id;
     if (!walletId || walletId === 'undefined' || walletId === 'null') {
       return res.status(400).json({ error: 'Invalid wallet ID' });
@@ -167,7 +167,7 @@ walletsRouter.put('/:id', async (req, res) => {
 // Soft-archive a wallet
 walletsRouter.delete('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const walletId = req.params.id;
 
     const wallet = await db.query.accounts.findFirst({

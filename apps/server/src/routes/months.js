@@ -8,7 +8,7 @@ monthsRouter.use(requireAuth);
 // List all months
 monthsRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const months = await MonthLifecycle.listMonths(userId);
     return res.success(months);
   } catch (err) {
@@ -19,7 +19,7 @@ monthsRouter.get('/', async (req, res, next) => {
 // Create month
 monthsRouter.post('/', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const fullMonth = await MonthLifecycle.createMonth(userId, req.body);
     return res.success(fullMonth, 201);
   } catch (err) {
@@ -30,7 +30,7 @@ monthsRouter.post('/', async (req, res, next) => {
 // Get single month with dual simulations
 monthsRouter.get('/:year/:month', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const snapshot = await MonthLifecycle.getMonthDetails(userId, year, monthNum);
@@ -43,7 +43,7 @@ monthsRouter.get('/:year/:month', async (req, res, next) => {
 // Update month settings / overrides
 monthsRouter.put('/:year/:month', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const updated = await MonthLifecycle.updateMonth(userId, year, monthNum, req.body);
@@ -56,7 +56,7 @@ monthsRouter.put('/:year/:month', async (req, res, next) => {
 // Dedicated 1-click salary credit endpoint
 monthsRouter.post('/:year/:month/credit-salary', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const result = await MonthLifecycle.creditSalary(userId, year, monthNum, req.body);
@@ -69,7 +69,7 @@ monthsRouter.post('/:year/:month/credit-salary', async (req, res, next) => {
 // Recommend purchase date
 monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const rawAmt = req.body.amount ?? req.body.purchaseAmount;
@@ -90,7 +90,7 @@ monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res, next
 // Month rollover handlers
 const handleRollover = async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const currentYear = Number(req.params.year || req.body.currentYear);
     const currentMonthNum = Number(req.params.month || req.body.currentMonthNum);
     const result = await MonthLifecycle.rolloverMonth(userId, currentYear, currentMonthNum, req.body);
@@ -106,7 +106,7 @@ monthsRouter.post('/rollover', handleRollover);
 // Delete month cascade
 monthsRouter.delete('/:year/:month', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const result = await MonthLifecycle.deleteMonth(userId, year, monthNum, req.query.force === 'true');

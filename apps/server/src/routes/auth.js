@@ -81,16 +81,6 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
       config.sessionMaxAgeDays
     );
 
-    if (req.session) {
-      req.session.userId = user.id;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-
     setAuthCookie(res, token);
     return res.status(201).json({
       user: { id: user.id, _id: user.id, email: user.email },
@@ -129,16 +119,6 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
       config.sessionMaxAgeDays
     );
 
-    if (req.session) {
-      req.session.userId = user.id;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-
     setAuthCookie(res, token);
     return res.json({
       user: { id: user.id, _id: user.id, email: user.email },
@@ -152,9 +132,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
 // Logout
 authRouter.post('/logout', (req, res) => {
-  if (req.session && typeof req.session.destroy === 'function') {
-    req.session.destroy(() => {});
-  }
+  // Also clear the cookie left by the old server-side session store
   res.clearCookie('connect.sid');
   clearAuthCookie(res);
   return res.json({ message: 'Logged out successfully' });

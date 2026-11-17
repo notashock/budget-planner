@@ -1,5 +1,4 @@
 import { createApp } from '../apps/server/src/app.js';
-import { connectDB } from '../apps/server/src/db.js';
 import { config } from '../apps/server/src/config.js';
 import { SalaryCycleJob } from '../apps/server/src/services/salaryCycleJob.js';
 import { ensureDatabaseInitialized } from '../apps/server/src/db/index.js';
@@ -42,25 +41,9 @@ async function ensureDatabase() {
     return;
   }
 
-  // MongoDB backward-compatibility fallback
-  if (!config.isMongoValid) {
-    if (!hasWarnedPlaceholder) {
-      console.warn('[Vercel Serverless Notice] Neither DATABASE_URL nor valid MONGODB_URI configured. Running in decoupled mode.');
-      hasWarnedPlaceholder = true;
-    }
-    return;
-  }
-
-  isDbConnecting = true;
-  try {
-    const conn = await connectDB(config.mongoUri);
-    if (conn) {
-      isDbConnected = true;
-    }
-  } catch (err) {
-    console.warn('[Vercel Serverless Notice] MongoDB connection deferred/unavailable:', err.message);
-  } finally {
-    isDbConnecting = false;
+  if (!hasWarnedPlaceholder) {
+    console.warn('[Vercel Serverless Notice] DATABASE_URL is not set. Requests that need the database will fail.');
+    hasWarnedPlaceholder = true;
   }
 }
 

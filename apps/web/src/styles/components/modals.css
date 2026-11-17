@@ -693,82 +693,6 @@
 }
 
 /* Create Month Modal Sheet & Mobile Bottom Sheet Layout */
-.create-month-modal-sheet {
-  max-width: 500px;
-  max-height: calc(100dvh - 20px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-@media (min-width: 768px) {
-  .create-month-modal-sheet {
-    max-height: min(88vh, 720px);
-    border-radius: var(--radius-lg);
-  }
-}
-
-.create-month-modal-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px 12px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.create-month-modal-body {
-  padding: 16px 20px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  flex: 1;
-}
-
-.create-month-actions-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-@media (max-width: 767px) {
-  .create-month-actions-footer {
-    display: grid;
-    grid-template-columns: 1fr 1.6fr;
-  }
-  .create-month-actions-footer button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-.create-month-bank-card {
-  padding: 14px;
-  background: var(--surface-subtle);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
 /* Modal Segmented Tab Track & Sliding Indicator */
 .modal-header-row {
@@ -905,12 +829,3 @@
 }
 
 /* Assumptions Badge for Formula Items */
-.assumptions-box {
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
-  line-height: 1.4;
-}

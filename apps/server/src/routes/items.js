@@ -13,7 +13,7 @@ itemsRouter.use(requireAuth);
 // Create item in specific month
 itemsRouter.post('/months/:year/:month/items', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     let { type, name, priority, amount, day, dayOfMonth, date } = req.body;
@@ -126,7 +126,7 @@ itemsRouter.post('/months/:year/:month/items', async (req, res) => {
 // Update item (routes polymorphically through BudgetExecution.updateTransaction)
 itemsRouter.put('/items/:id', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const itemId = req.params.id;
 
     const result = await BudgetExecution.updateTransaction(userId, itemId, req.body);
@@ -139,7 +139,7 @@ itemsRouter.put('/items/:id', async (req, res, next) => {
 // Delete item
 itemsRouter.delete('/items/:id', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const itemId = req.params.id;
 
     const result = await BudgetExecution.deleteTransaction(userId, itemId);

@@ -90,32 +90,12 @@ export function resolveCorsOrigin(raw, { isProduction = false } = {}) {
   return list.length === 1 ? list[0] : list;
 }
 
-export function isValidMongoUri(uri, isProduction = false) {
-  if (!uri || typeof uri !== 'string') return false;
-  const trimmed = uri.trim();
-  if (!trimmed.startsWith('mongodb://') && !trimmed.startsWith('mongodb+srv://')) {
-    return false;
-  }
-  // Detect template placeholders like <cluster>, <password>, <username>
-  if (trimmed.includes('<') || trimmed.includes('>')) {
-    return false;
-  }
-  if (isProduction && (trimmed.includes('127.0.0.1') || trimmed.includes('localhost'))) {
-    return false;
-  }
-  return true;
-}
-
 const isProd = process.env.NODE_ENV === 'production';
 const resolvedSecret = resolveSecret(process.env, { isProduction: isProd });
-const rawMongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/budget_planner';
-const isMongoValid = isValidMongoUri(rawMongoUri, isProd);
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
   databaseUrl: process.env.DATABASE_URL || (isProd ? '' : 'postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner'),
-  mongoUri: rawMongoUri,
-  isMongoValid,
   jwtSecret: resolvedSecret,
   sessionSecret: resolvedSecret,
   sessionMaxAgeDays: Number(process.env.SESSION_MAX_AGE_DAYS) || 14,

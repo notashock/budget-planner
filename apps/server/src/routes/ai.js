@@ -24,7 +24,7 @@ aiRouter.use(aiLimiter);
 // Middleware: ensure AI assistant is enabled in user settings
 async function requireAiEnabled(req, res, next) {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const setting = await db.query.settings.findFirst({
       where: eq(s.settings.userId, userId)
     });

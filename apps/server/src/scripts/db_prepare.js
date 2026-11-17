@@ -130,34 +130,6 @@ async function runPrepare() {
     await migrate(drizzleDb, { migrationsFolder });
     console.log('  ✔ Drizzle migration history applied successfully.');
 
-    // Step 1.5: Optional MongoDB Data Migration Hook
-    const checkUsers = await client.query('SELECT count(*)::int AS count FROM public."users";');
-    const isTargetEmpty = checkUsers.rows[0].count === 0;
-    const shouldImportMongo = args.includes('--import-mongo') || (isTargetEmpty && Boolean(config.mongoUri));
-
-    if (shouldImportMongo) {
-      console.log('\nStep 1.5: Checking for legacy MongoDB data migration...');
-      try {
-        const { migrateMongoToSupabase } = await import('./migrate_mongo_to_supabase.js');
-        const dumpDirArg = args.find((a) => a.startsWith('--dump-dir=') || a.startsWith('--json-dir='))?.split('=')[1];
-        const mongoUriArg = args.find((a) => a.startsWith('--mongo-uri='))?.split('=')[1];
-
-        const res = await migrateMongoToSupabase({
-          databaseUrl: targetDbUrl,
-          mongoUri: mongoUriArg || config.mongoUri,
-          dumpDir: dumpDirArg
-        });
-
-        if (res && res.skipped) {
-          console.log(`  [Notice] MongoDB migration skipped (${res.reason}).`);
-        } else if (res && res.success) {
-          console.log('  ✔ MongoDB legacy data migrated successfully into PostgreSQL.');
-        }
-      } catch (mongoMigrationErr) {
-        console.warn(`  [Notice] MongoDB auto-migration notice: ${mongoMigrationErr.message}`);
-      }
-    }
-
     // 2. Synchronize Schemas & Add Columns
     console.log('\nStep 2: Synchronizing transfers schema and cross-references...');
     await syncTransferSchema();

@@ -31,7 +31,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
   it('1. Mandatory account creation with openingBalanceDate and cash/bank types', async () => {
     // Attempting to query accounts initially returns 0 accounts
     const initialRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(initialRes.status).toBe(200);
@@ -73,7 +73,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
     // Verify both accounts are returned in /api/accounts/all
     const allAccountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(allAccountsRes.status).toBe(200);
@@ -82,7 +82,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
   it('2. Provisions salary template, rolling 2 periods, and planned salary transactions', async () => {
     const accountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     const primaryBank = accountsRes.body.data.find((a) => a.isPrimary);
@@ -150,7 +150,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
   it('3. Versions salary template on change and preserves past transactions', async () => {
     const accountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
     const primaryBank = accountsRes.body.data.find((a) => a.isPrimary);
 

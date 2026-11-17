@@ -49,9 +49,7 @@ export function errorHandler(err, req, res, next) {
     code = 'PAYLOAD_TOO_LARGE';
     message = 'Request body exceeds the maximum permitted size (100KB)';
   } else if (
-    err.name === 'MongoServerSelectionError' ||
-    err.name === 'MongoNetworkError' ||
-    (err.name === 'MongooseError' && err.message?.includes('buffering timed out'))
+    ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', '57P01', '57P03', '53300'].includes(err.code)
   ) {
     statusCode = 503;
     code = 'DATABASE_UNAVAILABLE';
