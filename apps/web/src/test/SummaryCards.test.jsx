@@ -1,37 +1,99 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { SafeVelocityCard, DetailedKpiGrid } from '../components/SummaryCards.jsx';
+import { DetailedKpiGrid } from '../components/SummaryCards.jsx';
+import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 
 describe('SummaryCards components', () => {
-  describe('SafeVelocityCard', () => {
-    it('renders safe velocity hero metric and days remaining', () => {
+  describe('MonthHealthHero', () => {
+    const baseVelocity = {
+      safeVelocityPerDay: 45000,
+      paceStatus: 'stable',
+      daysLeft: 12,
+      committedUpcomingItems: 500000,
+      burnRatePerDay: 30000,
+      freeSurplus: 540000
+    };
+
+    it('renders the daily safe-to-spend figure, days left and an On track verdict', () => {
       render(
-        <SafeVelocityCard
-          safeVelocity={{
-            safeVelocityPerDay: 45000,
-            paceStatus: 'ON TRACK',
-            daysLeft: 12,
-            committedUpcomingItems: 500000,
-            burnRatePerDay: 30000
-          }}
+        <MonthHealthHero
+          safeVelocity={baseVelocity}
+          todayBalance={2040000}
+          endingBalance={1800000}
+          lowestBalance={1600000}
+          lowestDate="2026-11-28"
+          safetyFloor={1000000}
           currencySymbol="₹"
         />
       );
 
-      expect(screen.getByText('Safe Velocity')).toBeInTheDocument();
-      expect(screen.getByText('ON TRACK')).toBeInTheDocument();
-      expect(screen.getByText('12 days left')).toBeInTheDocument();
+      expect(screen.getByText('Safe to spend')).toBeInTheDocument();
       expect(screen.getByText('₹450.00')).toBeInTheDocument();
-      expect(screen.getByText(/Committed:/i)).toBeInTheDocument();
+      expect(screen.getByText('12 days left')).toBeInTheDocument();
+      expect(screen.getByText('On track')).toBeInTheDocument();
+      expect(screen.getByText(/of upcoming bills and your/i)).toBeInTheDocument();
+    });
+
+    it("shows where today's balance goes with legend amounts that add up", () => {
+      render(
+        <MonthHealthHero
+          safeVelocity={baseVelocity}
+          todayBalance={2040000}
+          lowestBalance={1600000}
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+
+      expect(screen.getByText("Where today's balance goes")).toBeInTheDocument();
+      // 20,400 = 5,000 bills + 10,000 floor + 5,400 free
+      expect(screen.getByText('Upcoming bills')).toBeInTheDocument();
+      expect(screen.getByText('₹5,000.00')).toBeInTheDocument();
+      expect(screen.getByText('Safety floor')).toBeInTheDocument();
+      expect(screen.getByText('Free to spend')).toBeInTheDocument();
+      expect(screen.getByText('₹5,400.00')).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: /Today's balance split/i })).toBeInTheDocument();
+    });
+
+    it('flags a projected floor breach with a Below floor verdict and a shortfall part', () => {
+      render(
+        <MonthHealthHero
+          safeVelocity={{ ...baseVelocity, safeVelocityPerDay: 0, freeSurplus: 0 }}
+          todayBalance={1200000}
+          lowestBalance={600000}
+          lowestDate="2026-11-25"
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+
+      expect(screen.getByText('Below floor')).toBeInTheDocument();
+      expect(screen.getByText(/under your safety floor/i)).toBeInTheDocument();
+      expect(screen.getByText('Shortfall')).toBeInTheDocument();
+    });
+
+    it('calls a month tight when the low point is within 15% of the floor', () => {
+      render(
+        <MonthHealthHero
+          safeVelocity={baseVelocity}
+          todayBalance={2040000}
+          lowestBalance={1100000}
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+
+      expect(screen.getByText('Tight month')).toBeInTheDocument();
     });
   });
 
   describe('DetailedKpiGrid', () => {
-    it('renders income, expenses, today balance, and lowest balance', () => {
+    it('renders income, expenses with paid/planned split, net with savings rate, and lowest balance headroom', () => {
       const mockEvents = [
-        { day: 5, amount: -150000 },
-        { day: 10, amount: -250000 }
+        { day: 5, amount: -150000, isActual: true },
+        { day: 10, amount: -250000 },
+        { day: 12, amount: -90000, itemType: 'transfer' }
       ];
 
       render(
@@ -39,8 +101,6 @@ describe('SummaryCards components', () => {
           incomeAmount={6000000}
           incomeCreditDay={1}
           events={mockEvents}
-          endingBalance={4500000}
-          todayBalance={4800000}
           lowestBalance={4200000}
           lowestDate="2026-10-10"
           safetyFloor={1000000}
@@ -52,24 +112,31 @@ describe('SummaryCards components', () => {
       expect(screen.getByText('₹60,000.00')).toBeInTheDocument();
       expect(screen.getByText('Total expenses')).toBeInTheDocument();
       expect(screen.getByText('₹4,000.00')).toBeInTheDocument();
-      expect(screen.getByText('Today\'s balance')).toBeInTheDocument();
-      expect(screen.getByText('₹48,000.00')).toBeInTheDocument();
+      expect(screen.getByText(/₹1,500.00 paid · ₹2,500.00 planned/)).toBeInTheDocument();
+      expect(screen.getByText('Net this month')).toBeInTheDocument();
+      expect(screen.getByText('+₹56,000.00')).toBeInTheDocument();
+      expect(screen.getByText('93% of income saved')).toBeInTheDocument();
       expect(screen.getByText('Lowest balance')).toBeInTheDocument();
       expect(screen.getByText('₹42,000.00')).toBeInTheDocument();
-      expect(screen.queryByText('▲ BREACH')).not.toBeInTheDocument();
+      expect(screen.getByText(/₹32,000.00 above floor/)).toBeInTheDocument();
+      expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
     });
 
-    it('renders breach badge when lowest balance is lower than safety floor', () => {
+    it('renders a below-floor badge and a negative net when spending exceeds income', () => {
       render(
         <DetailedKpiGrid
           incomeAmount={30000}
+          totalExpenses={45000}
           lowestBalance={500}
           safetyFloor={1000}
           currencySymbol="₹"
         />
       );
 
-      expect(screen.getByText('▲ BREACH')).toBeInTheDocument();
+      expect(screen.getByText('▲ Below floor')).toBeInTheDocument();
+      expect(screen.getByText(/₹5.00 under floor/)).toBeInTheDocument();
+      expect(screen.getByText('-₹150.00')).toBeInTheDocument();
+      expect(screen.getByText('Spending 50% more than income')).toBeInTheDocument();
     });
 
     it('renders credited badge and date subtext when salary is credited', () => {

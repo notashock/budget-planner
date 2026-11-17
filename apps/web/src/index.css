@@ -7172,46 +7172,112 @@ main {
   flex-shrink: 0;
 }
 
-/* Embedded Sort Selector */
-.apple-sort-trigger-wrapper {
+/* Sort menu (styled listbox inside the search capsule) */
+.sort-menu {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
   flex-shrink: 0;
 }
 
-.apple-sort-select {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-}
-
-.apple-sort-display {
+.sort-menu-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 500;
+  gap: 5px;
+  height: 26px;
+  min-height: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
   color: var(--text-secondary);
-  padding: 3px 6px;
-  border-radius: 6px;
-  transition: color 0.15s ease;
-  user-select: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.apple-sort-trigger-wrapper:hover .apple-sort-display {
+.sort-menu-trigger:hover,
+.sort-menu-trigger.is-open {
+  background: var(--surface-hover);
   color: var(--text);
 }
 
-.apple-sort-chevron {
+.sort-menu-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.sort-menu-chevron {
   color: var(--text-muted);
-  margin-left: 1px;
+  transition: transform 0.15s ease;
+}
+
+.sort-menu-trigger.is-open .sort-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.sort-menu-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 60;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: sortMenuIn 0.14s var(--ease-spring);
+}
+
+@keyframes sortMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sort-menu-list { animation: none; }
+}
+
+.sort-menu-heading {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sort-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-menu-option.is-active {
+  background: var(--surface-subtle);
+}
+
+.sort-menu-option.is-selected {
+  font-weight: 600;
+}
+
+.sort-menu-check {
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--text);
 }
 
 /* Desktop-only New Entry Pill */
@@ -8350,5 +8416,1205 @@ main {
     width: 28px;
     height: 28px;
     padding: 0;
+  }
+}
+
+/* =========================================================================
+   PLAN PAGE — FINANCIAL INSIGHTS
+   Month Health hero, cash allocation bar, KPI strip and insight cards.
+   Built only on existing tokens; colour never carries meaning alone
+   (every state also has an icon/label, every bar part a legend entry).
+   ========================================================================= */
+
+/* ---- Month Health hero ---- */
+.month-health-hero {
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.mh-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mh-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.mh-verdict.verdict-good {
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  border-color: var(--emerald-border);
+}
+
+.mh-verdict.verdict-tight {
+  background: var(--amber-subtle);
+  color: var(--amber);
+  border-color: var(--amber-border);
+}
+
+.mh-verdict.verdict-critical {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border-color: var(--rose-border);
+}
+
+.mh-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mh-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mh-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Hero figure: proportional digits at display size (tabular only in columns) */
+.mh-value {
+  font-size: clamp(32px, 4.2vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.mh-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mh-explain {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.mh-verdict-line {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.mh-verdict-line strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mh-verdict-line.verdict-critical {
+  background: var(--rose-subtle);
+  border-color: var(--rose-border);
+}
+
+.mh-verdict-line.verdict-critical strong {
+  color: var(--rose);
+}
+
+/* ---- Cash allocation: thin segmented bar + legend ---- */
+.alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alloc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alloc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.alloc-total {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alloc-bar {
+  display: flex;
+  gap: 2px; /* surface gap separates parts — no strokes */
+  height: 8px;
+  width: 100%;
+}
+
+.alloc-seg {
+  min-width: 3px;
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.alloc-committed { background: var(--indigo); }
+.alloc-free { background: var(--positive); }
+.alloc-shortfall { background: var(--rose); }
+
+/* Floor reserve is a neutral "held back" amount: grey + 45° hatch as the
+   secondary encoding (it sits next to green, which some CVD types confuse) */
+.alloc-floor {
+  background-color: var(--border-strong);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--text-muted) 0 1.5px,
+    transparent 1.5px 4px
+  );
+}
+
+.alloc-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.alloc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+}
+
+.alloc-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.alloc-legend-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alloc-legend-value {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---- KPI strip additions ---- */
+/* Symmetric KPI cards: identical skeleton in every card (one-line header,
+   value on a shared baseline, footer with optional status chip + subtext)
+   and equal row heights at every breakpoint. */
+.detailed-kpi-grid {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+}
+
+.detailed-kpi-grid .kpi-card {
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 112px;
+}
+
+.detailed-kpi-grid .kpi-card-header {
+  flex-wrap: nowrap;
+  min-height: 22px;
+}
+
+.detailed-kpi-grid .kpi-title-with-icon {
+  min-width: 0;
+}
+
+.detailed-kpi-grid .summary-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.detailed-kpi-grid .summary-value {
+  font-size: clamp(17px, 1.6vw + 8px, 21px);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kpi-footer .kpi-subtext {
+  line-height: 1.35;
+}
+
+.kpi-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.kpi-chip-good {
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  border-color: var(--emerald-border);
+}
+
+.kpi-chip-bad {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border-color: var(--rose-border);
+}
+
+/* Tablet: one row of four; phone and the laptop side panel: two by two */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .detailed-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+.text-net-positive {
+  color: var(--positive) !important;
+}
+
+.kpi-card-negative {
+  border-color: var(--rose-border) !important;
+}
+
+/* ---- Screen-reader-only text ---- */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Chart legend (keys drawn in the same shapes the chart uses) ---- */
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.chart-key {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.chart-key.key-actual {
+  width: 14px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.chart-key.key-projected {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed var(--text-secondary);
+}
+
+.chart-key.key-income {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid var(--positive);
+}
+
+.chart-key.key-bill {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--indigo);
+  box-sizing: border-box;
+}
+
+.chart-key.key-floor {
+  width: 14px;
+  height: 8px;
+  border-top: 1.5px dashed var(--rose);
+  background: var(--rose-subtle);
+}
+
+/* ---- Insight cards row ---- */
+.plan-insights-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.plan-insight-card {
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.pic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pic-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pic-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pic-sub {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pic-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pic-note.status-over { color: var(--amber); }
+
+.pic-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.pic-status.status-on,
+.pic-status.status-under {
+  background: var(--emerald-subtle);
+  border-color: var(--emerald-border);
+  color: var(--positive);
+}
+
+.pic-status.status-over {
+  background: var(--amber-subtle);
+  border-color: var(--amber-border);
+  color: var(--amber);
+}
+
+/* ---- Allowance pace meter ---- */
+.pace-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pace-spent {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pace-of {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* Track is a lighter step of the fill's own hue so state reads along the whole bar */
+.pace-meter {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--indigo-subtle);
+  margin: 4px 0;
+}
+
+.pace-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--indigo);
+  min-width: 4px;
+}
+
+.pace-meter.status-over {
+  background: var(--amber-subtle);
+}
+
+.pace-meter.status-over .pace-fill {
+  background: var(--amber);
+}
+
+/* "Expected by today" marker with a surface ring so it reads over the fill */
+.pace-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.pace-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.pace-scale strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---- Upcoming payments ---- */
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  min-width: 0;
+}
+
+.upcoming-row + .upcoming-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.upcoming-row.is-overdue {
+  background: var(--rose-subtle);
+}
+
+.upcoming-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.upcoming-row.is-overdue .upcoming-icon { color: var(--rose); }
+.upcoming-row.is-today .upcoming-icon { color: var(--amber); }
+
+.upcoming-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.upcoming-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upcoming-when {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.upcoming-row.is-overdue .upcoming-when { color: var(--rose); font-weight: 600; }
+.upcoming-row.is-today .upcoming-when { color: var(--amber); font-weight: 600; }
+
+.upcoming-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.upcoming-pay {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.upcoming-pay:hover,
+.upcoming-pay:focus-visible {
+  color: var(--positive);
+  border-color: var(--emerald-border);
+  background: var(--emerald-subtle);
+}
+
+.upcoming-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+@media (max-width: 1023px) {
+  .plan-insights-row { display: contents; }
+}
+
+/* ---- Spending by category ---- */
+.cat-legend {
+  list-style: none;
+  margin: -2px 0 0;
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.cat-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cat-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.cat-paid { background: var(--indigo); }
+.cat-planned { background: color-mix(in srgb, var(--indigo) 38%, var(--surface)); }
+
+.cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cat-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 96px) minmax(0, 1fr) auto 34px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.cat-name {
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-track {
+  display: flex;
+  gap: 2px; /* surface gap between paid and planned */
+  height: 10px;
+  min-width: 0;
+}
+
+.cat-bar {
+  height: 100%;
+  min-width: 3px;
+}
+
+/* square at the baseline, 4px rounded at the data end */
+.cat-bar:first-child { border-radius: 0; }
+.cat-bar:last-child { border-radius: 0 4px 4px 0; }
+
+.cat-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cat-share {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ---- Statement-style day headers in the timeline ---- */
+.apple-tx-group .timeline-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 18px;
+  background: var(--surface-subtle);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.apple-tx-group .timeline-day-header:first-child {
+  border-top: none;
+}
+
+.tdh-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tdh-today {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.tdh-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tdh-count {
+  color: var(--text-muted);
+}
+
+.tdh-net {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.tdh-net.net-in { color: var(--positive); }
+.tdh-net.net-out { color: var(--text); }
+
+/* The header now carries the date, so rows drop their repeated date badge */
+.apple-tx-group.timeline-grouped .tx-card-center,
+.apple-tx-group.timeline-grouped .tx-date-inline {
+  display: none !important;
+}
+
+/* A row directly above a day header shouldn't draw its hairline into it */
+.apple-tx-group .apple-tx-row.tx-card:has(+ .timeline-day-header)::after,
+.apple-tx-group .apple-tx-row.tx-card:has(+ .timeline-today-divider)::after {
+  display: none;
+}
+
+/* ---- Account pill headroom bar ---- */
+/* overflow:hidden (to clip the bar to the pill's radius) makes a flex item's
+   min-width 0, which let pills in the scroll row get squashed to "ount".
+   Pills must keep their content width and scroll instead. */
+.account-filter-track > .account-filter-pill {
+  flex-shrink: 0;
+}
+
+.account-filter-pill.has-headroom {
+  position: relative;
+  overflow: hidden;
+}
+
+.pill-headroom {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--positive);
+  opacity: 0.85;
+}
+
+.pill-headroom.headroom-warning { background: var(--amber); }
+.pill-headroom.headroom-breached { background: var(--rose); width: 100% !important; }
+
+@media (max-width: 599px) {
+  .apple-tx-group .timeline-day-header { padding: 7px 14px; }
+  .cat-row { grid-template-columns: minmax(56px, 80px) minmax(0, 1fr) auto; }
+  .cat-share { display: none; }
+}
+
+/* ---- Irregular income view (replaces dead Tailwind utility classes) ---- */
+.irr-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.irr-unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.irr-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.irr-empty {
+  padding: 28px 16px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.irr-empty p { margin: 0; }
+
+.irr-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.irr-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.irr-table th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.irr-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.irr-table tr:last-child td { border-bottom: none; }
+.irr-table td:first-child,
+.irr-period { font-weight: 700; color: var(--text); }
+.irr-net { font-weight: 700; }
+
+/* Quarterly paired bars */
+.qbars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.qbar-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.qbar-label {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.qbar-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.qbar {
+  display: block;
+  height: 9px;
+  min-width: 3px;
+  border-radius: 0 4px 4px 0;
+}
+
+.qbar-income { background: var(--positive); }
+.qbar-spending { background: var(--indigo); }
+
+.qbar-net {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.qbar-net.net-in { color: var(--positive); }
+.qbar-net.net-out { color: var(--rose); }
+
+/* Runway gauge */
+.runway-card {
+  gap: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.runway-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.runway-status.band-healthy { background: var(--emerald-subtle); color: var(--positive); border-color: var(--emerald-border); }
+.runway-status.band-building { background: var(--amber-subtle); color: var(--amber); border-color: var(--amber-border); }
+.runway-status.band-low { background: var(--rose-subtle); color: var(--rose); border-color: var(--rose-border); }
+
+.runway-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.runway-value {
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.runway-unit {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.runway-gauge {
+  position: relative;
+  height: 12px;
+  margin-top: 6px;
+}
+
+.runway-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.runway-band.band-low { background: var(--rose-subtle); border-radius: var(--radius-pill) 0 0 var(--radius-pill); box-shadow: inset 0 0 0 1px var(--rose-border); }
+.runway-band.band-building { background: var(--amber-subtle); box-shadow: inset 0 0 0 1px var(--amber-border); }
+.runway-band.band-healthy { background: var(--emerald-subtle); border-radius: 0 var(--radius-pill) var(--radius-pill) 0; box-shadow: inset 0 0 0 1px var(--emerald-border); }
+
+.runway-marker {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.runway-scale {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.runway-scale span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.runway-scale span:first-child { transform: none; }
+.runway-scale span:last-child { transform: translateX(-100%); }
+
+@media (max-width: 899px) {
+  .irr-hero-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 599px) {
+  .irr-two-col { grid-template-columns: 1fr; }
+  .irr-hero-grid { gap: 8px; }
+}
+
+/* ---- Responsive balance chart ---- */
+/* Laptop/desktop: the chart fills whatever height the card gets beside the
+   insights column; the SVG is absolutely placed so its own size never feeds
+   back into the layout. Below 1024px the SVG sizes itself from the width. */
+@media (min-width: 1024px) {
+  .dashboard-chart-panel .chart-container {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 280px;
+  }
+
+  .dashboard-chart-panel .chart-svg.chart-svg-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* ---- Day insights under the chart ---- */
+.day-insight {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.di-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.di-date {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.di-phase {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.di-phase.phase-today { background: var(--text); color: var(--bg); border-color: var(--text); }
+.di-phase.phase-projected { border-style: dashed; }
+
+.di-hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.di-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.di-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  min-width: 0;
+}
+
+.di-stat dt {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.di-stat dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.di-up { color: var(--positive); }
+.di-down { color: var(--rose); }
+
+.di-flags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.di-flag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.di-flag.flag-pay { background: var(--emerald-subtle); border-color: var(--emerald-border); color: var(--positive); }
+.di-flag.flag-low,
+.di-flag.flag-pace { background: var(--amber-subtle); border-color: var(--amber-border); color: var(--amber); }
+.di-flag.flag-breach { background: var(--rose-subtle); border-color: var(--rose-border); color: var(--rose); }
+.di-flag.flag-big { background: var(--indigo-subtle); border-color: var(--indigo-border); color: var(--indigo); }
+
+.di-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.di-event {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.di-event-name {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.di-event-amt {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.di-more,
+.di-quiet {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 599px) {
+  .di-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .di-hint { margin-left: 0; width: 100%; }
+}
+
+/* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
+@media (max-width: 1023px) {
+  .month-health-hero { order: 1; }
+  .detailed-kpi-grid { order: 2; }
+  .plan-upcoming-card { order: 3; }
+  .dashboard-chart-panel { order: 4; }
+  .plan-pace-card { order: 5; }
+  .plan-category-card { order: 6; }
+  .dashboard-bottom-timeline { order: 7; }
+}
+
+@media (max-width: 599px) {
+  .month-health-hero {
+    padding: 14px;
+  }
+
+  .alloc-legend {
+    grid-template-columns: 1fr;
   }
 }

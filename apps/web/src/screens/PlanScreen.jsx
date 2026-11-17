@@ -1,13 +1,17 @@
 import React, { useState, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { formatCurrency, calculateIrregularMetrics } from '@budget/engine';
+import { formatCurrency, calculateIrregularMetrics, getHeadroom } from '@budget/engine';
 import {
-  SafeVelocityCard,
   DetailedKpiGrid,
   IrregularHeroCards,
   QuarterlyBreakdownTable
 } from '../components/SummaryCards.jsx';
+import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
+import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
+import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
+import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
+import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
@@ -353,13 +357,51 @@ export function PlanScreen({
     ? (activeAccountSummary?.safeVelocity?.rate ?? safeToSpendPerDay)
     : (simulation?.safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay);
 
-  const activeAllowanceLeft = isFilteringAccount
-    ? (activeAccountSummary?.safeVelocity?.allowanceLeft ?? allowanceLeft)
-    : (simulation?.safeVelocity?.freeSurplus ?? allowanceLeft);
+
+  // Single source for the figures shared by the hero and the KPI strip
+  const activeTodayBalance = isFilteringAccount
+    ? (activeAccountSummary?.todayBalance ?? todayBalance)
+    : (simulation?.todayBalance ?? unifiedTodayBalance);
+  const activeEndingBalance = isFilteringAccount
+    ? (activeAccountSummary?.endingBalance ?? endingBalance)
+    : unifiedEndingBalance;
+  const activeLowestBalance = isFilteringAccount
+    ? (activeAccountSummary?.lowestBalance !== undefined ? activeAccountSummary.lowestBalance : activeLowestPt.balance)
+    : (simulation?.lowestBalance !== undefined ? simulation.lowestBalance : activeLowestPt.balance);
+  const activeLowestDate = isFilteringAccount
+    ? (activeAccountSummary?.lowestDate || activeLowestPt.date)
+    : (simulation?.lowestDate || activeLowestPt.date);
+
+  // "Today" for the upcoming-payments card: the real date in the current month,
+  // the month's first day when planning ahead, and nothing for past months.
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const realTodayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const monthStartStr = month ? `${month.year}-${pad2(month.month)}-01` : null;
+  const upcomingTodayStr = isReviewMode || !month
+    ? null
+    : isCurrentCalendarMonth
+      ? realTodayStr
+      : (monthStartStr && monthStartStr > realTodayStr ? monthStartStr : null);
+
+  const handlePayUpcoming = (evt) => {
+    const targetId = evt.transactionId || evt.itemId || evt._id || evt.id;
+    if (!targetId) return;
+    const rawAcc = evt.bankAccountId || evt.walletId || evt.accountId || (selectedAccount?.id || selectedAccount?._id);
+    const resolvedAccountId = rawAcc ? (rawAcc.id || rawAcc._id || rawAcc) : null;
+    if (onPayTransaction) {
+      onPayTransaction(targetId, {
+        amount: Math.abs(evt.amount || 0),
+        date: realTodayStr,
+        accountId: resolvedAccountId ? String(resolvedAccountId) : undefined
+      });
+    } else if (onTogglePaid) {
+      onTogglePaid(targetId, true);
+    }
+  };
 
   useGSAP(() => {
     if (!containerRef.current) return;
-    const cards = containerRef.current.querySelectorAll('.summary-card, .dashboard-insights-panel, .dashboard-chart-panel');
+    const cards = containerRef.current.querySelectorAll('.summary-card, .plan-insight-card, .dashboard-chart-panel');
     if (cards.length > 0) {
       gsap.fromTo(
         cards,
@@ -461,7 +503,16 @@ export function PlanScreen({
           )}
         </div>
 
-        {/* Hero KPI Cards: Runway, Smoothed Income, Liquid Balance, Avg Monthly Spending */}
+        {/* Runway first: the planner's headline measure for irregular income */}
+        <RunwayGauge
+          runwayMonths={irregularMetrics.runwayMonths}
+          isIndefinite={irregularMetrics.isIndefinite}
+          currentBalance={irregularMetrics.currentBalance}
+          avgMonthlySpending={irregularMetrics.avgMonthlySpending}
+          currencySymbol={currencySymbol}
+        />
+
+        {/* Smoothed income, average spending, savings rate, liquid balance */}
         <IrregularHeroCards metrics={irregularMetrics} currencySymbol={currencySymbol} />
 
         {/* Timeframe Selector & Report Content */}
@@ -510,7 +561,7 @@ export function PlanScreen({
           )}
 
           {timeframe === 'trailing12m' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="irr-two-col">
               <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                 <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   Trailing 12-Month Inflow
@@ -544,7 +595,7 @@ export function PlanScreen({
                   No yearly transaction records found.
                 </div>
               ) : (
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="irr-table">
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-subtle)', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '10px 14px' }}>Year</th>
@@ -659,13 +710,18 @@ export function PlanScreen({
                 const accSim = simulation?.accounts?.[accId];
                 const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
                 const hasBreach = accSim?.floorBreached;
+                const minBal = Number(b.minimumBalance) || 0;
+                const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
 
                 return (
                   <button
                     key={accId}
                     type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''} ${headroom ? 'has-headroom' : ''}`}
                     onClick={() => setSelectedAccountId(accId)}
+                    title={headroom
+                      ? `${formatCurrency(Math.abs(headroom.amount), month.currencySymbol)} ${headroom.amount < 0 ? 'below' : 'above'} its ${formatCurrency(minBal, month.currencySymbol)} minimum`
+                      : undefined}
                   >
                     <BuildingLibraryIcon size={12} />
                     <span>{b.name}</span>
@@ -673,6 +729,13 @@ export function PlanScreen({
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {headroom && (
+                      <span
+                        className={`pill-headroom headroom-${headroom.status}`}
+                        style={{ width: `${Math.max(6, headroom.ratio * 100)}%` }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -683,13 +746,18 @@ export function PlanScreen({
                 const accSim = simulation?.accounts?.[accId];
                 const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
                 const hasBreach = accSim?.floorBreached;
+                const minBal = Number(w.minimumBalance) || 0;
+                const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
 
                 return (
                   <button
                     key={accId}
                     type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''} ${headroom ? 'has-headroom' : ''}`}
                     onClick={() => setSelectedAccountId(accId)}
+                    title={headroom
+                      ? `${formatCurrency(Math.abs(headroom.amount), month.currencySymbol)} ${headroom.amount < 0 ? 'below' : 'above'} its ${formatCurrency(minBal, month.currencySymbol)} minimum`
+                      : undefined}
                   >
                     <WalletIcon size={12} />
                     <span>{w.name}</span>
@@ -697,6 +765,13 @@ export function PlanScreen({
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {headroom && (
+                      <span
+                        className={`pill-headroom headroom-${headroom.status}`}
+                        style={{ width: `${Math.max(6, headroom.ratio * 100)}%` }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -761,12 +836,16 @@ export function PlanScreen({
       <div className="dashboard-top-grid">
         {/* COMPONENT 1: TOP-LEFT INSIGHTS */}
         <div className="dashboard-insights-panel">
-          {/* Safe Velocity Card */}
-          <SafeVelocityCard
+          {/* Month Health hero: daily safe-to-spend, verdict and where today's balance goes */}
+          <MonthHealthHero
             safeVelocity={activeSafeVelocity}
             daysLeft={daysLeft}
             safeToSpendPerDay={activeSafeToSpend}
-            allowanceLeft={activeAllowanceLeft}
+            todayBalance={activeTodayBalance}
+            endingBalance={activeEndingBalance}
+            lowestBalance={activeLowestBalance}
+            lowestDate={activeLowestDate}
+            safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
           />
 
@@ -776,10 +855,8 @@ export function PlanScreen({
             incomeCreditDay={month.incomeCreditDay}
             events={activeEvents}
             totalExpenses={isFilteringAccount ? activeAccountSummary?.totalExpenses : simulation?.totalExpenses}
-            endingBalance={isFilteringAccount ? (activeAccountSummary?.endingBalance ?? endingBalance) : unifiedEndingBalance}
-            todayBalance={isFilteringAccount ? (activeAccountSummary?.todayBalance ?? todayBalance) : (simulation?.todayBalance ?? unifiedTodayBalance)}
-            lowestBalance={isFilteringAccount ? (activeAccountSummary?.lowestBalance !== undefined ? activeAccountSummary.lowestBalance : activeLowestPt.balance) : (simulation?.lowestBalance !== undefined ? simulation.lowestBalance : activeLowestPt.balance)}
-            lowestDate={isFilteringAccount ? (activeAccountSummary?.lowestDate || activeLowestPt.date) : (simulation?.lowestDate || activeLowestPt.date)}
+            lowestBalance={activeLowestBalance}
+            lowestDate={activeLowestDate}
             safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
             isSalaryCredited={isSalaryAccount
@@ -811,9 +888,35 @@ export function PlanScreen({
               wallets={wallets}
               selectedAccountId={selectedAccountId}
               selectedAccount={selectedAccount}
+              safeDailyRate={activeSafeToSpend}
             />
           </ErrorBoundary>
         </div>
+      </div>
+
+      {/* Planner insights: what's due next and how the allowance is pacing */}
+      <div className="plan-insights-row">
+        <ErrorBoundary title="Upcoming payments unavailable">
+          <UpcomingOutflows
+            events={activeEvents}
+            todayStr={upcomingTodayStr}
+            currencySymbol={month.currencySymbol}
+            isReviewMode={isReviewMode}
+            onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
+          />
+        </ErrorBoundary>
+        <ErrorBoundary title="Allowance pace unavailable">
+          <AllowancePaceMeter
+            unplannedAllowance={activeSim?.unplannedAllowance ?? 0}
+            totalUnplannedSpent={activeSim?.totalUnplannedSpent ?? 0}
+            daysElapsed={activeSim?.daysElapsed ?? simulation?.daysElapsed ?? 1}
+            daysInMonth={activeSim?.daysInMonth ?? simulation?.daysInMonth ?? (activeDailyBalances.length || 30)}
+            currencySymbol={month.currencySymbol}
+          />
+        </ErrorBoundary>
+        <ErrorBoundary title="Category breakdown unavailable">
+          <CategoryBreakdown events={activeEvents} currencySymbol={month.currencySymbol} />
+        </ErrorBoundary>
       </div>
 
       {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}

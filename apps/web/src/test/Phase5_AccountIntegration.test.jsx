@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { PlanScreen } from '../screens/PlanScreen.jsx';
 import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 import { CreateMonthModal, RolloverModal } from '../components/MonthModals.jsx';
@@ -179,7 +179,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(screen.getByText('₹61,000.00')).toBeInTheDocument();
+      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000.00')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
