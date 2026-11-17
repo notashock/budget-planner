@@ -1,108 +1,63 @@
 import express from 'express';
-import { eq, and } from 'drizzle-orm';
-import { db } from '../../db/index.js';
-import * as s from '../../db/schema.js';
 import { requireAuth } from '../../middleware/auth.js';
-import { LedgerService } from '../../domain/ledgerService.js';
-import { serialize } from '../../utils/serializer.js';
+import { AccountService } from '../../domain/accountService.js';
+import { TransferService } from '../../domain/transferService.js';
+import { migrationStatusHandler, migrateHandler } from '../bankAccounts.js';
 
 export const v1AccountsRouter = express.Router();
 v1AccountsRouter.use(requireAuth);
 
-// GET /api/v1/accounts - List all active accounts with materialized balances
+const ACCOUNT_TYPES = ['bank', 'wallet', 'cash'];
+
+// GET /api/v1/accounts?type=bank|wallet|cash&includeArchived=true
+// Without `type` this lists every account (legacy /api/bank-accounts/all).
 v1AccountsRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.userId;
+    const type = ACCOUNT_TYPES.includes(req.query.type) ? req.query.type : null;
     const includeArchived = req.query.includeArchived === 'true';
-    const accountList = await LedgerService.getAccountsWithBalances(userId, includeArchived);
-    return res.success(accountList);
+    return res.success(await AccountService.listAccounts(req.userId, { type, includeArchived }));
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/v1/accounts - Create a new account (bank, wallet, cash)
+// Legacy single-account migration (same handlers as /api/bank-accounts)
+v1AccountsRouter.get('/migration-status', migrationStatusHandler);
+v1AccountsRouter.post('/migrate', migrateHandler);
+
+// POST /api/v1/accounts - Create a bank, wallet or cash account (`type`, default bank)
 v1AccountsRouter.post('/', async (req, res, next) => {
   try {
-    const userId = req.userId;
-    const {
-      name,
-      type = 'bank',
-      subtype = 'checking',
-      institution = '',
-      accountNumberMasked = '',
-      openingBalance = 0,
-      minimumBalance = 0,
-      isPrimary = false,
-      color = '#09090b'
-    } = req.body;
-
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'Account name is required' });
-    }
-
-    const numOpening = Math.round(Number(openingBalance) || 0);
-    const numMin = Math.round(Number(minimumBalance) || 0);
-
-    const [account] = await db.insert(s.accounts).values({
-      userId,
-      name: name.trim(),
-      type: ['bank', 'wallet', 'cash'].includes(type) ? type : 'bank',
-      subtype: String(subtype || 'checking').trim(),
-      institution: String(institution || '').trim(),
-      accountNumberMasked: String(accountNumberMasked || '').trim(),
-      openingBalance: numOpening,
-      currentBalance: numOpening,
-      minimumBalance: numMin,
-      isPrimary: Boolean(isPrimary),
-      color: String(color || '#09090b').trim()
-    }).returning();
-
-    return res.success(serialize(account), 201);
+    const nameLabel = req.body?.type === 'wallet' ? 'Wallet' : 'Account';
+    const account = await AccountService.createAccount(req.userId, req.body, { defaultType: 'bank', nameLabel });
+    return res.success(account, 201);
   } catch (err) {
     next(err);
   }
 });
 
-// PATCH /api/v1/accounts/:id - Update account details
-v1AccountsRouter.patch('/:id', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const { id } = req.params;
-    const { name, institution, minimumBalance, isPrimary, isArchived, color } = req.body;
-
-    const existing = await db.query.accounts.findFirst({
-      where: and(eq(s.accounts.id, id), eq(s.accounts.userId, userId))
-    });
-    if (!existing) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
-
-    const updates = { updatedAt: new Date() };
-    if (name !== undefined) updates.name = String(name).trim();
-    if (institution !== undefined) updates.institution = String(institution).trim();
-    if (minimumBalance !== undefined) updates.minimumBalance = Math.round(Number(minimumBalance) || 0);
-    if (isPrimary !== undefined) updates.isPrimary = Boolean(isPrimary);
-    if (isArchived !== undefined) updates.isArchived = Boolean(isArchived);
-    if (color !== undefined) updates.color = String(color).trim();
-
-    const [updated] = await db.update(s.accounts)
-      .set(updates)
-      .where(eq(s.accounts.id, id))
-      .returning();
-
-    return res.success(serialize(updated));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/accounts/transfers - Inter-account transfer with atomic balance movement
+// POST /api/v1/accounts/transfers - Inter-account transfer; returns { transfer, transaction }
 v1AccountsRouter.post('/transfers', async (req, res, next) => {
   try {
-    const userId = req.userId;
-    const result = await LedgerService.recordTransfer(userId, req.body);
-    return res.success(result, 201);
+    return res.success(await TransferService.createTransfer(req.userId, req.body), 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/v1/accounts/:id - Update any account the user owns
+v1AccountsRouter.patch('/:id', async (req, res, next) => {
+  try {
+    return res.success(await AccountService.updateAccount(req.userId, req.params.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/v1/accounts/:id - Soft-archive; returns the archived account
+v1AccountsRouter.delete('/:id', async (req, res, next) => {
+  try {
+    return res.success(await AccountService.archiveAccount(req.userId, req.params.id));
   } catch (err) {
     next(err);
   }

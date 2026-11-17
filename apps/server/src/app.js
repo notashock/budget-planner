@@ -8,6 +8,7 @@ import { defenseFirewall } from './middleware/defense.js';
 import { responseEnvelope } from './middleware/envelope.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { csrfGuard } from './middleware/csrf.js';
+import { legacyDeprecationNotice } from './middleware/deprecation.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -22,6 +23,9 @@ import { salaryTemplatesRouter } from './routes/salaryTemplates.js';
 import { v1AccountsRouter } from './routes/v1/accounts.js';
 import { v1TransactionsRouter } from './routes/v1/transactions.js';
 import { v1PeriodsRouter } from './routes/v1/periods.js';
+import { v1TransfersRouter } from './routes/v1/transfers.js';
+import { v1GoalsRouter } from './routes/v1/goals.js';
+import { v1ReportsRouter } from './routes/v1/reports.js';
 import { ensureDatabaseInitialized, isDatabaseInitialized } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -85,8 +89,17 @@ export function createApp(options = {}) {
   app.use('/api/v1/accounts', v1AccountsRouter);
   app.use('/api/v1/transactions', v1TransactionsRouter);
   app.use('/api/v1/periods', v1PeriodsRouter);
+  app.use('/api/v1/transfers', v1TransfersRouter);
+  app.use('/api/v1/goals', v1GoalsRouter);
+  app.use('/api/v1/reports', v1ReportsRouter);
 
-  // Mount API legacy compatibility routers
+  // Legacy routes that have a v1 equivalent log a one-line deprecation notice.
+  // Test runs stay quiet unless a test passes its own logger.
+  const deprecationLog = options.deprecationLog
+    ?? (process.env.NODE_ENV === 'test' ? () => {} : undefined);
+  app.use(legacyDeprecationNotice({ log: deprecationLog }));
+
+  // Mount API legacy compatibility routers (the mobile app still uses these)
   app.use('/api/auth', authRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/months', monthsRouter);

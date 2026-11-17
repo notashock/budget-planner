@@ -4,143 +4,57 @@ import { BudgetExecution } from '../domain/budgetExecution.js';
 import { GeminiAssistantAdapter } from '../ai/geminiAdapter.js';
 import { config } from '../config.js';
 import { ValidationError } from '../utils/errors.js';
+import { route, yearMonth } from './routeHelpers.js';
 
 export const transactionsRouter = express.Router();
 transactionsRouter.use(requireAuth);
 
-// GET /api/transactions (Global / Period-Free Transactions List)
-transactionsRouter.get('/transactions', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const transactions = await BudgetExecution.listAllTransactions(userId, req.query);
-    return res.success(transactions);
-  } catch (err) {
-    next(err);
-  }
-});
+/**
+ * Transaction handlers, mounted here under /api and under /api/v1
+ * (/transactions, /periods/:year/:month/transactions, /reports), so both
+ * surfaces run the same code.
+ */
+export const transactionHandlers = {
+  // Global / period-free list and create
+  list: route(async (req, res) => res.success(await BudgetExecution.listAllTransactions(req.userId, req.query))),
+  create: route(async (req, res) => res.success(await BudgetExecution.recordGlobalTransaction(req.userId, req.body), 201)),
 
-// POST /api/transactions (Global / Period-Free Transaction Creation)
-transactionsRouter.post('/transactions', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const transaction = await BudgetExecution.recordGlobalTransaction(userId, req.body);
-    return res.success(transaction, 201);
-  } catch (err) {
-    next(err);
-  }
-});
+  listForMonth: route(async (req, res) => res.success(await BudgetExecution.listTransactions(req.userId, ...yearMonth(req), req.query))),
+  createForMonth: route(async (req, res) => res.success(await BudgetExecution.recordTransaction(req.userId, ...yearMonth(req), req.body), 201)),
 
-// GET /api/reports/irregular (Irregular income analytics: trailing 12M, smoothed income, runway, quarters, years)
-transactionsRouter.get('/reports/irregular', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const reports = await BudgetExecution.getIrregularReports(userId, req.query);
-    return res.success(reports);
-  } catch (err) {
-    next(err);
-  }
-});
+  // One-tap mark as paid with actual confirmation
+  pay: route(async (req, res) => res.success(await BudgetExecution.markTransactionPaid(req.userId, req.params.id, req.body))),
+  // Cancel a planned transaction (with goal prompt action)
+  cancel: route(async (req, res) => res.success(await BudgetExecution.cancelTransaction(req.userId, req.params.id, req.body))),
+  update: route(async (req, res) => res.success(await BudgetExecution.updateTransaction(req.userId, req.params.id, req.body))),
+  remove: route(async (req, res) => res.success(await BudgetExecution.deleteTransaction(req.userId, req.params.id))),
 
-// GET /api/months/:year/:month/transactions
-transactionsRouter.get('/months/:year/:month/transactions', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const transactions = await BudgetExecution.listTransactions(userId, year, monthNum, req.query);
-    return res.success(transactions);
-  } catch (err) {
-    next(err);
-  }
-});
+  monthEndReview: route(async (req, res) => res.success(
+    await BudgetExecution.getMonthEndReview(req.userId, ...yearMonth(req), { accountId: req.query.accountId })
+  )),
 
-// POST /api/months/:year/:month/transactions
-transactionsRouter.post('/months/:year/:month/transactions', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const transaction = await BudgetExecution.recordTransaction(userId, year, monthNum, req.body);
-    return res.success(transaction, 201);
-  } catch (err) {
-    next(err);
-  }
-});
+  // Irregular income analytics: trailing 12M, smoothed income, runway, quarters, years
+  irregularReports: route(async (req, res) => res.success(await BudgetExecution.getIrregularReports(req.userId, req.query))),
 
-// PATCH /api/transactions/:id/pay (One-tap Mark as Paid with actual confirmation)
-transactionsRouter.patch('/transactions/:id/pay', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const txId = req.params.id;
-    const result = await BudgetExecution.markTransactionPaid(userId, txId, req.body);
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// PATCH /api/transactions/:id/cancel (Cancel planned transaction with goal prompt action)
-transactionsRouter.patch('/transactions/:id/cancel', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const txId = req.params.id;
-    const result = await BudgetExecution.cancelTransaction(userId, txId, req.body);
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// PUT /api/transactions/:id
-transactionsRouter.put('/transactions/:id', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const txId = req.params.id;
-    const result = await BudgetExecution.updateTransaction(userId, txId, req.body);
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// DELETE /api/transactions/:id
-transactionsRouter.delete('/transactions/:id', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const txId = req.params.id;
-    const result = await BudgetExecution.deleteTransaction(userId, txId);
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/months/:year/:month/month-end-review
-transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const review = await BudgetExecution.getMonthEndReview(userId, year, monthNum, {
-      accountId: req.query.accountId
-    });
-    return res.success(review);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/transactions/classify (Gemini AI transaction note classification)
-transactionsRouter.post('/transactions/classify', async (req, res, next) => {
-  try {
+  // Gemini AI transaction note classification
+  classify: route(async (req, res) => {
     const { note } = req.body;
     if (!note || typeof note !== 'string') {
       throw new ValidationError('Transaction note string is required');
     }
     const adapter = new GeminiAssistantAdapter(config.geminiApiKey);
-    const category = await adapter.classifyExpenseNote(note);
-    return res.success({ category });
-  } catch (err) {
-    next(err);
-  }
-});
+    return res.success({ category: await adapter.classifyExpenseNote(note) });
+  })
+};
+
+transactionsRouter.get('/transactions', transactionHandlers.list);
+transactionsRouter.post('/transactions', transactionHandlers.create);
+transactionsRouter.post('/transactions/classify', transactionHandlers.classify);
+transactionsRouter.get('/reports/irregular', transactionHandlers.irregularReports);
+transactionsRouter.get('/months/:year/:month/transactions', transactionHandlers.listForMonth);
+transactionsRouter.post('/months/:year/:month/transactions', transactionHandlers.createForMonth);
+transactionsRouter.get('/months/:year/:month/month-end-review', transactionHandlers.monthEndReview);
+transactionsRouter.patch('/transactions/:id/pay', transactionHandlers.pay);
+transactionsRouter.patch('/transactions/:id/cancel', transactionHandlers.cancel);
+transactionsRouter.put('/transactions/:id', transactionHandlers.update);
+transactionsRouter.delete('/transactions/:id', transactionHandlers.remove);
