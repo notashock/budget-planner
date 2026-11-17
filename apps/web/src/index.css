@@ -8701,6 +8701,12 @@ main {
   border-color: var(--emerald-border);
 }
 
+.kpi-chip-warn {
+  background: var(--amber-subtle);
+  color: var(--amber);
+  border-color: var(--amber-border);
+}
+
 .kpi-chip-bad {
   background: var(--rose-subtle);
   color: var(--rose);

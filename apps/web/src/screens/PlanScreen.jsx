@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { formatCurrency, calculateIrregularMetrics, getHeadroom } from '@budget/engine';
+import { formatCurrency, calculateIrregularMetrics, getHeadroom, summarizeLowPoints } from '@budget/engine';
 import {
   DetailedKpiGrid,
   IrregularHeroCards,
@@ -284,37 +284,29 @@ export function PlanScreen({
     (!designatedSalaryBankId && (selectedBank?.isPrimary || bankAccounts.length === 1))
   );
 
-  const activeLowestPt = useMemo(() => {
-    if (!isFilteringAccount) {
+  // Low points come from the engine's summarizeLowPoints: the true monthly low,
+  // the upcoming low (from today) and the first past breach. The old local
+  // heuristic dropped past days after an overdraft, hiding a real breach.
+  const activeLows = useMemo(() => {
+    const src = isFilteringAccount ? activeAccountSummary : simulation;
+    if (src && src.lowestBalance !== undefined) {
       return {
-        date: simulation?.lowestDate || lowestDate,
-        balance: simulation?.lowestBalance !== undefined ? simulation.lowestBalance : lowestBalance
+        lowest: { balance: src.lowestBalance, date: src.lowestDate || '' },
+        upcoming: {
+          balance: src.lowestUpcomingBalance !== undefined ? src.lowestUpcomingBalance : src.lowestBalance,
+          date: src.lowestUpcomingDate || src.lowestDate || ''
+        },
+        pastBreach: src.pastBreach || null
       };
     }
-    // If account summary is already populated with Option 2 lowest calculation, use it directly
-    if (activeAccountSummary && activeAccountSummary.lowestBalance !== undefined) {
-      return {
-        date: activeAccountSummary.lowestDate,
-        balance: activeAccountSummary.lowestBalance
-      };
-    }
-    if (!activeDailyBalances.length) return { date: '', balance: 0 };
-
-    const pastPts = typeof currentDay === 'number' && currentDay >= 1
-      ? activeDailyBalances.filter((pt) => pt.day < currentDay)
-      : [];
-    const futurePts = typeof currentDay === 'number' && currentDay >= 1
-      ? activeDailyBalances.filter((pt) => pt.day >= currentDay)
-      : activeDailyBalances;
-
-    const pastTouchedZero = pastPts.some((pt) => pt.balance <= 0);
-    const eligiblePts = (pastTouchedZero && futurePts.length > 0) ? futurePts : activeDailyBalances;
-
-    return eligiblePts.reduce(
-      (min, pt) => (pt.balance < min.balance ? pt : min),
-      eligiblePts[0]
-    );
-  }, [isFilteringAccount, activeAccountSummary, activeDailyBalances, simulation, lowestDate, lowestBalance, currentDay]);
+    return summarizeLowPoints(activeDailyBalances, {
+      currentDay,
+      floor: activeSafetyFloor,
+      fallbackDate: lowestDate,
+      fallbackBalance: lowestBalance
+    });
+  }, [isFilteringAccount, activeAccountSummary, simulation, activeDailyBalances, currentDay, activeSafetyFloor, lowestDate, lowestBalance]);
+  const activeLowestPt = activeLows.lowest;
 
   const activeFloorBreached = isFilteringAccount
     ? (activeAccountSummary ? activeAccountSummary.floorBreached : activeLowestPt.balance < activeSafetyFloor)
@@ -369,12 +361,10 @@ export function PlanScreen({
   const activeEndingBalance = isFilteringAccount
     ? (activeAccountSummary?.endingBalance ?? endingBalance)
     : unifiedEndingBalance;
-  const activeLowestBalance = isFilteringAccount
-    ? (activeAccountSummary?.lowestBalance !== undefined ? activeAccountSummary.lowestBalance : activeLowestPt.balance)
-    : (simulation?.lowestBalance !== undefined ? simulation.lowestBalance : activeLowestPt.balance);
-  const activeLowestDate = isFilteringAccount
-    ? (activeAccountSummary?.lowestDate || activeLowestPt.date)
-    : (simulation?.lowestDate || activeLowestPt.date);
+  // Forward-looking low (what the user can still act on); past breach shown separately
+  const activeLowestBalance = activeLows.upcoming.balance;
+  const activeLowestDate = activeLows.upcoming.date;
+  const activePastBreach = activeLows.pastBreach;
 
   // "Today" for the upcoming-payments card: the real date in the current month,
   // the month's first day when planning ahead, and nothing for past months.
@@ -862,6 +852,7 @@ export function PlanScreen({
             totalExpenses={isFilteringAccount ? activeAccountSummary?.totalExpenses : simulation?.totalExpenses}
             lowestBalance={activeLowestBalance}
             lowestDate={activeLowestDate}
+            pastBreach={activePastBreach}
             safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
             isSalaryCredited={isSalaryAccount

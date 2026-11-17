@@ -1,4 +1,4 @@
-export { simulate, deriveTransactionState } from './simulator.js';
+export { simulate, deriveTransactionState, summarizeLowPoints } from './simulator.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';

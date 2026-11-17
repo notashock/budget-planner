@@ -140,6 +140,21 @@ describe('SummaryCards components', () => {
       expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
     });
 
+    it("flags a breach earlier this month even when the upcoming low is above the floor", () => {
+      render(
+        <DetailedKpiGrid
+          incomeAmount={100000}
+          lowestBalance={300000}
+          lowestDate="2026-10-20"
+          pastBreach={{ balance: -20000, date: '2026-10-03' }}
+          safetyFloor={100000}
+          currencySymbol="₹"
+        />
+      );
+      expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
+      expect(screen.getByText(/Dipped below on Oct 3/)).toBeInTheDocument();
+    });
+
     it('renders a below-floor badge and a negative net when spending exceeds income', () => {
       render(
         <DetailedKpiGrid
