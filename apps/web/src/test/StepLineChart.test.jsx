@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 
-// The day-insights panel below the chart repeats the selected day's entries,
-// so tooltip assertions are scoped to the SVG.
-const tooltip = () => within(document.querySelector('.chart-svg'));
+// The selected day's entries and figures live in the day panel under the chart.
+const panel = () => within(document.querySelector('.day-insight'));
 import { StepLineChart, formatChartTick } from '../components/StepLineChart.jsx';
+import { getStepPath, getStepAreaPath, niceTicks, findBreachRuns } from '../components/chartGeometry.js';
 
 const mockDailyBalances = [
   { day: 1, balance: 5000, date: '2026-10-01' },
@@ -121,7 +121,7 @@ describe('StepLineChart component', () => {
     expect(onSelectDay).toHaveBeenCalledWith(null);
   });
 
-  it('displays transaction details or day summary in tooltip on day selection', () => {
+  it('shows the selected day in the day panel: entries, closing and opening balance', () => {
     const { rerender } = render(
       <StepLineChart
         dailyBalances={mockDailyBalances}
@@ -132,14 +132,13 @@ describe('StepLineChart component', () => {
       />
     );
 
-    // Day 2 has a single transaction: Groceries (-₹5.00), balance ₹45.00
-    expect(tooltip().getByText('Groceries')).toBeInTheDocument();
-    expect(tooltip().getByText('-₹5.00')).toBeInTheDocument();
-    expect(screen.getByText('Balance:')).toBeInTheDocument();
-    expect(screen.getByText('Day End:')).toBeInTheDocument();
-    expect(screen.getAllByText('₹45.00').length).toBeGreaterThanOrEqual(1);
+    // Day 2 has a single transaction: Groceries (-₹5.00), closing ₹45.00
+    expect(panel().getByText('Groceries')).toBeInTheDocument();
+    expect(within(document.querySelector('.di-events')).getByText('-₹5.00')).toBeInTheDocument();
+    expect(panel().getByText('₹45.00')).toBeInTheDocument();
+    expect(panel().getByText('Opened at ₹50.00')).toBeInTheDocument();
 
-    // Day 4 has no transactions: renders Opening, Spending, Closing summary
+    // Day 4 has no transactions
     rerender(
       <StepLineChart
         dailyBalances={mockDailyBalances}
@@ -150,10 +149,9 @@ describe('StepLineChart component', () => {
       />
     );
 
-    expect(screen.getByText('Opening:')).toBeInTheDocument();
-    expect(screen.getByText('Spending:')).toBeInTheDocument();
-    expect(screen.getByText('Closing:')).toBeInTheDocument();
-    expect(screen.getAllByText('₹32.00').length).toBeGreaterThanOrEqual(1);
+    expect(panel().getByText('No money moved on this day.')).toBeInTheDocument();
+    expect(panel().getByText('₹32.00')).toBeInTheDocument();
+    expect(panel().getByText('Opened at ₹32.00')).toBeInTheDocument();
   });
 
   describe('Individual Account Filtering & Anti-Spike Protection', () => {
@@ -238,8 +236,8 @@ describe('StepLineChart component', () => {
       );
 
       // Day 2 has 'Grocery Store' (-₹500.00). Balance on Bank A should be ₹11,500.00, NOT ₹20,600.00!
-      expect(tooltip().getByText('Grocery Store')).toBeInTheDocument();
-      expect(tooltip().getByText('-₹500.00')).toBeInTheDocument();
+      expect(panel().getByText('Grocery Store')).toBeInTheDocument();
+      expect(within(document.querySelector('.di-events')).getByText('-₹500.00')).toBeInTheDocument();
       expect(screen.getAllByText('₹11,500.00').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('₹20,600.00')).not.toBeInTheDocument();
     });
@@ -260,10 +258,139 @@ describe('StepLineChart component', () => {
 
       // Day 3 has 'Electric Bill' on Bank A, and 'Bank B Service Fee' on Bank B.
       // Under Bank A view, Bank B's transaction must not appear.
-      expect(tooltip().getByText('Electric Bill')).toBeInTheDocument();
+      expect(panel().getByText('Electric Bill')).toBeInTheDocument();
       expect(screen.queryByText('Bank B Service Fee')).not.toBeInTheDocument();
       expect(screen.getAllByText('₹10,500.00').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('₹19,200.00')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Step line and axis geometry', () => {
+    it('draws a step-after path: horizontal to the next day, then vertical, no curves', () => {
+      const d = getStepPath([{ x: 0, y: 10 }, { x: 5, y: 20 }, { x: 10, y: 15 }]);
+      expect(d).toBe('M 0.0 10.0 H 5.0 V 20.0 H 10.0 V 15.0');
+      expect(d).not.toMatch(/[CQS]/);
+      expect(getStepAreaPath([{ x: 0, y: 10 }, { x: 5, y: 20 }], 50)).toBe('M 0.0 10.0 H 5.0 V 20.0 V 50.0 H 0.0 Z');
+      expect(getStepPath([])).toBe('');
+    });
+
+    it('picks round tick values that cover the data', () => {
+      // ₹0 .. ₹17,940 -> ₹0, ₹5k, ₹10k, ₹15k, ₹20k
+      expect(niceTicks(0, 1794000, 4)).toEqual([0, 500000, 1000000, 1500000, 2000000]);
+      const ticks = niceTicks(-250000, 1210000, 4);
+      expect(ticks[0]).toBeLessThanOrEqual(-250000);
+      expect(ticks[ticks.length - 1]).toBeGreaterThanOrEqual(1210000);
+      ticks.slice(1).forEach((v, i) => expect(v - ticks[i]).toBe(ticks[1] - ticks[0]));
+    });
+
+    it('groups days below the floor into runs', () => {
+      const runs = findBreachRuns([
+        { day: 1, date: 'a', balance: 500 }, { day: 2, date: 'b', balance: 90 },
+        { day: 3, date: 'c', balance: 50 }, { day: 4, date: 'd', balance: 200 }, { day: 5, date: 'e', balance: 10 }
+      ], 100);
+      expect(runs).toEqual([
+        { startDay: 2, endDay: 3, startDate: 'b', endDate: 'c', deepest: 50 },
+        { startDay: 5, endDay: 5, startDate: 'e', endDate: 'e', deepest: 10 }
+      ]);
+      expect(findBreachRuns([{ day: 1, balance: 0 }], 0)).toEqual([]);
+    });
+
+    it('labels the y-axis with round values only', () => {
+      const { container } = render(<StepLineChart dailyBalances={mockDailyBalances} events={mockEvents} safetyFloor={1000} currencySymbol="₹" />);
+      const yLabels = Array.from(container.querySelectorAll('.chart-axis-text:not(.bc-x)')).map((n) => n.textContent);
+      expect(yLabels).toEqual(['₹0', '₹20', '₹40', '₹60']);
+    });
+  });
+
+  describe('Planner annotations', () => {
+    const days = [
+      { day: 1, date: '2026-11-01', balance: 900000 },
+      { day: 2, date: '2026-11-02', balance: 400000 },
+      { day: 3, date: '2026-11-03', balance: 150000 },
+      { day: 4, date: '2026-11-04', balance: 700000 }
+    ];
+
+    it('marks the upcoming low with its amount and date', () => {
+      const { container } = render(
+        <StepLineChart dailyBalances={days} events={[]} safetyFloor={100000} currencySymbol="₹" currentDay={2}
+          upcomingLow={{ balance: 150000, date: '2026-11-03' }} />
+      );
+      expect(container.querySelector('.bc-low text')).toHaveTextContent('Low ₹1,500 · Nov 3');
+      expect(screen.getByText('Lowest from today')).toBeInTheDocument();
+    });
+
+    it('names the shortfall when the low is under the floor and draws the breach band', () => {
+      const { container } = render(
+        <StepLineChart dailyBalances={days} events={[]} safetyFloor={200000} currencySymbol="₹" currentDay={2}
+          upcomingLow={{ balance: 150000, date: '2026-11-03' }} />
+      );
+      expect(container.querySelector('.bc-low.under text')).toHaveTextContent('₹500 under floor · Nov 3');
+      expect(container.querySelectorAll('.bc-breach-band')).toHaveLength(1);
+    });
+
+    it('draws one marker per day with entries, with a count for several', () => {
+      const evts = [
+        { day: 1, date: '2026-11-01', amount: 900000, itemType: 'salary', isSalary: true, isActual: true },
+        { day: 2, date: '2026-11-02', amount: -200000, isActual: true, label: 'A' },
+        { day: 2, date: '2026-11-02', amount: -300000, isActual: true, label: 'B' },
+        { day: 4, date: '2026-11-04', amount: -50000, isActual: false, isPlannedTransaction: true, label: 'Bill' }
+      ];
+      const { container } = render(<StepLineChart dailyBalances={days} events={evts} safetyFloor={0} currencySymbol="₹" />);
+      expect(container.querySelectorAll('.bc-marker-income')).toHaveLength(1);
+      expect(container.querySelectorAll('.bc-marker-paid')).toHaveLength(1);
+      expect(container.querySelectorAll('.bc-marker-bill')).toHaveLength(1);
+      expect(container.querySelector('.bc-marker-paid .bc-count')).toHaveTextContent('2');
+    });
+  });
+
+  describe('Keyboard, hover and table', () => {
+    it('moves through days with the arrow keys, selects with Enter and clears with Escape', () => {
+      const onSelectDay = vi.fn();
+      const { container } = render(
+        <StepLineChart dailyBalances={mockDailyBalances} events={mockEvents} safetyFloor={1000} currencySymbol="₹" currentDay={2} onSelectDay={onSelectDay} />
+      );
+      const plot = container.querySelector('.chart-container');
+      expect(plot).toHaveAttribute('tabindex', '0');
+
+      fireEvent.keyDown(plot, { key: 'ArrowRight' });
+      expect(container.querySelector('.di-date')).toHaveTextContent('Oct 3');
+      fireEvent.keyDown(plot, { key: 'End' });
+      expect(container.querySelector('.di-date')).toHaveTextContent('Oct 5');
+      fireEvent.keyDown(plot, { key: 'Home' });
+      expect(container.querySelector('.di-date')).toHaveTextContent('Oct 1');
+      fireEvent.keyDown(plot, { key: 'Enter' });
+      expect(onSelectDay).toHaveBeenLastCalledWith(1);
+      fireEvent.keyDown(plot, { key: 'Escape' });
+      expect(onSelectDay).toHaveBeenLastCalledWith(null);
+    });
+
+    it('shows a compact tooltip on pointer hover: date, balance and change', () => {
+      const { container } = render(
+        <StepLineChart dailyBalances={mockDailyBalances} events={mockEvents} safetyFloor={1000} currencySymbol="₹" />
+      );
+      const plot = container.querySelector('.chart-container');
+      vi.spyOn(plot, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 600, height: 300, right: 600, bottom: 300 });
+      fireEvent.mouseMove(plot, { clientX: 599, clientY: 100 });
+      const tip = container.querySelector('.chart-tooltip');
+      expect(tip).toHaveTextContent('Oct 5');
+      expect(tip).toHaveTextContent('₹28.00');
+      expect(tip).toHaveTextContent('▼ -₹4.00');
+      expect(tip).toHaveClass('flip');
+      fireEvent.mouseLeave(plot);
+      expect(container.querySelector('.chart-tooltip')).toBeNull();
+    });
+
+    it('shows the numbers as a table on request', () => {
+      render(<StepLineChart dailyBalances={mockDailyBalances} events={mockEvents} safetyFloor={3000} currencySymbol="₹" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Show as table' }));
+      const table = screen.getByRole('table');
+      const rows = within(table).getAllByRole('row');
+      expect(rows).toHaveLength(mockDailyBalances.length + 1);
+      expect(within(rows[2]).getByText('₹45.00')).toBeInTheDocument();
+      expect(within(rows[2]).getByText('-₹5.00')).toBeInTheDocument();
+      expect(within(rows[5]).getByText('₹2.00 under')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Hide table' }));
+      expect(screen.queryByRole('table')).toBeNull();
     });
   });
 

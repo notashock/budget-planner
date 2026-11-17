@@ -1,0 +1,339 @@
+/* Daily balance chart (components/StepLineChart.jsx) */
+
+.chart-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.balance-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: var(--space-1);
+}
+
+.bc-account {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.balance-chart .selected-day-tag {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+  gap: 4px;
+}
+
+.balance-chart .selected-day-tag:hover {
+  background: var(--text-secondary);
+  color: var(--bg);
+}
+
+/* Plot container: focusable for keyboard inspection, anchors the tooltip */
+.balance-chart .chart-container {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  border-radius: var(--radius);
+}
+
+.balance-chart .chart-container:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.balance-chart .chart-svg {
+  overflow: visible;
+  user-select: none;
+}
+
+.balance-chart .chart-axis-text {
+  font-size: var(--fs-2xs);
+  fill: var(--text-muted);
+  font-weight: 500;
+}
+
+.bc-x { cursor: pointer; }
+.bc-x.selected { fill: var(--text); font-weight: 700; }
+
+.bc-plot-hit { cursor: crosshair; }
+
+.bc-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+/* Safety floor */
+.bc-floor {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+
+.bc-floor.breached {
+  stroke: var(--rose);
+  opacity: 0.9;
+}
+
+.bc-floor-label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  fill: var(--text-secondary);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+
+.bc-floor-label.breached { fill: var(--bad-ink); }
+
+.bc-floor-zone {
+  fill: var(--rose);
+  opacity: 0.06;
+}
+
+/* Days below the floor, along the axis */
+.bc-breach-band { fill: var(--rose); }
+
+/* Area and line */
+.bc-area {
+  fill: var(--text);
+  fill-opacity: 0.06;
+}
+
+.bc-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.bc-line-actual { stroke: var(--text); }
+
+.bc-line-projected {
+  stroke: var(--text-secondary);
+  stroke-dasharray: 5 4;
+}
+
+/* Today */
+.bc-today line {
+  stroke: var(--text-secondary);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.bc-today rect { fill: var(--text); }
+
+.bc-today text {
+  fill: var(--bg);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Crosshair and active point */
+.bc-crosshair {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.7;
+}
+
+.bc-active-point {
+  fill: var(--text);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+/* Entry markers: 2px surface ring so they read over the line */
+.bc-marker path,
+.bc-marker circle {
+  stroke: var(--surface);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.bc-marker-income path { fill: var(--good-ink); }
+
+.bc-marker-bill path {
+  fill: var(--surface);
+  stroke: var(--indigo);
+  stroke-width: 2;
+}
+
+.bc-marker-paid circle { fill: var(--text-secondary); }
+
+.bc-count {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  fill: var(--text-secondary);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+
+/* Upcoming low */
+.bc-low circle {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.bc-low text,
+.bc-end-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+
+.bc-low-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bc-low-note.under { color: var(--bad-ink); }
+
+.bc-low.under circle { stroke: var(--bad-ink); }
+.bc-low.under text { fill: var(--bad-ink); }
+
+/* Hover tooltip: compact, follows the hovered day */
+.chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 128px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  transform: translate(14px, -50%);
+  white-space: nowrap;
+}
+
+.chart-tooltip.flip { transform: translate(calc(-100% - 14px), -50%); }
+
+.ct-date {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ct-balance {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ct-change { font-size: var(--fs-xs); font-weight: 600; }
+
+.ct-floor {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--bad-ink);
+}
+
+/* Touch screens: the day panel is the detail view */
+@media (hover: none) {
+  .chart-tooltip { display: none; }
+}
+
+/* Legend sits under the plot */
+.balance-chart .chart-legend { margin-top: var(--space-2); }
+
+.di-sub {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* Footer: table toggle and review action */
+.bc-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Table view */
+.balance-table-wrap {
+  margin-top: var(--space-2);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.balance-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-table th,
+.balance-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.balance-table thead th {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+
+.balance-table .num { text-align: right; }
+.balance-table tbody th { font-weight: 500; color: var(--text); }
+.balance-table tr:last-child th,
+.balance-table tr:last-child td { border-bottom: none; }
+
+.bt-day {
+  all: unset;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.bt-day:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+
+.bt-today {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+
+.bt-in { color: var(--good-ink); }
+.bt-closing { font-weight: 700; }
+.bt-below { color: var(--bad-ink); font-weight: 600; }
+.balance-table tr.is-below { background: var(--rose-subtle); }
+.balance-table tr.is-selected { background: var(--surface-hover); }

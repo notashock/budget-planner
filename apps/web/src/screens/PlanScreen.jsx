@@ -866,12 +866,11 @@ export function PlanScreen({
               currencySymbol={month.currencySymbol}
               floorBreached={activeFloorBreached}
               lowestDate={activeLowestPt.date}
+              upcomingLow={activeLows.upcoming}
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
               currentDay={currentDay}
               onOpenReview={isReviewMode && onOpenReview ? () => onOpenReview(selectedAccountId) : null}
-              bankAccounts={bankAccounts}
-              wallets={wallets}
               selectedAccountId={selectedAccountId}
               selectedAccount={selectedAccount}
               safeDailyRate={activeSafeToSpend}
