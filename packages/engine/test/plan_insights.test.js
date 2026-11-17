@@ -43,6 +43,15 @@ describe('Plan insights: buildCashAllocation', () => {
     expect(a.shortfall).toBe(1500);
   });
 
+  it('sets aside goal savings after bills and floor, and never turns goals into a shortfall', () => {
+    const a = buildCashAllocation({ todayBalance: 100000, committedUpcomingItems: 40000, safetyFloor: 20000, goalReserve: 15000 });
+    expect(a).toMatchObject({ committed: 40000, floorReserve: 20000, goalSavings: 15000, free: 25000, shortfall: 0 });
+    expect(a.segments.map((s) => s.key)).toEqual(['committed', 'floor', 'goals', 'free']);
+
+    const tight = buildCashAllocation({ todayBalance: 50000, committedUpcomingItems: 40000, safetyFloor: 20000, goalReserve: 15000 });
+    expect(tight).toMatchObject({ goalSavings: 0, free: 0, shortfall: 10000 });
+  });
+
   it('handles empty input', () => {
     const a = buildCashAllocation();
     expect(a.total).toBe(0);
@@ -173,5 +182,44 @@ describe('Plan insights: getRunwayBand and getHeadroom', () => {
     expect(getHeadroom(1100, 1000).status).toBe('warning');
     expect(getHeadroom(900, 1000).status).toBe('breached');
     expect(getHeadroom(0, 0).ratio).toBe(0);
+  });
+});
+
+describe("formatCurrency decimals option", () => {
+  it("keeps paise by default and offers whole-rupee and auto modes", async () => {
+    const { formatCurrency, formatCurrencyWhole } = await import('../src/index.js');
+    expect(formatCurrency(13500000)).toBe('₹1,35,000.00');
+    expect(formatCurrencyWhole(13500000)).toBe('₹1,35,000');
+    expect(formatCurrencyWhole(267142)).toBe('₹2,671');
+    expect(formatCurrency(13500000, '₹', 100, { decimals: 'auto' })).toBe('₹1,35,000');
+    expect(formatCurrency(267142, '₹', 100, { decimals: 'auto' })).toBe('₹2,671.42');
+    expect(formatCurrencyWhole(-760000)).toBe('-₹7,600');
+    // A tiny negative that rounds to zero is not shown as "-₹0"
+    expect(formatCurrencyWhole(-20)).toBe('₹0');
+  });
+});
+
+describe("Investments count as saving", () => {
+  it("isInvestment recognises investment categories and goal contributions, not transfers", async () => {
+    const { isInvestment, splitInvestments, getNetPosition } = await import('../src/index.js');
+    expect(isInvestment({ category: 'Investments', amount: -1 })).toBe(true);
+    expect(isInvestment({ tag: 'SIP', amount: -1 })).toBe(true);
+    expect(isInvestment({ category: 'Fixed Deposit', amount: -1 })).toBe(true);
+    expect(isInvestment({ origin: 'goal', amount: -1 })).toBe(true);
+    expect(isInvestment({ category: 'Rent', amount: -1 })).toBe(false);
+    expect(isInvestment({ category: 'Savings', amount: -1, itemType: 'transfer' })).toBe(false);
+    // "sip" only as a whole word: not "Gossip Magazine"
+    expect(isInvestment({ category: 'Gossip magazine', amount: -1 })).toBe(false);
+
+    const { invested, spending } = splitInvestments([
+      { amount: -5000, category: 'Rent' },
+      { amount: -2000, category: 'SIP' },
+      { amount: 9000, isSalary: true }
+    ]);
+    expect({ invested, spending }).toEqual({ invested: 2000, spending: 5000 });
+
+    const n = getNetPosition(10000, 7000, { invested: 2000 });
+    expect(n).toMatchObject({ net: 3000, invested: 2000, savedAndInvested: 5000 });
+    expect(n.savingsRate).toBeCloseTo(0.5);
   });
 });

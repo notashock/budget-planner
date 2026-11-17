@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BuildingLibraryIcon, ShieldAlertIcon, LockIcon } from './Icons.jsx';
+import { BuildingLibraryIcon, ShieldAlertIcon, LockIcon, XIcon } from './Icons.jsx';
 import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
 import { AnimatedModal } from './AnimatedModal.jsx';
 
@@ -118,14 +118,14 @@ export function SalarySafelineModal({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BuildingLibraryIcon size={18} />
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
-                Link Salary & Safeline
+              <h3 style={{ margin: 0, fontSize: 'var(--fs-input)', fontWeight: 600 }}>
+                Salary schedule
               </h3>
             </div>
-            <button type="button" className="btn-icon" onClick={() => requestClose()}>✕</button>
+            <button type="button" className="btn-icon" onClick={() => requestClose()} aria-label="Close"><XIcon size={16} /></button>
           </div>
 
-          <p style={{ margin: '0 0 16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
             Designate the bank account that receives your salary and specify the monthly salary details for {month.month}/{month.year}.
           </p>
 
@@ -136,7 +136,7 @@ export function SalarySafelineModal({
               borderRadius: 'var(--radius)',
               background: 'var(--surface-subtle)',
               border: '1px solid var(--border)',
-              fontSize: '12px',
+              fontSize: 'var(--fs-xs)',
               marginBottom: '14px',
               display: 'flex',
               alignItems: 'center',
@@ -146,7 +146,7 @@ export function SalarySafelineModal({
             data-testid="salary-lock-banner"
           >
             <LockIcon size={14} />
-            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason} Safeline floor remains editable.</span>
+            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason} Your safety floor can still be changed.</span>
           </div>
         )}
 
@@ -157,7 +157,7 @@ export function SalarySafelineModal({
               borderRadius: 'var(--radius)',
               background: 'rgba(234, 179, 8, 0.1)',
               border: '1px solid rgba(234, 179, 8, 0.3)',
-              fontSize: '12px',
+              fontSize: 'var(--fs-xs)',
               marginBottom: '14px',
               display: 'flex',
               alignItems: 'center',
@@ -177,7 +177,7 @@ export function SalarySafelineModal({
             borderRadius: 'var(--radius)',
             background: 'var(--surface-subtle)',
             border: '1px solid var(--border)',
-            fontSize: '12px',
+            fontSize: 'var(--fs-xs)',
             marginBottom: '14px',
             display: 'flex',
             alignItems: 'center',
@@ -195,7 +195,7 @@ export function SalarySafelineModal({
               Salary Credited Account *
             </label>
             {bankAccounts.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '8px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', padding: '8px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)' }}>
                 No bank accounts registered yet. Please create a bank account first.
               </div>
             ) : (
@@ -237,7 +237,7 @@ export function SalarySafelineModal({
           {/* Overall Safeline Floor */}
           <div>
             <label className="form-label" htmlFor="safeline-floor-input">
-              Overall Safeline Floor ({currencySymbol}) *
+              Safety floor ({currencySymbol}) *
             </label>
             <input
               id="safeline-floor-input"
@@ -273,7 +273,7 @@ export function SalarySafelineModal({
                 }
               }}
             />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
               The exact calendar date your salary is credited (can also be on previous month-end).
             </span>
           </div>
@@ -291,7 +291,7 @@ export function SalarySafelineModal({
               }}
               style={{ width: '16px', height: '16px', cursor: salaryLockStatus.isLocked ? 'not-allowed' : 'pointer' }}
             />
-            <label htmlFor="salary-credited-checkbox" style={{ fontSize: '12px', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
+            <label htmlFor="salary-credited-checkbox" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
               Salary already credited for this month
             </label>
           </div>
@@ -311,8 +311,8 @@ export function SalarySafelineModal({
               disabled={loading || (!salaryLockStatus.isLocked && bankAccounts.length === 0)}
             >
               {salaryLockStatus.isLocked
-                ? (loading ? 'Updating...' : 'Update Safeline Floor')
-                : (loading ? 'Saving...' : 'Save Salary & Safeline')}
+                ? (loading ? 'Updating...' : 'Update safety floor')
+                : (loading ? 'Saving...' : 'Save salary schedule')}
             </button>
           </div>
         </form>

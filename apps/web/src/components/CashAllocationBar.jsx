@@ -1,9 +1,10 @@
 import React from 'react';
-import { formatCurrency, buildCashAllocation } from '@budget/engine';
+import { formatCurrencyWhole as formatCurrency, buildCashAllocation } from '@budget/engine';
 
 const SEGMENT_META = {
   committed: { label: 'Upcoming bills', className: 'alloc-committed' },
   floor: { label: 'Safety floor', className: 'alloc-floor' },
+  goals: { label: 'Goal savings', className: 'alloc-goals' },
   free: { label: 'Free to spend', className: 'alloc-free' },
   shortfall: { label: 'Shortfall', className: 'alloc-shortfall' }
 };
@@ -19,10 +20,11 @@ export function CashAllocationBar({
   todayBalance = 0,
   committedUpcomingItems = 0,
   safetyFloor = 0,
+  goalReserve = 0,
   freeSurplus,
   currencySymbol = '₹'
 }) {
-  const alloc = buildCashAllocation({ todayBalance, committedUpcomingItems, safetyFloor, freeSurplus });
+  const alloc = buildCashAllocation({ todayBalance, committedUpcomingItems, safetyFloor, goalReserve, freeSurplus });
 
   if (alloc.total <= 0) {
     return null;

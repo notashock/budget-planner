@@ -51,12 +51,12 @@ export class ErrorBoundary extends React.Component {
           }}
         >
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: '12px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 'bold' }}>!</span>
+            <span style={{ fontSize: 'var(--fs-lg)', fontWeight: 'bold' }}>!</span>
           </div>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
+          <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
             {this.props.title || 'Component encountered an issue'}
           </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px 0', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', margin: '0 0 16px 0', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             {this.state.error?.message || 'An unexpected rendering error occurred.'}
           </p>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
@@ -64,14 +64,14 @@ export class ErrorBoundary extends React.Component {
               type="button"
               className="btn-primary"
               onClick={this.handleReset}
-              style={{ fontSize: '12px', padding: '6px 14px' }}
+              style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px' }}
             >
               Try again
             </button>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              style={{ fontSize: '12px', padding: '6px 14px' }}
+              style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px' }}
             >
               Reload page
             </button>

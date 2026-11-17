@@ -23,6 +23,7 @@ export function RunwayGauge({
   isIndefinite = false,
   currentBalance = 0,
   avgMonthlySpending = 0,
+  monthsOfHistory = null,
   currencySymbol = '₹'
 }) {
   const band = getRunwayBand(isIndefinite ? Infinity : runwayMonths);
@@ -75,6 +76,12 @@ export function RunwayGauge({
           ? 'No spending recorded yet, so balances are not being drawn down.'
           : <>{formatCurrency(currentBalance, currencySymbol)} covers {months.toFixed(1)} months of average spending ({formatCurrency(avgMonthlySpending, currencySymbol)}/mo). {BAND_NOTE[band.key]}</>}
       </p>
+      {monthsOfHistory !== null && (
+        <p className="pic-note runway-basis">
+          Based on {monthsOfHistory} month{monthsOfHistory === 1 ? '' : 's'} of history
+          {monthsOfHistory < 3 ? '. This will steady as more months are recorded.' : '.'}
+        </p>
+      )}
     </section>
   );
 }

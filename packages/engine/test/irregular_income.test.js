@@ -7,6 +7,58 @@ import {
 } from '../src/index.js';
 
 describe('Irregular Income & Period Boundaries Engine Suite', () => {
+  it("does not add transactions that predate an account's opening balance to that balance", () => {
+    const metrics = calculateIrregularMetrics({
+      accounts: [
+        { id: 'a', openingBalance: 500000, openingBalanceDate: '2026-06-01' },
+        { id: 'b', openingBalance: 100000 }
+      ],
+      transactions: [
+        // Before account A was set up: already inside its 5,000 opening balance
+        { id: '1', accountId: 'a', amount: 200000, date: '2026-05-10', isIncome: true, status: 'successful' },
+        { id: '2', accountId: 'a', amount: 50000, date: '2026-05-20', status: 'successful' },
+        // After opening: counted
+        { id: '3', accountId: 'a', amount: 30000, date: '2026-07-01', status: 'successful' },
+        // Account without an opening date: counted
+        { id: '4', accountId: 'b', amount: 10000, date: '2026-04-01', status: 'successful' }
+      ],
+      asOfDate: '2026-10-20'
+    });
+    // 5,000 + 1,000 opening - 300 (after A opened) - 100 (B) = 5,600
+    expect(metrics.currentBalance).toBe(560000);
+    // History still counts as income/spending flow for averages
+    expect(metrics.trailing12mIncome).toBe(200000);
+    expect(metrics.trailing12mSpending).toBe(90000);
+  });
+
+  it('averages over the months of history present: 3 months of data is not divided by 12', () => {
+    const metrics = calculateIrregularMetrics({
+      accounts: [{ id: 'a', openingBalance: 300000, openingBalanceDate: '2026-08-01' }],
+      transactions: [
+        { id: '1', amount: 90000, date: '2026-08-10', isIncome: true, status: 'successful' },
+        { id: '2', amount: 60000, date: '2026-09-05', status: 'successful' },
+        { id: '3', amount: 30000, date: '2026-10-05', status: 'successful' }
+      ],
+      asOfDate: '2026-10-20'
+    });
+    // Aug, Sep, Oct = 3 months
+    expect(metrics.monthsOfHistory).toBe(3);
+    expect(metrics.smoothedMonthlyIncome).toBe(30000);   // 90,000 / 3 (was 7,500 with /12)
+    expect(metrics.avgMonthlySpending).toBe(30000);      // 90,000 / 3 (was 7,500 with /12)
+    // Balance 300,000 + 90,000 - 90,000 = 300,000 → 10.0 months (was 40.0 with /12)
+    expect(metrics.runwayMonths).toBe(10);
+  });
+
+  it('caps history at the 12-month window for long-standing accounts', () => {
+    const metrics = calculateIrregularMetrics({
+      accounts: [{ id: 'a', openingBalance: 0, openingBalanceDate: '2023-01-01' }],
+      transactions: [{ id: '1', amount: 120000, date: '2026-06-01', isIncome: true, status: 'successful' }],
+      asOfDate: '2026-10-20'
+    });
+    expect(metrics.monthsOfHistory).toBe(12);
+    expect(metrics.smoothedMonthlyIncome).toBe(10000);
+  });
+
   it('calculates irregular income metrics with hand-calculated example', () => {
     const mockAccounts = [
       { id: 'acc-1', name: 'Primary Bank', openingBalance: 100000, openingBalanceDate: '2026-01-01' }
@@ -34,20 +86,22 @@ describe('Irregular Income & Period Boundaries Engine Suite', () => {
 
     // Income: 60k + 40k + 80k = 180,000
     expect(metrics.trailing12mIncome).toBe(180000);
-    // Smoothed monthly income: 180,000 / 12 = 15,000
-    expect(metrics.smoothedMonthlyIncome).toBe(15000);
+    // History: account opened 2026-01-01, as of 2026-10-20 → Jan..Oct = 10 months (not 12)
+    expect(metrics.monthsOfHistory).toBe(10);
+    // Smoothed monthly income: 180,000 / 10 = 18,000
+    expect(metrics.smoothedMonthlyIncome).toBe(18000);
 
     // Spending: 30k + 45k + 25k = 100,000
     expect(metrics.trailing12mSpending).toBe(100000);
-    // Average monthly spending: 100,000 / 12 = 8,333
-    expect(metrics.avgMonthlySpending).toBe(8333);
+    // Average monthly spending: 100,000 / 10 = 10,000
+    expect(metrics.avgMonthlySpending).toBe(10000);
 
     // Current balance: 100,000 (opening) + 180,000 (income) - 100,000 (spending) = 180,000
     expect(metrics.currentBalance).toBe(180000);
 
-    // Runway: 180,000 / 8,333 = 21.60 -> 21.6 months
-    expect(metrics.runwayMonths).toBe(21.6);
-    expect(metrics.runwayDisplay).toBe('21.6 mo');
+    // Runway: 180,000 / 10,000 = 18.0 months (dividing by 12 overstated it as 21.6)
+    expect(metrics.runwayMonths).toBe(18);
+    expect(metrics.runwayDisplay).toBe('18.0 mo');
     expect(metrics.isIndefinite).toBe(false);
 
     // Quarterly aggregates

@@ -97,8 +97,8 @@ describe('Salary Linking and Income Logging Integration', () => {
 
     // Verify KPI card displays combined income and confirmed credit
     expect(screen.getByText('Monthly income')).toBeInTheDocument();
-    expect(screen.getByText('₹19,280.13')).toBeInTheDocument();
-    expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+    expect(screen.getByText('₹19,280')).toBeInTheDocument();
+    expect(screen.getByText('Credited')).toBeInTheDocument();
     unmount();
 
     // 3. Render TimelineList
@@ -136,7 +136,7 @@ describe('Salary Linking and Income Logging Integration', () => {
     const dateInput = screen.getByLabelText(/date of salary credit/i);
     fireEvent.change(dateInput, { target: { value: '2026-11-05' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
+    const saveBtn = screen.getByRole('button', { name: /save salary schedule|update safety floor/i });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -176,7 +176,7 @@ describe('Salary Linking and Income Logging Integration', () => {
 
     // Verify lock banner
     expect(screen.getByTestId('salary-lock-banner')).toBeInTheDocument();
-    expect(screen.getByText(/safeline floor remains editable/i)).toBeInTheDocument();
+    expect(screen.getByText(/safety floor can still be changed/i)).toBeInTheDocument();
 
     // Verify salary fields are disabled
     expect(screen.getByLabelText(/salary credited account/i)).toBeDisabled();
@@ -185,11 +185,11 @@ describe('Salary Linking and Income Logging Integration', () => {
     expect(screen.getByLabelText(/salary already credited for this month/i)).toBeDisabled();
 
     // Verify safeline floor input is enabled
-    const safelineInput = screen.getByLabelText(/overall safeline floor/i);
+    const safelineInput = screen.getByLabelText(/safety floor/i);
     expect(safelineInput).toBeEnabled();
 
     // Verify submit button label
-    const submitBtn = screen.getByRole('button', { name: /update safeline floor/i });
+    const submitBtn = screen.getByRole('button', { name: /update safety floor/i });
     expect(submitBtn).toBeEnabled();
 
     // Edit safeline floor and submit
@@ -256,7 +256,7 @@ describe('Salary Linking and Income Logging Integration', () => {
     expect(screen.queryByRole('button', { name: 'Salary' })).not.toBeInTheDocument();
 
     // Verify sole truth helper guidance text
-    expect(screen.getByText(/your primary monthly salary is managed via link salary & safeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/your primary monthly salary is managed in salary schedule/i)).toBeInTheDocument();
   });
   it('auto-heals ghost or invalid salaryBankAccountId by falling back to primary bank and submits successfully', async () => {
     // Month has an invalid/ghost salary bank account ID that does not exist in bankAccounts
@@ -285,7 +285,7 @@ describe('Salary Linking and Income Logging Integration', () => {
     expect(bankSelect.value).toBe('bank-1');
 
     // Submit the form
-    const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
+    const saveBtn = screen.getByRole('button', { name: /save salary schedule|update safety floor/i });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {

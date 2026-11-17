@@ -1,5 +1,18 @@
 const BASE_API_URL = import.meta.env.VITE_API_URL || '';
-const TOKEN_STORAGE_KEY = 'budget_auth_token';
+// Auth now lives in an httpOnly cookie set by the server, which page scripts
+// cannot read. A token an older version left in localStorage is sent once to
+// /api/auth/me so the server can move it into the cookie, then deleted.
+const LEGACY_TOKEN_STORAGE_KEY = 'budget_auth_token';
+function takeLegacyToken() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const token = localStorage.getItem(LEGACY_TOKEN_STORAGE_KEY);
+    if (token) localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+    return token;
+  } catch {
+    return null; // storage unavailable (private mode)
+  }
+}
 
 // In-flight request deduplication map to eliminate redundant concurrent network calls
 const pendingRequests = new Map();
@@ -20,10 +33,12 @@ export function clearApiCache(pattern = null) {
   }
 }
 
+// Bumped on login/logout so cached GET responses never leak across users.
+let authEpoch = 0;
+
 async function request(url, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const fullUrl = url.startsWith('http') ? url : `${BASE_API_URL}${url}`;
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
   const isGet = method === 'GET';
 
   // Invalidate cache on mutations to prevent stale UI state
@@ -32,7 +47,7 @@ async function request(url, options = {}) {
   }
 
   // Check TTL cache for GET requests
-  const cacheKey = `${token || 'anon'}:${fullUrl}`;
+  const cacheKey = `${authEpoch}:${fullUrl}`;
   if (isGet && !options.bypassCache) {
     const cached = responseCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < (options.cacheTtlMs || DEFAULT_CACHE_TTL_MS)) {
@@ -48,15 +63,15 @@ async function request(url, options = {}) {
   const executeRequest = async () => {
     const headers = {
       'Content-Type': 'application/json',
+      // Required by the server's CSRF guard for cookie-authenticated writes
+      'X-Requested-With': 'fetch',
       ...options.headers
     };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const res = await fetch(fullUrl, {
       ...options,
       headers,
+      credentials: 'include',
       signal: options.signal,
       keepalive: options.keepalive ?? isGet
     });
@@ -100,30 +115,34 @@ async function request(url, options = {}) {
 export const api = {
   clearCache: clearApiCache,
   // Auth
+  // The server sets the httpOnly auth cookie; the token in the response body
+  // is for API clients like the mobile app and is deliberately not stored here.
   register: async (email, password) => {
     const data = await request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
-    if (data && data.token && typeof localStorage !== 'undefined') {
-      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-    }
+    authEpoch += 1;
+    clearApiCache();
     return data;
   },
   login: async (email, password) => {
     const data = await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    if (data && data.token && typeof localStorage !== 'undefined') {
-      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-    }
+    authEpoch += 1;
+    clearApiCache();
     return data;
   },
   logout: async () => {
     try {
       return await request('/api/auth/logout', { method: 'POST' });
     } finally {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-      }
+      authEpoch += 1;
+      clearApiCache();
     }
   },
-  getMe: () => request('/api/auth/me'),
+  getMe: () => {
+    const legacyToken = takeLegacyToken();
+    return legacyToken
+      ? request('/api/auth/me', { bypassCache: true, headers: { Authorization: `Bearer ${legacyToken}` } })
+      : request('/api/auth/me');
+  },
 
   // Settings
   getSettings: () => request('/api/settings'),
@@ -193,8 +212,8 @@ export const api = {
   getMigrationStatus: () => request('/api/bank-accounts/migration-status'),
   migrateLegacyData: (data) => request('/api/bank-accounts/migrate', { method: 'POST', body: JSON.stringify(data) }),
   getBankAccounts: (includeArchived = false) => request(`/api/bank-accounts${includeArchived ? '?includeArchived=true' : ''}`),
-  getAllAccounts: (includeArchived = false) => request(`/api/accounts/all${includeArchived ? '?includeArchived=true' : ''}`),
-  createAccount: (data) => request('/api/accounts', { method: 'POST', body: JSON.stringify(data) }),
+  getAllAccounts: (includeArchived = false) => request(`/api/bank-accounts/all${includeArchived ? '?includeArchived=true' : ''}`),
+  createAccount: (data) => request('/api/bank-accounts', { method: 'POST', body: JSON.stringify(data) }),
   createBankAccount: (data) => request('/api/bank-accounts', { method: 'POST', body: JSON.stringify(data) }),
   updateBankAccount: (id, updates) => request(`/api/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(updates) }),
   deleteBankAccount: (id) => request(`/api/bank-accounts/${id}`, { method: 'DELETE' }),

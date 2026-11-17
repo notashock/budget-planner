@@ -96,7 +96,7 @@ export function CustomSelect({
           {selectedOption?.badge && (
             <span
               style={{
-                fontSize: '10px',
+                fontSize: 'var(--fs-2xs)',
                 padding: '1px 6px',
                 borderRadius: '4px',
                 background: 'var(--surface-subtle)',
@@ -145,7 +145,7 @@ export function CustomSelect({
                   justifyContent: 'space-between',
                   gap: '8px',
                   padding: '7px 10px',
-                  fontSize: '12px'
+                  fontSize: 'var(--fs-xs)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
@@ -160,7 +160,7 @@ export function CustomSelect({
                   {opt.badge && (
                     <span
                       style={{
-                        fontSize: '10px',
+                        fontSize: 'var(--fs-2xs)',
                         padding: '1px 5px',
                         borderRadius: '3px',
                         background: 'var(--surface-subtle)',
@@ -173,12 +173,12 @@ export function CustomSelect({
                   )}
                 </div>
                 {opt.sublabel && (
-                  <span className="tabular-nums" style={{ fontSize: '11px', color: isSelected ? 'var(--text)' : 'var(--text-secondary)', flexShrink: 0, fontWeight: isSelected ? 600 : 500 }}>
+                  <span className="tabular-nums" style={{ fontSize: 'var(--fs-2xs)', color: isSelected ? 'var(--text)' : 'var(--text-secondary)', flexShrink: 0, fontWeight: isSelected ? 600 : 500 }}>
                     {opt.sublabel}
                   </span>
                 )}
                 {isSelected && !opt.sublabel && (
-                  <span style={{ fontSize: '10px', color: 'var(--text)', flexShrink: 0 }}>●</span>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text)', flexShrink: 0 }}>●</span>
                 )}
               </button>
             );

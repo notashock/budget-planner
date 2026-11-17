@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../engine/currency.dart';
-import '../engine/simulator.dart';
+import '../models/simulation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 

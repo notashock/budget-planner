@@ -1,0 +1,237 @@
+/* =========================================================================
+   APPLE HIG TRANSACTIONS HEADER & EMBEDDED SEARCH-SORT CAPSULE
+   ========================================================================= */
+
+/* Row 1: Title & Embedded Search-Sort Capsule */
+.apple-tx-header-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.apple-tx-title-group {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.apple-tx-title-group.tx-desktop-header {
+  margin-bottom: 0;
+}
+
+.apple-tx-row1-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Integrated Embedded Search-Sort Capsule */
+.apple-search-sort-capsule {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 34px;
+  padding: 0 4px 0 32px;
+  max-width: 360px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-search-sort-capsule:focus-within {
+  background: var(--surface);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 12%, transparent);
+}
+
+.apple-search-sort-capsule .apple-search-icon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.apple-search-sort-capsule .apple-search-input {
+  flex: 1;
+  min-width: 60px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  outline: none;
+  padding: 0 4px 0 0;
+  font-family: inherit;
+}
+
+.apple-search-sort-capsule .apple-search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.apple-search-sort-capsule .apple-search-clear {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  margin-right: 4px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.apple-search-sort-capsule .apple-search-clear:hover {
+  background: var(--border-strong);
+  color: var(--text);
+}
+
+.apple-search-sort-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Sort menu (styled listbox inside the search capsule) */
+.sort-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sort-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  min-height: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sort-menu-trigger:hover,
+.sort-menu-trigger.is-open {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sort-menu-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.sort-menu-chevron {
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.sort-menu-trigger.is-open .sort-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.sort-menu-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 60;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: sortMenuIn 0.14s var(--ease-spring);
+}
+
+@keyframes sortMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sort-menu-list { animation: none; }
+}
+
+.sort-menu-heading {
+  padding: 6px 10px 4px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sort-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-menu-option.is-active {
+  background: var(--surface-subtle);
+}
+
+.sort-menu-option.is-selected {
+  font-weight: 600;
+}
+
+.sort-menu-check {
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Desktop-only New Entry Pill */
+.apple-tx-add-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+  flex-shrink: 0;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-tx-add-btn:active {
+  transform: scale(0.96);
+}

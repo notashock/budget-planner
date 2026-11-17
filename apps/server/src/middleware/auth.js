@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { verifyToken } from '../utils/jwt.js';
+import { readAuthCookie } from '../utils/authCookie.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,8 +16,8 @@ export function isValidUuid(id) {
 }
 
 /**
- * Resolves the authenticated user from the Authorization Bearer header or session.
- * Shims req.userId and req.session.userId for seamless backward compatibility.
+ * Resolves the authenticated user from the Authorization Bearer header (mobile)
+ * or the signed httpOnly auth cookie (web). Sets req.userId and req.user.
  * @param {import('express').Request} req
  * @returns {object|null}
  */
@@ -28,27 +29,19 @@ export function resolveAuthUser(req) {
     if (decoded && decoded.userId && isValidUuid(decoded.userId)) {
       req.userId = decoded.userId;
       req.user = decoded;
-      if (!req.session) {
-        req.session = {};
-      }
-      req.session.userId = decoded.userId;
       return decoded;
     }
   }
 
-  if (req.session && req.session.userId) {
-    if (isValidUuid(req.session.userId)) {
-      req.userId = req.session.userId;
-      return { userId: req.session.userId };
-    } else {
-      // Invalidate legacy or non-UUID session token to prevent Drizzle 22P02 database crashes
-      const staleId = req.session.userId;
-      delete req.session.userId;
-      if (typeof req.session.destroy === 'function') {
-        req.session.destroy(() => {});
-      }
-      console.warn(`[Auth Shield] Cleared stale non-UUID session ID: ${staleId}`);
-      return null;
+  // Web app: signed token in the httpOnly auth cookie
+  const cookieToken = readAuthCookie(req);
+  if (cookieToken) {
+    const decoded = verifyToken(cookieToken, config.jwtSecret);
+    if (decoded && decoded.userId && isValidUuid(decoded.userId)) {
+      req.userId = decoded.userId;
+      req.user = decoded;
+      req.authVia = 'cookie';
+      return decoded;
     }
   }
 
@@ -56,7 +49,7 @@ export function resolveAuthUser(req) {
 }
 
 /**
- * Express middleware enforcing authentication via Bearer token or session.
+ * Express middleware enforcing authentication via Bearer token or auth cookie.
  */
 export function requireAuth(req, res, next) {
   const user = resolveAuthUser(req);

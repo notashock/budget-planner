@@ -74,19 +74,18 @@ function getMonotoneCubicSplinePath(points) {
   return d;
 }
 
+// Compact axis labels in the Indian system, matching the en-IN amounts shown
+// everywhere else: full figures under ₹10,000, then k (thousand), L (lakh)
+// and Cr (crore).
 export function formatChartTick(val, symbol) {
   const major = Math.abs(val) / 100;
   const sign = val < 0 ? '-' : '';
+  const compact = (n) => String(Math.round(n * 10) / 10);
 
-  if (major >= 1000000) {
-    const formatted = (major / 1000000).toFixed(1).replace(/\.0$/, '');
-    return `${sign}${symbol}${formatted}m`;
-  }
-  if (major >= 10000) {
-    const formatted = (major / 1000).toFixed(1).replace(/\.0$/, '');
-    return `${sign}${symbol}${formatted}k`;
-  }
-  return `${sign}${symbol}${Math.round(major)}`;
+  if (major >= 10000000) return `${sign}${symbol}${compact(major / 10000000)}Cr`;
+  if (major >= 100000) return `${sign}${symbol}${compact(major / 100000)}L`;
+  if (major >= 10000) return `${sign}${symbol}${compact(major / 1000)}k`;
+  return `${sign}${symbol}${Math.round(major).toLocaleString('en-IN')}`;
 }
 
 /**
@@ -746,7 +745,7 @@ export function StepLineChart({
             <span
               className="selected-day-tag tabular-nums"
               style={{
-                fontSize: '11.5px',
+                fontSize: 'var(--fs-xs)',
                 padding: '2px 8px',
                 background: 'var(--text)',
                 color: 'var(--bg)',
@@ -761,7 +760,7 @@ export function StepLineChart({
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
           <ul className="chart-legend" aria-label="Chart legend">
             <li><span className="chart-key key-actual" aria-hidden="true" />{projectedPathD ? 'Actual' : 'Balance'}</li>
             {projectedPathD && (
@@ -784,7 +783,7 @@ export function StepLineChart({
               onClick={onOpenReview}
               style={{
                 padding: '3px 9px',
-                fontSize: '11.5px',
+                fontSize: 'var(--fs-xs)',
                 fontWeight: 600,
                 borderRadius: 'var(--radius)',
                 display: 'inline-flex',
@@ -863,7 +862,7 @@ export function StepLineChart({
                 y={getY(t.val) + 4}
                 textAnchor="end"
                 className="chart-axis-text"
-                style={{ fontSize: '11px', fontWeight: 500, fill: 'var(--text-muted)' }}
+                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500, fill: 'var(--text-muted)' }}
               >
                 {t.label}
               </text>
@@ -876,7 +875,7 @@ export function StepLineChart({
             y1={floorY}
             x2={width - paddingRight}
             y2={floorY}
-            stroke={floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-muted)'}
+            stroke={floorBreached ? 'var(--rose)' : 'var(--text-muted)'}
             strokeWidth="1.5"
             strokeDasharray="4 4"
             opacity={floorBreached ? 0.85 : 0.45}
@@ -887,8 +886,8 @@ export function StepLineChart({
             y={floorY - 6}
             textAnchor="start"
             style={{
-              fontSize: '10.5px',
-              fill: floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-secondary)',
+              fontSize: 'var(--fs-2xs)',
+              fill: floorBreached ? 'var(--rose)' : 'var(--text-secondary)',
               fontWeight: 600
             }}
           >
@@ -939,7 +938,7 @@ export function StepLineChart({
                 y={paddingTop - 2}
                 textAnchor="middle"
                 fill="var(--bg)"
-                style={{ fontSize: '9.5px', fontWeight: 800, letterSpacing: '0.04em' }}
+                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, letterSpacing: '0.04em' }}
               >
                 TODAY
               </text>
@@ -1083,7 +1082,7 @@ export function StepLineChart({
               y={Math.max(paddingTop + 4, lastPoint.y - 10)}
               textAnchor="end"
               className="chart-endpoint-label"
-              style={{ fontSize: '11px', fontWeight: 600, fill: 'var(--text)' }}
+              style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, fill: 'var(--text)' }}
             >
               {`${projectedPathD ? 'Month-end ' : ''}${formatChartTick(lastPoint.balance, currencySymbol)}`}
             </text>
@@ -1117,7 +1116,7 @@ export function StepLineChart({
                 style={{
                   fill: isSelected ? 'var(--text)' : isNegative ? 'var(--text)' : undefined,
                   fontWeight: isSelected || isNegative ? 600 : 500,
-                  fontSize: '11.5px',
+                  fontSize: 'var(--fs-xs)',
                   cursor: 'pointer'
                 }}
                 onClick={() => onSelectDay?.(selectedDay === day ? null : day)}
@@ -1144,7 +1143,7 @@ export function StepLineChart({
                 x="12"
                 y="17"
                 fill="var(--text-secondary)"
-                style={{ fontSize: '11px', fontWeight: 600 }}
+                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600 }}
               >
                 {activePoint.day < 0
                   ? `${formatDisplayDate(activePoint.date, true)} (Day ${activePoint.day})`
@@ -1158,7 +1157,7 @@ export function StepLineChart({
                     x="12"
                     y="35"
                     fill="var(--text)"
-                    style={{ fontSize: '11.5px', fontWeight: 600 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                   >
                     {(activeEvent.name || activeEvent.description || activeEvent.label || 'Transaction').slice(0, 16)}
                   </text>
@@ -1167,8 +1166,8 @@ export function StepLineChart({
                     y="35"
                     textAnchor="end"
                     className="tabular-nums"
-                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--emerald, #10b981)'}
-                    style={{ fontSize: '12px', fontWeight: 700 }}
+                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--emerald)'}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}
                   >
                     {activeEvent.amount < 0 ? `-${formatCurrency(Math.abs(activeEvent.amount), currencySymbol)}` : `+${formatCurrency(activeEvent.amount, currencySymbol)}`}
                   </text>
@@ -1180,7 +1179,7 @@ export function StepLineChart({
                         x="12"
                         y="52"
                         fill="var(--text-secondary)"
-                        style={{ fontSize: '11px', fontWeight: 500 }}
+                        style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
                       >
                         Account:
                       </text>
@@ -1189,7 +1188,7 @@ export function StepLineChart({
                         y="52"
                         textAnchor="end"
                         fill="var(--text-secondary)"
-                        style={{ fontSize: '11.5px', fontWeight: 600 }}
+                        style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                       >
                         {activeAccount.name.slice(0, 16)} ({activeAccount.type})
                       </text>
@@ -1201,7 +1200,7 @@ export function StepLineChart({
                     x="12"
                     y={activeAccount ? 70 : 52}
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11px', fontWeight: 500 }}
+                    style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
                   >
                     Balance:
                   </text>
@@ -1211,7 +1210,7 @@ export function StepLineChart({
                     textAnchor="end"
                     className="tabular-nums"
                     fill="var(--text)"
-                    style={{ fontSize: '12px', fontWeight: 600 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                   >
                     {formatCurrency(activePoint.balance, currencySymbol)}
                   </text>
@@ -1221,7 +1220,7 @@ export function StepLineChart({
                     x="12"
                     y={activeAccount ? 88 : 69}
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11px', fontWeight: 500 }}
+                    style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
                   >
                     Day End:
                   </text>
@@ -1231,7 +1230,7 @@ export function StepLineChart({
                     textAnchor="end"
                     className="tabular-nums"
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11.5px', fontWeight: 600 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                   >
                     {formatCurrency(closingBalance, currencySymbol)}
                   </text>
@@ -1243,7 +1242,7 @@ export function StepLineChart({
                     x="12"
                     y="35"
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
                   >
                     Opening:
                   </text>
@@ -1253,7 +1252,7 @@ export function StepLineChart({
                     textAnchor="end"
                     className="tabular-nums"
                     fill="var(--text)"
-                    style={{ fontSize: '12px', fontWeight: 600 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                   >
                     {formatCurrency(openingBalance, currencySymbol)}
                   </text>
@@ -1263,7 +1262,7 @@ export function StepLineChart({
                     x="12"
                     y="52"
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
                   >
                     Spending:
                   </text>
@@ -1273,7 +1272,7 @@ export function StepLineChart({
                     textAnchor="end"
                     className="tabular-nums"
                     fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
-                    style={{ fontSize: '12px', fontWeight: 600 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
                   >
                     {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
                   </text>
@@ -1283,7 +1282,7 @@ export function StepLineChart({
                     x="12"
                     y="69"
                     fill="var(--text-secondary)"
-                    style={{ fontSize: '11.5px', fontWeight: 500 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
                   >
                     Closing:
                   </text>
@@ -1293,7 +1292,7 @@ export function StepLineChart({
                     textAnchor="end"
                     className="tabular-nums"
                     fill="var(--text)"
-                    style={{ fontSize: '12px', fontWeight: 700 }}
+                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}
                   >
                     {formatCurrency(closingBalance, currencySymbol)}
                   </text>
@@ -1306,7 +1305,7 @@ export function StepLineChart({
                   x="12"
                   y={activeEvent ? (activeAccount ? 106 : 88) : 87}
                   fill="var(--danger)"
-                  style={{ fontSize: '10.5px', fontWeight: 600 }}
+                  style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600 }}
                 >
                   ▲ Floor breached
                 </text>

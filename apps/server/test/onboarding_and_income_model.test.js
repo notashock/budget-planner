@@ -31,7 +31,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
   it('1. Mandatory account creation with openingBalanceDate and cash/bank types', async () => {
     // Attempting to query accounts initially returns 0 accounts
     const initialRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(initialRes.status).toBe(200);
@@ -73,7 +73,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
     // Verify both accounts are returned in /api/accounts/all
     const allAccountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(allAccountsRes.status).toBe(200);
@@ -82,7 +82,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
   it('2. Provisions salary template, rolling 2 periods, and planned salary transactions', async () => {
     const accountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
 
     const primaryBank = accountsRes.body.data.find((a) => a.isPrimary);
@@ -150,7 +150,7 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
   it('3. Versions salary template on change and preserves past transactions', async () => {
     const accountsRes = await request(app)
-      .get('/api/accounts/all')
+      .get('/api/bank-accounts/all')
       .set('Authorization', `Bearer ${authToken}`);
     const primaryBank = accountsRes.body.data.find((a) => a.isPrimary);
 
@@ -307,13 +307,15 @@ describe('Onboarding & Dual-Income Model Integration Suite', () => {
 
     expect(reportRes.status).toBe(200);
     const report = reportRes.body.data;
+    // Account opened 2026-01-01, report as of 2026-10-20 → 10 months of history (not 12)
     expect(report.trailing12mIncome).toBe(180000);
-    expect(report.smoothedMonthlyIncome).toBe(15000);
+    expect(report.monthsOfHistory).toBe(10);
+    expect(report.smoothedMonthlyIncome).toBe(18000);
     expect(report.trailing12mSpending).toBe(100000);
-    expect(report.avgMonthlySpending).toBe(8333);
+    expect(report.avgMonthlySpending).toBe(10000);
     expect(report.currentBalance).toBe(180000);
-    expect(report.runwayMonths).toBe(21.6);
-    expect(report.runwayDisplay).toBe('21.6 mo');
+    expect(report.runwayMonths).toBe(18);
+    expect(report.runwayDisplay).toBe('18.0 mo');
     expect(report.isIndefinite).toBe(false);
     expect(report.quarterly).toHaveLength(3);
     expect(report.yearly).toHaveLength(1);

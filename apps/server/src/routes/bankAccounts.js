@@ -20,7 +20,7 @@ function parseCurrencyInt(val) {
 // Check migration eligibility and get legacy stats
 bankAccountsRouter.get('/migration-status', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const result = await getMigrationStatus(userId);
     return res.json(result);
   } catch (err) {
@@ -32,7 +32,7 @@ bankAccountsRouter.get('/migration-status', async (req, res) => {
 // User-consented primary bank account data migration
 bankAccountsRouter.post('/migrate', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const { name, institution, accountType, accountNumberLast4, accountNumberMasked, minimumBalance } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Account name is required' });
@@ -57,7 +57,7 @@ bankAccountsRouter.post('/migrate', async (req, res) => {
 // List all bank accounts
 bankAccountsRouter.get('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const conditions = [
       eq(s.accounts.userId, userId),
       eq(s.accounts.type, 'bank')
@@ -81,7 +81,7 @@ bankAccountsRouter.get('/', async (req, res) => {
 // List all accounts of any type (bank, cash, wallet)
 bankAccountsRouter.get('/all', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const conditions = [eq(s.accounts.userId, userId)];
     if (req.query.includeArchived !== 'true') {
       conditions.push(eq(s.accounts.isArchived, false));
@@ -102,7 +102,7 @@ bankAccountsRouter.get('/all', async (req, res) => {
 // Create a new bank account
 bankAccountsRouter.post('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const {
       name,
       type,
@@ -177,7 +177,7 @@ bankAccountsRouter.post('/', async (req, res) => {
 // Update bank account
 bankAccountsRouter.put('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const bankId = req.params.id;
     if (!bankId || bankId === 'undefined' || bankId === 'null') {
       return res.status(400).json({ error: 'Invalid bank account ID' });
@@ -266,7 +266,7 @@ bankAccountsRouter.put('/:id', async (req, res) => {
 // Soft-archive a bank account
 bankAccountsRouter.delete('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const bankId = req.params.id;
 
     const account = await db.query.accounts.findFirst({

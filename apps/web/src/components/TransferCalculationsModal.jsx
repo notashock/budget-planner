@@ -94,8 +94,8 @@ export function TransferCalculationsModal({
                 <ArrowRightLeftIcon size={16} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Transfer Existing Calculations</h3>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--fs-input)', fontWeight: 600 }}>Move your balance into an account</h3>
+                <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
                   Single unified migration to your bank ledger
                 </p>
               </div>
@@ -112,7 +112,7 @@ export function TransferCalculationsModal({
             background: 'var(--surface-subtle)',
             border: '1px solid var(--border)',
             color: 'var(--text)',
-            fontSize: '12px',
+            fontSize: 'var(--fs-xs)',
             marginBottom: '14px',
             display: 'flex',
             alignItems: 'center',
@@ -131,31 +131,31 @@ export function TransferCalculationsModal({
           border: '1px solid var(--border)',
           marginBottom: '16px'
         }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+          <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
             Data to be Transferred
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div style={{ padding: '8px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Opening Balance</div>
-              <div style={{ fontSize: '15px', fontWeight: 700 }} className="tabular-nums">
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>Opening Balance</div>
+              <div style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }} className="tabular-nums">
                 {formatCurrency(openingBal, currencySymbol)}
               </div>
             </div>
             <div style={{ padding: '8px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Monthly Salary</div>
-              <div style={{ fontSize: '15px', fontWeight: 700 }} className="tabular-nums">
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>Monthly Salary</div>
+              <div style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }} className="tabular-nums">
                 {formatCurrency(incomeBal, currencySymbol)}
               </div>
             </div>
             <div style={{ padding: '8px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Planned Items</div>
-              <div style={{ fontSize: '15px', fontWeight: 700 }} className="tabular-nums">
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>Planned Items</div>
+              <div style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }} className="tabular-nums">
                 {plannedCount} items
               </div>
             </div>
             <div style={{ padding: '8px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Transactions</div>
-              <div style={{ fontSize: '15px', fontWeight: 700 }} className="tabular-nums">
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>Transactions</div>
+              <div style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }} className="tabular-nums">
                 {txCount} records
               </div>
             </div>
@@ -165,7 +165,7 @@ export function TransferCalculationsModal({
         <form onSubmit={(e) => handleSubmit(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {bankAccounts.length === 0 ? (
             <>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                 No bank accounts linked yet. Enter your primary bank details below to create your account and absorb all existing calculations immediately.
               </div>
 

@@ -13,7 +13,7 @@ transfersRouter.use(requireAuth);
 // List transfers for a month or user
 transfersRouter.get('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const conditions = [eq(s.transfers.userId, userId)];
     if (req.query.monthId) {
       conditions.push(eq(s.transfers.monthId, req.query.monthId));
@@ -34,7 +34,7 @@ transfersRouter.get('/', async (req, res) => {
 // Create a Paired Account Transfer
 transfersRouter.post('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const {
       monthId,
       date,
@@ -134,7 +134,7 @@ transfersRouter.post('/', async (req, res) => {
 // Update a transfer
 transfersRouter.put('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const transferId = req.params.id;
     const { date, amount, note, description } = req.body;
     const sourceAccountId = req.body.sourceAccountId || req.body.sourceBankAccountId || req.body.sourceWalletId || req.body.sourceId;
@@ -194,7 +194,7 @@ transfersRouter.put('/:id', async (req, res) => {
 // Delete a transfer
 transfersRouter.delete('/:id', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const transferId = req.params.id;
 
     const existing = await db.query.transfers.findFirst({

@@ -22,7 +22,7 @@ describe('UpcomingOutflows', () => {
     render(<UpcomingOutflows events={events} todayStr="2026-11-17" currencySymbol="₹" onPay={vi.fn()} />);
 
     expect(screen.getByText('Next 7 days')).toBeInTheDocument();
-    expect(screen.getByText('₹44,600.00')).toBeInTheDocument();
+    expect(screen.getByText('₹44,600')).toBeInTheDocument();
     expect(screen.getByText(/3 payments · 1 overdue · 13 days to salary/)).toBeInTheDocument();
     expect(screen.getByText('Due today')).toBeInTheDocument();
     expect(screen.getByText(/^Overdue ·/)).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('AllowancePaceMeter', () => {
 
     expect(screen.getByText('Unplanned allowance')).toBeInTheDocument();
     expect(screen.getByText('Over pace')).toBeInTheDocument();
-    expect(screen.getByText('₹6,200.00')).toBeInTheDocument();
+    expect(screen.getByText('₹6,200')).toBeInTheDocument();
     expect(screen.getByText(/₹1,200.00 ahead of an even pace for day 15/)).toBeInTheDocument();
     expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '620000');
   });
@@ -102,7 +102,7 @@ describe('CategoryBreakdown', () => {
     );
 
     expect(screen.getByText('Spending by category')).toBeInTheDocument();
-    expect(screen.getByText('₹42,000.00')).toBeInTheDocument();
+    expect(screen.getByText('₹42,000')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Planned')).toBeInTheDocument();
     const names = Array.from(document.querySelectorAll('.cat-name')).map((n) => n.textContent);
@@ -150,6 +150,14 @@ describe('Irregular income view', () => {
     expect(screen.getByText('3–6 months')).toBeInTheDocument();
     expect(screen.getByText(/₹42,000.00 covers 4.2 months of average spending \(₹10,000.00\/mo\)/)).toBeInTheDocument();
     expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '4.2');
+    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument();
+  });
+
+  it('says how many months of history the runway is based on', () => {
+    const { rerender } = render(<RunwayGauge runwayMonths={10} monthsOfHistory={3} currencySymbol="₹" />);
+    expect(screen.getByText('Based on 3 months of history.')).toBeInTheDocument();
+    rerender(<RunwayGauge runwayMonths={10} monthsOfHistory={1} currencySymbol="₹" />);
+    expect(screen.getByText(/Based on 1 month of history\. This will steady/)).toBeInTheDocument();
   });
 
   it('flags under three months and handles indefinite runway', () => {
@@ -165,7 +173,7 @@ describe('Irregular income view', () => {
     render(
       <IrregularHeroCards
         currencySymbol="₹"
-        metrics={{ smoothedMonthlyIncome: 1500000, trailing12mIncome: 18000000, avgMonthlySpending: 900000, trailing12mSpending: 10800000, currentBalance: 5000000 }}
+        metrics={{ smoothedMonthlyIncome: 1500000, trailing12mIncome: 18000000, avgMonthlySpending: 900000, trailing12mSpending: 10800000, currentBalance: 5000000, monthsOfHistory: 12 }}
       />
     );
     expect(screen.getByText('Savings rate')).toBeInTheDocument();

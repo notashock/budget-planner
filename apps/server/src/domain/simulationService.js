@@ -1,5 +1,26 @@
+import { eq } from 'drizzle-orm';
 import { simulate } from '@budget/engine';
+import { db } from '../db/index.js';
+import * as schema from '../db/schema.js';
 import { serialize } from '../utils/serializer.js';
+
+/**
+ * Loads a user's goals for simulation. The engine only reserves money for open,
+ * dated goals (this month's share), so passing every goal is safe; achieved,
+ * dropped, scheduled and undated goals reserve nothing.
+ * @param {string} userId
+ * @returns {Promise<object[]>}
+ */
+export async function loadGoalsForUser(userId) {
+  if (!userId) return [];
+  try {
+    const rows = await db.select().from(schema.goals).where(eq(schema.goals.userId, userId));
+    return serialize(rows);
+  } catch (err) {
+    console.warn('[Simulation] Could not load goals; simulating without goal reserves:', err.message || err);
+    return [];
+  }
+}
 
 /**
  * SimulationService: Server-side calculation adapter.
@@ -18,6 +39,7 @@ export const SimulationService = {
     items = [],
     transactions = [],
     transfers = [],
+    goals = [],
     currentDay = null
   }) {
     const allAccounts = [
@@ -45,7 +67,7 @@ export const SimulationService = {
       serialize(items),
       { year: month.year, month: month.month },
       serialize(transactions),
-      [],
+      goals || [],
       serialize(transfers),
       allAccounts
     );

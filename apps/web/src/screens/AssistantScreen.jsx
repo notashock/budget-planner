@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { api } from '../api.js';
+import { PageTitle } from '../components/PageTitle.jsx';
 import { formatCurrency } from '@budget/engine';
 
 export function AssistantScreen({
@@ -89,7 +90,7 @@ export function AssistantScreen({
   if (!isEnabled) {
     return (
       <div className="screen-content">
-        <h2>AI assistant</h2>
+        <PageTitle title="AI assistant" subtitle="Optional help with drafting plans. Off unless you turn it on." />
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div className="card-header">
             <span className="card-title">Assistant is disabled</span>
@@ -117,12 +118,12 @@ export function AssistantScreen({
   return (
     <div className="screen-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2>AI assistant</h2>
+        <PageTitle title="AI assistant" subtitle="Optional help with drafting plans. Off unless you turn it on." />
         <button
           type="button"
           className="btn-subtle"
           onClick={() => onToggleAi(false)}
-          style={{ fontSize: '12px', color: 'var(--danger)' }}
+          style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}
         >
           Disable assistant
         </button>
@@ -133,7 +134,7 @@ export function AssistantScreen({
         <div className="card-header">
           <span className="card-title">Convert text to budget item</span>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', marginBottom: '10px' }}>
           Describe an expense in plain language. The assistant converts it into a draft item for your review before saving.
         </p>
 
@@ -166,7 +167,7 @@ export function AssistantScreen({
         )}
 
         {parseError && (
-          <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: '12px' }}>
+          <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: 'var(--fs-xs)' }}>
             Error: {parseError}
           </div>
         )}
@@ -185,12 +186,12 @@ export function AssistantScreen({
               gap: '8px'
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: '13px' }}>Review draft item before saving</div>
-            <div style={{ fontSize: '13px' }}>
+            <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>Review draft item before saving</div>
+            <div style={{ fontSize: 'var(--fs-sm)' }}>
               <strong>Name:</strong> {draftItem.name} ({draftItem.type})
             </div>
 
-            <div style={{ fontSize: '13px' }}>
+            <div style={{ fontSize: 'var(--fs-sm)' }}>
               <strong>Amount:</strong> {formatCurrency(draftItem.amount, currencySymbol)} on day {draftItem.day || draftItem.dayOfMonth}
             </div>
 
@@ -211,7 +212,7 @@ export function AssistantScreen({
         <div className="card-header">
           <span className="card-title">Timeline analysis & suggestions</span>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', marginBottom: '10px' }}>
           Analyzes the deterministic engine output and provides actionable suggestions if your safety floor is breached.
         </p>
 
@@ -240,7 +241,7 @@ export function AssistantScreen({
         )}
 
         {explainError && (
-          <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: '12px' }}>
+          <div style={{ marginTop: '10px', color: 'var(--danger)', fontSize: 'var(--fs-xs)' }}>
             Error: {explainError}
           </div>
         )}
@@ -258,12 +259,12 @@ export function AssistantScreen({
               gap: '8px'
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: '13px' }}>
+            <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
               {explanation.summary}
             </div>
 
             {explanation.suggestions && explanation.suggestions.length > 0 && (
-              <ul style={{ paddingLeft: '18px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <ul style={{ paddingLeft: '18px', fontSize: 'var(--fs-sm)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {explanation.suggestions.map((s, idx) => (
                   <li key={idx}>{s}</li>
                 ))}

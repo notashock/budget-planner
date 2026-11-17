@@ -1,4 +1,5 @@
 import express from 'express';
+import { setAuthCookie, clearAuthCookie } from '../utils/authCookie.js';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
@@ -37,6 +38,13 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Valid email and password required' });
     }
 
+    // Real validation instead of pattern blocking: a plain address with no spaces
+    // or markup characters, one @, and a dotted domain.
+    const trimmedEmail = email.trim();
+    if (trimmedEmail.length > 254 || !/^[^\s@<>()",;:]+@[^\s@<>()",;:']+\.[^\s@<>()",;:']{2,}$/.test(trimmedEmail)) {
+      return res.status(400).json({ error: 'Enter a valid email address' });
+    }
+
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
@@ -73,16 +81,7 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
       config.sessionMaxAgeDays
     );
 
-    if (req.session) {
-      req.session.userId = user.id;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-
+    setAuthCookie(res, token);
     return res.status(201).json({
       user: { id: user.id, _id: user.id, email: user.email },
       token
@@ -120,16 +119,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
       config.sessionMaxAgeDays
     );
 
-    if (req.session) {
-      req.session.userId = user.id;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-
+    setAuthCookie(res, token);
     return res.json({
       user: { id: user.id, _id: user.id, email: user.email },
       token
@@ -142,10 +132,9 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
 // Logout
 authRouter.post('/logout', (req, res) => {
-  if (req.session && typeof req.session.destroy === 'function') {
-    req.session.destroy(() => {});
-  }
+  // Also clear the cookie left by the old server-side session store
   res.clearCookie('connect.sid');
+  clearAuthCookie(res);
   return res.json({ message: 'Logged out successfully' });
 });
 
@@ -167,6 +156,13 @@ authRouter.get('/me', async (req, res) => {
     const userSettings = await db.query.settings.findFirst({
       where: eq(s.settings.userId, user.id)
     });
+
+    // One-time move of a valid Bearer token (from an older web version that kept
+    // it in localStorage) into the httpOnly cookie.
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ') && req.authVia !== 'cookie') {
+      setAuthCookie(res, authHeader.slice(7).trim());
+    }
 
     return res.json({
       user: { id: user.id, _id: user.id, email: user.email },

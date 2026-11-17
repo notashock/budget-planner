@@ -136,7 +136,7 @@ describe('TransactionsScreen', () => {
     fireEvent.click(markPaidButtons[0]);
 
     // Modal opens
-    expect(screen.getByText('Confirm Payment Settlement')).toBeInTheDocument();
+    expect(screen.getByText('Confirm payment')).toBeInTheDocument();
 
     // Submit payment
     const confirmBtn = screen.getByRole('button', { name: /Confirm Paid/i });
@@ -397,7 +397,7 @@ describe('TransactionsScreen', () => {
 
     const title = screen.getByRole('heading', { level: 1, name: 'Transactions' });
     expect(title).toBeInTheDocument();
-    expect(screen.getByText(/Unified record of commitments and actual cash movement/i)).toBeInTheDocument();
+    expect(screen.getByText(/Everything you have paid, and everything still planned/i)).toBeInTheDocument();
   });
 
   it('spots expected salary credit date without displaying a planned debit amount when amount is 0', () => {

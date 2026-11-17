@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_mobile/theme/app_colors.dart';
 import 'package:budget_mobile/widgets/step_line_chart.dart';
-import 'package:budget_mobile/engine/simulator.dart';
+import 'package:budget_mobile/models/simulation.dart';
 
 class _FakeHttpClient extends Fake implements HttpClient {
   @override

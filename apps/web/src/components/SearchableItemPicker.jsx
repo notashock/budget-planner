@@ -80,12 +80,12 @@ export function SearchableItemPicker({
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {selectedItem.name}
               </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
                 ({formatCurrency(selectedItem.amount, currencySymbol)})
               </span>
               <span
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   padding: '1px 5px',
                   borderRadius: '4px',
                   background: 'var(--surface-subtle)',
@@ -99,7 +99,7 @@ export function SearchableItemPicker({
               {selectedItem.isFixed && (
                 <span
                   style={{
-                    fontSize: '9px',
+                    fontSize: 'var(--fs-2xs)',
                     padding: '1px 5px',
                     borderRadius: '4px',
                     background: 'var(--accent-subtle)',
@@ -153,7 +153,7 @@ export function SearchableItemPicker({
                 placeholder="Search planned transactions..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ padding: '6px 10px', fontSize: '12px' }}
+                style={{ padding: '6px 10px', fontSize: 'var(--fs-xs)' }}
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
@@ -169,11 +169,11 @@ export function SearchableItemPicker({
           >
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontWeight: 600 }}>Unexpected spending</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                 Draws down unplanned allowance
               </span>
             </div>
-            {!selectedId && <span style={{ fontSize: '11px', color: 'var(--accent)' }}>●</span>}
+            {!selectedId && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--accent)' }}>●</span>}
           </button>
 
           {/* Unified continuous list of all matching items */}
@@ -191,13 +191,13 @@ export function SearchableItemPicker({
                   <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.name}
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
                     {formatCurrency(item.amount, currencySymbol)}
                   </span>
                   {item.type === 'recurring' && (
                     <span
                       style={{
-                        fontSize: '9px',
+                        fontSize: 'var(--fs-2xs)',
                         padding: '1px 5px',
                         borderRadius: '3px',
                         background: 'var(--surface-subtle)',
@@ -212,7 +212,7 @@ export function SearchableItemPicker({
                   {item.isFixed && (
                     <span
                       style={{
-                        fontSize: '9px',
+                        fontSize: 'var(--fs-2xs)',
                         padding: '1px 5px',
                         borderRadius: '3px',
                         background: 'var(--accent-subtle)',
@@ -225,13 +225,13 @@ export function SearchableItemPicker({
                     </span>
                   )}
                 </div>
-                {selectedId === item._id && <span style={{ fontSize: '11px', color: 'var(--accent)', flexShrink: 0, marginLeft: '6px' }}>●</span>}
+                {selectedId === item._id && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--accent)', flexShrink: 0, marginLeft: '6px' }}>●</span>}
               </div>
             </button>
           ))}
 
           {filteredItems.length === 0 && search && (
-            <div style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            <div style={{ padding: '12px 8px', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', textAlign: 'center' }}>
               No planned items match "{search}"
             </div>
           )}

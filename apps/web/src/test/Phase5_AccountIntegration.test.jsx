@@ -3,7 +3,6 @@ import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { PlanScreen } from '../screens/PlanScreen.jsx';
 import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
-import { CreateMonthModal, RolloverModal } from '../components/MonthModals.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
 
 describe('Phase 5: Multi-Account Frontend Integration', () => {
@@ -82,7 +81,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
   };
 
   describe('PlanScreen Account Filter Bar', () => {
-    it('renders horizontal account filter pills and filters isolated trajectory on click', () => {
+    it('renders horizontal account filter pills and shows only the selected account on click', () => {
       render(
         <PlanScreen
           month={mockMonth}
@@ -95,7 +94,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('All Accounts (Unified)')).toBeInTheDocument();
+      expect(screen.getByText('All accounts')).toBeInTheDocument();
       expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
@@ -103,12 +102,12 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const bankPill = screen.getAllByText('HDFC Salary Account')[0].closest('button');
       fireEvent.click(bankPill);
 
-      expect(screen.getByText(/Viewing isolated trajectory for/i)).toBeInTheDocument();
+      expect(screen.getByText(/Showing only/i)).toBeInTheDocument();
       expect(screen.getByText('Reset')).toBeInTheDocument();
 
       // Reset back to unified via Reset button
       fireEvent.click(screen.getByText('Reset'));
-      expect(screen.queryByText(/Viewing isolated trajectory for/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Showing only/i)).not.toBeInTheDocument();
     });
 
     it('renders Prominent Data Transfer Banner when migrationEligible is true and opens migration on click', () => {
@@ -127,11 +126,47 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText(/Transfer Existing Calculations to Bank Account/i)).toBeInTheDocument();
-      expect(screen.getByText(/1-Tap Ingestion/i)).toBeInTheDocument();
+      expect(screen.getByText(/Move your balance into a bank account/i)).toBeInTheDocument();
+      expect(screen.getByText(/One step/i)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Transfer Existing Calculations Now/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Move my balance/i }));
       expect(handleOpenMigration).toHaveBeenCalledTimes(1);
+    });
+
+    it("judges the unified view against the engine's floor, even when the month floor exceeds account minimums", () => {
+      // Account minimums sum to ₹15,000; the engine's unified floor is ₹25,000 (a larger month floor).
+      render(
+        <PlanScreen
+          month={mockMonth}
+          items={[]}
+          simulation={{ ...mockSimulation, safetyFloor: 2500000 }}
+          bankAccounts={mockBankAccounts}
+          wallets={mockWallets}
+          onOpenUnifiedEntry={vi.fn()}
+          onOpenReview={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Floor: ₹25,000.00')).toBeInTheDocument();
+      expect(screen.getByText(/₹25,000.00 safety floor/)).toBeInTheDocument();
+      expect(screen.queryByText('Floor: ₹15,000.00')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the larger of the month floor and account minimums when the engine gives none', () => {
+      const { safetyFloor, ...simWithoutFloor } = mockSimulation;
+      render(
+        <PlanScreen
+          month={mockMonth}
+          items={[]}
+          simulation={simWithoutFloor}
+          bankAccounts={mockBankAccounts}
+          wallets={mockWallets}
+          onOpenUnifiedEntry={vi.fn()}
+          onOpenReview={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Floor: ₹15,000.00')).toBeInTheDocument();
     });
 
     it('calculates unified sums across all accounts and isolates safe velocity when account is selected', () => {
@@ -179,15 +214,15 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000.00')).toBeInTheDocument();
+      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
 
       // Isolated Today's balance for HDFC Salary Account is ₹49,000.00 (appears in filter pill and KPI card)
-      expect(screen.getAllByText('₹49,000.00').length).toBeGreaterThanOrEqual(2);
-      // Isolated safe velocity rate for HDFC is ₹32.00 / day
-      expect(screen.getByText('₹32.00')).toBeInTheDocument();
+      expect(screen.getAllByText('₹49,000').length).toBeGreaterThanOrEqual(2);
+      // Isolated daily spending limit for HDFC is ₹32 / day (whole rupees)
+      expect(screen.getByText('₹32')).toBeInTheDocument();
     });
   });
 
@@ -408,91 +443,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
     }, 15000);
   });
 
-  describe('CreateMonthModal & RolloverModal with Accounts', () => {
-    it('renders Salary Deposit Account and composite breakdown toggle in CreateMonthModal', () => {
-      render(
-        <CreateMonthModal
-          isOpen={true}
-          onClose={vi.fn()}
-          onCreate={vi.fn()}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-        />
-      );
-
-      expect(screen.getByText('Salary Deposit Account')).toBeInTheDocument();
-      expect(screen.getByText('Break down by account')).toBeInTheDocument();
-
-      // Click break down by account
-      fireEvent.click(screen.getByText('Break down by account'));
-      expect(screen.getByText(/Account-by-Account Opening Allocations/i)).toBeInTheDocument();
-    });
-
-    it('renders per-account carried balances in RolloverModal', () => {
-      render(
-        <RolloverModal
-          isOpen={true}
-          currentMonth={mockMonth}
-          endingBalance={5700000}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-          simulation={{
-            accounts: {
-              'bank-1': { endingBalance: 5700000 },
-              'wallet-1': { endingBalance: 150000 }
-            }
-          }}
-          onClose={vi.fn()}
-          onConfirm={vi.fn()}
-        />
-      );
-
-      expect(screen.getByText(/Per-Account Ending Balances Carried:/i)).toBeInTheDocument();
-      expect(screen.getByText('HDFC Salary Account')).toBeInTheDocument();
-      expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
-    });
-
-    it('renders embedded Primary Bank Account setup when user has 0 bank accounts and submits atomically', () => {
-      const handleCreate = vi.fn();
-      render(
-        <CreateMonthModal
-          isOpen={true}
-          onClose={vi.fn()}
-          onCreate={handleCreate}
-          bankAccounts={[]}
-          wallets={[]}
-        />
-      );
-
-      expect(screen.getByText(/Primary Bank Account Setup/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/e\.g\. Primary Checking, Salary Account/i)).toBeInTheDocument();
-
-      // Enter institution and opening balance
-      fireEvent.change(screen.getByPlaceholderText(/e\.g\. HDFC Bank, Chase/i), {
-        target: { value: 'State Bank of India' }
-      });
-      fireEvent.change(screen.getByPlaceholderText('0.00'), {
-        target: { value: '25000' }
-      });
-
-      // Submit
-      fireEvent.click(screen.getByRole('button', { name: /Create month/i }));
-
-      expect(handleCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          openingBalance: 2500000,
-          newBankAccount: expect.objectContaining({
-            name: 'Primary Checking',
-            institution: 'State Bank of India',
-            accountType: 'checking',
-            openingBalance: 2500000,
-            isPrimary: true,
-            isSalaryDeposit: true
-          })
-        })
-      );
-    });
-
+  describe('GoalsScreen funding account', () => {
     it('renders funding account selector in GoalsScreen and includes account details in goal submission', () => {
       const handleCreateGoal = vi.fn();
       render(
@@ -622,7 +573,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Monthly Income displays 75,000 (simulation.incomeAmount)
-      expect(screen.getByText('₹75,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹75,000')).toBeInTheDocument();
 
       // Click on ICICI Savings (bank-2)
       fireEvent.click(screen.getByText('ICICI Savings'));

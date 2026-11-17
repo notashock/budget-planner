@@ -1,0 +1,354 @@
+/* ==========================================================================
+   Mobile Density Tier (< 768px)
+   High-density native-app feel with tightened card insets, padding, typography,
+   and controls, without disturbing desktop or tablet layouts.
+   ========================================================================== */
+@media (max-width: 767px) {
+  :root {
+    --radius: 6px;
+  }
+
+  /* Compact Header */
+  .app-header-inner {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .app-header-left {
+    gap: 8px;
+  }
+
+  .app-header-right {
+    gap: 6px;
+  }
+
+  .app-brand {
+    font-size: var(--fs-xs);
+  }
+
+  .app-brand-text,
+  .beta-badge {
+    display: none;
+  }
+
+  .desktop-only-btn {
+    display: none !important;
+  }
+
+  .month-picker-btn {
+    font-size: var(--fs-sm);
+    padding: 2px 4px;
+    font-weight: 600;
+  }
+
+  .header-floor-pill {
+    padding: 2px 6px;
+    font-size: var(--fs-2xs);
+    gap: 4px;
+    max-width: 125px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  
+
+  /* Compact Container & Screen Paddings */
+  .app-container {
+    padding: 10px 10px calc(68px + env(safe-area-inset-bottom, 0px)) 10px;
+  }
+
+  .screen-content {
+    padding: 8px 4px;
+    gap: 10px;
+  }
+
+  /* Compact Dashboard Layout */
+  .dashboard-layout {
+    gap: 10px;
+  }
+
+  /* Compact Standard Cards */
+  .card {
+    padding: 10px;
+  }
+
+  .card-header {
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  .card-title {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.03em;
+  }
+
+  /* Mobile Chart Responsive Containment */
+  .dashboard-chart-panel .chart-container {
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .dashboard-chart-panel .chart-svg {
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    height: auto;
+  }
+
+  /* Compact Summary & Safe Velocity */
+  .summary-grid {
+    gap: 7px;
+  }
+
+  .summary-card {
+    padding: 8px 10px;
+    gap: 3px;
+  }
+
+  .summary-label {
+    font-size: var(--fs-2xs);
+  }
+
+  .summary-value {
+    font-size: var(--fs-input);
+  }
+
+  
+
+  
+
+  
+
+  
+
+  /* Compact Action Bar Buttons */
+  
+
+  
+
+  /* Compact Floor Banner */
+  
+
+  
+
+  
+
+  /* Compact Timeline List */
+  .timeline-list {
+    gap: 5px;
+  }
+
+  .timeline-event-row {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+
+  .timeline-event-date {
+    font-size: var(--fs-2xs);
+    min-width: 64px;
+  }
+
+  .timeline-event-label {
+    font-size: var(--fs-sm);
+  }
+
+  .timeline-event-type {
+    font-size: var(--fs-2xs);
+  }
+
+  .timeline-event-numbers {
+    min-width: 68px;
+  }
+
+  .timeline-event-amount {
+    font-size: var(--fs-sm);
+  }
+
+  .timeline-event-balance {
+    font-size: var(--fs-2xs);
+  }
+
+  /* Compact Buttons & Form Inputs */
+  button {
+    padding: 6px 12px;
+    min-height: 34px;
+    font-size: var(--fs-xs);
+  }
+
+  input, select, textarea {
+    padding: 6px 10px;
+    font-size: var(--fs-sm);
+  }
+
+  .form-group {
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: var(--fs-2xs);
+  }
+
+  .form-row {
+    gap: 8px;
+  }
+
+  /* Compact Bottom Navigation */
+  .bottom-nav {
+    height: 52px;
+  }
+
+  .nav-tab {
+    padding: 3px 0;
+    gap: 2px;
+    font-size: var(--fs-2xs);
+  }
+
+  .nav-tab-icon {
+    font-size: var(--fs-base);
+  }
+
+  /* Compact Bottom-Sheet Modal */
+  .modal-content {
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
+    gap: 12px;
+  }
+
+  .modal-drag-handle {
+    margin: -4px auto 8px auto;
+  }
+
+  /* Compact Items Grid on Mobile */
+  
+
+  
+
+  
+
+  /* Compact Goals Grid on Mobile */
+  .goals-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .goal-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .goal-card-amount {
+    font-size: var(--fs-lg);
+  }
+}
+
+/* Extra Compact Mobile Viewport (< 600px, e.g. 375px iPhone SE) */
+@media (max-width: 599px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  .app-header,
+  .app-header-inner,
+  .app-header-left,
+  .app-header-right {
+    overflow: visible;
+  }
+
+  .app-container,
+.screen-content,
+.dashboard-layout,
+main,
+.card,
+.chart-container,
+.dashboard-chart-panel,
+.dashboard-chart-panel .card {
+    max-width: 100vw;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .chart-svg {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+  }
+
+  .salary-scheduled-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .salary-scheduled-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  
+
+  .tx-search-box.compact {
+    flex: 1 1 0;
+    min-width: 160px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  
+
+  .bottom-nav {
+    width: calc(100vw - 24px) !important;
+    max-width: min(390px, calc(100vw - 24px)) !important;
+    left: 50%;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+  }
+
+  .summary-grid,
+  .detailed-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .summary-grid .kpi-card,
+  .detailed-kpi-grid .kpi-card {
+    padding: 10px 10px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .summary-grid .summary-value,
+  .detailed-kpi-grid .summary-value {
+    font-size: clamp(14px, 4.2vw, 17px) !important;
+    line-height: 1.2 !important;
+    /* Wrap rather than cut off: these lines carry amounts and dates */
+    white-space: normal;
+  }
+
+  .summary-grid .summary-label,
+  .detailed-kpi-grid .summary-label {
+    font-size: var(--fs-2xs);
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .summary-grid .kpi-subtext,
+  .detailed-kpi-grid .kpi-subtext {
+    font-size: var(--fs-2xs);
+    line-height: 1.2 !important;
+    /* Wrap rather than cut off: these lines carry amounts and dates */
+    white-space: normal;
+  }
+}

@@ -61,7 +61,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       );
 
       // Verify transfer breakdown preview
-      expect(screen.getByText('Transfer Existing Calculations')).toBeInTheDocument();
+      expect(screen.getByText('Move your balance into an account')).toBeInTheDocument();
       expect(screen.getByText('₹19,181.85')).toBeInTheDocument();
       expect(screen.getByText('₹19,799.00')).toBeInTheDocument();
       expect(screen.getByText('5 items')).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       vi.useRealTimers();
     });
 
-    it('renders Link Salary & Safeline button in profile dropdown and opens modal on click', () => {
+    it('renders Salary schedule button in profile dropdown and opens modal on click', () => {
       const handleOpenSalarySafeline = vi.fn();
 
       render(
@@ -155,7 +155,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
 
       const linkBtn = screen.getByTestId('link-salary-safeline-btn');
       expect(linkBtn).toBeInTheDocument();
-      expect(screen.getByText('Link Salary & Safeline')).toBeInTheDocument();
+      expect(screen.getByText('Salary schedule')).toBeInTheDocument();
 
       fireEvent.click(linkBtn);
       expect(handleOpenSalarySafeline).toHaveBeenCalled();
@@ -177,16 +177,16 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
         />
       );
 
-      expect(screen.getByText('Link Salary & Safeline')).toBeInTheDocument();
+      expect(screen.getByText('Salary schedule')).toBeInTheDocument();
       expect(screen.getByLabelText(/salary credited account/i)).toHaveValue('bank-1');
       expect(screen.getByLabelText(/monthly salary amount/i)).toHaveValue(19799);
-      expect(screen.getByLabelText(/overall safeline floor/i)).toHaveValue(10000);
+      expect(screen.getByLabelText(/safety floor/i)).toHaveValue(10000);
 
       // Edit values
       fireEvent.change(screen.getByLabelText(/monthly salary amount/i), { target: { value: '25000' } });
-      fireEvent.change(screen.getByLabelText(/overall safeline floor/i), { target: { value: '15000' } });
+      fireEvent.change(screen.getByLabelText(/safety floor/i), { target: { value: '15000' } });
 
-      const saveBtn = screen.getByRole('button', { name: /save salary & safeline|update safeline floor/i });
+      const saveBtn = screen.getByRole('button', { name: /save salary schedule|update safety floor/i });
       fireEvent.click(saveBtn);
 
       await waitFor(() => {

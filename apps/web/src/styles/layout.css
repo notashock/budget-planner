@@ -1,0 +1,493 @@
+/* App Shell */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  width: 100%;
+}
+
+/* Header - Full Width */
+.app-header {
+  width: 100%;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 99990;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: visible;
+}
+
+.app-header:has(.app-dropdown-menu),
+.app-header.has-active-dropdown {
+  z-index: 100000;
+}
+
+.app-header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 8px;
+  overflow: visible;
+}
+
+.app-header-left,
+.app-header-right {
+  overflow: visible;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.app-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.header-avatar-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  min-width: 32px;
+  position: relative;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--border);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, background-color 0.14s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.header-avatar-btn::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: -6px;
+  right: -6px;
+}
+
+.header-avatar-btn:hover {
+  background: var(--surface-subtle);
+  border-color: var(--text-secondary);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-0.5px);
+}
+
+.header-avatar-btn:active {
+  transform: scale(0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+/* Desktop Segmented Navigation */
+.desktop-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+}
+
+.desktop-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: 0.15s;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+
+.desktop-nav-pill:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.desktop-nav-pill.active {
+  color: var(--bg);
+  background: var(--text);
+  font-weight: 600;
+}
+
+/* App container */
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: var(--space-page-y) var(--space-page-x);
+  transition: padding 0.2s var(--ease-spring);
+}
+
+main {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .desktop-header-nav {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .bottom-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .desktop-header-nav {
+    display: none;
+  }
+  .bottom-nav {
+    display: flex;
+  }
+  .app-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 16px 90px;
+  }
+}
+
+/* Tablet Header Optimization (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-header-inner {
+    padding: 8px clamp(12px, 2vw, 18px);
+    gap: clamp(8px, 1.5vw, 14px);
+  }
+
+  .app-header-left {
+    gap: 8px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .app-brand {
+    font-size: var(--fs-base);
+    letter-spacing: 0.04em;
+    gap: 6px;
+  }
+
+  .beta-badge {
+    display: none !important;
+  }
+
+  .month-picker-btn {
+    font-size: var(--fs-sm);
+    padding: 3px 6px;
+    white-space: nowrap;
+  }
+
+  .desktop-header-rollover-btn {
+    font-size: var(--fs-2xs);
+    padding: 3px 8px;
+  }
+
+  .desktop-header-nav {
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .desktop-nav-pill {
+    padding: 4px 10px;
+    font-size: var(--fs-xs);
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .app-header-right {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .header-floor-pill {
+    padding: 3px 8px;
+    font-size: var(--fs-2xs);
+    gap: 4px;
+    max-width: 110px;
+  }
+}
+
+/* Extra-tight tablet portrait refinement (768px - 860px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .desktop-nav-pill {
+    padding: 4px 7px;
+    font-size: var(--fs-xs);
+    gap: 4px;
+  }
+
+  .app-brand-text {
+    font-size: var(--fs-xs);
+  }
+
+  .header-floor-text {
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* 3-Component Dashboard Layout & Mobile Glance-and-Act Hierarchy */
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Mobile & Tablet Portrait Ordering (< 1024px): Safe Velocity -> Action Bar -> Chart -> Detailed KPIs -> Timeline List */
+@media (max-width: 1023px) {
+  .dashboard-layout {
+    gap: 12px;
+  }
+  .dashboard-top-grid {
+    display: contents;
+  }
+  .dashboard-insights-panel {
+    display: contents;
+  }
+  .safe-velocity-card {
+    order: 1;
+  }
+  
+  .dashboard-chart-panel {
+    order: 3;
+  }
+  .detailed-kpi-grid {
+    order: 4;
+  }
+  .dashboard-bottom-timeline {
+    order: 5;
+  }
+}
+
+/* Desktop Grid (>= 1024px): 2 Columns (Insights Left, Chart Right) + Bottom Timeline */
+@media (min-width: 1024px) {
+  .dashboard-top-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 420px) 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .dashboard-insights-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    justify-content: space-between;
+  }
+  .dashboard-chart-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .dashboard-chart-panel .card {
+    height: 100%;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .dashboard-chart-panel .chart-container {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+  }
+}
+
+.dashboard-bottom-timeline {
+  width: 100%;
+}
+
+/* Account Filter Toolbar & Symmetrical Pills */
+.account-filter-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.account-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.account-filter-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.account-filter-track::-webkit-scrollbar {
+  display: none;
+}
+
+.account-filter-pill {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.account-filter-pill:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.account-filter-pill:active {
+  transform: scale(0.96);
+}
+
+.account-filter-pill.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  font-weight: 600;
+}
+
+.account-filter-pill.breached {
+  border-color: var(--rose-border);
+  color: var(--rose);
+}
+
+.account-filter-pill.active.breached {
+  background: var(--rose);
+  color: #ffffff;
+  border-color: var(--rose);
+}
+
+.account-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Symmetrical Goals Layout */
+.goals-two-column-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .goals-two-column-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+}
+
+.goals-input-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.goals-cards-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Standardized 3-Tier Bento Cards */
+.bento-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bento-card:hover {
+  border-color: var(--border-strong);
+}
+
+.bento-card.breached {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+.bento-card-title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

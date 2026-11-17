@@ -463,93 +463,10 @@ class _PlanScreenState extends State<PlanScreen> {
           );
     }
 
-    // 1. Authoritative Backend Calculation (ADR 0052)
-    final serverSim = budget.getAccountSimulation(selectedAccountId);
-    if (serverSim != null) {
-      return serverSim;
-    }
-
-    // 2. Offline Fallback
-    final account = _resolveSelectedAccount(budget, selectedAccountId);
-    if (account == null) return unified;
-
-    final opening = (num.tryParse('${account['openingBalance'] ?? account['currentBalance'] ?? 0}') ?? 0).round();
-    final minBal = (num.tryParse('${account['minimumBalance'] ?? 0}') ?? 0).round();
-
-    final rawMonth = budget.activeMonth;
-    final Map<String, dynamic> monthData = (rawMonth != null && rawMonth['month'] is Map)
-        ? Map<String, dynamic>.from(rawMonth['month'] as Map)
-        : (rawMonth ?? {});
-
-    final designatedSalaryBankId = _extractId(monthData['salaryBankAccountId']);
-
-    final isBank = account['type'] == 'bank';
-    final isPrimaryBank = isBank && account['isPrimary'] == true;
-    final isSoleBank = isBank && budget.bankAccounts.length == 1;
-    final isDesignatedSalaryBank = designatedSalaryBankId != null && designatedSalaryBankId == selectedAccountId;
-
-    // A bank receives salary if explicitly designated, or if unconfigured and it's the primary/sole bank
-    final receivesSalary = isDesignatedSalaryBank ||
-        (designatedSalaryBankId == null && (isPrimaryBank || isSoleBank));
-
-    // Fallback account for legacy unassigned entries: only primary bank, designated salary bank, or sole bank
-    final isFallbackAccount = isPrimaryBank || isDesignatedSalaryBank || isSoleBank;
-
-    // Filter Items strictly to this account
-    final filteredItems = budget.items.where((it) {
-      final bId = _extractId(it['bankAccountId']);
-      final wId = _extractId(it['walletId']);
-      final sBankId = _extractId(it['sourceBankAccountId']);
-      final dBankId = _extractId(it['destinationBankAccountId']);
-
-      if (bId == selectedAccountId || wId == selectedAccountId) return true;
-      if (sBankId == selectedAccountId || dBankId == selectedAccountId) return true;
-
-      // If item has no account assigned at all, attribute to fallback bank
-      if (bId == null && wId == null && sBankId == null && dBankId == null) {
-        return isFallbackAccount;
-      }
-      return false;
-    }).toList();
-
-    // Filter Transactions strictly to this account
-    final filteredTransactions = budget.transactions.where((tx) {
-      final bId = _extractId(tx['bankAccountId']);
-      final wId = _extractId(tx['walletId']);
-
-      if (bId == selectedAccountId || wId == selectedAccountId) return true;
-
-      // If transaction has no account assigned, attribute to fallback bank
-      if (bId == null && wId == null) {
-        return isFallbackAccount;
-      }
-      return false;
-    }).toList();
-
-    // Filter Transfers strictly to this account
-    final filteredTransfers = budget.transfers.where((tr) {
-      final s = _extractId(tr['sourceBankAccountId'] ?? tr['sourceWalletId']);
-      final d = _extractId(tr['destinationBankAccountId'] ?? tr['destinationWalletId']);
-      return s == selectedAccountId || d == selectedAccountId;
-    }).toList();
-
-    return simulate(
-      settings: {
-        'openingBalance': opening,
-        'safetyFloor': minBal,
-        'incomeAmount': receivesSalary ? (num.tryParse('${monthData['incomeAmount'] ?? 0}') ?? 0).round() : 0,
-        'incomeCreditDay': (num.tryParse('${monthData['incomeCreditDay'] ?? 1}') ?? 1).toInt(),
-        'salaryBankAccountId': designatedSalaryBankId,
-        'isSalaryCredited': monthData['isSalaryCredited'] == true,
-        'salaryCreditedDate': monthData['salaryCreditedDate']?.toString(),
-      },
-      items: filteredItems,
-      month: monthData,
-      transactions: filteredTransactions,
-      goals: budget.goals,
-      transfers: filteredTransfers,
-      accounts: [account],
-    );
+    // The server computes every account's simulation (same engine as the web
+    // app). If one is missing (e.g. data still loading), show the all-accounts
+    // view rather than recomputing locally with different maths.
+    return budget.getAccountSimulation(selectedAccountId) ?? unified;
   }
 
   Map<String, dynamic>? _resolveSelectedAccount(BudgetProvider budget, String selectedAccountId) {

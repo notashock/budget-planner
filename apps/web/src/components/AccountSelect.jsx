@@ -122,7 +122,7 @@ export function AccountSelect({
           ...style
         }}
       >
-        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No Accounts Available</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>No Accounts Available</span>
       </div>
     );
   }
@@ -166,14 +166,14 @@ export function AccountSelect({
           <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--text-secondary)' }}>
             {activeType === 'bank' ? <BuildingLibraryIcon size={14} /> : <WalletIcon size={14} />}
           </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: '13px' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 'var(--fs-sm)' }}>
             {activeAccount?.name || 'Select Account'}
             {activeAccount?.accountNumberMasked ? ` (••••${activeAccount.accountNumberMasked})` : ''}
           </span>
           {activeAccount?.isPrimary && (
             <span
               style={{
-                fontSize: '9.5px',
+                fontSize: 'var(--fs-2xs)',
                 padding: '1px 5px',
                 borderRadius: '3px',
                 background: 'var(--surface-subtle)',
@@ -195,7 +195,7 @@ export function AccountSelect({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                background: 'var(--rose, #f43f5e)',
+                background: 'var(--rose)',
                 flexShrink: 0
               }}
             />
@@ -206,9 +206,9 @@ export function AccountSelect({
           <span
             className="tabular-nums"
             style={{
-              fontSize: '12px',
+              fontSize: 'var(--fs-xs)',
               fontWeight: 600,
-              color: isFloorBreached ? 'var(--rose, #f43f5e)' : 'var(--text)'
+              color: isFloorBreached ? 'var(--rose)' : 'var(--text)'
             }}
           >
             {formatCurrency(activeBalance, currencySymbol)}
@@ -249,7 +249,7 @@ export function AccountSelect({
             <div>
               <div
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -280,7 +280,7 @@ export function AccountSelect({
                       gap: '8px',
                       padding: '8px 10px',
                       borderRadius: '6px',
-                      fontSize: '12.5px',
+                      fontSize: 'var(--fs-sm)',
                       width: '100%'
                     }}
                   >
@@ -294,7 +294,7 @@ export function AccountSelect({
                       {b.isPrimary && (
                         <span
                           style={{
-                            fontSize: '9px',
+                            fontSize: 'var(--fs-2xs)',
                             padding: '1px 4px',
                             borderRadius: '3px',
                             background: 'var(--surface-subtle)',
@@ -309,16 +309,16 @@ export function AccountSelect({
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       {breached && (
-                        <span style={{ fontSize: '10px', color: 'var(--rose, #f43f5e)', fontWeight: 500 }}>
+                        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--rose)', fontWeight: 500 }}>
                           Below floor
                         </span>
                       )}
                       <span
                         className="tabular-nums"
                         style={{
-                          fontSize: '11.5px',
+                          fontSize: 'var(--fs-xs)',
                           fontWeight: isSelected ? 600 : 500,
-                          color: breached ? 'var(--rose, #f43f5e)' : isSelected ? 'var(--text)' : 'var(--text-secondary)'
+                          color: breached ? 'var(--rose)' : isSelected ? 'var(--text)' : 'var(--text-secondary)'
                         }}
                       >
                         {formatCurrency(bal, currencySymbol)}
@@ -335,7 +335,7 @@ export function AccountSelect({
             <div style={{ marginTop: bankAccounts.length > 0 ? '4px' : '0' }}>
               <div
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -365,7 +365,7 @@ export function AccountSelect({
                       gap: '8px',
                       padding: '8px 10px',
                       borderRadius: '6px',
-                      fontSize: '12.5px',
+                      fontSize: 'var(--fs-sm)',
                       width: '100%'
                     }}
                   >
@@ -379,7 +379,7 @@ export function AccountSelect({
                       {w.isPrimary && (
                         <span
                           style={{
-                            fontSize: '9px',
+                            fontSize: 'var(--fs-2xs)',
                             padding: '1px 4px',
                             borderRadius: '3px',
                             background: 'var(--surface-subtle)',
@@ -395,7 +395,7 @@ export function AccountSelect({
                     <span
                       className="tabular-nums"
                       style={{
-                        fontSize: '11.5px',
+                        fontSize: 'var(--fs-xs)',
                         fontWeight: isSelected ? 600 : 500,
                         color: isSelected ? 'var(--text)' : 'var(--text-secondary)',
                         flexShrink: 0

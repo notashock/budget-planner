@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, formatDisplayDate, getUpcomingOutflows } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, formatDisplayDate, getUpcomingOutflows } from '@budget/engine';
 import { AlertTriangleIcon, CalendarIcon, CheckCircleIcon } from './Icons.jsx';
 
 const MAX_ROWS = 6;
@@ -27,7 +27,7 @@ export function UpcomingOutflows({
     <section className="summary-card plan-insight-card plan-upcoming-card" aria-labelledby="upcoming-title">
       <div className="pic-head">
         <h3 id="upcoming-title" className="pic-title">Next {windowDays} days</h3>
-        <span className="pic-total tabular-nums">{formatCurrency(total, currencySymbol)}</span>
+        <span className="pic-total tabular-nums">{formatCurrencyWhole(total, currencySymbol)}</span>
       </div>
 
       <p className="pic-sub">

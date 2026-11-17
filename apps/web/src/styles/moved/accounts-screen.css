@@ -1,0 +1,310 @@
+/* Styles moved out of AccountsScreen.jsx inline style props.
+   Unlayered, so they outrank the layered app styles exactly as inline styles did. */
+
+.accounts-box {
+  background: var(--cat-blue);
+}
+
+.accounts-box-2 {
+  background: var(--cat-amber);
+}
+
+.accounts-box-3 {
+  background: var(--cat-green);
+}
+
+.accounts-note {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.accounts-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.accounts-row-2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+}
+
+.accounts-btn {
+  padding: 7px 12px;
+  font-size: var(--fs-xs);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accounts-row-3 {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.accounts-row-4 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.accounts-row-5 {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accounts-text {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.accounts-note-2 {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.accounts-btn-2 {
+  padding: 7px 14px;
+  font-size: var(--fs-xs);
+}
+
+.accounts-btn-3 {
+  padding: 8px 18px;
+  font-size: var(--fs-xs);
+}
+
+.accounts-row-6 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accounts-note-3 {
+  font-size: var(--fs-2xs);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.accounts-note-4 {
+  font-size: var(--fs-2xs);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.accounts-note-5 {
+  font-size: var(--fs-2xs);
+  padding: 1px 5px;
+}
+
+.accounts-note-6 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+.accounts-note-7 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-subtle);
+  border-radius: 10px;
+  margin: 8px 0;
+}
+
+.accounts-note-8 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  display: block;
+}
+
+.accounts-note-9 {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.accounts-note-10 {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--positive);
+}
+
+.accounts-note-11 {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.accounts-row-7 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+
+.accounts-btn-4 {
+  padding: 6px;
+}
+
+.accounts-note-12 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.accounts-row-8 {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-subtle);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accounts-row-9 {
+  font-weight: 600;
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accounts-note-13 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.accounts-text-2 {
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.accounts-btn-5 {
+  padding: 5px;
+}
+
+.accounts-row-10 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.accounts-heading {
+  margin: 0;
+}
+
+.accounts-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accounts-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.accounts-row-11 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.accounts-label {
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.accounts-row-12 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.accounts-row-13 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accounts-note-14 {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-xs);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.accounts-box-4 {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-hover);
+}
+
+.accounts-label-2 {
+  margin-bottom: 6px;
+}
+
+.accounts-grid-3 {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+}
+
+.accounts-row-14 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
