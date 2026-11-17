@@ -124,7 +124,7 @@
   gap: 6px;
   padding: 5px 14px 5px 12px;
   border-radius: var(--radius-pill);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
@@ -207,7 +207,7 @@ main {
   }
 
   .app-brand {
-    font-size: 13.5px;
+    font-size: var(--fs-base);
     letter-spacing: 0.04em;
     gap: 6px;
   }
@@ -217,13 +217,13 @@ main {
   }
 
   .month-picker-btn {
-    font-size: 12.5px;
+    font-size: var(--fs-sm);
     padding: 3px 6px;
     white-space: nowrap;
   }
 
   .desktop-header-rollover-btn {
-    font-size: 11px;
+    font-size: var(--fs-2xs);
     padding: 3px 8px;
   }
 
@@ -234,7 +234,7 @@ main {
 
   .desktop-nav-pill {
     padding: 4px 10px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     gap: 5px;
     white-space: nowrap;
   }
@@ -246,22 +246,22 @@ main {
 
   .header-floor-pill {
     padding: 3px 8px;
-    font-size: 10.5px;
+    font-size: var(--fs-2xs);
     gap: 4px;
     max-width: 110px;
   }
 }
 
 /* Extra-tight tablet portrait refinement (768px - 860px) */
-@media (min-width: 768px) and (max-width: 860px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .desktop-nav-pill {
     padding: 4px 7px;
-    font-size: 11.5px;
+    font-size: var(--fs-xs);
     gap: 4px;
   }
 
   .app-brand-text {
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
 
   .header-floor-text {
@@ -384,7 +384,7 @@ main {
 .account-filter-pill {
   padding: 5px 12px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   background: var(--surface);
   color: var(--text-secondary);
@@ -484,7 +484,7 @@ main {
 }
 
 .bento-card-title {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;

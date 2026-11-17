@@ -137,7 +137,7 @@ describe('SummaryCards components', () => {
       expect(screen.getByText('Lowest balance')).toBeInTheDocument();
       expect(screen.getByText('₹42,000')).toBeInTheDocument();
       expect(screen.getByText(/₹32,000.00 above floor/)).toBeInTheDocument();
-      expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
+      expect(screen.queryByText('Below floor')).not.toBeInTheDocument();
     });
 
     it("counts SIPs and goal contributions as saving, not spending", () => {
@@ -170,7 +170,7 @@ describe('SummaryCards components', () => {
           currencySymbol="₹"
         />
       );
-      expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
+      expect(screen.queryByText('Below floor')).not.toBeInTheDocument();
       expect(screen.getByText(/Dipped below on Oct 3/)).toBeInTheDocument();
     });
 
@@ -185,7 +185,7 @@ describe('SummaryCards components', () => {
         />
       );
 
-      expect(screen.getByText('▲ Below floor')).toBeInTheDocument();
+      expect(screen.getByText('Below floor')).toBeInTheDocument();
       expect(screen.getByText(/₹5.00 under floor/)).toBeInTheDocument();
       expect(screen.getByText('-₹150')).toBeInTheDocument();
       expect(screen.getByText('Spending 50% more than income')).toBeInTheDocument();
@@ -206,7 +206,7 @@ describe('SummaryCards components', () => {
         />
       );
 
-      expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+      expect(screen.getByText('Credited')).toBeInTheDocument();
       expect(screen.getByText(/Credited on/i)).toBeInTheDocument();
       expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
       expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('SummaryCards components', () => {
       );
 
       // Previous month date is automatically treated as credited
-      expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+      expect(screen.getByText('Credited')).toBeInTheDocument();
       expect(screen.getByText(/Credited on/i)).toBeInTheDocument();
       expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
       expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
@@ -250,7 +250,7 @@ describe('SummaryCards components', () => {
         />
       );
 
-      expect(screen.queryByText('✓ Credited')).not.toBeInTheDocument();
+      expect(screen.queryByText('Credited')).not.toBeInTheDocument();
       expect(screen.queryByTitle('Edit salary credited date')).not.toBeInTheDocument();
       expect(screen.queryByText('Edit date')).not.toBeInTheDocument();
       expect(screen.queryByTitle(/mark salary as credited/i)).not.toBeInTheDocument();

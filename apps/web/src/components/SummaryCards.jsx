@@ -14,6 +14,8 @@ import {
   WalletIcon,
   ShieldAlertIcon
 } from './Icons.jsx';
+import { StatTile } from './ui/StatTile.jsx';
+import { Chip } from './ui/Chip.jsx';
 
 const formatPercent = (ratio) => `${Math.round(ratio * 100)}%`;
 
@@ -54,110 +56,69 @@ export function DetailedKpiGrid({
 
   return (
     <div className="detailed-kpi-grid summary-grid">
-      <div className="summary-card kpi-card">
-        <div className="kpi-card-header">
-          <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-income" aria-hidden="true">
-              <TrendingUpIcon size={13} strokeWidth={2.4} />
-            </span>
-            <span className="summary-label">Monthly income</span>
-          </div>
-        </div>
+      <StatTile
+        label="Monthly income"
+        icon={<TrendingUpIcon size={13} strokeWidth={2.4} />}
+        iconTone="income"
+        value={formatCurrencyWhole(incomeAmount, currencySymbol)}
+        chips={canEditSalary && isCreditEffective ? <Chip tone="good">Credited</Chip> : null}
+        subtext={canEditSalary && isCreditEffective
+          ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
+          : `Credited on day ${incomeCreditDay}`}
+      />
 
-        <span className="summary-value">
-          {formatCurrencyWhole(incomeAmount, currencySymbol)}
-        </span>
+      <StatTile
+        label="Total expenses"
+        icon={<TrendingDownIcon size={13} strokeWidth={2.4} />}
+        iconTone="expense"
+        value={formatCurrencyWhole(totalOutflow, currencySymbol)}
+        subtext={paid + planned > 0
+          ? <>{formatCurrency(paid, currencySymbol)} paid · {formatCurrency(planned, currencySymbol)} planned</>
+          : 'Nothing planned yet'}
+      />
 
-        <div className="kpi-footer">
-          {canEditSalary && isCreditEffective && (
-            <span className="kpi-chip kpi-chip-good">✓ Credited</span>
+      <StatTile
+        label="Projected net"
+        icon={<WalletIcon size={13} strokeWidth={2.2} />}
+        iconTone={net < 0 ? 'expense' : 'balance'}
+        tone={net < 0 ? 'negative' : 'neutral'}
+        valueClassName={net < 0 ? 'text-breached' : 'text-net-positive'}
+        value={<>{net > 0 ? '+' : ''}{formatCurrencyWhole(net, currencySymbol)}</>}
+        subtext={savingsRate === null
+          ? 'No income recorded'
+          : invested > 0
+            ? `${formatCurrencyWhole(savedAndInvested, currencySymbol)} saved & invested · ${formatPercent(Math.max(0, savingsRate))} of income`
+            : net >= 0
+              ? `${formatPercent(savingsRate)} of income saved`
+              : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
+      />
+
+      <StatTile
+        label="Lowest balance"
+        icon={<ShieldAlertIcon size={13} strokeWidth={2.2} />}
+        iconTone={floorBreached ? 'breach' : 'lowest'}
+        tone={floorBreached ? 'breached' : 'neutral'}
+        valueClassName={floorBreached ? 'text-breached' : ''}
+        value={formatCurrencyWhole(lowestBalance, currencySymbol)}
+        chips={floorBreached
+          ? <Chip tone="critical">Below floor</Chip>
+          : pastBreach
+            ? (
+              <Chip tone="warning" title={`Dropped to ${formatCurrency(pastBreach.balance, currencySymbol)}`}>
+                Dipped below on {pastBreach.date ? formatDisplayDate(pastBreach.date, false) : 'an earlier day'}
+              </Chip>
+            )
+            : null}
+        subtext={<>
+          {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}
+          {safetyFloor > 0 && (
+            <>
+              {' · '}
+              {formatCurrency(Math.abs(headroom.amount), currencySymbol)} {floorBreached ? 'under' : 'above'} floor
+            </>
           )}
-          <span className="kpi-subtext">
-            {canEditSalary && isCreditEffective
-              ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
-              : `Credited on day ${incomeCreditDay}`}
-          </span>
-        </div>
-      </div>
-
-      <div className="summary-card kpi-card">
-        <div className="kpi-card-header">
-          <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-expense" aria-hidden="true">
-              <TrendingDownIcon size={13} strokeWidth={2.4} />
-            </span>
-            <span className="summary-label">Total expenses</span>
-          </div>
-        </div>
-        <span className="summary-value">
-          {formatCurrencyWhole(totalOutflow, currencySymbol)}
-        </span>
-        <div className="kpi-footer">
-          <span className="kpi-subtext">
-            {paid + planned > 0
-              ? <>{formatCurrency(paid, currencySymbol)} paid · {formatCurrency(planned, currencySymbol)} planned</>
-              : 'Nothing planned yet'}
-          </span>
-        </div>
-      </div>
-
-      <div className={`summary-card kpi-card ${net < 0 ? 'kpi-card-negative' : ''}`}>
-        <div className="kpi-card-header">
-          <div className="kpi-title-with-icon">
-            <span className={`kpi-icon-badge ${net < 0 ? 'kpi-expense' : 'kpi-balance'}`} aria-hidden="true">
-              <WalletIcon size={13} strokeWidth={2.2} />
-            </span>
-            <span className="summary-label">Projected net</span>
-          </div>
-        </div>
-        <span className={`summary-value ${net < 0 ? 'text-breached' : 'text-net-positive'}`}>
-          {net > 0 ? '+' : ''}{formatCurrencyWhole(net, currencySymbol)}
-        </span>
-        <div className="kpi-footer">
-          <span className="kpi-subtext">
-            {savingsRate === null
-              ? 'No income recorded'
-              : invested > 0
-                ? `${formatCurrencyWhole(savedAndInvested, currencySymbol)} saved & invested · ${formatPercent(Math.max(0, savingsRate))} of income`
-                : net >= 0
-                  ? `${formatPercent(savingsRate)} of income saved`
-                  : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
-          </span>
-        </div>
-      </div>
-
-      <div className={`summary-card kpi-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
-        <div className="kpi-card-header">
-          <div className="kpi-title-with-icon">
-            <span className={`kpi-icon-badge ${floorBreached ? 'kpi-breach' : 'kpi-lowest'}`} aria-hidden="true">
-              <ShieldAlertIcon size={13} strokeWidth={2.2} />
-            </span>
-            <span className="summary-label">Lowest balance</span>
-          </div>
-        </div>
-        <span className={`summary-value ${floorBreached ? 'text-breached' : ''}`}>
-          {formatCurrencyWhole(lowestBalance, currencySymbol)}
-        </span>
-        <div className="kpi-footer">
-          {floorBreached && (
-            <span className="kpi-chip kpi-chip-bad">▲ Below floor</span>
-          )}
-          {!floorBreached && pastBreach && (
-            <span className="kpi-chip kpi-chip-warn" title={`Dropped to ${formatCurrency(pastBreach.balance, currencySymbol)}`}>
-              ▲ Dipped below on {pastBreach.date ? formatDisplayDate(pastBreach.date, false) : 'an earlier day'}
-            </span>
-          )}
-          <span className="kpi-subtext">
-            {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}
-            {safetyFloor > 0 && (
-              <>
-                {' · '}
-                {formatCurrency(Math.abs(headroom.amount), currencySymbol)} {floorBreached ? 'under' : 'above'} floor
-              </>
-            )}
-          </span>
-        </div>
-      </div>
+        </>}
+      />
     </div>
   );
 }

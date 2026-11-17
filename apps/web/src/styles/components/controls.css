@@ -128,7 +128,7 @@
 
 .beta-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -142,7 +142,7 @@
 }
 
 .month-picker-btn {
-  font-size: 16px;
+  font-size: var(--fs-input);
   font-weight: 600;
   padding: 4px 6px;
   background: transparent;
@@ -170,7 +170,7 @@
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
@@ -235,7 +235,7 @@
   border: none;
   border-radius: calc(var(--radius) - 2px);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
   transition: background 0.12s ease;
@@ -264,7 +264,7 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   border: 1px solid var(--border);
   background: var(--surface-subtle);
@@ -298,7 +298,7 @@
 }
 
 .floor-indicator-glyph {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   line-height: 1;
   display: inline-flex;

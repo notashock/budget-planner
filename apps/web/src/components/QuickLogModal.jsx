@@ -88,7 +88,7 @@ export function QuickLogModal({
               <button
                 type="button"
                 className={isRefund ? 'btn-primary' : 'btn-subtle'}
-                style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600 }}
+                style={{ padding: '3px 10px', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}
                 onClick={() => setIsRefund(!isRefund)}
               >
                 {isRefund ? 'Refund / credit' : 'Expense'}
@@ -102,7 +102,7 @@ export function QuickLogModal({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              style={{ fontSize: '18px', fontWeight: 600, padding: '10px' }}
+              style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, padding: '10px' }}
             />
           </div>
 
@@ -118,7 +118,7 @@ export function QuickLogModal({
                   onClick={() => setTag(t)}
                   style={{
                     padding: '8px 4px',
-                    fontSize: '12px',
+                    fontSize: 'var(--fs-xs)',
                     fontWeight: tag === t ? 600 : 400,
                     border: tag === t ? undefined : '1px solid var(--border)'
                   }}
@@ -149,7 +149,7 @@ export function QuickLogModal({
               onSelect={(id) => setPlannedItemId(id)}
               currencySymbol={currencySymbol}
             />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
               {plannedItemId
                 ? isRefund
                   ? 'Applies this refund as a credit to the planned transaction, calculating its net cost.'

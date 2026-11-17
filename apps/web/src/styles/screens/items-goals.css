@@ -35,7 +35,7 @@
 
 .item-bento-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -63,7 +63,7 @@
 }
 
 .item-bento-amount {
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -71,7 +71,7 @@
 }
 
 .item-bento-schedule {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -79,7 +79,7 @@
 }
 
 .item-bento-refund {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--success);
   margin-top: 2px;
 }
@@ -127,7 +127,7 @@
 
 .goal-card-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,7 +135,7 @@
 }
 
 .goal-card-amount {
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -145,7 +145,7 @@
 .goal-card-recommendation {
   padding: 8px 10px;
   border-radius: var(--radius);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   display: flex;
   flex-direction: column;
   gap: 6px;

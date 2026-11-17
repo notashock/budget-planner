@@ -1,3 +1,10 @@
+/* Breakpoints (media queries cannot read custom properties, so these are the
+   only widths used in @media rules across src/styles):
+     phone        < 600px   (max-width: 599px)
+     large phone  < 768px   (max-width: 767px)  — bottom nav below, header nav above
+     tablet       768–1023px
+     laptop       >= 1024px (min-width: 1024px) — two-column Plan layout */
+
 :root {
   --bg: #fcfcfd;
   --surface: #ffffff;
@@ -43,6 +50,43 @@
   --indigo-border: rgba(99, 102, 241, 0.22);
   --goal: #ea580c;
 
+
+  /* Type scale: nothing renders below 11px */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-input: 16px; /* form fields on phones: 16px stops iOS zooming on focus */
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 26px;
+  --fs-display: clamp(32px, 4vw, 44px);
+
+  /* Spacing scale (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Status text: readable ink for status labels (the bright accents are for marks) */
+  --good-ink: #047857;
+  --warn-ink: #b45309;
+  --bad-ink: #be123c;
+
+  /* Brand action colour (green) and the categorical hues used for row glyphs and rings */
+  --primary: #059669;
+  --cat-green: #10b981;
+  --cat-indigo: #6366f1;
+  --cat-amber: #f59e0b;
+  --cat-cyan: #06b6d4;
+  --cat-yellow: #eab308;
+  --cat-pink: #ec4899;
+  --cat-blue: #3b82f6;
+
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
@@ -79,6 +123,17 @@
 }
 
 [data-theme="dark"] {
+  --primary: #10b981;
+  --cat-green: #34d399;
+  --cat-indigo: #818cf8;
+  --cat-amber: #fbbf24;
+  --cat-cyan: #22d3ee;
+  --cat-yellow: #facc15;
+  --cat-pink: #f472b6;
+  --cat-blue: #60a5fa;
+  --good-ink: #6ee7b7;
+  --warn-ink: #fcd34d;
+  --bad-ink: #fda4af;
   --bg: #09090b;
   --surface: #111114;
   --surface-subtle: #18181c;
@@ -134,6 +189,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --primary: #10b981;
+    --cat-green: #34d399;
+    --cat-indigo: #818cf8;
+    --cat-amber: #fbbf24;
+    --cat-cyan: #22d3ee;
+    --cat-yellow: #facc15;
+    --cat-pink: #f472b6;
+    --cat-blue: #60a5fa;
+    --good-ink: #6ee7b7;
+    --warn-ink: #fcd34d;
+    --bad-ink: #fda4af;
     --bg: #09090b;
     --surface: #111114;
     --surface-subtle: #18181c;

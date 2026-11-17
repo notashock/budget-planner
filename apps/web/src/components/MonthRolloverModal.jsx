@@ -83,7 +83,7 @@ export function MonthRolloverModal({
                   height: '28px',
                   borderRadius: 'var(--radius-pill)',
                   background: 'rgba(16, 185, 129, 0.12)',
-                  color: 'var(--emerald, #10b981)',
+                  color: 'var(--emerald)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -92,10 +92,10 @@ export function MonthRolloverModal({
                 <ZapIcon size={16} />
               </span>
               <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--fs-input)', fontWeight: 600 }}>
                   Start {targetLabel}
                 </h3>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   Cycle rollover from {currentMonthName} {currentYear}
                 </span>
               </div>
@@ -114,7 +114,7 @@ export function MonthRolloverModal({
             </button>
           </div>
 
-          <p style={{ margin: '0 0 16px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Advance your budget from <strong>{currentMonthName} {currentYear}</strong> to <strong>{targetLabel}</strong>.
             Your account ending balances will safely transition as opening balances.
           </p>
@@ -131,7 +131,7 @@ export function MonthRolloverModal({
           >
             <div
               style={{
-                fontSize: '11px',
+                fontSize: 'var(--fs-2xs)',
                 fontWeight: 700,
                 color: 'var(--text-muted)',
                 textTransform: 'uppercase',
@@ -143,14 +143,14 @@ export function MonthRolloverModal({
               }}
             >
               <span>Opening Balances Preview</span>
-              <span style={{ fontSize: '10px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500, color: 'var(--text-secondary)' }}>
                 {carryBalance ? 'Carrying Ending Balances' : 'Resetting to Zero'}
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
               {allAccounts.length === 0 ? (
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '8px' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textAlign: 'center', padding: '8px' }}>
                   No accounts linked yet
                 </div>
               ) : (
@@ -168,7 +168,7 @@ export function MonthRolloverModal({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        fontSize: '12.5px'
+                        fontSize: 'var(--fs-sm)'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -192,7 +192,7 @@ export function MonthRolloverModal({
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '8px',
-                fontSize: '12.5px',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--text)',
                 cursor: 'pointer'
               }}
@@ -206,7 +206,7 @@ export function MonthRolloverModal({
               />
               <div>
                 <strong>Roll over unpaid planned items</strong>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   Carries forward unfulfilled one-time expenses and re-adjusts initial balances.
                 </div>
               </div>
@@ -217,7 +217,7 @@ export function MonthRolloverModal({
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '8px',
-                fontSize: '12.5px',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--text)',
                 cursor: 'pointer'
               }}
@@ -231,7 +231,7 @@ export function MonthRolloverModal({
               />
               <div>
                 <strong>Carry forward ending account balances</strong>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   Snapshots closing balances as new opening balances for {targetLabel}.
                 </div>
               </div>
@@ -245,8 +245,8 @@ export function MonthRolloverModal({
                 borderRadius: 'var(--radius)',
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.25)',
-                color: 'var(--negative, #ef4444)',
-                fontSize: '12px',
+                color: 'var(--negative)',
+                fontSize: 'var(--fs-xs)',
                 marginBottom: '16px'
               }}
             >

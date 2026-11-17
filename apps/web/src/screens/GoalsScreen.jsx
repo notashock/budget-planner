@@ -177,11 +177,11 @@ export function GoalsScreen({
         <PageTitle title="Goals" subtitle="Things you are saving for, and when you can afford them." />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isReviewMode && (
-            <span className="review-badge-tag" style={{ fontSize: '11px', padding: '3px 8px' }}>
+            <span className="review-badge-tag" style={{ fontSize: 'var(--fs-2xs)', padding: '3px 8px' }}>
               Review Archive
             </span>
           )}
-          <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <span style={{ fontSize: 'var(--fs-xs)', padding: '4px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <span>Survival Cushion:</span>
             <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(availableCushion, currencySymbol)}</strong>
           </span>
@@ -196,21 +196,21 @@ export function GoalsScreen({
               <div className="card-header" style={{ marginBottom: '8px' }}>
                 <span className="card-title">Goal Scorecard (Archive)</span>
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
                 You are reviewing goals evaluated during this closed cycle. New goals and scheduling actions are locked in review mode.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Total Evaluated</span>
                   <span className="tabular-nums" style={{ fontWeight: 600 }}>{goals.length}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Scheduled / Ready</span>
-                  <span className="tabular-nums" style={{ fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                  <span className="tabular-nums" style={{ fontWeight: 600, color: 'var(--positive)' }}>
                     {goals.filter(g => g.status === 'scheduled' || g.status === 'ready').length}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Deferred</span>
                   <span className="tabular-nums" style={{ fontWeight: 600 }}>
                     {goals.filter(g => g.status === 'deferred').length}
@@ -304,7 +304,7 @@ export function GoalsScreen({
                 <button
                   type="submit"
                   className="btn-primary"
-                  style={{ marginTop: '4px', padding: '8px 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  style={{ marginTop: '4px', padding: '8px 14px', fontSize: 'var(--fs-sm)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   disabled={goalSubmitting || !goalName || !goalAmount}
                 >
                   <PlusIcon size={14} />
@@ -317,13 +317,13 @@ export function GoalsScreen({
           {/* Affordable Combinations Card */}
           <div className="card" style={{ padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Affordable Combinations
               </span>
               {affordableBundles.length > 0 && (
                 <span
                   style={{
-                    fontSize: '9px',
+                    fontSize: 'var(--fs-2xs)',
                     padding: '1px 6px',
                     borderRadius: '3px',
                     background: 'var(--surface-subtle)',
@@ -339,11 +339,11 @@ export function GoalsScreen({
             </div>
 
             {activeGoals.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
                 No active goals
               </div>
             ) : affordableBundles.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
                 Cushion insufficient for current goals
               </div>
             ) : (
@@ -359,13 +359,13 @@ export function GoalsScreen({
                       background: 'var(--surface-subtle)',
                       borderRadius: 'var(--radius)',
                       border: '1px solid var(--border-subtle)',
-                      fontSize: '12px'
+                      fontSize: 'var(--fs-xs)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
                       <span
                         style={{
-                          fontSize: '9px',
+                          fontSize: 'var(--fs-2xs)',
                           fontWeight: 700,
                           padding: '1px 5px',
                           borderRadius: '3px',
@@ -386,7 +386,7 @@ export function GoalsScreen({
                       <span className="tabular-nums" style={{ fontWeight: 600 }}>
                         {formatCurrency(bundle.totalCost, currencySymbol)}
                       </span>
-                      <span className="tabular-nums" style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                      <span className="tabular-nums" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                         (+{formatCurrency(bundle.remainingCushion, currencySymbol)})
                       </span>
                     </div>
@@ -400,7 +400,7 @@ export function GoalsScreen({
         {/* Right Column: Active Goals Bento Grid */}
         <div className="goals-cards-panel">
           {evaluatedGoals.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+            <div className="card" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
               No purchase goals this month
             </div>
           ) : (
@@ -420,13 +420,13 @@ export function GoalsScreen({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span
                             style={{
-                              fontSize: '9px',
+                              fontSize: 'var(--fs-2xs)',
                               fontWeight: 700,
                               padding: '1px 5px',
                               borderRadius: '3px',
                               background: goal.priority === 0 ? 'rgba(239, 68, 68, 0.12)' : goal.priority === 1 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-subtle)',
-                              color: goal.priority === 0 ? '#ef4444' : goal.priority === 1 ? '#f59e0b' : 'var(--text-secondary)',
-                              border: `1px solid ${goal.priority === 0 ? '#ef444433' : goal.priority === 1 ? '#f59e0b33' : 'var(--border)'}`,
+                              color: goal.priority === 0 ? 'var(--bad-ink)' : goal.priority === 1 ? 'var(--warn-ink)' : 'var(--text-secondary)',
+                              border: `1px solid ${goal.priority === 0 ? 'var(--rose-border)' : goal.priority === 1 ? 'var(--amber-border)' : 'var(--border)'}`,
                               textTransform: 'uppercase'
                             }}
                           >
@@ -434,7 +434,7 @@ export function GoalsScreen({
                           </span>
                           <span
                             style={{
-                              fontSize: '10px',
+                              fontSize: 'var(--fs-2xs)',
                               padding: '1px 6px',
                               borderRadius: '4px',
                               background: 'var(--surface-subtle)',
@@ -460,7 +460,7 @@ export function GoalsScreen({
                           {formatCurrency(goal.targetAmount, currencySymbol)}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                             Target price
                           </span>
                           {/* Funding Account Badge */}
@@ -470,7 +470,7 @@ export function GoalsScreen({
                               : bankAccounts.find(b => (b._id || b.id) === (goal.fundingBankAccountId?._id || goal.fundingBankAccountId));
                             if (!linkedAccount) return null;
                             return (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', padding: '1px 6px', background: 'var(--surface-subtle)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', padding: '1px 6px', background: 'var(--surface-subtle)', borderRadius: '4px', border: '1px solid var(--border)' }}>
                                 {goal.fundingSourceType === 'wallet' ? <WalletIcon size={10} /> : <BuildingLibraryIcon size={10} />}
                                 {linkedAccount.name}
                               </span>
@@ -492,21 +492,21 @@ export function GoalsScreen({
                       >
                         {rec.feasible && rec.recommendedDate ? (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>
                               <CalendarIcon size={13} />
                               <span>Safe Date: {formatDisplayDate(rec.recommendedDate, true)}</span>
                             </div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-2xs)', lineHeight: 1.3, marginTop: '2px' }}>
                               Preserves safe buffer of <strong className="tabular-nums">{formatCurrency(rec.savingsBuffer, currencySymbol)}</strong>.
                             </div>
                           </>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>
                               <AlertTriangleIcon size={13} />
                               <span>Floor breach risk</span>
                             </div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-2xs)', lineHeight: 1.3, marginTop: '2px' }}>
                               Goes below your floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
                               {rec.lowestDate ? ` on ${formatDisplayDate(rec.lowestDate, true)}` : ''}.
                             </div>
@@ -518,7 +518,7 @@ export function GoalsScreen({
                     {isScheduled && (
                       <div
                         className="goal-card-recommendation"
-                        style={{ background: 'var(--surface-subtle)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '12px' }}
+                        style={{ background: 'var(--surface-subtle)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: 'var(--fs-xs)' }}
                       >
                         <CheckCircleIcon size={14} />
                         <span style={{ color: 'var(--text)', fontWeight: 500 }}>Fitted into planned budget.</span>
@@ -530,7 +530,7 @@ export function GoalsScreen({
                         className="goal-card-recommendation"
                         style={{ background: 'var(--surface-subtle)', margin: 0 }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: 'var(--fs-xs)' }}>
                           <AlertTriangleIcon size={13} />
                           <span>{goal.deferredReason || 'Deferred to next month.'}</span>
                         </div>
@@ -545,7 +545,7 @@ export function GoalsScreen({
                             <button
                               type="button"
                               className="btn-primary"
-                              style={{ padding: '4px 10px', fontSize: '11px' }}
+                              style={{ padding: '4px 10px', fontSize: 'var(--fs-2xs)' }}
                               onClick={() => handleAction(onConvertGoalToItem, goal._id)}
                               disabled={actingGoalId === goal._id}
                             >
@@ -556,7 +556,7 @@ export function GoalsScreen({
                             <button
                               type="button"
                               className="btn-subtle"
-                              style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                              style={{ padding: '4px 10px', fontSize: 'var(--fs-2xs)', border: '1px solid var(--border)' }}
                               onClick={() => handleAction(onDeferGoal, goal._id)}
                               disabled={actingGoalId === goal._id}
                             >
@@ -567,7 +567,7 @@ export function GoalsScreen({
                             <button
                               type="button"
                               className="btn-subtle"
-                              style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)' }}
+                              style={{ padding: '4px 10px', fontSize: 'var(--fs-2xs)', border: '1px solid var(--border)' }}
                               onClick={() => handleAction(onReactivateGoal, goal._id)}
                               disabled={actingGoalId === goal._id}
                             >
@@ -579,7 +579,7 @@ export function GoalsScreen({
                         <button
                           type="button"
                           className="btn-subtle"
-                          style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                          style={{ padding: '4px 8px', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}
                           onClick={() => onDeleteGoal(goal._id)}
                         >
                           Delete

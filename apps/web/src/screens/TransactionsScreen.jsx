@@ -15,7 +15,8 @@ import {
   PlusIcon,
   InboxIcon,
   SendIcon,
-  ArrowRightLeftIcon
+  ArrowRightLeftIcon,
+  EyeIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
@@ -392,7 +393,7 @@ export function TransactionsScreen({
 
           {isReviewMode && (
             <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
-              <span>👁️</span> Read-Only Review
+              <EyeIcon size={13} /> Read-Only Review
             </span>
           )}
         </div>
@@ -523,7 +524,7 @@ export function TransactionsScreen({
                 <CheckCircleIcon size={24} />
               </div>
               <div className="apple-tx-empty-title tx-empty-text">ALL TRANSACTIONS LOGGED</div>
-              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                 No completed transactions found for the selected filter.
               </p>
             </div>
@@ -675,7 +676,7 @@ export function TransactionsScreen({
                 <SendIcon size={24} />
               </div>
               <div className="apple-tx-empty-title tx-empty-text">ALL COMMITMENTS SETTLED</div>
-              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                 No planned commitments found for this filter.
               </p>
             </div>
@@ -827,10 +828,10 @@ export function TransactionsScreen({
                   <CheckCircleIcon size={16} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                  <h3 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>
                     Confirm payment
                   </h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                     Enter what you actually paid and when
                   </span>
                 </div>
@@ -846,7 +847,7 @@ export function TransactionsScreen({
               </button>
             </div>
 
-            <p style={{ margin: '0 0 14px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
               Confirm actual amount and date paid for <strong>{payingTx.name}</strong>.
             </p>
 
@@ -880,7 +881,7 @@ export function TransactionsScreen({
 
             <form onSubmit={handleConfirmPay} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Actual Amount ({currencySymbol})
                 </label>
                 <input
@@ -889,14 +890,14 @@ export function TransactionsScreen({
                   required
                   autoFocus
                   className="input"
-                  style={{ width: '100%', fontVariantNumeric: 'tabular-nums', fontSize: '15px', fontWeight: 600 }}
+                  style={{ width: '100%', fontVariantNumeric: 'tabular-nums', fontSize: 'var(--fs-md)', fontWeight: 600 }}
                   value={actualAmount}
                   onChange={(e) => setActualAmount(e.target.value)}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Actual Date Paid
                 </label>
                 <DatePicker
@@ -906,7 +907,7 @@ export function TransactionsScreen({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Payment Account
                 </label>
                 <CustomSelect
@@ -922,14 +923,14 @@ export function TransactionsScreen({
                   type="button"
                   className="btn-subtle"
                   onClick={() => setPayingTx(null)}
-                  style={{ padding: '8px 16px', fontSize: '12.5px' }}
+                  style={{ padding: '8px 16px', fontSize: 'var(--fs-sm)' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="btn-primary"
-                  style={{ padding: '8px 18px', fontSize: '12.5px', fontWeight: 600 }}
+                  style={{ padding: '8px 18px', fontSize: 'var(--fs-sm)', fontWeight: 600 }}
                 >
                   Confirm Paid
                 </button>
@@ -948,7 +949,7 @@ export function TransactionsScreen({
         {cancellingGoalTx && (
           <div style={{ padding: '6px 2px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+              <h3 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>
                 Cancel Scheduled Goal
               </h3>
               <button
@@ -961,7 +962,7 @@ export function TransactionsScreen({
               </button>
             </div>
 
-            <p style={{ margin: '0 0 16px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               This planned transaction is linked to your goal <strong>{cancellingGoalTx.name}</strong>. What should happen to the goal?
             </p>
 
@@ -970,7 +971,7 @@ export function TransactionsScreen({
                 type="button"
                 className="btn-primary"
                 onClick={() => handleConfirmCancelGoal('return_to_logged')}
-                style={{ justifyContent: 'center', padding: '10px', fontSize: '12.5px' }}
+                style={{ justifyContent: 'center', padding: '10px', fontSize: 'var(--fs-sm)' }}
               >
                 Return to Logged (Keep goal active to schedule later)
               </button>
@@ -978,7 +979,7 @@ export function TransactionsScreen({
                 type="button"
                 className="btn-subtle"
                 onClick={() => handleConfirmCancelGoal('dropped')}
-                style={{ justifyContent: 'center', padding: '10px', fontSize: '12.5px', color: 'var(--negative, #ef4444)' }}
+                style={{ justifyContent: 'center', padding: '10px', fontSize: 'var(--fs-sm)', color: 'var(--negative)' }}
               >
                 Mark as Dropped (Cancel the goal)
               </button>

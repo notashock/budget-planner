@@ -35,7 +35,7 @@
   background: transparent;
   border: none;
   border-radius: var(--radius) var(--radius) 0 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--text-secondary);
@@ -75,11 +75,11 @@
 }
 
 .tx-section-tab-label {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .tx-section-tab-count {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle);
@@ -89,7 +89,7 @@
 }
 
 .tx-tab-urgent-pill {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   background: var(--rose-subtle);

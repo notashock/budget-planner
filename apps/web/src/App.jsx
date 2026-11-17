@@ -20,6 +20,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { DashboardSkeleton } from './components/DashboardSkeleton.jsx';
 
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
+import { EyeIcon, ZapIcon, BanknoteIcon } from './components/Icons.jsx';
 
 export function resolveEntryModeFromItem(item) {
   if (!item) return 'log';
@@ -981,7 +982,7 @@ export default function App() {
         <div className="app-splash-loader-bar">
           <div className="app-splash-loader-progress" />
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
           Initializing Budget Planner
         </span>
       </div>
@@ -1053,7 +1054,7 @@ export default function App() {
         {isReviewMode && (
           <div className="review-mode-banner">
             <div className="review-mode-banner-content">
-              <span className="review-mode-icon">👁️</span>
+              <span className="review-mode-icon"><EyeIcon size={16} /></span>
               <div className="review-mode-text">
                 <div className="review-mode-title">
                   Previewing {currentMonth ? `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth.month - 1]} ${currentMonth.year}` : 'Archive'} (Historical Snapshot)
@@ -1079,7 +1080,7 @@ export default function App() {
                 data-testid="banner-start-next-month-btn"
                 onClick={() => setRolloverModalOpen(true)}
               >
-                ⚡ Start {nextMonthLabel || 'Next Month'} →
+                <ZapIcon size={13} /> Start {nextMonthLabel || 'Next Month'} →
               </button>
             )}
           </div>
@@ -1105,12 +1106,12 @@ export default function App() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
-              <span style={{ fontSize: '20px', flexShrink: 0 }}>💰</span>
+              <BanknoteIcon size={20} style={{ flexShrink: 0, color: 'var(--positive)' }} />
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Salary Deposit Scheduled: {pendingSalaryTx.title} ({currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}{pendingSalaryTx.amount})
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   Expected credit on {pendingSalaryTx.date}. Confirm deposit once received.
                 </div>
               </div>
@@ -1120,7 +1121,7 @@ export default function App() {
                 type="button"
                 onClick={() => handleConfirmSalary(pendingSalaryTx)}
                 className="btn btn-primary"
-                style={{ fontSize: '12px', padding: '6px 14px', background: '#10b981', borderColor: '#10b981' }}
+                style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px', background: 'var(--positive)', borderColor: 'var(--positive)' }}
               >
                 Confirm Deposit
               </button>

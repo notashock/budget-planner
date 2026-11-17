@@ -58,7 +58,7 @@
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.02em;
@@ -91,7 +91,7 @@
 }
 
 .onboarding-title {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text);
@@ -100,7 +100,7 @@
 }
 
 .onboarding-subtitle {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -112,7 +112,7 @@
   background: var(--danger-subtle);
   border: 1px solid var(--danger-border);
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
   display: flex;
   align-items: center;
@@ -134,7 +134,7 @@
 .onboarding-field-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -225,7 +225,7 @@
 }
 
 .onboarding-card-label {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -233,7 +233,7 @@
 }
 
 .onboarding-card-desc {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   line-height: 1.35;
   color: var(--text-muted);
 }
@@ -260,7 +260,7 @@
   position: absolute;
   left: 12px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   pointer-events: none;
   user-select: none;
@@ -274,7 +274,7 @@
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   transition: all 0.15s ease;
 }
@@ -306,14 +306,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
 
 .onboarding-ledger-strip-tag {
   text-transform: uppercase;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.05em;
   padding: 2px 6px;
   border-radius: var(--radius);
@@ -324,7 +324,7 @@
 
 .onboarding-ledger-strip-amount {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -396,7 +396,7 @@
 }
 
 .onboarding-subpanel-badge {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
   color: var(--text-muted);
   text-transform: uppercase;
@@ -418,7 +418,7 @@
 .onboarding-btn-submit {
   flex: 1;
   height: 44px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   border-radius: var(--radius);
   background: var(--text);
@@ -446,7 +446,7 @@
 .onboarding-btn-back {
   height: 44px;
   padding: 0 18px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   border-radius: var(--radius);
   background: var(--surface);

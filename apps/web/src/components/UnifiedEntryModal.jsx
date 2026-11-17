@@ -18,7 +18,8 @@ import {
   BuildingLibraryIcon,
   WalletIcon,
   AlertTriangleIcon,
-  CalendarIcon
+  CalendarIcon,
+  LockIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
@@ -951,7 +952,7 @@ export function UnifiedEntryModal({
                     gap: '6px',
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    fontSize: '12.5px',
+                    fontSize: 'var(--fs-sm)',
                     fontWeight: 600,
                     letterSpacing: '-0.01em',
                     background: mode === 'income'
@@ -960,9 +961,9 @@ export function UnifiedEntryModal({
                         ? 'rgba(59, 130, 246, 0.12)'
                         : 'var(--surface-subtle, rgba(255, 255, 255, 0.05))'),
                     color: mode === 'income'
-                      ? 'var(--success, #22c55e)'
+                      ? 'var(--success)'
                       : (mode === 'transfer'
-                        ? 'var(--accent, #3b82f6)'
+                        ? 'var(--accent)'
                         : 'var(--text)'),
                     border: '1px solid var(--border)'
                   }}
@@ -979,7 +980,7 @@ export function UnifiedEntryModal({
                   </span>
                   <span
                     style={{
-                      fontSize: '10px',
+                      fontSize: 'var(--fs-2xs)',
                       fontWeight: 500,
                       opacity: 0.7,
                       paddingLeft: '6px',
@@ -988,7 +989,7 @@ export function UnifiedEntryModal({
                     }}
                     title="Type is locked during edit to maintain ledger consistency"
                   >
-                    🔒 Type Locked
+                    <LockIcon size={11} /> Type Locked
                   </span>
                 </div>
               </div>
@@ -1078,7 +1079,7 @@ export function UnifiedEntryModal({
                 borderRadius: '6px',
                 background: 'var(--text)',
                 color: 'var(--bg)',
-                fontSize: '12px',
+                fontSize: 'var(--fs-xs)',
                 fontWeight: 600,
                 marginBottom: '10px'
               }}
@@ -1117,7 +1118,7 @@ export function UnifiedEntryModal({
                         onClick={handleRecommendDate}
                         disabled={recommending}
                         title="Recommend best safe date based on spending pace, balance, and floor buffer"
-                        style={{ fontSize: '11px', padding: '1px 6px' }}
+                        style={{ fontSize: 'var(--fs-2xs)', padding: '1px 6px' }}
                       >
                         <SparklesIcon size={11} className={recommending ? 'sparkle-spin-icon' : ''} />
                         <span>{recommending ? 'Analyzing...' : 'Auto date'}</span>
@@ -1132,7 +1133,7 @@ export function UnifiedEntryModal({
                       className={`btn-subtle ${isRefund ? 'credit-active-btn' : ''}`}
                       style={{
                         padding: '3px 10px',
-                        fontSize: '11px',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         border: isRefund ? '1px solid var(--text)' : '1px solid var(--border)',
                         background: isRefund ? 'var(--text)' : 'var(--surface)',
@@ -1158,7 +1159,7 @@ export function UnifiedEntryModal({
                   {mode === 'income' && (
                     <span
                       style={{
-                        fontSize: '11px',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         padding: '3px 8px',
                         borderRadius: '4px',
@@ -1180,7 +1181,7 @@ export function UnifiedEntryModal({
                         type="button"
                         className={itemType === 'one-time' ? 'btn-primary' : 'btn-subtle'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('one-time'))}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         One-Time
                       </button>
@@ -1188,7 +1189,7 @@ export function UnifiedEntryModal({
                         type="button"
                         className={itemType === 'recurring' ? 'btn-primary' : 'btn-subtle'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('recurring'))}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         Recurring
                       </button>
@@ -1198,7 +1199,7 @@ export function UnifiedEntryModal({
                   {mode === 'transfer' && (
                     <span
                       style={{
-                        fontSize: '11px',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         padding: '3px 8px',
                         borderRadius: '4px',
@@ -1231,7 +1232,7 @@ export function UnifiedEntryModal({
                       onChange={(e) => setAmount(e.target.value)}
                       className="tabular-nums modal-amount-input"
                       style={{
-                        fontSize: '22px',
+                        fontSize: 'var(--fs-xl)',
                         fontWeight: 700,
                         color: 'var(--text)'
                       }}
@@ -1337,7 +1338,7 @@ export function UnifiedEntryModal({
                               onClick={() => setShowVariableInfo(false)}
                               aria-label="Close info"
                             >
-                              ✕
+                              <XIcon size={14} />
                             </button>
                           </div>
 
@@ -1390,16 +1391,16 @@ export function UnifiedEntryModal({
                     marginBottom: '4px'
                   }}
                 >
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
                     Bank Account Required
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                     You must register a bank account before recording transactions.
                   </div>
                   <button
                     type="button"
                     className="btn-primary"
-                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px' }}
+                    style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-2xs)' }}
                     onClick={() => {
                       triggerExit(() => {
                         onOpenAddBank?.();
@@ -1469,7 +1470,7 @@ export function UnifiedEntryModal({
                         ))}
                   </div>
                   {mode === 'income' && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
                       Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
                     </span>
                   )}
@@ -1488,7 +1489,7 @@ export function UnifiedEntryModal({
                         }
                         handleInvertTransferAccounts();
                       }}
-                      style={{ fontSize: '11px', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      style={{ fontSize: 'var(--fs-2xs)', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       title="Swap source and destination"
                     >
                       <span className="modal-conduit-swap-icon">⇅</span>
@@ -1552,12 +1553,12 @@ export function UnifiedEntryModal({
                         background: 'var(--indigo-subtle, rgba(99, 102, 241, 0.08))',
                         border: '1px solid var(--indigo-border, rgba(99, 102, 241, 0.2))',
                         borderRadius: 'var(--radius, 8px)',
-                        fontSize: '12px',
+                        fontSize: 'var(--fs-xs)',
                         gap: '8px'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-                        <SparklesIcon size={14} style={{ color: 'var(--indigo, #6366f1)', flexShrink: 0 }} />
+                        <SparklesIcon size={14} style={{ color: 'var(--indigo)', flexShrink: 0 }} />
                         <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           Matches: <strong>{candidateMatch.name}</strong> ({formatCurrency(candidateMatch.amount, currencySymbol)})
                         </span>
@@ -1567,10 +1568,10 @@ export function UnifiedEntryModal({
                         className="btn-subtle"
                         onClick={() => handleSelectMatchedItem(candidateMatch._id || candidateMatch.id)}
                         style={{
-                          fontSize: '11px',
+                          fontSize: 'var(--fs-2xs)',
                           padding: '4px 8px',
                           height: 'auto',
-                          color: 'var(--indigo, #6366f1)',
+                          color: 'var(--indigo)',
                           borderColor: 'var(--indigo-border, rgba(99, 102, 241, 0.2))',
                           fontWeight: 600,
                           flexShrink: 0
@@ -1590,7 +1591,7 @@ export function UnifiedEntryModal({
 
                   <span
                     style={{
-                      fontSize: '11px',
+                      fontSize: 'var(--fs-2xs)',
                       marginTop: '4px',
                       display: 'block',
                       color: isRefund ? 'var(--success)' : 'var(--text-muted, var(--text-secondary))',
@@ -1623,14 +1624,14 @@ export function UnifiedEntryModal({
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       Scheduled Monthly Salary
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
                       +{currencySymbol}{(month.incomeAmount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>
                       Deposit Target:{' '}
                       <strong style={{ color: 'var(--text)' }}>
@@ -1684,7 +1685,7 @@ export function UnifiedEntryModal({
 
               {/* TRANSFER: Zero-sum informational note */}
               {mode === 'transfer' && (
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '4px' }}>
                   * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
                 </div>
               )}
@@ -1708,8 +1709,8 @@ export function UnifiedEntryModal({
                         cursor: 'pointer'
                       }}
                     >
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>This month only</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>One-time override</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text)' }}>This month only</div>
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>One-time override</div>
                     </button>
                     <button
                       type="button"
@@ -1719,13 +1720,13 @@ export function UnifiedEntryModal({
                         padding: '8px 12px',
                         textAlign: 'left',
                         borderRadius: '8px',
-                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid var(--border)',
+                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
                         background: cascadeScope === 'all_future' ? 'rgba(59, 130, 246, 0.12)' : 'var(--surface-subtle)',
                         cursor: 'pointer'
                       }}
                     >
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary, #3b82f6)' : 'var(--text)' }}>This & all future</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>Update baseline</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary)' : 'var(--text)' }}>This & all future</div>
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>Update baseline</div>
                     </button>
                   </div>
                 </div>
@@ -1739,16 +1740,16 @@ export function UnifiedEntryModal({
                     padding: '8px 12px',
                     background: updateSalaryTemplate ? 'rgba(34, 197, 94, 0.08)' : 'var(--surface-subtle)',
                     borderRadius: '8px',
-                    border: updateSalaryTemplate ? '1px solid var(--success, #22c55e)' : '1px solid var(--border)',
+                    border: updateSalaryTemplate ? '1px solid var(--success)' : '1px solid var(--border)',
                     transition: 'all 0.15s ease'
                   }}
                 >
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', margin: 0 }}>
                     <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success, #22c55e)' : 'var(--text)' }}>
+                      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success)' : 'var(--text)' }}>
                         Update monthly salary template
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                         Applies this salary amount to upcoming months' safe-to-spend projections.
                       </div>
                     </div>
@@ -1785,7 +1786,7 @@ export function UnifiedEntryModal({
                   <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
                     <div className="recurring-toggle-thumb" />
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
                     {isPaid ? 'Payment done' : 'Payment pending'}
                   </span>
                 </div>
@@ -1892,28 +1893,28 @@ export function UnifiedEntryModal({
                 style={{
                   maxWidth: '440px',
                   width: '100%',
-                  background: 'var(--surface-elevated, #18181b)',
-                  border: '1px solid var(--rose-border, #dc2626)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--rose-border)',
                   borderRadius: '12px',
                   padding: '20px',
                   boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <AlertTriangleIcon size={20} color="var(--rose, #ef4444)" />
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
+                  <AlertTriangleIcon size={20} color="var(--rose)" />
+                  <h3 style={{ margin: 0, fontSize: 'var(--fs-input)', fontWeight: 600, color: 'var(--text)' }}>
                     Safety Floor Warning
                   </h3>
                 </div>
-                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <p style={{ margin: '0 0 16px 0', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
                   <strong style={{ color: 'var(--text)' }}>{floorBreachData.accountName}</strong> below your safety floor of{' '}
-                  <strong style={{ color: 'var(--rose, #ef4444)' }}>
+                  <strong style={{ color: 'var(--rose)' }}>
                     {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
                   </strong>.
                   <br />
                   Projected balance:{' '}
-                  <strong style={{ color: 'var(--rose, #ef4444)' }}>
+                  <strong style={{ color: 'var(--rose)' }}>
                     {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
                   </strong>.
                 </p>
@@ -1922,7 +1923,7 @@ export function UnifiedEntryModal({
                     type="button"
                     className="btn-subtle"
                     onClick={() => setFloorBreachData(null)}
-                    style={{ padding: '8px 16px', fontSize: '13px' }}
+                    style={{ padding: '8px 16px', fontSize: 'var(--fs-sm)' }}
                   >
                     Cancel
                   </button>
@@ -1940,9 +1941,9 @@ export function UnifiedEntryModal({
                     }}
                     style={{
                       padding: '8px 16px',
-                      fontSize: '13px',
-                      background: 'var(--rose, #dc2626)',
-                      borderColor: 'var(--rose, #dc2626)'
+                      fontSize: 'var(--fs-sm)',
+                      background: 'var(--rose)',
+                      borderColor: 'var(--rose)'
                     }}
                   >
                     Confirm Anyway
@@ -1974,7 +1975,7 @@ export function UnifiedEntryModal({
                 style={{
                   maxWidth: '440px',
                   width: '100%',
-                  background: 'var(--surface-elevated, #18181b)',
+                  background: 'var(--surface)',
                   border: '1px solid var(--border)',
                   borderRadius: '12px',
                   padding: '20px',
@@ -1983,12 +1984,12 @@ export function UnifiedEntryModal({
               >
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <SparklesIcon size={18} style={{ color: 'var(--indigo, #6366f1)' }} />
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    <SparklesIcon size={18} style={{ color: 'var(--indigo)' }} />
+                    <h3 style={{ margin: 0, fontSize: 'var(--fs-input)', fontWeight: 600 }}>
                       Settlement for {underSpendData.linkedItem.name}
                     </h3>
                   </div>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                     You logged spending of{' '}
                     <strong style={{ color: 'var(--text)' }}>{formatCurrency(underSpendData.spentAmt, currencySymbol)}</strong>,
                     which is{' '}
@@ -2019,10 +2020,10 @@ export function UnifiedEntryModal({
                       borderColor: 'var(--success)'
                     }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    <span style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
                       Release remaining {formatCurrency(underSpendData.diffAmt, currencySymbol)} to balance
                     </span>
-                    <span style={{ fontSize: '11px', opacity: 0.85, fontWeight: 400 }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.85, fontWeight: 400 }}>
                       Frees remaining money into your safe-to-spend allowance and marks item paid.
                     </span>
                   </button>
@@ -2046,10 +2047,10 @@ export function UnifiedEntryModal({
                       gap: '4px'
                     }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    <span style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
                       Keep remainder scheduled ({formatCurrency(underSpendData.diffAmt, currencySymbol)})
                     </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 400 }}>
                       Marks spent amount paid and keeps a new pending item for the remaining expense.
                     </span>
                   </button>
@@ -2058,7 +2059,7 @@ export function UnifiedEntryModal({
                     type="button"
                     className="btn-subtle"
                     onClick={() => setUnderSpendData(null)}
-                    style={{ fontSize: '12px', padding: '6px 12px', marginTop: '4px' }}
+                    style={{ fontSize: 'var(--fs-xs)', padding: '6px 12px', marginTop: '4px' }}
                   >
                     Back to editing
                   </button>

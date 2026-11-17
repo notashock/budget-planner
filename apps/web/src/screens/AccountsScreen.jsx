@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { playEntrance } from '../components/entranceMotion.js';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
@@ -14,8 +15,10 @@ import {
   EditIcon,
   TrashIcon,
   AlertTriangleIcon,
-  XIcon
+  XIcon,
+  EyeIcon, ArrowRightIcon
 } from '../components/Icons.jsx';
+import { Chip } from '../components/ui/Chip.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -45,33 +48,33 @@ function ConcentricActivityRings({
       <div className="apple-rings-wrapper">
         <svg className="apple-rings-svg" viewBox="0 0 100 100">
           {/* Outer Track & Ring: Banks (Blue) */}
-          <circle cx="50" cy="50" r="41" stroke="#3b82f6" strokeWidth="6.5" className="ring-track" />
+          <circle cx="50" cy="50" r="41" stroke="var(--cat-blue)" strokeWidth="6.5" className="ring-track" />
           <circle
-            cx="50" cy="50" r="41" stroke="#3b82f6" strokeWidth="6.5"
+            cx="50" cy="50" r="41" stroke="var(--cat-blue)" strokeWidth="6.5"
             strokeDasharray={cBanks} strokeDashoffset={offBanks}
             className={`ring-fill ring-clickable ${activeSegment === 'banks' ? 'ring-active' : ''}`}
             onClick={() => onSelectSegment('banks')}
-            style={{ color: '#3b82f6' }}
+            style={{ color: 'var(--cat-blue)' }}
           />
 
           {/* Middle Track & Ring: Wallets (Amber) */}
-          <circle cx="50" cy="50" r="30" stroke="#f59e0b" strokeWidth="6.5" className="ring-track" />
+          <circle cx="50" cy="50" r="30" stroke="var(--cat-amber)" strokeWidth="6.5" className="ring-track" />
           <circle
-            cx="50" cy="50" r="30" stroke="#f59e0b" strokeWidth="6.5"
+            cx="50" cy="50" r="30" stroke="var(--cat-amber)" strokeWidth="6.5"
             strokeDasharray={cWallets} strokeDashoffset={offWallets}
             className={`ring-fill ring-clickable ${activeSegment === 'wallets' ? 'ring-active' : ''}`}
             onClick={() => onSelectSegment('wallets')}
-            style={{ color: '#f59e0b' }}
+            style={{ color: 'var(--cat-amber)' }}
           />
 
           {/* Inner Track & Ring: Transfers (Emerald) */}
-          <circle cx="50" cy="50" r="19" stroke="#10b981" strokeWidth="6.5" className="ring-track" />
+          <circle cx="50" cy="50" r="19" stroke="var(--cat-green)" strokeWidth="6.5" className="ring-track" />
           <circle
-            cx="50" cy="50" r="19" stroke="#10b981" strokeWidth="6.5"
+            cx="50" cy="50" r="19" stroke="var(--cat-green)" strokeWidth="6.5"
             strokeDasharray={cTransfers} strokeDashoffset={offTransfers}
             className={`ring-fill ring-clickable ${activeSegment === 'transfers' ? 'ring-active' : ''}`}
             onClick={() => onSelectSegment('transfers')}
-            style={{ color: '#10b981' }}
+            style={{ color: 'var(--cat-green)' }}
           />
         </svg>
       </div>
@@ -84,7 +87,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('banks')}
           className={`apple-ring-pill banks ${activeSegment === 'banks' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: '#3b82f6' }} />
+          <span className="apple-ring-dot" style={{ background: 'var(--cat-blue)' }} />
           <span className="tabular-nums">{formatCurrency(totalBankBalance, currencySymbol)}</span>
         </button>
 
@@ -95,7 +98,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('wallets')}
           className={`apple-ring-pill wallets ${activeSegment === 'wallets' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: '#f59e0b' }} />
+          <span className="apple-ring-dot" style={{ background: 'var(--cat-amber)' }} />
           <span className="tabular-nums">{formatCurrency(totalWalletBalance, currencySymbol)}</span>
         </button>
 
@@ -106,7 +109,7 @@ function ConcentricActivityRings({
           onClick={() => onSelectSegment('transfers')}
           className={`apple-ring-pill transfers ${activeSegment === 'transfers' ? 'active' : ''}`}
         >
-          <span className="apple-ring-dot" style={{ background: '#10b981' }} />
+          <span className="apple-ring-dot" style={{ background: 'var(--cat-green)' }} />
           <span className="tabular-nums">Net {currencySymbol}0</span>
         </button>
       </div>
@@ -433,16 +436,8 @@ export function AccountsScreen({
   }, { dependencies: [activeSegment], scope: switcherRef });
 
   useGSAP(() => {
-    if (cardsContainerRef.current) {
-      const cards = cardsContainerRef.current.querySelectorAll('.account-card-anim');
-      if (cards.length > 0) {
-        gsap.fromTo(
-          cards,
-          { opacity: 0, y: 12 },
-          { opacity: 1, y: 0, stagger: 0.04, duration: 0.24, ease: 'power2.out' }
-        );
-      }
-    }
+    if (!cardsContainerRef.current) return undefined;
+    return playEntrance(cardsContainerRef.current.querySelectorAll('.account-card-anim'), { y: 12, duration: 0.24 });
   }, { dependencies: [activeSegment, bankAccounts.length, wallets.length, transfers.length], scope: cardsContainerRef });
 
   return (
@@ -452,7 +447,7 @@ export function AccountsScreen({
       {/* Header and Quick Stats */}
       <div className="accounts-header-minimal">
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
             Portfolio Liquidity
           </div>
           <div className="accounts-hero-total tabular-nums">
@@ -463,7 +458,7 @@ export function AccountsScreen({
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isReviewMode ? (
             <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
-              <span>👁️</span> Month-end balances
+              <EyeIcon size={13} /> Month-end balances
             </span>
           ) : (
             <>
@@ -472,7 +467,7 @@ export function AccountsScreen({
                 className="btn-secondary"
                 onClick={() => handleOpenTransfer()}
                 aria-label="Transfer Funds"
-                style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <ArrowRightLeftIcon size={14} />
                 <span>Transfer Funds</span>
@@ -483,7 +478,7 @@ export function AccountsScreen({
                   type="button"
                   className="btn-primary"
                   onClick={handleOpenAddBank}
-                  style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <PlusIcon size={14} />
                   <span>Add Bank</span>
@@ -493,7 +488,7 @@ export function AccountsScreen({
                   type="button"
                   className="btn-primary"
                   onClick={handleOpenAddWallet}
-                  style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '7px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <PlusIcon size={14} />
                   <span>Add Wallet</span>
@@ -537,10 +532,10 @@ export function AccountsScreen({
               <BuildingLibraryIcon size={18} />
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
                 Upgrade & Link Account
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
                 You have legacy balances and budget records ready to link into a designated primary bank account.
               </div>
             </div>
@@ -549,7 +544,7 @@ export function AccountsScreen({
             type="button"
             className="btn-primary"
             onClick={handleOpenAddBank}
-            style={{ padding: '7px 14px', fontSize: '12px' }}
+            style={{ padding: '7px 14px', fontSize: 'var(--fs-xs)' }}
           >
             Link Primary Account
           </button>
@@ -580,7 +575,7 @@ export function AccountsScreen({
                     type="button"
                     className="btn-primary"
                     onClick={handleOpenAddBank}
-                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Create Depository
                   </button>
@@ -613,7 +608,7 @@ export function AccountsScreen({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span className="bento-card-title">{bank.name}</span>
                                 {bank.isPrimary && (
-                                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  <span style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
                                     Primary
                                   </span>
                                 )}
@@ -621,7 +616,7 @@ export function AccountsScreen({
                                   <span
                                     data-testid="salary-depository-badge"
                                     style={{
-                                      fontSize: '9px',
+                                      fontSize: 'var(--fs-2xs)',
                                       padding: '1px 5px',
                                       borderRadius: '3px',
                                       background: 'var(--surface-subtle)',
@@ -635,12 +630,12 @@ export function AccountsScreen({
                                   </span>
                                 )}
                                 {isReviewMode && (
-                                  <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  <span className="review-badge-tag" style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px' }}>
                                     Closed Scorecard
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                                 {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• •••• ${bank.accountNumberMasked.slice(-4)}` : ''}
                               </div>
                             </div>
@@ -651,7 +646,7 @@ export function AccountsScreen({
                         <div className="apple-card-hero-row">
                           <div>
                             {isReviewMode && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
                                 Closing Balance (Snapshotted)
                               </div>
                             )}
@@ -670,22 +665,22 @@ export function AccountsScreen({
                         {snap && (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--positive)' }}>
                                 +{formatCurrency(snap.totalInflow, currencySymbol)}
                               </span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700 }}>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>
                                 {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
                               </span>
                             </div>
@@ -694,7 +689,7 @@ export function AccountsScreen({
 
                         {/* High-Contrast Breach Indicator if breached */}
                         {hasBreach && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                             <AlertTriangleIcon size={13} />
                             <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
                           </div>
@@ -758,7 +753,7 @@ export function AccountsScreen({
                     type="button"
                     className="btn-primary"
                     onClick={handleOpenAddWallet}
-                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Create Wallet
                   </button>
@@ -787,17 +782,17 @@ export function AccountsScreen({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span className="bento-card-title">{wallet.name}</span>
                                 {wallet.isPrimary && (
-                                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                  <span style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px', borderRadius: '3px', background: 'var(--text)', color: 'var(--bg)', fontWeight: 700, textTransform: 'uppercase' }}>
                                     Primary
                                   </span>
                                 )}
                                 {isReviewMode && (
-                                  <span className="review-badge-tag" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  <span className="review-badge-tag" style={{ fontSize: 'var(--fs-2xs)', padding: '1px 5px' }}>
                                     Closed Scorecard
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
                                 {wallet.walletType} Wallet
                               </div>
                             </div>
@@ -808,7 +803,7 @@ export function AccountsScreen({
                         <div className="apple-card-hero-row">
                           <div>
                             {isReviewMode && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
                                 Closing Balance (Snapshotted)
                               </div>
                             )}
@@ -827,22 +822,22 @@ export function AccountsScreen({
                         {snap && (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '10px', background: 'var(--surface-subtle)', borderRadius: '10px', margin: '8px 0' }}>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Opening Balance</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{formatCurrency(snap.openingBalance, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--positive, #10b981)' }}>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Inflow</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--positive)' }}>
                                 +{formatCurrency(snap.totalInflow, currencySymbol)}
                               </span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Total Outflow</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
                             </div>
                             <div>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
-                              <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 700 }}>
+                              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block' }}>Net Movement</span>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>
                                 {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
                               </span>
                             </div>
@@ -851,7 +846,7 @@ export function AccountsScreen({
 
                         {/* High-Contrast Breach Indicator if breached */}
                         {hasBreach && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: '11px', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                             <AlertTriangleIcon size={13} />
                             <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
                           </div>
@@ -915,7 +910,7 @@ export function AccountsScreen({
                     type="button"
                     className="btn-primary"
                     onClick={() => handleOpenTransfer()}
-                    style={{ padding: '8px 18px', fontSize: '12px' }}
+                    style={{ padding: '8px 18px', fontSize: 'var(--fs-xs)' }}
                   >
                     + Transfer Funds
                   </button>
@@ -945,12 +940,12 @@ export function AccountsScreen({
                             <ArrowRightLeftIcon size={14} />
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ fontWeight: 600, fontSize: 'var(--fs-base)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span>{sourceName}</span>
-                              <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>➔</span>
+                              <ArrowRightIcon size={11} style={{ color: 'var(--text-secondary)' }} />
                               <span>{destName}</span>
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
                               <span className="tabular-nums">{formatDisplayDate(tr.date, true)}</span>
                               {tr.note ? ` • ${tr.note}` : ''}
                             </div>
@@ -958,12 +953,10 @@ export function AccountsScreen({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div className="tabular-nums" style={{ fontSize: '14.5px', fontWeight: 700 }}>
+                          <div className="tabular-nums" style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>
                             {formatCurrency(tr.amount, currencySymbol)}
                           </div>
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-500">
-                            Settled
-                          </span>
+                          <Chip tone="good">Settled</Chip>
                           {!isReviewMode && (
                             <button
                               type="button"
@@ -1095,7 +1088,7 @@ export function AccountsScreen({
                   checked={bankIsPrimary}
                   onChange={(e) => setBankIsPrimary(e.target.checked)}
                 />
-                <label htmlFor="bankIsPrimary" style={{ fontSize: '13px', cursor: 'pointer' }}>
+                <label htmlFor="bankIsPrimary" style={{ fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                   Set as primary bank account (pre-selected in entries)
                 </label>
               </div>
@@ -1191,7 +1184,7 @@ export function AccountsScreen({
                   checked={walletIsPrimary}
                   onChange={(e) => setWalletIsPrimary(e.target.checked)}
                 />
-                <label htmlFor="walletIsPrimary" style={{ fontSize: '13px', cursor: 'pointer' }}>
+                <label htmlFor="walletIsPrimary" style={{ fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                   Set as primary wallet (pre-selected in entries)
                 </label>
               </div>
@@ -1230,7 +1223,7 @@ export function AccountsScreen({
             </div>
 
             {transferError && (
-              <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: '12px', marginBottom: '12px', fontWeight: 600 }}>
+              <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'var(--text)', color: 'var(--bg)', fontSize: 'var(--fs-xs)', marginBottom: '12px', fontWeight: 600 }}>
                 {transferError}
               </div>
             )}
@@ -1360,7 +1353,7 @@ export function AccountsScreen({
                 />
               </div>
 
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                 * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
               </div>
 

@@ -35,7 +35,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text);
   box-shadow: var(--shadow-subtle);
   transition: all 0.15s ease;
@@ -59,7 +59,7 @@
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text);
   transition: all 0.15s ease;
 }
@@ -91,16 +91,16 @@
 }
 
 .tx-row.row-overdue {
-  border-left: 3px solid var(--negative, #ef4444);
+  border-left: 3px solid var(--negative);
 }
 
 .tx-row.row-due {
-  border-left: 3px solid var(--warning, #f59e0b);
+  border-left: 3px solid var(--warning);
 }
 
 /* Relevant signal tags */
 .tx-tag {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   padding: 2px 6px;
   border-radius: var(--radius);
@@ -112,13 +112,13 @@
 
 .tx-tag.tag-overdue {
   background: rgba(239, 68, 68, 0.1);
-  color: var(--negative, #ef4444);
+  color: var(--negative);
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .tx-tag.tag-due {
   background: rgba(245, 158, 11, 0.1);
-  color: var(--warning, #f59e0b);
+  color: var(--warning);
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
@@ -129,7 +129,7 @@
 }
 
 .tx-amount {
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -137,7 +137,7 @@
 }
 
 .tx-amount.amount-credit {
-  color: var(--positive, #10b981);
+  color: var(--positive);
 }
 
 .tx-btn-icon-subtle {
@@ -178,7 +178,7 @@
 }
 
 .tx-settle-box-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -186,7 +186,7 @@
 }
 
 .tx-settle-box-val {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -194,7 +194,7 @@
 
 .tx-variance-banner {
   grid-column: span 2;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   padding: 4px 8px;
   border-radius: var(--radius);

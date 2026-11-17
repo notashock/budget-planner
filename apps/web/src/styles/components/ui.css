@@ -1,0 +1,56 @@
+/* Shared UI components (src/components/ui). Loaded last so they override
+   screen styles of equal specificity. */
+
+/* Button: .btn + variant (.btn-primary / .btn-secondary / .btn-subtle / .btn-danger) */
+.btn-sm {
+  padding: 5px 10px;
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Chip: status is never colour alone, every tone pairs an icon with a label */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.ui-chip svg {
+  flex-shrink: 0;
+}
+
+.ui-chip-neutral {
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.ui-chip-good {
+  background: var(--emerald-subtle);
+  color: var(--good-ink);
+  border-color: var(--emerald-border);
+}
+
+.ui-chip-warning {
+  background: var(--amber-subtle);
+  color: var(--warn-ink);
+  border-color: var(--amber-border);
+}
+
+.ui-chip-critical {
+  background: var(--rose-subtle);
+  color: var(--bad-ink);
+  border-color: var(--rose-border);
+}

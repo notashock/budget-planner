@@ -29,10 +29,10 @@ export function AuthScreen({ onLogin, onRegister }) {
     <div style={{ maxWidth: '380px', margin: '60px auto', padding: '20px' }}>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
+          <h2 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
             {isRegister ? 'Create an account' : 'Sign in to your planner'}
           </h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Deterministic monthly cash flow and safety floor monitoring.
           </p>
         </div>
@@ -62,7 +62,7 @@ export function AuthScreen({ onLogin, onRegister }) {
           </div>
 
           {error && (
-            <div style={{ color: 'var(--danger)', fontSize: '12px' }}>
+            <div style={{ color: 'var(--danger)', fontSize: 'var(--fs-xs)' }}>
               {error}
             </div>
           )}
@@ -79,7 +79,7 @@ export function AuthScreen({ onLogin, onRegister }) {
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', fontSize: '12px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+        <div style={{ textAlign: 'center', fontSize: 'var(--fs-xs)', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
           <button
             type="button"
             className="btn-subtle"

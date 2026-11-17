@@ -260,7 +260,7 @@ export function DatePicker({
       if (relDay < 0) {
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent)' }}>Day {relDay}</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--accent)' }}>Day {relDay}</span>
             <span>·</span>
             <span>{monthStr} {dayStr}, {yearStr}</span>
           </span>
@@ -316,7 +316,7 @@ export function DatePicker({
               disabled={Boolean(maxDate && todayStr > maxDate) || Boolean(minDate && todayStr < minDate)}
               style={{
                 flex: 1,
-                fontSize: '11px',
+                fontSize: 'var(--fs-2xs)',
                 padding: '3px 8px',
                 justifyContent: 'center',
                 opacity: (maxDate && todayStr > maxDate) || (minDate && todayStr < minDate) ? 0.3 : 1
@@ -331,7 +331,7 @@ export function DatePicker({
               disabled={Boolean((minDate && yesterdayStr < minDate) || (maxDate && yesterdayStr > maxDate))}
               style={{
                 flex: 1,
-                fontSize: '11px',
+                fontSize: 'var(--fs-2xs)',
                 padding: '3px 8px',
                 justifyContent: 'center',
                 opacity: (minDate && yesterdayStr < minDate) ? 0.3 : 1
@@ -344,7 +344,7 @@ export function DatePicker({
               <button
                 type="button"
                 className="btn-subtle"
-                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--text-muted)' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '3px 8px', color: 'var(--text-muted)' }}
                 onClick={handleClear}
                 title="Clear date selection"
               >

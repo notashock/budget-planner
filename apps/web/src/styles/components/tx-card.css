@@ -90,7 +90,7 @@
 
 .tx-card-title {
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   color: var(--text);
   line-height: 1.3;
   overflow: hidden;
@@ -103,7 +103,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 4px;
@@ -161,7 +161,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
   line-height: 1.3;
   min-width: 0;
@@ -182,7 +182,7 @@
 
 .tx-meta-dot {
   opacity: 0.5;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   flex-shrink: 0;
   display: none;
 }
@@ -203,7 +203,7 @@
 }
 
 .tx-date-badge {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   padding: 4px 10px;
   border-radius: 6px;
@@ -218,14 +218,14 @@
 .tx-date-badge.date-due {
   border-color: rgba(245, 158, 11, 0.2);
   background: rgba(245, 158, 11, 0.1);
-  color: var(--warning, #f59e0b);
+  color: var(--warning);
   font-weight: 600;
 }
 
 .tx-date-badge.date-overdue {
   border-color: rgba(239, 68, 68, 0.2);
   background: rgba(239, 68, 68, 0.1);
-  color: var(--danger, #ef4444);
+  color: var(--danger);
   font-weight: 700;
 }
 
@@ -242,7 +242,7 @@
 
 .tx-amount-display {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   color: var(--text);
   white-space: nowrap;
   letter-spacing: -0.01em;
@@ -260,7 +260,7 @@
 }
 
 .tx-amount-display.amount-neutral {
-  color: var(--accent, #6366f1);
+  color: var(--accent);
 }
 
 /* Status-Colored Micro-Banner / Chip under transaction description */
@@ -273,7 +273,7 @@
   max-width: max-content;
   gap: 3px;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   padding: 1.5px 6.5px;
   border-radius: 4px;
@@ -286,19 +286,19 @@
 
 .tx-balance-chip.balance-healthy {
   background: rgba(16, 185, 129, 0.1);
-  color: var(--emerald, #10b981);
+  color: var(--emerald);
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .tx-balance-chip.balance-warning {
   background: rgba(245, 158, 11, 0.12);
-  color: var(--amber, #f59e0b);
+  color: var(--amber);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .tx-balance-chip.balance-breached {
   background: rgba(244, 63, 94, 0.12);
-  color: var(--rose, #f43f5e);
+  color: var(--rose);
   border: 1px solid rgba(244, 63, 94, 0.35);
   font-weight: 700;
 }
@@ -344,7 +344,7 @@
   gap: 4px;
   padding: 4px 10px;
   height: 24px;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   background: var(--text);
   color: var(--bg);
@@ -369,7 +369,7 @@
 }
 
 /* Responsive adjustments for mobile */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .tx-card {
     padding: 10px 12px;
     gap: 10px;
@@ -381,11 +381,11 @@
     display: inline;
   }
   .tx-amount-display {
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .tx-btn-settle {
     padding: 3px 8px;
-    font-size: 10.5px;
+    font-size: var(--fs-2xs);
   }
 }
 
@@ -410,12 +410,12 @@
 
 .tx-arrow {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
 }
 
 .tx-note-snippet {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -423,18 +423,18 @@
 }
 
 .tx-amount-display.amount-credit {
-  color: var(--positive, #10b981);
+  color: var(--positive);
 }
 
 .tx-btn-action.delete:hover {
   background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.2);
-  color: var(--danger, #ef4444);
+  color: var(--danger);
 }
 
 .tx-tag.tag-transfer {
   background: rgba(99, 102, 241, 0.12);
-  color: var(--accent, #6366f1);
+  color: var(--accent);
   border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
@@ -459,7 +459,7 @@
 }
 
 .tx-empty-text {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;

@@ -31,7 +31,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -119,7 +119,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--text);
   cursor: pointer;
   transition-property: background-color, border-color, color;
@@ -133,7 +133,7 @@
 }
 
 .datepicker-title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
 }
@@ -142,7 +142,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -162,7 +162,7 @@
   border-radius: calc(var(--radius) - 2px);
   background: transparent;
   border: none;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -201,7 +201,7 @@
   background: transparent;
   border: none;
   padding: 0;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -345,7 +345,7 @@
 }
 
 .review-mode-icon {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   display: flex;
   align-items: center;
 }
@@ -358,18 +358,18 @@
 
 .review-mode-title {
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text);
   letter-spacing: -0.01em;
 }
 
 .review-mode-subtext {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--text-secondary);
 }
 
 .review-mode-return-btn {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 6px 14px;
   border-radius: var(--radius, 6px);
@@ -389,11 +389,11 @@
 }
 
 .review-mode-start-next-btn {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 6px 14px;
   border-radius: var(--radius, 6px);
-  background: var(--primary, #059669);
+  background: var(--primary);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
@@ -415,7 +415,7 @@
 }
 
 .review-badge-tag {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -427,7 +427,7 @@
 }
 
 .active-cycle-tag {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -457,7 +457,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   display: flex;
   align-items: center;

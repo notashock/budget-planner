@@ -38,7 +38,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   background: transparent;
   border: none;
@@ -63,7 +63,7 @@
 }
 
 .nav-tab-icon {
-  font-size: 16px;
+  font-size: var(--fs-input);
   line-height: 1;
 }
 
@@ -112,11 +112,11 @@
   align-items: center;
   gap: 6px;
   padding: 8px 18px;
-  background: var(--primary, #059669);
+  background: var(--primary);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
   cursor: pointer;
@@ -144,10 +144,10 @@
   align-items: center;
   gap: 6px;
   background: rgba(16, 185, 129, 0.12);
-  color: var(--primary, #059669);
+  color: var(--primary);
   border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: var(--radius-pill);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 4px 10px;
   cursor: pointer;

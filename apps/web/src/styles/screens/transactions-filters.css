@@ -45,7 +45,7 @@
 .apple-chip {
   height: 28px;
   padding: 0 11px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -129,7 +129,7 @@
   border-radius: 8px;
   background: transparent;
   border: none;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -154,7 +154,7 @@
 }
 
 .apple-segmented-tab.tx-section-tab .tx-section-tab-count {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   padding: 1.5px 6.5px;
   border-radius: 999px;
   background: var(--surface-subtle);
@@ -197,7 +197,7 @@
 }
 
 .apple-tx-empty-title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -206,7 +206,7 @@
 
 .apple-tx-empty-sub {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
 }
 
@@ -229,7 +229,7 @@
   }
 
   .apple-tx-group .tx-card-title {
-    font-size: 13.5px;
+    font-size: var(--fs-base);
   }
 
   .apple-tx-group .tx-card-center {

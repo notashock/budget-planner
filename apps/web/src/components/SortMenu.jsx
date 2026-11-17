@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { ArrowRightLeftIcon, ChevronDownIcon } from './Icons.jsx';
+import { ArrowRightLeftIcon, ChevronDownIcon, CheckIcon } from './Icons.jsx';
 
 /**
  * Compact sort control for the search capsule: a button that opens a styled
@@ -114,7 +114,7 @@ export function SortMenu({ value, options, onChange, label = 'Sort' }) {
               onClick={() => choose(idx)}
             >
               <span>{opt.label}</span>
-              <span className="sort-menu-check" aria-hidden="true">{opt.value === value ? '✓' : ''}</span>
+              <span className="sort-menu-check" aria-hidden="true">{opt.value === value ? <CheckIcon size={13} strokeWidth={2.4} /> : null}</span>
             </li>
           ))}
         </ul>

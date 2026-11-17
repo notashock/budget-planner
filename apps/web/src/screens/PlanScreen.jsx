@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { playEntrance } from '../components/entranceMotion.js';
 import { formatCurrency, formatCurrencyWhole, calculateIrregularMetrics, getHeadroom, summarizeLowPoints, getMonthVerdict } from '@budget/engine';
 import {
   DetailedKpiGrid,
@@ -14,7 +15,7 @@ import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
-import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
+import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon, EyeIcon } from '../components/Icons.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 
@@ -417,15 +418,8 @@ export function PlanScreen({
   };
 
   useGSAP(() => {
-    if (!containerRef.current) return;
-    const cards = containerRef.current.querySelectorAll('.summary-card, .plan-insight-card, .dashboard-chart-panel');
-    if (cards.length > 0) {
-      gsap.fromTo(
-        cards,
-        { opacity: 0, y: 8 },
-        { opacity: 1, y: 0, duration: 0.25, stagger: 0.04, ease: 'power2.out' }
-      );
-    }
+    if (!containerRef.current) return undefined;
+    return playEntrance(containerRef.current.querySelectorAll('.summary-card, .plan-insight-card, .dashboard-chart-panel'));
   }, { dependencies: [selectedAccountId, viewSubmode, timeframe], scope: containerRef });
 
   if (isIrregularDashboard) {
@@ -442,7 +436,7 @@ export function PlanScreen({
                 type="button"
                 onClick={() => setViewSubmode('monthly')}
                 className={`filter-pill ${viewSubmode === 'monthly' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '4px 10px' }}
               >
                 Monthly Budget
               </button>
@@ -450,7 +444,7 @@ export function PlanScreen({
                 type="button"
                 onClick={() => setViewSubmode('irregular')}
                 className={`filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '4px 10px' }}
               >
                 Irregular income
               </button>
@@ -495,7 +489,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className="btn-primary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
+                style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px' }}
                 onClick={() => onOpenUnifiedEntry('income')}
               >
                 + Log Income
@@ -503,7 +497,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
+                style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px' }}
                 onClick={() => onOpenUnifiedEntry('log')}
               >
                 - Log Expense
@@ -511,7 +505,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ fontSize: '12px', padding: '6px 14px' }}
+                style={{ fontSize: 'var(--fs-xs)', padding: '6px 14px' }}
                 onClick={() => onOpenUnifiedEntry('transfer')}
               >
                 <ArrowRightLeftIcon size={12} /> Transfer
@@ -537,10 +531,10 @@ export function PlanScreen({
         <div className="card" style={{ padding: '20px', marginTop: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h3 style={{ fontSize: 'var(--fs-base)', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Cashflow & Earnings Analysis
               </h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
                 Income and spending averaged over the months you have recorded.
               </p>
             </div>
@@ -549,7 +543,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className={`filter-pill ${timeframe === 'trailing12m' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '4px 10px' }}
                 onClick={() => setTimeframe('trailing12m')}
               >
                 Trailing 12M
@@ -557,7 +551,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className={`filter-pill ${timeframe === 'quarterly' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '4px 10px' }}
                 onClick={() => setTimeframe('quarterly')}
               >
                 Quarterly
@@ -565,7 +559,7 @@ export function PlanScreen({
               <button
                 type="button"
                 className={`filter-pill ${timeframe === 'ytd' ? 'active' : ''}`}
-                style={{ fontSize: '11px', padding: '4px 10px' }}
+                style={{ fontSize: 'var(--fs-2xs)', padding: '4px 10px' }}
                 onClick={() => setTimeframe('ytd')}
               >
                 Yearly
@@ -581,25 +575,25 @@ export function PlanScreen({
           {timeframe === 'trailing12m' && (
             <div className="irr-two-col">
               <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   Trailing 12-Month Inflow
                 </span>
-                <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--success)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--success)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
                   +{formatCurrency(irregularMetrics.trailing12mIncome, currencySymbol)}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                   Smoothed Monthly: {formatCurrency(irregularMetrics.smoothedMonthlyIncome, currencySymbol)} / mo
                 </div>
               </div>
 
               <div style={{ padding: '16px', background: 'var(--surface-subtle)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   Trailing 12-Month Outflow
                 </span>
-                <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text)', margin: '6px 0', fontVariantNumeric: 'tabular-nums' }}>
                   -{formatCurrency(irregularMetrics.trailing12mSpending, currencySymbol)}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
                   Average Burn: {formatCurrency(irregularMetrics.avgMonthlySpending, currencySymbol)} / mo
                 </div>
               </div>
@@ -609,7 +603,7 @@ export function PlanScreen({
           {timeframe === 'ytd' && (
             <div style={{ overflowX: 'auto' }}>
               {yearly.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 'var(--fs-xs)' }}>
                   No yearly transaction records found.
                 </div>
               ) : (
@@ -644,15 +638,15 @@ export function PlanScreen({
         {!month && onOpenSalarySafeline && (
           <div className="card" style={{ marginTop: '16px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: 'var(--surface-subtle)' }}>
             <div>
-              <span style={{ fontSize: '12px', fontWeight: 600 }}>Receive a fixed regular salary?</span>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+              <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>Receive a fixed regular salary?</span>
+              <p style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
                 You can configure a monthly salary template to automate recurring pay and monthly budget horizons.
               </p>
             </div>
             <button
               type="button"
               className="btn-secondary"
-              style={{ fontSize: '11px', padding: '5px 12px' }}
+              style={{ fontSize: 'var(--fs-2xs)', padding: '5px 12px' }}
               onClick={onOpenSalarySafeline}
             >
               Configure Salary Schedule →
@@ -684,22 +678,22 @@ export function PlanScreen({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BuildingLibraryIcon size={18} />
-              <span style={{ fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ fontWeight: 700, fontSize: 'var(--fs-sm)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Move your balance into a bank account
               </span>
             </div>
-            <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontWeight: 500, color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 'var(--fs-2xs)', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontWeight: 500, color: 'var(--text-secondary)' }}>
               One step
             </span>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             Move your current balance ({formatCurrency(todayBalance, month.currencySymbol)}) into your main bank account so it updates as you spend.
           </p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
             <button
               type="button"
               className="btn-primary"
-              style={{ padding: '7px 16px', fontSize: '12px' }}
+              style={{ padding: '7px 16px', fontSize: 'var(--fs-xs)' }}
               onClick={onOpenMigration}
             >
               Move my balance
@@ -751,7 +745,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrencyWhole(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose)" />}
                     {headroom && (
                       <span
                         className={`pill-headroom headroom-${headroom.status}`}
@@ -787,7 +781,7 @@ export function PlanScreen({
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
                       {formatCurrencyWhole(bal, month.currencySymbol)}
                     </span>
-                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {hasBreach && <AlertTriangleIcon size={10} color="var(--rose)" />}
                     {headroom && (
                       <span
                         className={`pill-headroom headroom-${headroom.status}`}
@@ -805,13 +799,13 @@ export function PlanScreen({
         <div className="account-toolbar-actions">
           {isReviewMode ? (
             <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}>
-              <span>👁️</span> Historical Preview
+              <EyeIcon size={13} /> Historical Preview
             </span>
           ) : (
             <button
               type="button"
               className="btn-primary desktop-only-btn"
-              style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              style={{ padding: '6px 12px', fontSize: 'var(--fs-xs)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               onClick={() => onOpenUnifiedEntry?.('log')}
             >
               <PlusIcon size={14} />
@@ -832,7 +826,7 @@ export function PlanScreen({
             borderRadius: 'var(--radius)',
             background: 'var(--surface-subtle)',
             border: '1px solid var(--border)',
-            fontSize: '12px'
+            fontSize: 'var(--fs-xs)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -847,7 +841,7 @@ export function PlanScreen({
             type="button"
             className="btn-subtle"
             onClick={() => setSelectedAccountId('all')}
-            style={{ fontSize: '11px', padding: '2px 8px' }}
+            style={{ fontSize: 'var(--fs-2xs)', padding: '2px 8px' }}
           >
             Reset
           </button>
