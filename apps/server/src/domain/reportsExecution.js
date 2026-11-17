@@ -75,7 +75,8 @@ export const ReportsExecution = {
       tagBreakdown[cat].count++;
       tagBreakdown[cat].total += tx.amount;
 
-      if (!tx.plannedItemId) {
+      // A planned bill settled in place (origin 'planned') is matched, not unplanned
+      if (!tx.plannedItemId && tx.origin !== 'planned') {
         totalUnplannedActual += tx.amount;
       } else {
         totalMatchedActual += tx.amount;

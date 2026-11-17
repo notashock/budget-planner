@@ -567,10 +567,14 @@ export function simulate(
       itemType = 'actual-income';
     } else {
       eventAmount = txAmount > 0 ? -txAmount : Math.abs(txAmount);
-      if (!tx.plannedItemId) {
+      // A paid planned bill keeps its planned identity: either it links to a
+      // budget item (plannedItemId) or it was created as a planned transaction
+      // (origin 'planned') and settled in place. Neither is unplanned spending.
+      const isSettledPlan = Boolean(tx.plannedItemId) || tx.origin === 'planned';
+      if (!isSettledPlan) {
         totalUnplannedSpent += txAmount;
       }
-      itemType = tx.plannedItemId
+      itemType = isSettledPlan
         ? (txAmount < 0 ? 'actual-refund' : 'actual-matched')
         : 'unplanned-transaction';
     }
