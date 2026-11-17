@@ -56,6 +56,13 @@ export function MonthHealthHero({
         <strong className="tabular-nums">{formatCurrency(gap, currencySymbol)}</strong> under your safety floor.
       </>
     );
+  } else if (endingBalance === lowestBalance) {
+    verdictLine = (
+      <>
+        Ends the month at its lowest point, <strong className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</strong>,{' '}
+        {formatCurrency(gap, currencySymbol)} above floor.
+      </>
+    );
   } else {
     verdictLine = (
       <>

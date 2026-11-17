@@ -8562,6 +8562,15 @@ main {
 }
 
 /* ---- KPI strip additions ---- */
+.detailed-kpi-grid .kpi-card-header {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.detailed-kpi-grid .kpi-breach-badge {
+  white-space: nowrap;
+}
+
 .text-net-positive {
   color: var(--positive) !important;
 }

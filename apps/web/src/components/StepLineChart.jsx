@@ -643,7 +643,7 @@ export function StepLineChart({
               <li><span className="chart-key key-bill" aria-hidden="true" />Planned bill</li>
             )}
             {safetyFloor > 0 && (
-              <li><span className="chart-key key-floor" aria-hidden="true" />Floor {formatCurrency(safetyFloor, currencySymbol)}</li>
+              <li><span className="chart-key key-floor" aria-hidden="true" /><span>{`Floor: ${formatCurrency(safetyFloor, currencySymbol)}`}</span></li>
             )}
           </ul>
           {onOpenReview && (
@@ -733,10 +733,11 @@ export function StepLineChart({
             strokeDasharray="4 4"
             opacity={floorBreached ? 0.85 : 0.45}
           />
+          {/* Floor label sits at the left end; the right end carries the month-end value */}
           <text
-            x={width - paddingRight - 4}
+            x={paddingLeft + 4}
             y={floorY - 6}
-            textAnchor="end"
+            textAnchor="start"
             style={{
               fontSize: '10.5px',
               fill: floorBreached ? 'var(--rose, #f43f5e)' : 'var(--text-secondary)',
