@@ -1,0 +1,235 @@
+/* ==========================================================================
+   APPLE CUERTINO INSET GROUPED TRANSACTIONS
+   Borderless rows separated by hairline inset divider lines
+   ========================================================================== */
+
+.apple-tx-group.tx-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 16px);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.apple-tx-group .apple-tx-row.tx-card {
+  display: flex;
+  grid-template-columns: none;
+  grid-template-areas: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-left: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+/* Hairline Inset Divider between rows */
+.apple-tx-group .apple-tx-row.tx-card:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 18px;
+  left: 70px; /* Inset aligned with text, skipping the 38px icon */
+  height: 1px;
+  background: var(--border-subtle, rgba(0, 0, 0, 0.06));
+}
+
+.apple-tx-group .apple-tx-row.tx-card:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.03));
+}
+
+.apple-tx-group .apple-tx-row.tx-card:active {
+  background: var(--surface-subtle);
+}
+
+/* Apple Icon Box */
+.apple-tx-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.apple-tx-icon-box.credit,
+.apple-tx-icon-box.income {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.apple-tx-icon-box.transfer {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.apple-tx-icon-box.goal {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
+.apple-tx-icon-box.wallet {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.apple-tx-icon-box.bank,
+.apple-tx-icon-box.debit {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.apple-tx-icon-box.overdue {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.apple-tx-icon-box.due {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.apple-tx-icon-box.upcoming {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+/* Content (Middle) */
+.apple-tx-group .tx-card-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.apple-tx-group .tx-card-headline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apple-tx-group .tx-card-title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apple-tx-group .tx-card-account {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin-top: 0;
+}
+
+/* Center Zone: Date Badge */
+.apple-tx-group .tx-card-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* End Zone (Right) */
+.apple-tx-group .tx-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.apple-tx-group .tx-amount-display {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  font-family: var(--font-mono, monospace);
+  line-height: 1.2;
+}
+
+.apple-tx-group .tx-amount-display.amount-credit {
+  color: var(--positive);
+}
+
+.apple-tx-group .tx-amount-display.amount-debit {
+  color: var(--text);
+}
+
+.apple-tx-group .tx-amount-display.amount-neutral {
+  color: var(--accent);
+}
+
+.apple-tx-group .tx-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.apple-tx-btn-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 5px;
+}
+
+.apple-tx-btn-action:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.apple-tx-btn-action.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+/* Apple Segmented Control Bar */
+.apple-segmented-bar.tx-section-tabs-bar {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 0;
+}

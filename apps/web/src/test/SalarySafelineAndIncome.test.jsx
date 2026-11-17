@@ -98,7 +98,7 @@ describe('Salary Linking and Income Logging Integration', () => {
     // Verify KPI card displays combined income and confirmed credit
     expect(screen.getByText('Monthly income')).toBeInTheDocument();
     expect(screen.getByText('₹19,280')).toBeInTheDocument();
-    expect(screen.getByText('✓ Credited')).toBeInTheDocument();
+    expect(screen.getByText('Credited')).toBeInTheDocument();
     unmount();
 
     // 3. Render TimelineList

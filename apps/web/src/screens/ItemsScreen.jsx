@@ -61,7 +61,7 @@ export function ItemsScreen({
           <div
             style={{
               fontWeight: 600,
-              fontSize: '13px',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--text)',
               display: '-webkit-box',
               WebkitLineClamp: 2,
@@ -77,7 +77,7 @@ export function ItemsScreen({
           </div>
           <div
             style={{
-              fontSize: '11px',
+              fontSize: 'var(--fs-2xs)',
               color: 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
@@ -93,7 +93,7 @@ export function ItemsScreen({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   color: 'var(--text-secondary)',
                   padding: '1px 5px',
                   background: 'var(--surface-subtle)',
@@ -108,7 +108,7 @@ export function ItemsScreen({
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span className="tabular-nums" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
+          <span className="tabular-nums" style={{ fontWeight: 700, fontSize: 'var(--fs-base)', color: 'var(--text)' }}>
             {formatCurrency(tx.amount, currencySymbol)}
           </span>
           <button
@@ -175,7 +175,7 @@ export function ItemsScreen({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                fontSize: '11px',
+                fontSize: 'var(--fs-2xs)',
                 color: pTier.color,
                 background: 'var(--surface-subtle)',
                 padding: '2px 6px',
@@ -197,7 +197,7 @@ export function ItemsScreen({
           <div className="item-bento-badges" style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span
               style={{
-                fontSize: '10px',
+                fontSize: 'var(--fs-2xs)',
                 color: 'var(--text-secondary)',
                 background: 'var(--surface-subtle)',
                 padding: '1px 6px',
@@ -215,7 +215,7 @@ export function ItemsScreen({
               return (
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: 'var(--fs-2xs)',
                     color: 'var(--text-secondary)',
                     background: 'var(--surface-subtle)',
                     border: '1px solid var(--border)',
@@ -231,7 +231,7 @@ export function ItemsScreen({
             {item.type === 'recurring' && item.isFixed && (
               <span
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   color: 'var(--text)',
                   background: 'var(--surface-subtle)',
                   border: '1px solid var(--border)',
@@ -246,7 +246,7 @@ export function ItemsScreen({
             {hasRefund && (
               <span
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   color: 'var(--text)',
                   background: 'var(--surface-subtle)',
                   border: '1px solid var(--border)',
@@ -261,7 +261,7 @@ export function ItemsScreen({
             {item.isPaid && item.originalDay && item.originalDay !== (item.type === 'one-time' ? item.day : (item.dayOfMonth || item.day)) && (
               <span
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--fs-2xs)',
                   color: 'var(--primary)',
                   background: 'rgba(59, 130, 246, 0.1)',
                   border: '1px solid rgba(59, 130, 246, 0.25)',
@@ -279,14 +279,14 @@ export function ItemsScreen({
 
         {/* Bento Body: Prominent Amount & Schedule */}
         <div className="item-bento-body" style={{ margin: '4px 0', minWidth: 0 }}>
-          <div className="item-bento-amount tabular-nums" style={{ fontSize: '20px', fontWeight: 700 }}>
+          <div className="item-bento-amount tabular-nums" style={{ fontSize: 'var(--fs-xl)', fontWeight: 700 }}>
             {amountDisplay}
           </div>
-          <div className="item-bento-schedule" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+          <div className="item-bento-schedule" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {details}
           </div>
           {hasRefund && (
-            <div className="item-bento-refund tabular-nums" style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div className="item-bento-refund tabular-nums" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginTop: '2px' }}>
               Original: {formatCurrency(netInfo.originalAmount, currencySymbol)} (-{formatCurrency(netInfo.refundTotal, currencySymbol)})
             </div>
           )}
@@ -297,15 +297,15 @@ export function ItemsScreen({
           {item.isPaid ? (
             <span
               style={{
-                fontSize: '11px',
+                fontSize: 'var(--fs-2xs)',
                 fontWeight: 600,
-                color: 'var(--green, #10b981)',
+                color: 'var(--positive)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px'
               }}
             >
-              <CheckCircleIcon size={12} color="var(--green, #10b981)" />
+              <CheckCircleIcon size={12} color="var(--positive)" />
               <span>Paid</span>
             </span>
           ) : (
@@ -325,7 +325,7 @@ export function ItemsScreen({
               <div className="recurring-toggle-track">
                 <div className="recurring-toggle-thumb" />
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Mark as Paid
               </span>
             </div>
@@ -348,7 +348,7 @@ export function ItemsScreen({
               type="button"
               className="btn-subtle"
               onClick={() => onDeleteItem(item._id)}
-              style={{ padding: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger, #ef4444)' }}
+              style={{ padding: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}
               title="Delete item"
               aria-label="Delete item"
             >
@@ -368,7 +368,7 @@ export function ItemsScreen({
           type="button"
           className="btn-primary"
           onClick={() => onOpenUnifiedEntry?.('log')}
-          style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          style={{ padding: '6px 12px', fontSize: 'var(--fs-xs)', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
           <PlusIcon size={14} />
           <span>New Entry</span>
@@ -399,7 +399,7 @@ export function ItemsScreen({
       {filter === 'transactions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {sortedTransactions.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
               No transactions logged
             </div>
           ) : (
@@ -414,12 +414,12 @@ export function ItemsScreen({
           {/* Section 1: Active & Pending Budget Items */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <h3 style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Pending items ({pendingItems.length})
               </h3>
             </div>
             {pendingItems.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
                 No pending items
               </div>
             ) : (
@@ -432,12 +432,12 @@ export function ItemsScreen({
           {/* Section 2: Logged Transactions & Paid Items */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <h3 style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Settled & logged ({paidItems.length + sortedTransactions.length})
               </h3>
             </div>
             {paidItems.length === 0 && sortedTransactions.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+              <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
                 No settled items
               </div>
             ) : (
@@ -462,7 +462,7 @@ export function ItemsScreen({
       {filter !== 'transactions' && filter !== 'all' && (
         <div>
           {filteredItems.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '12.5px' }}>
+            <div className="card" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
               No items
             </div>
           ) : (

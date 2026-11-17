@@ -1,0 +1,467 @@
+/* ==========================================================================
+   ACTUAL TRANSACTION CARD (tx-card) FOR TIMELINE & TRANSACTIONS
+   ========================================================================== */
+.tx-card {
+  display: grid;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  min-height: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  gap: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  position: relative;
+  grid-template-columns: minmax(200px, 1fr) auto minmax(200px, auto);
+  box-shadow: var(--shadow-subtle);
+}
+
+.tx-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.tx-card:active {
+  transform: scale(0.995);
+}
+
+.tx-card.selected,
+.tx-card.timeline-event-row.selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1.5px var(--text), 0 3px 10px -2px rgba(0, 0, 0, 0.08);
+  background: var(--surface-subtle);
+}
+
+/* Dynamic Left Accent Borders for Timeline Cards */
+.tx-card.row-income,
+.tx-card.has-credit {
+  border-left: 3px solid #10b981;
+}
+
+.tx-card.row-overdue,
+.tx-card.has-overdue {
+  border-left: 3px solid #ef4444;
+}
+
+.tx-card.row-due,
+.tx-card.has-due {
+  border-left: 3px solid #f59e0b;
+}
+
+.tx-card.row-transfer {
+  border-left: 3px solid #6366f1;
+}
+
+.tx-card.row-goal {
+  border-left: 3px solid #8b5cf6;
+}
+
+.tx-card.row-settled {
+  border-left: 3px solid var(--border-strong);
+}
+
+.tx-card.row-breached {
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.25);
+}
+
+/* Zone 1: Left (Headline & Account Attribution) */
+.tx-card-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tx-card-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tx-card-title {
+  font-weight: 600;
+  font-size: var(--fs-base);
+  color: var(--text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status Tags */
+.tx-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tag-settled {
+  background: rgba(16, 185, 129, 0.09);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.tag-due {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: #d97706;
+  font-weight: 600;
+}
+
+.tag-overdue {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.tag-upcoming {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.tag-transfer {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.tag-goal {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+/* Account Attribution Meta */
+.tx-card-account {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  flex-wrap: nowrap;
+}
+
+.tx-account-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tx-meta-dot {
+  opacity: 0.5;
+  font-size: var(--fs-2xs);
+  flex-shrink: 0;
+  display: none;
+}
+
+.tx-date-inline {
+  display: none;
+}
+
+/* Zone 2: Center (Date Badge) */
+.tx-card-center {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.tx-date-badge {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all 0.14s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-date-badge.date-due {
+  border-color: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.tx-date-badge.date-overdue {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* Zone 3: Right (Amounts & Actions) */
+.tx-card-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  min-width: 90px;
+  gap: 14px;
+}
+
+.tx-amount-display {
+  font-weight: 700;
+  font-size: var(--fs-md);
+  color: var(--text);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-amount-display.amount-credit,
+.tx-amount-display.positive {
+  color: #10b981;
+}
+
+.tx-amount-display.amount-debit {
+  color: var(--text);
+}
+
+.tx-amount-display.amount-neutral {
+  color: var(--accent);
+}
+
+/* Status-Colored Micro-Banner / Chip under transaction description */
+.tx-balance-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  justify-self: start;
+  width: fit-content;
+  max-width: max-content;
+  gap: 3px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  padding: 1.5px 6.5px;
+  border-radius: 4px;
+  margin-top: 1.5px;
+  margin-bottom: 1.5px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  transition: all 0.15s ease;
+}
+
+.tx-balance-chip.balance-healthy {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.tx-balance-chip.balance-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.tx-balance-chip.balance-breached {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--rose);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  font-weight: 700;
+}
+
+/* Action Buttons Container & Micro-interactions */
+.tx-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 1px;
+}
+
+.tx-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 5px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tx-btn-action:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.tx-btn-action:active {
+  transform: scale(0.96);
+}
+
+.tx-btn-settle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  height: 24px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.tx-btn-settle:hover {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  opacity: 0.9;
+}
+
+.tx-btn-settle:active {
+  transform: scale(0.96);
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 767px) {
+  .tx-card {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .tx-card-center {
+    display: none;
+  }
+  .tx-date-inline {
+    display: inline;
+  }
+  .tx-amount-display {
+    font-size: var(--fs-sm);
+  }
+  .tx-btn-settle {
+    padding: 3px 8px;
+    font-size: var(--fs-2xs);
+  }
+}
+
+/* Rules previously duplicated in the legacy card-list block */
+.tx-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tx-card.planned.overdue {
+  border-color: var(--rose-border);
+}
+
+.tx-card.planned.due {
+  border-color: var(--amber-border);
+}
+
+.tx-account-name.muted {
+  color: var(--text-muted);
+}
+
+.tx-arrow {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.tx-note-snippet {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-amount-display.amount-credit {
+  color: var(--positive);
+}
+
+.tx-btn-action.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.tx-tag.tag-transfer {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.tx-tag.tag-settled {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.tx-tag.tag-upcoming {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.tx-empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.tx-empty-text {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

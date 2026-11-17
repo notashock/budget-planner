@@ -1,0 +1,319 @@
+/* Styles moved out of GoalsScreen.jsx inline style props.
+   Unlayered, so they outrank the layered app styles exactly as inline styles did. */
+
+.goals-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.goals-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goals-note {
+  font-size: var(--fs-2xs);
+  padding: 3px 8px;
+}
+
+.goals-row-3 {
+  font-size: var(--fs-xs);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.goals-text {
+  color: var(--text);
+}
+
+.goals-box {
+  padding: 16px;
+}
+
+.goals-box-2 {
+  margin-bottom: 8px;
+}
+
+.goals-text-2 {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.goals-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goals-row-4 {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.goals-text-3 {
+  color: var(--text-secondary);
+}
+
+.goals-text-4 {
+  font-weight: 600;
+}
+
+.goals-text-5 {
+  font-weight: 600;
+  color: var(--positive);
+}
+
+.goals-row-5 {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+}
+
+.goals-box-3 {
+  margin-bottom: 12px;
+}
+
+.goals-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goals-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.goals-btn {
+  justify-content: center;
+}
+
+.goals-btn-2 {
+  margin-top: 4px;
+  padding: 8px 14px;
+  font-size: var(--fs-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.goals-box-4 {
+  padding: 14px 16px;
+}
+
+.goals-row-6 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.goals-note-2 {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.goals-note-3 {
+  font-size: var(--fs-2xs);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.goals-note-4 {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.goals-stack-3 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goals-row-7 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--fs-xs);
+}
+
+.goals-row-8 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.goals-note-5 {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.goals-text-6 {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goals-row-9 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.goals-note-6 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+.goals-text-7 {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.goals-box-5 {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.goals-stack-4 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.goals-row-10 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.goals-box-6 {
+  margin-top: 8px;
+}
+
+.goals-row-11 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.goals-row-12 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  background: var(--surface-subtle);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.goals-row-13 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text);
+  font-size: var(--fs-xs);
+}
+
+.goals-note-7 {
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.goals-row-14 {
+  background: var(--surface-subtle);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-xs);
+}
+
+.goals-text-8 {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.goals-box-7 {
+  background: var(--surface-subtle);
+  margin: 0;
+}
+
+.goals-row-15 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.goals-box-8 {
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.goals-btn-3 {
+  padding: 4px 10px;
+  font-size: var(--fs-2xs);
+}
+
+.goals-btn-4 {
+  padding: 4px 10px;
+  font-size: var(--fs-2xs);
+  border: 1px solid var(--border);
+}
+
+.goals-btn-5 {
+  padding: 4px 8px;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}

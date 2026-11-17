@@ -255,11 +255,11 @@ export function CreateMonthModal({
                 <BuildingLibraryIcon size={16} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, letterSpacing: '-0.01em' }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: '-0.01em' }}>
                   Create budget month
                 </h3>
                 {predecessorInfo && (
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     Defaults rolled from {predecessorInfo}
                   </div>
                 )}
@@ -321,7 +321,7 @@ export function CreateMonthModal({
                 month={{ year, month }}
                 required
               />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                 Supports preceding month-end (e.g. Sept 30 for Oct budget).
               </span>
             </div>
@@ -345,11 +345,11 @@ export function CreateMonthModal({
                   >
                     <BuildingLibraryIcon size={14} />
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     Primary Bank Account Setup (Required)
                   </span>
                 </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                <p style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
                   In this banking-grade planner, accounts are the sole source of truth. Every transaction, planned item, and salary deposit links to an account.
                 </p>
 
@@ -447,7 +447,7 @@ export function CreateMonthModal({
                     <button
                       type="button"
                       className="btn-subtle"
-                      style={{ fontSize: '11px', padding: '2px 8px' }}
+                      style={{ fontSize: 'var(--fs-2xs)', padding: '2px 8px' }}
                       onClick={() => setUseCompositeBalances((prev) => !prev)}
                     >
                       {useCompositeBalances ? 'Aggregate input' : 'Break down by account'}
@@ -465,7 +465,7 @@ export function CreateMonthModal({
                   style={{ fontWeight: 600 }}
                 />
                 {predecessorInfo && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', cursor: 'pointer', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
                       style={{ width: 'auto' }}
@@ -481,14 +481,14 @@ export function CreateMonthModal({
             {/* Per-Account Opening Balances Breakdown */}
             {bankAccounts.length > 0 && useCompositeBalances && (
               <div style={{ padding: '12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Account-by-Account Opening Allocations
                 </span>
                 {bankAccounts.map((b) => {
                   const id = b._id || b.id;
                   return (
                     <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--fs-xs)' }}>
                         <BuildingLibraryIcon size={13} />
                         <span>{b.name}</span>
                       </div>
@@ -496,7 +496,7 @@ export function CreateMonthModal({
                         type="number"
                         step="0.01"
                         className="input-field tabular-nums"
-                        style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
+                        style={{ width: '120px', padding: '4px 8px', fontSize: 'var(--fs-xs)' }}
                         value={accountBalances[`bank_${id}`] || ''}
                         onChange={(e) => handleAccountBalanceChange(`bank_${id}`, e.target.value)}
                       />
@@ -507,7 +507,7 @@ export function CreateMonthModal({
                   const id = w._id || w.id;
                   return (
                     <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--fs-xs)' }}>
                         <WalletIcon size={13} />
                         <span>{w.name}</span>
                       </div>
@@ -515,7 +515,7 @@ export function CreateMonthModal({
                         type="number"
                         step="0.01"
                         className="input-field tabular-nums"
-                        style={{ width: '120px', padding: '4px 8px', fontSize: '12px' }}
+                        style={{ width: '120px', padding: '4px 8px', fontSize: 'var(--fs-xs)' }}
                         value={accountBalances[`wallet_${id}`] || ''}
                         onChange={(e) => handleAccountBalanceChange(`wallet_${id}`, e.target.value)}
                       />
@@ -607,7 +607,7 @@ export function RolloverModal({
           </button>
         </div>
 
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', marginTop: '8px' }}>
           Rollover copies all fixed recurring bills into the next calendar month so you don't have to re-enter them.
         </p>
 
@@ -619,7 +619,7 @@ export function RolloverModal({
               checked={carryBalance}
               onChange={(e) => setCarryBalance(e.target.checked)}
             />
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>
+            <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
               Carry ending balance forward as opening balance ({formatCurrency(endingBalance, currencySymbol)})
             </span>
           </label>
@@ -627,14 +627,14 @@ export function RolloverModal({
           {/* Account breakdown preview */}
           {carryBalance && (bankAccounts.length > 0 || wallets.length > 0) && (
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Per-Account Ending Balances Carried:
               </span>
               {bankAccounts.map((b) => {
                 const id = b._id || b.id;
                 const endBal = accountsMap[id]?.endingBalance ?? b.openingBalance;
                 return (
-                  <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <BuildingLibraryIcon size={12} />
                       {b.name}
@@ -647,7 +647,7 @@ export function RolloverModal({
                 const id = w._id || w.id;
                 const endBal = accountsMap[id]?.endingBalance ?? w.openingBalance;
                 return (
-                  <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <WalletIcon size={12} />
                       {w.name}
@@ -671,10 +671,10 @@ export function RolloverModal({
                 onChange={(e) => setRolloverUnpaid(e.target.checked)}
               />
               <div>
-                <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>
+                <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, display: 'block' }}>
                   Roll forward unpaid one-time expenses ({unpaidOneTimeItems.length} items • {formatCurrency(unpaidSum, currencySymbol)})
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
                   Automatically reschedules pending bills to the next month's best recommended dates.
                 </span>
               </div>

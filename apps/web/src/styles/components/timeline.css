@@ -1,0 +1,198 @@
+/* Timeline List & Filters */
+.timeline-filters-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.timeline-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+.timeline-filter-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+
+.timeline-filter-btn.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  font-weight: 600;
+}
+
+.timeline-filter-btn .filter-count {
+  font-size: var(--fs-2xs);
+  opacity: 0.85;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-today-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  margin: 4px 0;
+}
+
+.today-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.today-badge {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-strong);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.timeline-event-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: 12px;
+  cursor: pointer;
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 0.15s;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.timeline-event-row:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.timeline-event-row.selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+  background: var(--surface-subtle);
+}
+
+.timeline-event-row.row-breached {
+  border-color: var(--border-strong);
+}
+
+.timeline-event-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timeline-event-date {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 76px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.event-date-text {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.timeline-event-label {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.timeline-event-type {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.timeline-event-numbers {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.timeline-event-amount {
+  font-weight: 700;
+  font-size: var(--fs-base);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-event-amount.positive,
+.timeline-event-amount.amount-credit {
+  color: #10b981;
+}
+
+.timeline-event-balance {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pending-status-pill {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.inline-breach-glyph {
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  color: var(--text);
+}

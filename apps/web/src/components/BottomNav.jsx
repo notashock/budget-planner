@@ -4,7 +4,8 @@ import {
   ListOrderedIcon,
   TargetIcon,
   WalletIcon,
-  PlusIcon
+  PlusIcon,
+  ZapIcon
 } from './Icons.jsx';
 
 export function BottomNav({
@@ -69,7 +70,7 @@ export function BottomNav({
               aria-label={`Start ${nextMonthLabel || 'Next Month'}`}
               data-testid="bottom-nav-rollover-btn"
             >
-              <span>⚡ Start {nextMonthLabel || 'Next Month'}</span>
+              <ZapIcon size={13} /><span>Start {nextMonthLabel || 'Next Month'}</span>
             </button>
           </div>
         ) : null}

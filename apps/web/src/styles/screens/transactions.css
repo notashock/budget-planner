@@ -1,0 +1,220 @@
+/* ==========================================================================
+   Transactions Screen Design System (Precision Financial Ledger)
+   ========================================================================== */
+
+.transactions-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 100%;
+}
+
+/* Header & Breadcrumb Info */
+
+.tx-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Compact Search & Filter Controls beside the Heading */
+
+.tx-search-box.compact {
+  position: relative;
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+}
+
+.tx-search-box.compact .tx-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 28px 0 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  box-shadow: var(--shadow-subtle);
+  transition: all 0.15s ease;
+}
+
+.tx-search-box.compact .tx-search-input:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+/* Unified Filter & Sort Dropdown */
+
+/* Small round button on the right side of header to directly display planned transactions */
+
+.tx-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 30px 0 32px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+.tx-search-input:focus {
+  background: var(--surface);
+  border-color: var(--border-focus);
+  outline: none;
+}
+
+/* Grouped Chronological Sections */
+
+/* Ledger Transaction Row */
+.tx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+
+.tx-row:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.tx-row.row-overdue {
+  border-left: 3px solid var(--negative);
+}
+
+.tx-row.row-due {
+  border-left: 3px solid var(--warning);
+}
+
+/* Relevant signal tags */
+.tx-tag {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.2;
+}
+
+.tx-tag.tag-overdue {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--negative);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.tx-tag.tag-due {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.tx-tag.tag-goal {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.tx-amount {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tx-amount.amount-credit {
+  color: var(--positive);
+}
+
+.tx-btn-icon-subtle {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.tx-btn-icon-subtle:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Precision Settlement Dialog Card */
+.tx-settle-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.tx-settle-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-settle-box-label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.tx-settle-box-val {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-variance-banner {
+  grid-column: span 2;
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-variance-banner.under {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.tx-variance-banner.over {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.tx-variance-banner.exact {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}

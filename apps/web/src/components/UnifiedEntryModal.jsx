@@ -18,7 +18,8 @@ import {
   BuildingLibraryIcon,
   WalletIcon,
   AlertTriangleIcon,
-  CalendarIcon
+  CalendarIcon,
+  LockIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
@@ -915,13 +916,12 @@ export function UnifiedEntryModal({
       >
         <div
           ref={contentRef}
-          className={`modal-content ${isExpanded ? 'is-expanded' : ''}`}
+          className={`modal-content ${isExpanded ? 'is-expanded' : ''} entry-box`}
           onClick={(e) => e.stopPropagation()}
           onScroll={handleScroll}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          style={{ maxWidth: '520px' }}
         >
           {/* Mobile bottom-sheet grab zone & handle */}
           <div className="modal-drag-zone">
@@ -930,17 +930,10 @@ export function UnifiedEntryModal({
 
           {/* Modal Header & Symmetrical Mode Switcher */}
           <div
-            className="modal-header-row"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px',
-              marginBottom: '12px'
-            }}
+            className="modal-header-row entry-row"
           >
             {initialItem ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+              <div className="entry-row-2">
                 <div
                   role="button"
                   aria-label={mode === 'income' ? 'Income' : (mode === 'log' ? 'Spending' : (mode === 'transfer' ? 'Transfer' : 'Plan Transaction'))}
@@ -951,7 +944,7 @@ export function UnifiedEntryModal({
                     gap: '6px',
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    fontSize: '12.5px',
+                    fontSize: 'var(--fs-sm)',
                     fontWeight: 600,
                     letterSpacing: '-0.01em',
                     background: mode === 'income'
@@ -960,9 +953,9 @@ export function UnifiedEntryModal({
                         ? 'rgba(59, 130, 246, 0.12)'
                         : 'var(--surface-subtle, rgba(255, 255, 255, 0.05))'),
                     color: mode === 'income'
-                      ? 'var(--success, #22c55e)'
+                      ? 'var(--success)'
                       : (mode === 'transfer'
-                        ? 'var(--accent, #3b82f6)'
+                        ? 'var(--accent)'
                         : 'var(--text)'),
                     border: '1px solid var(--border)'
                   }}
@@ -977,33 +970,24 @@ export function UnifiedEntryModal({
                     {mode === 'plan' && (initialItem.type === 'recurring' ? 'Editing Recurring Commitment' : 'Editing Planned Commitment')}
                     {mode === 'transfer' && 'Editing Transfer'}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 500,
-                      opacity: 0.7,
-                      paddingLeft: '6px',
-                      marginLeft: '2px',
-                      borderLeft: '1px solid var(--border)'
-                    }}
+                  <span className="entry-note"
                     title="Type is locked during edit to maintain ledger consistency"
                   >
-                    🔒 Type Locked
+                    <LockIcon size={11} /> Type Locked
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="modal-tab-track" style={{ flex: 1, maxWidth: '440px' }}>
+              <div className="modal-tab-track entry-box-2">
                 <div ref={indicatorRef} className="modal-tab-indicator" />
                 <button
                   ref={logBtnRef}
                   type="button"
-                  className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''}`}
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'log' ? 'active' : ''} entry-btn`}
                   data-active={mode === 'log' ? 'true' : 'false'}
                   onClick={() => handleSwitchMode('log')}
                   aria-label="Spending"
                   title="Log Spending"
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   <ZapIcon size={14} />
                   <span>Spending</span>
@@ -1011,12 +995,11 @@ export function UnifiedEntryModal({
                 <button
                   ref={incomeBtnRef}
                   type="button"
-                  className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''}`}
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'income' ? 'active' : ''} entry-btn`}
                   data-active={mode === 'income' ? 'true' : 'false'}
                   onClick={() => handleSwitchMode('income')}
                   aria-label="Income"
                   title="Log Income"
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   <TrendingUpIcon size={14} />
                   <span>Income</span>
@@ -1024,12 +1007,11 @@ export function UnifiedEntryModal({
                 <button
                   ref={planBtnRef}
                   type="button"
-                  className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''}`}
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'plan' ? 'active' : ''} entry-btn`}
                   data-active={mode === 'plan' ? 'true' : 'false'}
                   onClick={() => handleSwitchMode('plan')}
                   aria-label="Plan Transaction"
                   title="Plan Transaction"
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   <PlusIcon size={14} />
                   <span>Plan</span>
@@ -1037,12 +1019,11 @@ export function UnifiedEntryModal({
                 <button
                   ref={transferBtnRef}
                   type="button"
-                  className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''}`}
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''} entry-btn`}
                   data-active={mode === 'transfer' ? 'true' : 'false'}
                   onClick={() => handleSwitchMode('transfer')}
                   aria-label="Transfer"
                   title="Transfer Funds"
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   <ArrowRightLeftIcon size={14} />
                   <span>Transfer</span>
@@ -1052,19 +1033,10 @@ export function UnifiedEntryModal({
 
             <button
               type="button"
-              className="btn-icon modal-close-btn"
+              className="btn-icon modal-close-btn entry-btn-2"
               onClick={() => triggerExit()}
               title="Close modal"
               aria-label="Close"
-              style={{
-                width: '36px',
-                height: '36px',
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '6px'
-              }}
             >
               <XIcon size={16} />
             </button>
@@ -1072,16 +1044,7 @@ export function UnifiedEntryModal({
 
           {/* Transfer Error Alert */}
           {mode === 'transfer' && transferError && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: '6px',
-                background: 'var(--text)',
-                color: 'var(--bg)',
-                fontSize: '12px',
-                fontWeight: 600,
-                marginBottom: '10px'
-              }}
+            <div className="entry-note-2"
             >
               {transferError}
             </div>
@@ -1091,19 +1054,18 @@ export function UnifiedEntryModal({
               THE UNIVERSAL 6-SLOT FORM VIEW
               Identical spatial sequence across all 4 modes.
              ========================================================================= */}
-          <form
+          <form className="entry-stack"
             ref={formRef}
             onSubmit={handleSubmitRouter}
-            style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}
           >
             <div className="modal-form-scroll-body">
               {/* ---------------------------------------------------------------------
                   SLOT 1: HERO AMOUNT & PRIMARY DIRECTION MODIFIER
                  --------------------------------------------------------------------- */}
-              <div className="form-group" style={{ margin: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>
+              <div className="form-group entry-box-3">
+                <div className="entry-row-3">
+                  <div className="entry-row-4">
+                    <label className="form-label entry-box-3">
                       {mode === 'log' && `Amount (${currencySymbol})`}
                       {mode === 'income' && `Income Amount (${currencySymbol}) *`}
                       {mode === 'plan' && `Planned amount (${currencySymbol})`}
@@ -1113,11 +1075,10 @@ export function UnifiedEntryModal({
                     {mode === 'plan' && !isPaid && itemType !== 'recurring' && (
                       <button
                         type="button"
-                        className="sparkle-action-link"
+                        className="sparkle-action-link entry-btn-3"
                         onClick={handleRecommendDate}
                         disabled={recommending}
                         title="Recommend best safe date based on spending pace, balance, and floor buffer"
-                        style={{ fontSize: '11px', padding: '1px 6px' }}
                       >
                         <SparklesIcon size={11} className={recommending ? 'sparkle-spin-icon' : ''} />
                         <span>{recommending ? 'Analyzing...' : 'Auto date'}</span>
@@ -1132,7 +1093,7 @@ export function UnifiedEntryModal({
                       className={`btn-subtle ${isRefund ? 'credit-active-btn' : ''}`}
                       style={{
                         padding: '3px 10px',
-                        fontSize: '11px',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         border: isRefund ? '1px solid var(--text)' : '1px solid var(--border)',
                         background: isRefund ? 'var(--text)' : 'var(--surface)',
@@ -1156,18 +1117,7 @@ export function UnifiedEntryModal({
                   )}
 
                   {mode === 'income' && (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        background: 'var(--success-subtle, rgba(34, 197, 94, 0.12))',
-                        color: 'var(--success)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
+                    <span className="entry-row-5"
                     >
                       <TrendingUpIcon size={12} />
                       <span>Direct Inflow</span>
@@ -1175,12 +1125,12 @@ export function UnifiedEntryModal({
                   )}
 
                   {mode === 'plan' && (
-                    <div style={{ display: 'inline-flex', borderRadius: '4px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                    <div className="entry-row-6">
                       <button
                         type="button"
                         className={itemType === 'one-time' ? 'btn-primary' : 'btn-subtle'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('one-time'))}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         One-Time
                       </button>
@@ -1188,7 +1138,7 @@ export function UnifiedEntryModal({
                         type="button"
                         className={itemType === 'recurring' ? 'btn-primary' : 'btn-subtle'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('recurring'))}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 0 }}
+                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         Recurring
                       </button>
@@ -1196,18 +1146,7 @@ export function UnifiedEntryModal({
                   )}
 
                   {mode === 'transfer' && (
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        background: 'var(--surface-subtle)',
-                        color: 'var(--text-secondary)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
+                    <span className="entry-row-7"
                     >
                       <ArrowRightLeftIcon size={12} />
                       <span>Zero-Sum</span>
@@ -1229,12 +1168,7 @@ export function UnifiedEntryModal({
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="tabular-nums modal-amount-input"
-                      style={{
-                        fontSize: '22px',
-                        fontWeight: 700,
-                        color: 'var(--text)'
-                      }}
+                      className="tabular-nums modal-amount-input entry-text"
                     />
                     {amount && (
                       <button
@@ -1337,7 +1271,7 @@ export function UnifiedEntryModal({
                               onClick={() => setShowVariableInfo(false)}
                               aria-label="Close info"
                             >
-                              ✕
+                              <XIcon size={14} />
                             </button>
                           </div>
 
@@ -1372,7 +1306,7 @@ export function UnifiedEntryModal({
             {/* ---------------------------------------------------------------------
                 SLOT 2: PRIMARY ACCOUNT SELECTOR
                --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group entry-box-3">
               <label className="form-label">
                 {mode === 'log' && 'Payment Account *'}
                 {mode === 'income' && 'Deposited To (Account) *'}
@@ -1381,25 +1315,17 @@ export function UnifiedEntryModal({
               </label>
 
               {hasZeroAccounts ? (
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    background: 'var(--surface-subtle)',
-                    border: '1px solid var(--border)',
-                    marginBottom: '4px'
-                  }}
+                <div className="entry-box-4"
                 >
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                  <div className="entry-note-3">
                     Bank Account Required
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <div className="entry-note-4">
                     You must register a bank account before recording transactions.
                   </div>
                   <button
                     type="button"
-                    className="btn-primary"
-                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px' }}
+                    className="btn-primary entry-btn-4"
                     onClick={() => {
                       triggerExit(() => {
                         onOpenAddBank?.();
@@ -1429,7 +1355,7 @@ export function UnifiedEntryModal({
             {/* ---------------------------------------------------------------------
                 SLOT 3: CATEGORY / CLASSIFICATION (OR TRANSFER DESTINATION)
                --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group entry-box-3">
               {mode !== 'transfer' ? (
                 <>
                   <label className="form-label">
@@ -1469,18 +1395,18 @@ export function UnifiedEntryModal({
                         ))}
                   </div>
                   {mode === 'income' && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
+                    <span className="entry-note-5">
                       Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>Destination Account (Inflow) *</label>
+                  <div className="entry-row-8">
+                    <label className="form-label entry-box-3">Destination Account (Inflow) *</label>
                     <button
                       type="button"
-                      className="btn-subtle modal-conduit-swap-btn"
+                      className="btn-subtle modal-conduit-swap-btn entry-btn-5"
                       onClick={(e) => {
                         const icon = e.currentTarget.querySelector('.modal-conduit-swap-icon');
                         if (icon) {
@@ -1488,7 +1414,6 @@ export function UnifiedEntryModal({
                         }
                         handleInvertTransferAccounts();
                       }}
-                      style={{ fontSize: '11px', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       title="Swap source and destination"
                     >
                       <span className="modal-conduit-swap-icon">⇅</span>
@@ -1515,11 +1440,11 @@ export function UnifiedEntryModal({
             {/* ---------------------------------------------------------------------
                 SLOT 4: DESCRIPTION & CONTEXTUAL DETAILS
                --------------------------------------------------------------------- */}
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group entry-box-3">
               <label className="form-label">
                 {mode === 'plan' ? 'Name / Description *' : 'Description note (optional)'}
               </label>
-              <input
+              <input className="entry-box-5"
                 type="text"
                 required={mode === 'plan'}
                 placeholder={
@@ -1533,48 +1458,26 @@ export function UnifiedEntryModal({
                 }
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                style={{ width: '100%' }}
               />
 
               {/* Mode-Specific Contextual Details below Description */}
 
               {/* SPENDING: Candidate match banner & Planned Item Matcher */}
               {mode === 'log' && (
-                <div style={{ marginTop: '8px' }}>
+                <div className="entry-box-6">
                   {candidateMatch && !matchedItemId && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        marginBottom: '8px',
-                        background: 'var(--indigo-subtle, rgba(99, 102, 241, 0.08))',
-                        border: '1px solid var(--indigo-border, rgba(99, 102, 241, 0.2))',
-                        borderRadius: 'var(--radius, 8px)',
-                        fontSize: '12px',
-                        gap: '8px'
-                      }}
+                    <div className="entry-row-9"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-                        <SparklesIcon size={14} style={{ color: 'var(--indigo, #6366f1)', flexShrink: 0 }} />
-                        <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div className="entry-row-10">
+                        <SparklesIcon size={14} style={{ color: 'var(--indigo)', flexShrink: 0 }} />
+                        <span className="entry-text-2">
                           Matches: <strong>{candidateMatch.name}</strong> ({formatCurrency(candidateMatch.amount, currencySymbol)})
                         </span>
                       </div>
                       <button
                         type="button"
-                        className="btn-subtle"
+                        className="btn-subtle entry-btn-6"
                         onClick={() => handleSelectMatchedItem(candidateMatch._id || candidateMatch.id)}
-                        style={{
-                          fontSize: '11px',
-                          padding: '4px 8px',
-                          height: 'auto',
-                          color: 'var(--indigo, #6366f1)',
-                          borderColor: 'var(--indigo-border, rgba(99, 102, 241, 0.2))',
-                          fontWeight: 600,
-                          flexShrink: 0
-                        }}
                       >
                         Link & Settle
                       </button>
@@ -1590,7 +1493,7 @@ export function UnifiedEntryModal({
 
                   <span
                     style={{
-                      fontSize: '11px',
+                      fontSize: 'var(--fs-2xs)',
                       marginTop: '4px',
                       display: 'block',
                       color: isRefund ? 'var(--success)' : 'var(--text-muted, var(--text-secondary))',
@@ -1610,30 +1513,20 @@ export function UnifiedEntryModal({
 
               {/* INCOME: Scheduled Base Salary Info Card */}
               {mode === 'income' && month?.incomeAmount && (
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--surface-subtle)',
-                    border: '1px solid var(--border)',
-                    marginTop: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
+                <div className="entry-stack-2"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <div className="entry-row-11">
+                    <span className="entry-note-6">
                       Scheduled Monthly Salary
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                    <span className="entry-text-3">
                       +{currencySymbol}{(month.incomeAmount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="entry-row-12">
                     <span>
                       Deposit Target:{' '}
-                      <strong style={{ color: 'var(--text)' }}>
+                      <strong className="entry-text-4">
                         {(() => {
                           const bId = month.salaryBankAccountId?._id || month.salaryBankAccountId;
                           const b = bankAccounts.find((x) => (x._id || x.id) === bId);
@@ -1642,7 +1535,7 @@ export function UnifiedEntryModal({
                       </strong>
                     </span>
                     <span>
-                      Day: <strong style={{ color: 'var(--text)' }}>{month.incomeCreditDate || `Day ${month.salaryDepositDay || 1}`}</strong>
+                      Day: <strong className="entry-text-4">{month.incomeCreditDate || `Day ${month.salaryDepositDay || 1}`}</strong>
                     </span>
                   </div>
                 </div>
@@ -1650,10 +1543,10 @@ export function UnifiedEntryModal({
 
               {/* PLAN: Same-Day Priority Selector & Fixed Need Toggle */}
               {mode === 'plan' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                <div className="entry-stack-3">
                   {/* Same-day priority */}
                   <div>
-                    <label className="form-label" style={{ marginBottom: '4px' }}>Same-day priority</label>
+                    <label className="form-label entry-label">Same-day priority</label>
                     <div className="priority-selector">
                       {[
                         { label: 'High', value: 0, bars: 3 },
@@ -1684,7 +1577,7 @@ export function UnifiedEntryModal({
 
               {/* TRANSFER: Zero-sum informational note */}
               {mode === 'transfer' && (
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                <div className="entry-note-7">
                   * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
                 </div>
               )}
@@ -1692,9 +1585,9 @@ export function UnifiedEntryModal({
 
             {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
               {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && (
-                <div style={{ marginTop: '10px' }}>
-                  <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Update Scope</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="entry-box-7">
+                  <label className="form-label entry-label-2">Recurrence Update Scope</label>
+                  <div className="entry-grid">
                     <button
                       type="button"
                       className={`btn-subtle ${cascadeScope === 'single' ? 'active-scope' : ''}`}
@@ -1708,8 +1601,8 @@ export function UnifiedEntryModal({
                         cursor: 'pointer'
                       }}
                     >
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>This month only</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>One-time override</div>
+                      <div className="entry-note-8">This month only</div>
+                      <div className="entry-note-9">One-time override</div>
                     </button>
                     <button
                       type="button"
@@ -1719,13 +1612,13 @@ export function UnifiedEntryModal({
                         padding: '8px 12px',
                         textAlign: 'left',
                         borderRadius: '8px',
-                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid var(--border)',
+                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
                         background: cascadeScope === 'all_future' ? 'rgba(59, 130, 246, 0.12)' : 'var(--surface-subtle)',
                         cursor: 'pointer'
                       }}
                     >
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary, #3b82f6)' : 'var(--text)' }}>This & all future</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>Update baseline</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary)' : 'var(--text)' }}>This & all future</div>
+                      <div className="entry-note-9">Update baseline</div>
                     </button>
                   </div>
                 </div>
@@ -1739,24 +1632,23 @@ export function UnifiedEntryModal({
                     padding: '8px 12px',
                     background: updateSalaryTemplate ? 'rgba(34, 197, 94, 0.08)' : 'var(--surface-subtle)',
                     borderRadius: '8px',
-                    border: updateSalaryTemplate ? '1px solid var(--success, #22c55e)' : '1px solid var(--border)',
+                    border: updateSalaryTemplate ? '1px solid var(--success)' : '1px solid var(--border)',
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', margin: 0 }}>
+                  <label className="entry-label-3">
                     <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success, #22c55e)' : 'var(--text)' }}>
+                      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success)' : 'var(--text)' }}>
                         Update monthly salary template
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <div className="entry-note-10">
                         Applies this salary amount to upcoming months' safe-to-spend projections.
                       </div>
                     </div>
-                    <input
+                    <input className="entry-box-8"
                       type="checkbox"
                       checked={updateSalaryTemplate}
                       onChange={(e) => setUpdateSalaryTemplate(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                   </label>
                 </div>
@@ -1785,7 +1677,7 @@ export function UnifiedEntryModal({
                   <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
                     <div className="recurring-toggle-thumb" />
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
                     {isPaid ? 'Payment done' : 'Payment pending'}
                   </span>
                 </div>
@@ -1794,7 +1686,7 @@ export function UnifiedEntryModal({
               )}
 
               {/* Right corner: Symmetrical Cancel & Submit Actions */}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="entry-row-13">
                 <button type="button" className="btn-subtle" onClick={() => triggerExit()}>
                   Cancel
                 </button>
@@ -1821,13 +1713,8 @@ export function UnifiedEntryModal({
                 {mode === 'income' && (
                   <button
                     type="submit"
-                    className="btn-primary"
+                    className="btn-primary entry-btn-7"
                     disabled={hasZeroAccounts || isSubmitting}
-                    style={{
-                      padding: '10px 20px',
-                      background: 'var(--success)',
-                      borderColor: 'var(--success)'
-                    }}
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Recording...')
@@ -1838,9 +1725,8 @@ export function UnifiedEntryModal({
                 {mode === 'plan' && (
                   <button
                     type="submit"
-                    className="btn-primary"
+                    className="btn-primary entry-btn-8"
                     disabled={hasZeroAccounts || isSubmitting}
-                    style={{ padding: '10px 20px' }}
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Saving...')
@@ -1853,9 +1739,8 @@ export function UnifiedEntryModal({
                 {mode === 'transfer' && (
                   <button
                     type="submit"
-                    className="btn-primary"
+                    className="btn-primary entry-btn-8"
                     disabled={isSubmitting}
-                    style={{ padding: '10px 20px' }}
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Recording...')
@@ -1872,63 +1757,42 @@ export function UnifiedEntryModal({
 
           {/* Safety Floor Breach Warning Card (Satisfies PreFlightSafetyFloor.test.jsx) */}
           {floorBreachData && (
-            <div
+            <div className="entry-row-14"
               data-testid="floor-breach-modal"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                backdropFilter: 'blur(5px)',
-                zIndex: 120000,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px'
-              }}
             >
               <div
-                className="modal-content"
-                style={{
-                  maxWidth: '440px',
-                  width: '100%',
-                  background: 'var(--surface-elevated, #18181b)',
-                  border: '1px solid var(--rose-border, #dc2626)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
-                }}
+                className="modal-content entry-box-9"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <AlertTriangleIcon size={20} color="var(--rose, #ef4444)" />
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
+                <div className="entry-row-15">
+                  <AlertTriangleIcon size={20} color="var(--rose)" />
+                  <h3 className="entry-heading">
                     Safety Floor Warning
                   </h3>
                 </div>
-                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <p className="entry-text-5">
                   This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
-                  <strong style={{ color: 'var(--text)' }}>{floorBreachData.accountName}</strong> below your safety floor of{' '}
-                  <strong style={{ color: 'var(--rose, #ef4444)' }}>
+                  <strong className="entry-text-4">{floorBreachData.accountName}</strong> below your safety floor of{' '}
+                  <strong className="entry-text-6">
                     {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
                   </strong>.
                   <br />
                   Projected balance:{' '}
-                  <strong style={{ color: 'var(--rose, #ef4444)' }}>
+                  <strong className="entry-text-6">
                     {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
                   </strong>.
                 </p>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <div className="entry-row-16">
                   <button
                     type="button"
-                    className="btn-subtle"
+                    className="btn-subtle entry-btn-9"
                     onClick={() => setFloorBreachData(null)}
-                    style={{ padding: '8px 16px', fontSize: '13px' }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary entry-btn-10"
                     onClick={() => {
                       const data = floorBreachData;
                       setFloorBreachData(null);
@@ -1937,12 +1801,6 @@ export function UnifiedEntryModal({
                       } else {
                         handleTransactionSubmit(null, data.forcedUnderSpendAction, true);
                       }
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '13px',
-                      background: 'var(--rose, #dc2626)',
-                      borderColor: 'var(--rose, #dc2626)'
                     }}
                   >
                     Confirm Anyway
@@ -1954,54 +1812,34 @@ export function UnifiedEntryModal({
 
           {/* Under-Spend Settlement Modal */}
           {underSpendData && (
-            <div
+            <div className="entry-row-14"
               data-testid="under-spend-modal"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                backdropFilter: 'blur(5px)',
-                zIndex: 120000,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px'
-              }}
             >
               <div
-                className="modal-content"
-                style={{
-                  maxWidth: '440px',
-                  width: '100%',
-                  background: 'var(--surface-elevated, #18181b)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
-                }}
+                className="modal-content entry-box-10"
               >
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <SparklesIcon size={18} style={{ color: 'var(--indigo, #6366f1)' }} />
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                <div className="entry-box-11">
+                  <div className="entry-row-17">
+                    <SparklesIcon size={18} style={{ color: 'var(--indigo)' }} />
+                    <h3 className="entry-heading-2">
                       Settlement for {underSpendData.linkedItem.name}
                     </h3>
                   </div>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <p className="entry-text-7">
                     You logged spending of{' '}
-                    <strong style={{ color: 'var(--text)' }}>{formatCurrency(underSpendData.spentAmt, currencySymbol)}</strong>,
+                    <strong className="entry-text-4">{formatCurrency(underSpendData.spentAmt, currencySymbol)}</strong>,
                     which is{' '}
-                    <strong style={{ color: 'var(--success)' }}>{formatCurrency(underSpendData.diffAmt, currencySymbol)}</strong>{' '}
+                    <strong className="entry-text-8">{formatCurrency(underSpendData.diffAmt, currencySymbol)}</strong>{' '}
                     less than planned ({formatCurrency(underSpendData.plannedAmt, currencySymbol)}).
                     How should the remaining amount be handled?
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="entry-stack-4">
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary entry-btn-11"
                     onClick={() =>
                       handleTransactionSubmit(null, {
                         action: 'release',
@@ -2009,27 +1847,18 @@ export function UnifiedEntryModal({
                         itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
                       })
                     }
-                    style={{
-                      padding: '12px 14px',
-                      textAlign: 'left',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      background: 'var(--success)',
-                      borderColor: 'var(--success)'
-                    }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    <span className="entry-text-9">
                       Release remaining {formatCurrency(underSpendData.diffAmt, currencySymbol)} to balance
                     </span>
-                    <span style={{ fontSize: '11px', opacity: 0.85, fontWeight: 400 }}>
+                    <span className="entry-note-11">
                       Frees remaining money into your safe-to-spend allowance and marks item paid.
                     </span>
                   </button>
 
                   <button
                     type="button"
-                    className="btn-subtle"
+                    className="btn-subtle entry-btn-12"
                     onClick={() =>
                       handleTransactionSubmit(null, {
                         action: 'keep_remainder',
@@ -2038,27 +1867,19 @@ export function UnifiedEntryModal({
                         itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
                       })
                     }
-                    style={{
-                      padding: '12px 14px',
-                      textAlign: 'left',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    <span className="entry-text-9">
                       Keep remainder scheduled ({formatCurrency(underSpendData.diffAmt, currencySymbol)})
                     </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                    <span className="entry-note-12">
                       Marks spent amount paid and keeps a new pending item for the remaining expense.
                     </span>
                   </button>
 
                   <button
                     type="button"
-                    className="btn-subtle"
+                    className="btn-subtle entry-btn-13"
                     onClick={() => setUnderSpendData(null)}
-                    style={{ fontSize: '12px', padding: '6px 12px', marginTop: '4px' }}
                   >
                     Back to editing
                   </button>

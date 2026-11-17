@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { api } from '../api.js';
 import { formatCurrency } from '@budget/engine';
-import { XIcon } from './Icons.jsx';
+import { XIcon, SparklesIcon } from './Icons.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -268,44 +268,24 @@ export function MonthEndReviewModal({
 
           {/* Sticky Modal Header */}
           <div className="month-review-header">
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
+            <div className="review-box">
+              <div className="review-row">
+                <h3 className="review-heading">
                   {review?.isAccountSpecific ? `Month Review: ${review.accountName}` : 'Month Review'}
                 </h3>
                 {review?.isAccountSpecific ? (
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      padding: '2px 7px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-subtle)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      textTransform: 'uppercase',
-                      fontWeight: 600
-                    }}
+                  <span className="review-note"
                   >
                     {review.accountType === 'wallet' ? 'Wallet' : 'Bank Account'}
                   </span>
                 ) : (
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      padding: '2px 7px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-subtle)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      textTransform: 'uppercase',
-                      fontWeight: 600
-                    }}
+                  <span className="review-note"
                   >
                     Unified View
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
+              <div className="review-note-2">
                 {review?.isAccountSpecific
                   ? `Isolated cashflow audit of income, spend, and transfers for ${review.accountName}`
                   : 'How this month went against your plan, your bills and your safety cushion'}
@@ -313,21 +293,10 @@ export function MonthEndReviewModal({
             </div>
             <button
               type="button"
-              className="btn-icon modal-close-btn"
+              className="btn-icon modal-close-btn review-btn"
               onClick={() => triggerExit()}
               title="Close modal"
               aria-label="Close"
-              style={{
-                fontSize: '13px',
-                width: '28px',
-                height: '28px',
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                marginLeft: '12px'
-              }}
             >
               <XIcon size={14} />
             </button>
@@ -336,17 +305,17 @@ export function MonthEndReviewModal({
           {/* Scrollable Modal Body */}
           <div className="month-review-scroll-body" ref={reviewBodyRef}>
             {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 0' }}>
-                <div className="skeleton-pulse" style={{ height: '96px', borderRadius: 'var(--radius-lg)' }} />
+              <div className="review-stack">
+                <div className="skeleton-pulse review-box-2" />
                 <div className="month-review-bento-row">
-                  <div className="skeleton-pulse" style={{ height: '80px', borderRadius: 'var(--radius)' }} />
-                  <div className="skeleton-pulse" style={{ height: '80px', borderRadius: 'var(--radius)' }} />
+                  <div className="skeleton-pulse review-box-3" />
+                  <div className="skeleton-pulse review-box-3" />
                 </div>
-                <div className="skeleton-pulse" style={{ height: '140px', borderRadius: 'var(--radius)' }} />
-                <div className="skeleton-pulse" style={{ height: '90px', borderRadius: 'var(--radius)' }} />
+                <div className="skeleton-pulse review-box-4" />
+                <div className="skeleton-pulse review-box-5" />
               </div>
             ) : error ? (
-              <div style={{ color: 'var(--danger)', fontSize: '13px', padding: '16px 0', textAlign: 'center' }}>
+              <div className="review-text">
                 {error}
               </div>
             ) : review ? (
@@ -354,15 +323,15 @@ export function MonthEndReviewModal({
                 {/* 1. Executive Hero Header */}
                 {review.isAccountSpecific ? (
                   <div className="month-review-hero">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Net Monthly Cashflow</span>
+                    <div className="review-row-2">
+                      <span className="summary-label review-text-2">Net Monthly Cashflow</span>
                       <span
                         style={{
-                          fontSize: '10px',
+                          fontSize: 'var(--fs-2xs)',
                           padding: '2px 8px',
                           borderRadius: 'var(--radius-pill)',
                           background: review.netCashflow >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                          color: review.netCashflow >= 0 ? '#10b981' : 'var(--danger)',
+                          color: review.netCashflow >= 0 ? 'var(--positive)' : 'var(--danger)',
                           fontWeight: 600,
                           border: `1px solid ${review.netCashflow >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`
                         }}
@@ -372,41 +341,31 @@ export function MonthEndReviewModal({
                     </div>
                     <div
                       className="month-review-hero-value tabular-nums"
-                      style={{ color: review.netCashflow >= 0 ? '#10b981' : 'var(--danger)' }}
+                      style={{ color: review.netCashflow >= 0 ? 'var(--positive)' : 'var(--danger)' }}
                     >
                       {review.netCashflow >= 0 ? '+' : ''}{formatCurrency(review.netCashflow, currencySymbol)}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                      <span>Direct Cashflow: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(review.directIncome - review.directExpenses, currencySymbol)}</strong></span>
-                      <span>Transfers Net: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(review.totalTransferIn - review.totalTransferOut, currencySymbol)}</strong></span>
+                    <div className="review-row-3">
+                      <span>Direct Cashflow: <strong className="tabular-nums review-text-3">{formatCurrency(review.directIncome - review.directExpenses, currencySymbol)}</strong></span>
+                      <span>Transfers Net: <strong className="tabular-nums review-text-3">{formatCurrency(review.totalTransferIn - review.totalTransferOut, currencySymbol)}</strong></span>
                     </div>
                   </div>
                 ) : (
                   <div className="month-review-hero">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Safety cushion</span>
+                    <div className="review-row-2">
+                      <span className="summary-label review-text-2">Safety cushion</span>
                       {paceStatus && (
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            padding: '2px 8px',
-                            borderRadius: 'var(--radius-pill)',
-                            background: 'var(--surface-subtle)',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text-secondary)',
-                            textTransform: 'uppercase',
-                            fontWeight: 600
-                          }}
+                        <span className="review-note-3"
                         >
                           {paceStatus}
                         </span>
                       )}
                     </div>
-                    <div className="month-review-hero-value tabular-nums" style={{ color: 'var(--text)' }}>
+                    <div className="month-review-hero-value tabular-nums review-text-3">
                       {formatCurrency(survivalCushion, currencySymbol)}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                      <span>Daily spending limit: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(safeVelocityPerDay, currencySymbol)}/day</strong></span>
+                    <div className="review-row-3">
+                      <span>Daily spending limit: <strong className="tabular-nums review-text-3">{formatCurrency(safeVelocityPerDay, currencySymbol)}/day</strong></span>
                       <span>Actual unplanned: <strong className="tabular-nums" style={{ color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)' }}>{formatCurrency(review.totalUnplannedActual, currencySymbol)}</strong></span>
                     </div>
                   </div>
@@ -418,20 +377,20 @@ export function MonthEndReviewModal({
                     <div className="month-review-bento-row">
                       <div className="summary-card">
                         <span className="summary-label">Account Inflows (Income)</span>
-                        <span className="summary-value tabular-nums" style={{ color: '#10b981' }}>
+                        <span className="summary-value tabular-nums review-text-4">
                           {formatCurrency(review.totalIncome, currencySymbol)}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span className="review-note-4">
                           Direct: {formatCurrency(review.directIncome, currencySymbol)} • In: {formatCurrency(review.totalTransferIn, currencySymbol)}
                         </span>
                       </div>
 
                       <div className="summary-card">
                         <span className="summary-label">Account Outflows (Expenses)</span>
-                        <span className="summary-value tabular-nums" style={{ color: 'var(--text)' }}>
+                        <span className="summary-value tabular-nums review-text-3">
                           {formatCurrency(review.totalExpenses, currencySymbol)}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span className="review-note-4">
                           Direct: {formatCurrency(review.directExpenses, currencySymbol)} • Out: {formatCurrency(review.totalTransferOut, currencySymbol)}
                         </span>
                       </div>
@@ -443,7 +402,7 @@ export function MonthEndReviewModal({
                         <span className="summary-value tabular-nums">
                           {formatCurrency(review.totalUnplannedActual, currencySymbol)}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span className="review-note-4">
                           Discretionary spend drawn from allowance
                         </span>
                       </div>
@@ -453,7 +412,7 @@ export function MonthEndReviewModal({
                         <span className="summary-value tabular-nums">
                           {formatCurrency(review.totalMatchedActual, currencySymbol)}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span className="review-note-4">
                           Attributed payments toward commitments
                         </span>
                       </div>
@@ -471,7 +430,7 @@ export function MonthEndReviewModal({
                       >
                         {formatCurrency(review.totalUnplannedActual, currencySymbol)}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <span className="review-note-4">
                         {review.totalUnplannedActual > survivalCushion ? 'Exceeded survival cushion' : 'Within survival limits'}
                       </span>
                     </div>
@@ -481,7 +440,7 @@ export function MonthEndReviewModal({
                       <span className="summary-value tabular-nums">
                         {formatCurrency(totalRecurringCommitted, currencySymbol)}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <span className="review-note-4">
                         {fixedItems.length} fixed rollovers • {variableRecurring.length} variable
                       </span>
                     </div>
@@ -492,66 +451,57 @@ export function MonthEndReviewModal({
                 <div className="card">
                   <div className="card-header">
                     <span className="card-title">Fixed & recurring commitments</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                      Total: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(totalRecurringCommitted, currencySymbol)}</strong>
+                    <span className="review-note-4">
+                      Total: <strong className="tabular-nums review-text-3">{formatCurrency(totalRecurringCommitted, currencySymbol)}</strong>
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
-                    <div style={{ padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Fixed Rollovers</div>
-                      <div className="tabular-nums" style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px', color: 'var(--text)' }}>
+                  <div className="review-grid">
+                    <div className="review-box-6">
+                      <div className="review-note-5">Fixed Rollovers</div>
+                      <div className="tabular-nums review-text-5">
                         {formatCurrency(totalFixedCommitted, currencySymbol)}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      <div className="review-note-6">
                         {fixedItems.length} fixed item{fixedItems.length !== 1 ? 's' : ''}
                       </div>
                     </div>
 
-                    <div style={{ padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Monthly Variable</div>
-                      <div className="tabular-nums" style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px', color: 'var(--text)' }}>
+                    <div className="review-box-6">
+                      <div className="review-note-5">Monthly Variable</div>
+                      <div className="tabular-nums review-text-5">
                         {formatCurrency(totalRecurringCommitted - totalFixedCommitted, currencySymbol)}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      <div className="review-note-6">
                         {variableRecurring.length} variable item{variableRecurring.length !== 1 ? 's' : ''}
                       </div>
                     </div>
                   </div>
 
                   {recurringItems.length === 0 ? (
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '12px' }}>
+                    <div className="review-note-7">
                       No recurring commitments configured for this month.
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div className="review-stack-2">
                       {recurringItems.map((item) => (
-                        <div
+                        <div className="review-row-4"
                           key={item._id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '7px 8px',
-                            borderRadius: 'var(--radius)',
-                            borderBottom: '1px solid var(--border)',
-                            fontSize: '13px'
-                          }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: 'var(--surface-subtle)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>
+                          <div className="review-row-5">
+                            <span className="review-note-8">
                               Day {item.dayOfMonth || 1}
                             </span>
-                            <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span className="review-text-6">
                               {item.name}
                             </span>
                             {item.isFixed && (
-                              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
+                              <span className="review-note-9">
                                 Fixed Rollover
                               </span>
                             )}
                           </div>
-                          <span className="tabular-nums" style={{ fontWeight: 600, flexShrink: 0 }}>
+                          <span className="tabular-nums review-text-7">
                             {formatCurrency(item.amount, currencySymbol)}
                           </span>
                         </div>
@@ -564,13 +514,13 @@ export function MonthEndReviewModal({
                 <div className="card">
                   <div className="card-header">
                     <span className="card-title">Spending by category</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <span className="review-note-4">
                       {Object.keys(review.tagBreakdown || {}).length} categories
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className="review-stack-3">
                     {Object.keys(review.tagBreakdown || {}).length === 0 ? (
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '16px' }}>
+                      <div className="review-note-10">
                         No categorized spending recorded this month.
                       </div>
                     ) : (
@@ -582,19 +532,19 @@ export function MonthEndReviewModal({
                           return (
                             <div key={tag} className="review-cat-item">
                               <div className="review-cat-row-top">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <div className="review-row-6">
+                                  <span className="review-text-8">
                                     {tag}
                                   </span>
-                                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', background: 'var(--surface-subtle)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border)', flexShrink: 0 }}>
+                                  <span className="review-note-11">
                                     {data.count} {data.count === 1 ? 'entry' : 'entries'}
                                   </span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                <div className="review-row-7">
+                                  <span className="review-note-12">
                                     {pct}%
                                   </span>
-                                  <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--text)' }}>
+                                  <span className="tabular-nums review-text-9">
                                     {formatCurrency(data.total, currencySymbol)}
                                   </span>
                                 </div>
@@ -615,29 +565,29 @@ export function MonthEndReviewModal({
 
                 {/* 5. Suggested safety cushion for next month */}
                 <div className="month-review-projection">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Suggested safety cushion for next month</span>
-                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>
+                  <div className="review-row-2">
+                    <span className="summary-label review-text-2">Suggested safety cushion for next month</span>
+                    <span className="review-note-13">
                       Your pace + 10% buffer
                     </span>
                   </div>
-                  <div className="tabular-nums" style={{ fontSize: '22px', fontWeight: 700, color: 'var(--accent)' }}>
+                  <div className="tabular-nums review-text-10">
                     {formatCurrency(review.suggestedNextMonthAllowance, currencySymbol)}
                   </div>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                  <p className="review-text-11">
                     Based on how fast you actually spent this month, plus a 10% buffer to protect your safety floor and bills.
                   </p>
                 </div>
 
                 {/* 6. Optional AI Pattern Explanation */}
                 {review.aiExplanation && (
-                  <div className="card" style={{ borderLeft: '3px solid var(--accent)', padding: '14px 16px' }}>
-                    <div className="card-header" style={{ marginBottom: '6px' }}>
-                      <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>✦</span> Assistant Spending Insight
+                  <div className="card review-box-7">
+                    <div className="card-header review-box-8">
+                      <span className="card-title review-row-8">
+                        <SparklesIcon size={13} /> Assistant Spending Insight
                       </span>
                     </div>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                    <p className="review-text-12">
                       {review.aiExplanation}
                     </p>
                   </div>

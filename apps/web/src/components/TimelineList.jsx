@@ -13,7 +13,8 @@ import {
   ZapIcon,
   BanknoteIcon,
   TrendingUpIcon,
-  EditIcon
+  EditIcon,
+  CheckIcon
 } from './Icons.jsx';
 
 function getCategoryInfo(evt) {
@@ -25,25 +26,25 @@ function getCategoryInfo(evt) {
     return { name: 'Transfer', Icon: ArrowRightLeftIcon, color: 'var(--text-secondary)', bg: 'var(--surface-subtle)' };
   }
   if (evt.isSalary || evt.itemType === 'salary' || cat.includes('salary') || label.includes('salary')) {
-    return { name: 'Salary', Icon: TrendingUpIcon, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+    return { name: 'Salary', Icon: TrendingUpIcon, color: 'var(--cat-green)', bg: 'color-mix(in srgb, var(--cat-green) 12%, transparent)' };
   }
   if (evt.origin === 'goal' || cat.includes('goal')) {
-    return { name: 'Goal', Icon: TargetIcon, color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)' };
+    return { name: 'Goal', Icon: TargetIcon, color: 'var(--cat-indigo)', bg: 'color-mix(in srgb, var(--cat-indigo) 12%, transparent)' };
   }
   if (cat.includes('food') || label.includes('food') || label.includes('grocery') || label.includes('lunch') || label.includes('dinner') || label.includes('swiggy') || label.includes('zomato') || label.includes('cafe')) {
-    return { name: 'Food', Icon: TagIcon, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+    return { name: 'Food', Icon: TagIcon, color: 'var(--cat-amber)', bg: 'color-mix(in srgb, var(--cat-amber) 12%, transparent)' };
   }
   if (cat.includes('travel') || label.includes('travel') || label.includes('uber') || label.includes('ola') || label.includes('fuel') || label.includes('petrol') || label.includes('flight') || label.includes('metro')) {
-    return { name: 'Travel', Icon: MapPinIcon, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' };
+    return { name: 'Travel', Icon: MapPinIcon, color: 'var(--cat-cyan)', bg: 'color-mix(in srgb, var(--cat-cyan) 12%, transparent)' };
   }
   if (cat.includes('util') || label.includes('bill') || label.includes('electric') || label.includes('wifi') || label.includes('rent') || label.includes('water')) {
-    return { name: 'Bills', Icon: ZapIcon, color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)' };
+    return { name: 'Bills', Icon: ZapIcon, color: 'var(--cat-yellow)', bg: 'color-mix(in srgb, var(--cat-yellow) 12%, transparent)' };
   }
   if (cat.includes('health') || label.includes('doctor') || label.includes('med') || label.includes('pharmacy') || label.includes('gym')) {
-    return { name: 'Health', Icon: TagIcon, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)' };
+    return { name: 'Health', Icon: TagIcon, color: 'var(--cat-pink)', bg: 'color-mix(in srgb, var(--cat-pink) 12%, transparent)' };
   }
   if (evt.amount > 0 || type.includes('income')) {
-    return { name: 'Income', Icon: BanknoteIcon, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+    return { name: 'Income', Icon: BanknoteIcon, color: 'var(--cat-green)', bg: 'color-mix(in srgb, var(--cat-green) 12%, transparent)' };
   }
   const tagLabel = evt.category || evt.tag;
   return { name: tagLabel || 'Expense', Icon: TagIcon, color: 'var(--text-secondary)', bg: 'var(--surface-subtle)' };
@@ -583,7 +584,7 @@ export function TimelineList({
                       )}
                       {isSalary && evt.isActual && (
                         <span className="apple-tx-tag tx-tag tag-settled tag-credited">
-                          ✓ Credited
+                          <CheckIcon size={11} strokeWidth={2.6} /> Credited
                         </span>
                       )}
                       {evt.isPaid && evt.originalDay && evt.originalDay !== evt.day && !evt.isPending && (

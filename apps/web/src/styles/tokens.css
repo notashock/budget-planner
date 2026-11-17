@@ -1,0 +1,249 @@
+/* Breakpoints (media queries cannot read custom properties, so these are the
+   only widths used in @media rules across src/styles):
+     phone        < 600px   (max-width: 599px)
+     large phone  < 768px   (max-width: 767px)  — bottom nav below, header nav above
+     tablet       768–1023px
+     laptop       >= 1024px (min-width: 1024px) — two-column Plan layout */
+
+:root {
+  --bg: #fcfcfd;
+  --surface: #ffffff;
+  --surface-subtle: #f4f4f6;
+  --surface-hover: #ececee;
+  --border: #e4e4e7;
+  --border-subtle: #f0f0f3;
+  --border-strong: #d4d4d8;
+  --border-focus: #09090b;
+  --text: #09090b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --accent: #09090b;
+  --accent-subtle: #f4f4f5;
+
+  /* Calibrated Semantic Accents */
+  --emerald: #10b981;
+  --emerald-subtle: rgba(16, 185, 129, 0.08);
+  --emerald-border: rgba(16, 185, 129, 0.22);
+  --success: #10b981;
+  --success-subtle: rgba(16, 185, 129, 0.08);
+  --success-border: rgba(16, 185, 129, 0.22);
+  --positive: #10b981;
+
+  --rose: #f43f5e;
+  --rose-subtle: rgba(244, 63, 94, 0.08);
+  --rose-border: rgba(244, 63, 94, 0.22);
+  --danger: #f43f5e;
+  --danger-subtle: rgba(244, 63, 94, 0.08);
+  --danger-border: rgba(244, 63, 94, 0.22);
+  --negative: #f43f5e;
+  --red: #f43f5e;
+
+  --amber: #f59e0b;
+  --amber-subtle: rgba(245, 158, 11, 0.08);
+  --amber-border: rgba(245, 158, 11, 0.22);
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.22);
+
+  --indigo: #6366f1;
+  --indigo-subtle: rgba(99, 102, 241, 0.08);
+  --indigo-border: rgba(99, 102, 241, 0.22);
+  --goal: #ea580c;
+
+
+  /* Type scale: nothing renders below 11px */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-input: 16px; /* form fields on phones: 16px stops iOS zooming on focus */
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 26px;
+  --fs-display: clamp(32px, 4vw, 44px);
+
+  /* Spacing scale (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Status text: readable ink for status labels (the bright accents are for marks) */
+  --good-ink: #047857;
+  --warn-ink: #b45309;
+  --bad-ink: #be123c;
+
+  /* Brand action colour (green) and the categorical hues used for row glyphs and rings */
+  --primary: #059669;
+  --cat-green: #10b981;
+  --cat-indigo: #6366f1;
+  --cat-amber: #f59e0b;
+  --cat-cyan: #06b6d4;
+  --cat-yellow: #eab308;
+  --cat-pink: #ec4899;
+  --cat-blue: #3b82f6;
+
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Concentric Radii System */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 9999px;
+
+  /* Layered Depth & Elevation */
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-glass: 0 8px 30px rgba(0, 0, 0, 0.06);
+
+  /* Fluid Responsive System */
+  --space-page-x: clamp(12px, 3vw, 28px);
+  --space-page-y: clamp(14px, 2.5vw, 28px);
+  --header-height: clamp(52px, 5vw, 64px);
+  --bottom-nav-height: 56px;
+  --card-radius: 12px;
+  --card-padding: clamp(12px, 2vw, 20px);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Glassmorphism */
+  --header-bg: rgba(255, 255, 255, 0.85);
+  --dock-bg: rgba(255, 255, 255, 0.9);
+  --glass-blur: blur(14px);
+}
+
+[data-theme="dark"] {
+  --primary: #10b981;
+  --cat-green: #34d399;
+  --cat-indigo: #818cf8;
+  --cat-amber: #fbbf24;
+  --cat-cyan: #22d3ee;
+  --cat-yellow: #facc15;
+  --cat-pink: #f472b6;
+  --cat-blue: #60a5fa;
+  --good-ink: #6ee7b7;
+  --warn-ink: #fcd34d;
+  --bad-ink: #fda4af;
+  --bg: #09090b;
+  --surface: #111114;
+  --surface-subtle: #18181c;
+  --surface-hover: #222226;
+  --border: #27272a;
+  --border-subtle: #1c1c20;
+  --border-strong: #3f3f46;
+  --border-focus: #f4f4f5;
+  --text: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #ffffff;
+  --accent-subtle: rgba(255, 255, 255, 0.08);
+
+  --emerald: #34d399;
+  --emerald-subtle: rgba(52, 211, 153, 0.1);
+  --emerald-border: rgba(52, 211, 153, 0.25);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.1);
+  --success-border: rgba(52, 211, 153, 0.25);
+  --positive: #34d399;
+
+  --rose: #fb7185;
+  --rose-subtle: rgba(251, 113, 133, 0.1);
+  --rose-border: rgba(251, 113, 133, 0.25);
+  --danger: #fb7185;
+  --danger-subtle: rgba(251, 113, 133, 0.1);
+  --danger-border: rgba(251, 113, 133, 0.25);
+  --negative: #fb7185;
+  --red: #fb7185;
+
+  --amber: #fbbf24;
+  --amber-subtle: rgba(251, 191, 36, 0.1);
+  --amber-border: rgba(251, 191, 36, 0.25);
+  --warning: #fbbf24;
+  --warning-subtle: rgba(251, 191, 36, 0.1);
+  --warning-border: rgba(251, 191, 36, 0.25);
+
+  --indigo: #818cf8;
+  --indigo-subtle: rgba(129, 140, 248, 0.1);
+  --indigo-border: rgba(129, 140, 248, 0.25);
+  --goal: #fb923c;
+
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  --shadow-glass: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  --header-bg: rgba(17, 17, 20, 0.85);
+  --dock-bg: rgba(17, 17, 20, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #10b981;
+    --cat-green: #34d399;
+    --cat-indigo: #818cf8;
+    --cat-amber: #fbbf24;
+    --cat-cyan: #22d3ee;
+    --cat-yellow: #facc15;
+    --cat-pink: #f472b6;
+    --cat-blue: #60a5fa;
+    --good-ink: #6ee7b7;
+    --warn-ink: #fcd34d;
+    --bad-ink: #fda4af;
+    --bg: #09090b;
+    --surface: #111114;
+    --surface-subtle: #18181c;
+    --surface-hover: #222226;
+    --border: #27272a;
+    --border-subtle: #1c1c20;
+    --border-strong: #3f3f46;
+    --border-focus: #f4f4f5;
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --accent: #ffffff;
+    --accent-subtle: rgba(255, 255, 255, 0.08);
+
+    --emerald: #34d399;
+    --emerald-subtle: rgba(52, 211, 153, 0.1);
+    --emerald-border: rgba(52, 211, 153, 0.25);
+    --success: #34d399;
+    --success-subtle: rgba(52, 211, 153, 0.1);
+    --success-border: rgba(52, 211, 153, 0.25);
+    --positive: #34d399;
+
+    --rose: #fb7185;
+    --rose-subtle: rgba(251, 113, 133, 0.1);
+    --rose-border: rgba(251, 113, 133, 0.25);
+    --danger: #fb7185;
+    --danger-subtle: rgba(251, 113, 133, 0.1);
+    --danger-border: rgba(251, 113, 133, 0.25);
+    --negative: #fb7185;
+    --red: #fb7185;
+
+    --amber: #fbbf24;
+    --amber-subtle: rgba(251, 191, 36, 0.1);
+    --amber-border: rgba(251, 191, 36, 0.25);
+    --warning: #fbbf24;
+    --warning-subtle: rgba(251, 191, 36, 0.1);
+    --warning-border: rgba(251, 191, 36, 0.25);
+
+    --goal: #fb923c;
+    --indigo: #818cf8;
+    --indigo-subtle: rgba(129, 140, 248, 0.1);
+    --indigo-border: rgba(129, 140, 248, 0.25);
+
+    --header-bg: rgba(17, 17, 20, 0.85);
+    --dock-bg: rgba(17, 17, 20, 0.9);
+  }
+}

@@ -1,0 +1,255 @@
+/* Styles moved out of PlanScreen.jsx inline style props.
+   Unlayered, so they outrank the layered app styles exactly as inline styles did. */
+
+.plan-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.plan-row-2 {
+  display: inline-flex;
+  background: var(--surface-subtle);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.plan-btn {
+  font-size: var(--fs-2xs);
+  padding: 4px 10px;
+}
+
+.plan-row-3 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plan-btn-2 {
+  font-size: var(--fs-xs);
+  padding: 6px 14px;
+}
+
+.plan-box {
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.plan-row-4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.plan-heading {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-text {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+.plan-box-2 {
+  padding: 16px;
+  background: var(--surface-subtle);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.plan-note {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.plan-text-2 {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--success);
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-note-2 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+.plan-text-3 {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text);
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-box-3 {
+  overflow-x: auto;
+}
+
+.plan-note-3 {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.plan-text-4 {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.plan-box-4 {
+  padding: 10px 14px;
+}
+
+.plan-box-5 {
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-text-5 {
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.plan-text-6 {
+  padding: 10px 14px;
+  color: var(--success);
+}
+
+.plan-row-5 {
+  margin-top: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--surface-subtle);
+}
+
+.plan-note-4 {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.plan-text-7 {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+.plan-btn-3 {
+  font-size: var(--fs-2xs);
+  padding: 5px 12px;
+}
+
+.plan-stack {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-subtle);
+  padding: 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-row-6 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-row-7 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-text-8 {
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-note-5 {
+  font-size: var(--fs-2xs);
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.plan-text-9 {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.plan-row-8 {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.plan-btn-4 {
+  padding: 7px 16px;
+  font-size: var(--fs-xs);
+}
+
+.plan-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-row-9 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+}
+
+.plan-btn-5 {
+  padding: 6px 12px;
+  font-size: var(--fs-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.plan-row-10 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  font-size: var(--fs-xs);
+}
+
+.plan-btn-6 {
+  font-size: var(--fs-2xs);
+  padding: 2px 8px;
+}

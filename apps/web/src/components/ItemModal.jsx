@@ -218,7 +218,7 @@ export function ItemModal({
                 type="button"
                 className={type === t ? 'btn-primary' : 'btn-subtle'}
                 onClick={() => setType(t)}
-                style={{ padding: '6px 4px', fontSize: '11px' }}
+                style={{ padding: '6px 4px', fontSize: 'var(--fs-2xs)' }}
               >
                 {t}
               </button>
@@ -305,7 +305,7 @@ export function ItemModal({
                 month={month}
               />
               {!date && !isPaid && (
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
                   Payment pending: date left blank. Application will assign best date on save or click "Recommend best date".
                 </span>
               )}
@@ -325,7 +325,7 @@ export function ItemModal({
                   value={dayOfMonth}
                   onChange={(e) => setDayOfMonth(e.target.value)}
                 />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   Automatically clamped to the last calendar day in shorter months.
                 </span>
               </div>
@@ -337,7 +337,7 @@ export function ItemModal({
                   checked={isFixed}
                   onChange={(e) => setIsFixed(e.target.checked)}
                 />
-                <label htmlFor="isFixedCheckbox" style={{ fontSize: '13px', cursor: 'pointer' }}>
+                <label htmlFor="isFixedCheckbox" style={{ fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                   Fixed recurring item (carries same amount and date forward to next month)
                 </label>
               </div>
@@ -352,7 +352,7 @@ export function ItemModal({
                 <button
                   type="button"
                   className="btn-subtle"
-                  style={{ padding: '2px 8px', fontSize: '11px' }}
+                  style={{ padding: '2px 8px', fontSize: 'var(--fs-2xs)' }}
                   onClick={() =>
                     setFuelStops([
                       ...fuelStops,
@@ -376,7 +376,7 @@ export function ItemModal({
                     gap: '6px'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                     <span>Stop #{sIdx + 1} {sIdx === 0 ? '(Baseline odometer)' : ''}</span>
                     {fuelStops.length > 2 && (
                       <button
@@ -485,7 +485,7 @@ export function ItemModal({
                 <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
                   <div className="recurring-toggle-thumb" />
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
                   {isPaid ? 'Payment done' : 'Payment pending'}
                 </span>
               </div>
