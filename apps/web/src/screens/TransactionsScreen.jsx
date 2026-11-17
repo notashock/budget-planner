@@ -15,16 +15,23 @@ import {
   PlusIcon,
   InboxIcon,
   SendIcon,
-  ArrowRightLeftIcon,
-  ChevronDownIcon
+  ArrowRightLeftIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
+import { SortMenu } from '../components/SortMenu.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 
 function pad(n) {
   return String(n).padStart(2, '0');
 }
+
+const SORT_OPTIONS = [
+  { value: 'recent', label: 'Most recent', short: 'Recent' },
+  { value: 'oldest', label: 'Oldest first', short: 'Oldest' },
+  { value: 'amount-desc', label: 'Amount: high to low', short: 'Amount ↓' },
+  { value: 'amount-asc', label: 'Amount: low to high', short: 'Amount ↑' }
+];
 
 export function TransactionsScreen({
   transactions = [],
@@ -359,27 +366,13 @@ export function TransactionsScreen({
 
             <span className="apple-search-sort-divider" />
 
-            {/* Embedded Cupertino Sort Selector */}
-            <div className="apple-sort-trigger-wrapper">
-              <select
-                className="apple-sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                aria-label="Sort transactions"
-              >
-                <option value="recent">Recent</option>
-                <option value="oldest">Oldest</option>
-                <option value="amount-desc">Amount: High to Low</option>
-                <option value="amount-asc">Amount: Low to High</option>
-              </select>
-              <div className="apple-sort-display" aria-hidden="true">
-                <ArrowRightLeftIcon size={12} />
-                <span className="apple-sort-label">
-                  {sortBy === 'recent' ? 'Recent' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'amount-desc' ? 'Amount ↓' : 'Amount ↑'}
-                </span>
-                <ChevronDownIcon size={10} className="apple-sort-chevron" />
-              </div>
-            </div>
+            {/* Styled sort menu (replaces the OS-native select popup) */}
+            <SortMenu
+              value={sortBy}
+              onChange={setSortBy}
+              label="Sort transactions"
+              options={SORT_OPTIONS}
+            />
           </div>
 
           {/* Desktop-only New Entry Button (Hidden on Mobile as bottom nav handles entry) */}

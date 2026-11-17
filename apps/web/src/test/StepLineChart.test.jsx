@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+
+// The day-insights panel below the chart repeats the selected day's entries,
+// so tooltip assertions are scoped to the SVG.
+const tooltip = () => within(document.querySelector('.chart-svg'));
 import { StepLineChart, formatChartTick } from '../components/StepLineChart.jsx';
 
 const mockDailyBalances = [
@@ -129,8 +133,8 @@ describe('StepLineChart component', () => {
     );
 
     // Day 2 has a single transaction: Groceries (-₹5.00), balance ₹45.00
-    expect(screen.getByText('Groceries')).toBeInTheDocument();
-    expect(screen.getByText('-₹5.00')).toBeInTheDocument();
+    expect(tooltip().getByText('Groceries')).toBeInTheDocument();
+    expect(tooltip().getByText('-₹5.00')).toBeInTheDocument();
     expect(screen.getByText('Balance:')).toBeInTheDocument();
     expect(screen.getByText('Day End:')).toBeInTheDocument();
     expect(screen.getAllByText('₹45.00').length).toBeGreaterThanOrEqual(1);
@@ -234,8 +238,8 @@ describe('StepLineChart component', () => {
       );
 
       // Day 2 has 'Grocery Store' (-₹500.00). Balance on Bank A should be ₹11,500.00, NOT ₹20,600.00!
-      expect(screen.getByText('Grocery Store')).toBeInTheDocument();
-      expect(screen.getByText('-₹500.00')).toBeInTheDocument();
+      expect(tooltip().getByText('Grocery Store')).toBeInTheDocument();
+      expect(tooltip().getByText('-₹500.00')).toBeInTheDocument();
       expect(screen.getAllByText('₹11,500.00').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('₹20,600.00')).not.toBeInTheDocument();
     });
@@ -256,7 +260,7 @@ describe('StepLineChart component', () => {
 
       // Day 3 has 'Electric Bill' on Bank A, and 'Bank B Service Fee' on Bank B.
       // Under Bank A view, Bank B's transaction must not appear.
-      expect(screen.getByText('Electric Bill')).toBeInTheDocument();
+      expect(tooltip().getByText('Electric Bill')).toBeInTheDocument();
       expect(screen.queryByText('Bank B Service Fee')).not.toBeInTheDocument();
       expect(screen.getAllByText('₹10,500.00').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('₹19,200.00')).not.toBeInTheDocument();

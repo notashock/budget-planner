@@ -7172,46 +7172,112 @@ main {
   flex-shrink: 0;
 }
 
-/* Embedded Sort Selector */
-.apple-sort-trigger-wrapper {
+/* Sort menu (styled listbox inside the search capsule) */
+.sort-menu {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
   flex-shrink: 0;
 }
 
-.apple-sort-select {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-}
-
-.apple-sort-display {
+.sort-menu-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 500;
+  gap: 5px;
+  height: 26px;
+  min-height: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
   color: var(--text-secondary);
-  padding: 3px 6px;
-  border-radius: 6px;
-  transition: color 0.15s ease;
-  user-select: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.apple-sort-trigger-wrapper:hover .apple-sort-display {
+.sort-menu-trigger:hover,
+.sort-menu-trigger.is-open {
+  background: var(--surface-hover);
   color: var(--text);
 }
 
-.apple-sort-chevron {
+.sort-menu-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.sort-menu-chevron {
   color: var(--text-muted);
-  margin-left: 1px;
+  transition: transform 0.15s ease;
+}
+
+.sort-menu-trigger.is-open .sort-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.sort-menu-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 60;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: sortMenuIn 0.14s var(--ease-spring);
+}
+
+@keyframes sortMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sort-menu-list { animation: none; }
+}
+
+.sort-menu-heading {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sort-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-menu-option.is-active {
+  background: var(--surface-subtle);
+}
+
+.sort-menu-option.is-selected {
+  font-weight: 600;
+}
+
+.sort-menu-check {
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--text);
 }
 
 /* Desktop-only New Entry Pill */
@@ -8562,13 +8628,86 @@ main {
 }
 
 /* ---- KPI strip additions ---- */
-.detailed-kpi-grid .kpi-card-header {
-  flex-wrap: wrap;
-  row-gap: 4px;
+/* Symmetric KPI cards: identical skeleton in every card (one-line header,
+   value on a shared baseline, footer with optional status chip + subtext)
+   and equal row heights at every breakpoint. */
+.detailed-kpi-grid {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
 }
 
-.detailed-kpi-grid .kpi-breach-badge {
+.detailed-kpi-grid .kpi-card {
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 112px;
+}
+
+.detailed-kpi-grid .kpi-card-header {
+  flex-wrap: nowrap;
+  min-height: 22px;
+}
+
+.detailed-kpi-grid .kpi-title-with-icon {
+  min-width: 0;
+}
+
+.detailed-kpi-grid .summary-label {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.detailed-kpi-grid .summary-value {
+  font-size: clamp(17px, 1.6vw + 8px, 21px);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kpi-footer .kpi-subtext {
+  line-height: 1.35;
+}
+
+.kpi-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.kpi-chip-good {
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  border-color: var(--emerald-border);
+}
+
+.kpi-chip-bad {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border-color: var(--rose-border);
+}
+
+/* Tablet: one row of four; phone and the laptop side panel: two by two */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .detailed-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
 }
 
 .text-net-positive {
@@ -9051,6 +9190,13 @@ main {
 }
 
 /* ---- Account pill headroom bar ---- */
+/* overflow:hidden (to clip the bar to the pill's radius) makes a flex item's
+   min-width 0, which let pills in the scroll row get squashed to "ount".
+   Pills must keep their content width and scroll instead. */
+.account-filter-track > .account-filter-pill {
+  flex-shrink: 0;
+}
+
 .account-filter-pill.has-headroom {
   position: relative;
   overflow: hidden;
@@ -9284,6 +9430,172 @@ main {
 @media (max-width: 599px) {
   .irr-two-col { grid-template-columns: 1fr; }
   .irr-hero-grid { gap: 8px; }
+}
+
+/* ---- Responsive balance chart ---- */
+/* Laptop/desktop: the chart fills whatever height the card gets beside the
+   insights column; the SVG is absolutely placed so its own size never feeds
+   back into the layout. Below 1024px the SVG sizes itself from the width. */
+@media (min-width: 1024px) {
+  .dashboard-chart-panel .chart-container {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 280px;
+  }
+
+  .dashboard-chart-panel .chart-svg.chart-svg-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* ---- Day insights under the chart ---- */
+.day-insight {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.di-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.di-date {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.di-phase {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.di-phase.phase-today { background: var(--text); color: var(--bg); border-color: var(--text); }
+.di-phase.phase-projected { border-style: dashed; }
+
+.di-hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.di-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.di-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  min-width: 0;
+}
+
+.di-stat dt {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.di-stat dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.di-up { color: var(--positive); }
+.di-down { color: var(--rose); }
+
+.di-flags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.di-flag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.di-flag.flag-pay { background: var(--emerald-subtle); border-color: var(--emerald-border); color: var(--positive); }
+.di-flag.flag-low,
+.di-flag.flag-pace { background: var(--amber-subtle); border-color: var(--amber-border); color: var(--amber); }
+.di-flag.flag-breach { background: var(--rose-subtle); border-color: var(--rose-border); color: var(--rose); }
+.di-flag.flag-big { background: var(--indigo-subtle); border-color: var(--indigo-border); color: var(--indigo); }
+
+.di-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.di-event {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.di-event-name {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.di-event-amt {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.di-more,
+.di-quiet {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 599px) {
+  .di-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .di-hint { margin-left: 0; width: 100%; }
 }
 
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */

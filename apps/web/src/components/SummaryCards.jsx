@@ -58,22 +58,22 @@ export function DetailedKpiGrid({
             </span>
             <span className="summary-label">Monthly income</span>
           </div>
-          {canEditSalary && isCreditEffective && (
-            <span className="pace-status-badge on-pace" style={{ fontSize: '10px', padding: '1px 6px', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'none' }}>
-              ✓ Credited
-            </span>
-          )}
         </div>
 
         <span className="summary-value">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
 
-        <span className="kpi-subtext">
-          {canEditSalary && isCreditEffective
-            ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
-            : `Credited on day ${incomeCreditDay}`}
-        </span>
+        <div className="kpi-footer">
+          {canEditSalary && isCreditEffective && (
+            <span className="kpi-chip kpi-chip-good">✓ Credited</span>
+          )}
+          <span className="kpi-subtext">
+            {canEditSalary && isCreditEffective
+              ? `Credited on ${salaryCreditedDate ? formatDisplayDate(salaryCreditedDate, true) : `day ${incomeCreditDay}`}`
+              : `Credited on day ${incomeCreditDay}`}
+          </span>
+        </div>
       </div>
 
       <div className="summary-card kpi-card">
@@ -88,11 +88,13 @@ export function DetailedKpiGrid({
         <span className="summary-value">
           {formatCurrency(totalOutflow, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
-          {paid + planned > 0
-            ? <>{formatCurrency(paid, currencySymbol)} paid · {formatCurrency(planned, currencySymbol)} planned</>
-            : 'Nothing planned yet'}
-        </span>
+        <div className="kpi-footer">
+          <span className="kpi-subtext">
+            {paid + planned > 0
+              ? <>{formatCurrency(paid, currencySymbol)} paid · {formatCurrency(planned, currencySymbol)} planned</>
+              : 'Nothing planned yet'}
+          </span>
+        </div>
       </div>
 
       <div className={`summary-card kpi-card ${net < 0 ? 'kpi-card-negative' : ''}`}>
@@ -107,13 +109,15 @@ export function DetailedKpiGrid({
         <span className={`summary-value ${net < 0 ? 'text-breached' : 'text-net-positive'}`}>
           {net > 0 ? '+' : ''}{formatCurrency(net, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
-          {savingsRate === null
-            ? 'No income recorded'
-            : net >= 0
-              ? `${formatPercent(savingsRate)} of income saved`
-              : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
-        </span>
+        <div className="kpi-footer">
+          <span className="kpi-subtext">
+            {savingsRate === null
+              ? 'No income recorded'
+              : net >= 0
+                ? `${formatPercent(savingsRate)} of income saved`
+                : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
+          </span>
+        </div>
       </div>
 
       <div className={`summary-card kpi-card ${floorBreached ? 'kpi-card-breached' : ''}`}>
@@ -124,24 +128,24 @@ export function DetailedKpiGrid({
             </span>
             <span className="summary-label">Lowest balance</span>
           </div>
-          {floorBreached && (
-            <span className="kpi-breach-badge">
-              ▲ Below floor
-            </span>
-          )}
         </div>
         <span className={`summary-value ${floorBreached ? 'text-breached' : ''}`}>
           {formatCurrency(lowestBalance, currencySymbol)}
         </span>
-        <span className="kpi-subtext">
-          {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}
-          {safetyFloor > 0 && (
-            <>
-              {' · '}
-              {formatCurrency(Math.abs(headroom.amount), currencySymbol)} {floorBreached ? 'under' : 'above'} floor
-            </>
+        <div className="kpi-footer">
+          {floorBreached && (
+            <span className="kpi-chip kpi-chip-bad">▲ Below floor</span>
           )}
-        </span>
+          <span className="kpi-subtext">
+            {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}
+            {safetyFloor > 0 && (
+              <>
+                {' · '}
+                {formatCurrency(Math.abs(headroom.amount), currencySymbol)} {floorBreached ? 'under' : 'above'} floor
+              </>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );

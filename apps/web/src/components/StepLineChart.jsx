@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
 
 /**
@@ -108,12 +108,58 @@ export function StepLineChart({
   bankAccounts = [],
   wallets = [],
   selectedAccountId = 'all',
-  selectedAccount = null
+  selectedAccount = null,
+  safeDailyRate = null
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
   const [hoveredPointId, setHoveredPointId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const containerRef = useRef(null);
+  // Measured drawing area: the SVG is drawn at its real pixel size (viewBox matches),
+  // so text stays legible and the chart fills its card at every breakpoint.
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [fillHeight, setFillHeight] = useState(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1024px)').matches
+  );
+
+  const hasChartData = Array.isArray(dailyBalances) && dailyBalances.length > 0;
+
+  // Measure synchronously before paint (and on window resize), and keep a
+  // ResizeObserver for container-only changes such as the sidebar or grid reflowing.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return undefined;
+    const apply = (w, h) => {
+      const next = { w: Math.round(w), h: Math.round(h) };
+      setSize((prev) => (Math.abs(prev.w - next.w) > 1 || Math.abs(prev.h - next.h) > 1 ? next : prev));
+    };
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0) apply(r.width, r.height);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver((entries) => {
+        const r = entries[0]?.contentRect;
+        if (r && r.width > 0) apply(r.width, r.height);
+      });
+      ro.observe(el);
+    }
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  }, [hasChartData]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setFillHeight(mq.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
 
   const isFilteringAccount = selectedAccountId && selectedAccountId !== 'all';
   const normSelectedId = String(selectedAccountId || '');
@@ -303,8 +349,11 @@ export function StepLineChart({
     const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 8.5 + 18));
 
     // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
-    const width = isMobile ? 540 : 600;
-    const height = isMobile ? 260 : 200;
+    const measuredW = size.w > 0 ? size.w : (isMobile ? 540 : 600);
+    const width = Math.max(300, measuredW);
+    const height = fillHeight && size.h > 0
+      ? Math.max(240, Math.min(560, size.h))
+      : Math.max(220, Math.min(300, Math.round(width * 0.58)));
     const paddingRight = 18;
     const paddingTop = 26;
     const paddingBottom = 32;
@@ -466,7 +515,7 @@ export function StepLineChart({
       yTicks,
       prunedXTicks
     };
-  }, [dailyBalances, safetyFloor, currencySymbol, isMobile, currentDay]);
+  }, [dailyBalances, safetyFloor, currencySymbol, isMobile, currentDay, size.w, size.h, fillHeight]);
 
   const {
     minDay,
@@ -582,6 +631,88 @@ export function StepLineChart({
 
   const todayPoint = typeof currentDay === 'number' ? dailyBalances.find((p) => p.day === currentDay) : null;
 
+  // ---- Day insights: hovered day, else selected day, else today, else month-end ----
+  // Strict attribution for the day panel: when an event names its account(s),
+  // only those count. The balance snapshot (accountBalances) lists every
+  // account, so it is used only for events with no account ids at all.
+  const belongsToSelectedAccount = (ev) => {
+    if (!isFilteringAccount) return true;
+    const ids = [
+      ev.bankAccountId, ev.walletId, ev.accountId,
+      ev.sourceBankAccountId, ev.sourceWalletId, ev.sourceAccountId,
+      ev.destinationBankAccountId, ev.destinationWalletId, ev.destinationAccountId
+    ].filter(Boolean).map((v) => String(v._id || v.id || v));
+    if (ids.length === 0) return matchesSelectedAccount(ev);
+    return ids.some((id) => id === normSelectedId || (alt1 && id === alt1) || (alt2 && id === alt2) || (alt3 && id === alt3));
+  };
+
+  const eventsForDay = (pt) => {
+    if (!pt) return [];
+    const raw = (pt.intradayEvents && pt.intradayEvents.length > 0)
+      ? pt.intradayEvents
+      : (events || []).filter((e) => e.day === pt.day || e.date === pt.date);
+    return raw.filter(belongsToSelectedAccount);
+  };
+  const dayOutflow = (evts) => evts.reduce((sum, e) => (e.amount < 0 && e.itemType !== 'transfer' ? sum + Math.abs(e.amount) : sum), 0);
+
+  const insightDayNum = hoveredDay ?? selectedDay ?? (todayPoint ? todayPoint.day : dailyBalances[dailyBalances.length - 1]?.day);
+  const insightIdx = dailyBalances.findIndex((d) => d.day === insightDayNum);
+  const insightPt = insightIdx >= 0 ? dailyBalances[insightIdx] : null;
+  let insight = null;
+  if (insightPt) {
+    const evts = eventsForDay(insightPt);
+    const inflow = evts.reduce((sum, e) => (e.amount > 0 && e.itemType !== 'transfer' ? sum + e.amount : sum), 0);
+    const outflow = dayOutflow(evts);
+    const prevBal = insightIdx > 0
+      ? dailyBalances[insightIdx - 1].balance
+      : insightPt.balance - evts.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const change = insightPt.balance - prevBal;
+    const headroom = insightPt.balance - safetyFloor;
+
+    // Biggest outflow day across the month (for context)
+    let maxOut = 0;
+    dailyBalances.forEach((d) => { maxOut = Math.max(maxOut, dayOutflow(eventsForDay(d))); });
+    const unplannedOut = evts.reduce((sum, e) => (e.amount < 0 && e.itemType === 'unplanned-transaction' ? sum + Math.abs(e.amount) : sum), 0);
+
+    const flags = [];
+    if (insightPt.date && insightPt.date === lowestDate) flags.push({ key: 'low', text: 'Lowest point of the month' });
+    if (evts.some((e) => e.isSalary || e.itemType === 'salary')) flags.push({ key: 'pay', text: 'Payday' });
+    if (outflow > 0 && outflow === maxOut) flags.push({ key: 'big', text: 'Biggest spending day' });
+    if (safetyFloor > 0 && headroom < 0) flags.push({ key: 'breach', text: `${formatCurrency(Math.abs(headroom), currencySymbol)} below floor` });
+    if (typeof safeDailyRate === 'number' && safeDailyRate > 0 && unplannedOut > safeDailyRate) {
+      flags.push({ key: 'pace', text: `${formatCurrency(unplannedOut - safeDailyRate, currencySymbol)} over the daily safe amount` });
+    }
+
+    const phase = typeof currentDay === 'number'
+      ? (insightPt.day === currentDay ? 'Today' : insightPt.day > currentDay ? 'Projected' : 'Actual')
+      : null;
+
+    insight = { pt: insightPt, evts, inflow, outflow, change, headroom, flags, phase };
+  }
+
+  const nearestDayFromClientX = (clientX) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width) return null;
+    const relX = ((clientX - rect.left) / rect.width) * width;
+    let closestDay = dailyBalances[0]?.day ?? 1;
+    let minDistance = Infinity;
+    dailyBalances.forEach((pt) => {
+      const dist = Math.abs(getX(pt.day) - relX);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestDay = pt.day;
+      }
+    });
+    return closestDay;
+  };
+
+  const handleMouseMove = (e) => {
+    if (hoveredPointId) return; // a specific intraday pin is being inspected
+    const day = nearestDayFromClientX(e.clientX);
+    if (day !== null && day !== hoveredDay) setHoveredDay(day);
+  };
+
   const handleTouch = (e) => {
     if (!e.touches || e.touches.length === 0 || !containerRef.current) return;
     const touch = e.touches[0];
@@ -673,17 +804,20 @@ export function StepLineChart({
         ref={containerRef}
         className="chart-container"
         style={{ position: 'relative', touchAction: 'pan-y', width: '100%', overflow: 'hidden' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => { setHoveredDay(null); setHoveredPointId(null); }}
         onTouchStart={handleTouch}
         onTouchMove={handleTouch}
         onTouchEnd={() => setHoveredDay(null)}
         onTouchCancel={() => setHoveredDay(null)}
       >
         <svg
-          viewBox="0 0 600 240"
-          width="100%"
-          className="chart-svg"
-          preserveAspectRatio="xMidYMid meet"
-          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%', height: 'auto', maxHeight: '240px' }}
+          viewBox={`0 0 ${width} ${height}`}
+          width={width}
+          height={height}
+          className={`chart-svg ${fillHeight ? 'chart-svg-fill' : ''}`}
+          preserveAspectRatio="none"
+          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%' }}
         >
           {/* Defs for soft ambient curve glow & modern area gradient */}
           <defs>
@@ -696,6 +830,20 @@ export function StepLineChart({
               <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="var(--text)" floodOpacity="0.15" />
             </filter>
           </defs>
+
+          {/* Plot background: clicking anywhere selects the nearest day */}
+          <rect
+            x={paddingLeft}
+            y={paddingTop}
+            width={chartWidth}
+            height={chartHeight}
+            fill="transparent"
+            style={{ cursor: 'crosshair' }}
+            onClick={(e) => {
+              const day = nearestDayFromClientX(e.clientX);
+              if (day !== null) onSelectDay?.(selectedDay === day ? null : day);
+            }}
+          />
 
           {/* Subtle Horizontal Grid lines */}
           {yTicks.map((t, idx) => (
@@ -1168,6 +1316,73 @@ export function StepLineChart({
         </svg>
         {chartSummary && <p className="sr-only">{chartSummary}</p>}
       </div>
+
+      {insight && (
+        <div className="day-insight" aria-live="polite">
+          <div className="di-head">
+            <span className="di-date">
+              {insight.pt.date ? formatDisplayDate(insight.pt.date, true) : `Day ${insight.pt.day}`}
+            </span>
+            {insight.phase && <span className={`di-phase phase-${insight.phase.toLowerCase()}`}>{insight.phase}</span>}
+            <span className="di-hint">
+              {hoveredDay !== null ? 'Hovering' : selectedDay !== null ? 'Selected day' : 'Hover or tap the chart to inspect a day'}
+            </span>
+          </div>
+
+          <dl className="di-stats">
+            <div className="di-stat">
+              <dt>Closing balance</dt>
+              <dd className="tabular-nums">{formatCurrency(insight.pt.balance, currencySymbol)}</dd>
+            </div>
+            <div className="di-stat">
+              <dt>Change from day before</dt>
+              <dd className={`tabular-nums ${insight.change > 0 ? 'di-up' : insight.change < 0 ? 'di-down' : ''}`}>
+                {insight.change > 0 ? '▲ +' : insight.change < 0 ? '▼ ' : ''}{formatCurrency(insight.change, currencySymbol)}
+              </dd>
+            </div>
+            <div className="di-stat">
+              <dt>Money in / out</dt>
+              <dd className="tabular-nums">
+                <span className="di-up">+{formatCurrency(insight.inflow, currencySymbol)}</span>
+                {' / '}
+                <span>-{formatCurrency(insight.outflow, currencySymbol)}</span>
+              </dd>
+            </div>
+            <div className="di-stat">
+              <dt>{safetyFloor > 0 ? 'Room above floor' : 'Safety floor'}</dt>
+              <dd className={`tabular-nums ${safetyFloor > 0 && insight.headroom < 0 ? 'di-down' : ''}`}>
+                {safetyFloor > 0 ? formatCurrency(insight.headroom, currencySymbol) : 'Not set'}
+              </dd>
+            </div>
+          </dl>
+
+          {insight.flags.length > 0 && (
+            <ul className="di-flags">
+              {insight.flags.map((f) => (
+                <li key={f.key} className={`di-flag flag-${f.key}`}>{f.text}</li>
+              ))}
+            </ul>
+          )}
+
+          {insight.evts.length > 0 ? (
+            <ul className="di-events">
+              {insight.evts.slice(0, 4).map((e, i) => (
+                <li key={`${e.transactionId || e.itemId || e.label}-${i}`} className="di-event">
+                  <span className="di-event-name">{e.label || e.name || 'Entry'}</span>
+                  <span className={`di-event-amt tabular-nums ${e.amount > 0 ? 'di-up' : ''}`}>
+                    {e.itemType === 'transfer' && !isFilteringAccount
+                      ? `⇄ ${formatCurrency(e.transferAmount || 0, currencySymbol)}`
+                      : `${e.amount > 0 ? '+' : ''}${formatCurrency(e.amount, currencySymbol)}`}
+                  </span>
+                </li>
+              ))}
+              {insight.evts.length > 4 && <li className="di-more">+{insight.evts.length - 4} more in the timeline</li>}
+            </ul>
+          ) : (
+            <p className="di-quiet">No money moved on this day.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

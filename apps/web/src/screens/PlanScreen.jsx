@@ -888,6 +888,7 @@ export function PlanScreen({
               wallets={wallets}
               selectedAccountId={selectedAccountId}
               selectedAccount={selectedAccount}
+              safeDailyRate={activeSafeToSpend}
             />
           </ErrorBoundary>
         </div>
