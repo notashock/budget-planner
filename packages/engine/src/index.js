@@ -3,6 +3,16 @@ export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
 export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoundaries, isPeriodExpired } from './incomeEngine.js';
+export {
+  buildCashAllocation,
+  getNetPosition,
+  splitPaidAndPlanned,
+  getAllowancePace,
+  getUpcomingOutflows,
+  groupSpendByCategory,
+  getRunwayBand,
+  getHeadroom
+} from './planInsights.js';
 
 /**
  * Currency conversion and formatting utilities.
