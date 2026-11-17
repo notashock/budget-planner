@@ -1458,7 +1458,10 @@ export function simulate(
     totalIncome: totalSimIncome,
     incomeAmount: totalSimIncome,
     totalPlannedExpenses: totalSimExpenses,
-    totalActualExpenses: 0,
+    // Spending that has actually happened (paid/logged), excluding transfers
+    totalActualExpenses: events
+      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && (e.isActual || e.isPaid))
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0),
     totalExpenses: totalSimExpenses,
     isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
     salaryCreditedDate: salaryTx ? salaryTx.date : (settings.salaryCreditedDate || (isSalaryMarkedCredited ? formatDate(year, monthNum, 1) : null)),

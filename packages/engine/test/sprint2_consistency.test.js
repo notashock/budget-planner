@@ -82,3 +82,17 @@ describe("Sprint 2: pace compares discretionary spending with the daily limit", 
     expect(isDiscretionarySpend({ amount: 100, isIncome: true })).toBe(false);
   });
 });
+
+describe("Sprint 2: totalActualExpenses reports real spending", () => {
+  it("sums paid/logged outflows and excludes planned items and transfers", () => {
+    const settings = { openingBalance: 500000, incomeAmount: 0, incomeCreditDay: 1, safetyFloor: 0, currentDay: 15 };
+    const items = [{ id: 'later', type: 'one-time', name: 'Later bill', amount: 40000, day: 25 }];
+    const transactions = [
+      { id: 'a', date: '2026-10-03', amount: 12000, tag: 'Food', status: 'successful' },
+      { id: 'b', date: '2026-10-08', amount: 8000, tag: 'Travel', status: 'successful' }
+    ];
+    const result = simulate(settings, items, PERIOD, transactions);
+    expect(result.totalActualExpenses).toBe(20000);
+    expect(result.totalExpenses).toBe(60000);
+  });
+});
