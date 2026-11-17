@@ -332,14 +332,38 @@
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-bottom: 9px solid var(--positive);
+  border-bottom: 9px solid var(--good-ink);
 }
 
+/* Planned bill: hollow down-triangle, as drawn on the chart */
 .chart-key.key-bill {
-  width: 9px;
+  width: 10px;
   height: 9px;
+  background: var(--indigo);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  position: relative;
+}
+
+.chart-key.key-bill::after {
+  content: '';
+  position: absolute;
+  inset: 2px 2.5px 3px;
+  background: var(--surface);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.chart-key.key-paid {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 2px solid var(--indigo);
+  background: var(--text-secondary);
+}
+
+.chart-key.key-low {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2.5px solid var(--text);
   box-sizing: border-box;
 }
 

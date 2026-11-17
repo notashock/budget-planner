@@ -1,97 +1,29 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, formatDisplayDate, summarizeLowPoints } from '@budget/engine';
+import { formatChartTick, getStepPath, getStepAreaPath, niceTicks, findBreachRuns } from './chartGeometry.js';
+import { ChartTooltip } from './ChartTooltip.jsx';
+import { BalanceTable } from './BalanceTable.jsx';
+
+// Existing imports read the tick formatter from this module
+export { formatChartTick };
+
+const PAD_RIGHT = 18;
+const PAD_TOP = 28;
+const PAD_BOTTOM = 34;
 
 /**
- * Computes a smooth monotonic cubic spline path (Fritsch-Carlson algorithm).
- * Guarantees zero overshoot/undershoot on steep slopes, eliminating unnatural upward/downward bulges.
- */
-function getMonotoneCubicSplinePath(points) {
-  const n = points.length;
-  if (n === 0) return '';
-  if (n === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-  if (n === 2) {
-    return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`;
-  }
-
-  // 1. Calculate secant slopes
-  const dxs = [];
-  const dys = [];
-  const slopes = [];
-  for (let i = 0; i < n - 1; i++) {
-    const dx = points[i + 1].x - points[i].x;
-    const dy = points[i + 1].y - points[i].y;
-    dxs.push(dx);
-    dys.push(dy);
-    slopes.push(dx === 0 ? 0 : dy / dx);
-  }
-
-  // 2. Initialize tangents
-  const m = new Array(n);
-  m[0] = slopes[0];
-  for (let i = 1; i < n - 1; i++) {
-    if (slopes[i - 1] * slopes[i] <= 0) {
-      m[i] = 0;
-    } else {
-      m[i] = (slopes[i - 1] + slopes[i]) / 2;
-    }
-  }
-  m[n - 1] = slopes[n - 2];
-
-  // 3. Fritsch-Carlson monotonicity check & scale
-  for (let i = 0; i < n - 1; i++) {
-    if (dys[i] === 0) {
-      m[i] = 0;
-      m[i + 1] = 0;
-    } else {
-      const alpha = m[i] / slopes[i];
-      const beta = m[i + 1] / slopes[i];
-      if (alpha < 0) m[i] = 0;
-      if (beta < 0) m[i + 1] = 0;
-      const s = alpha * alpha + beta * beta;
-      if (s > 9) {
-        const tau = 3 / Math.sqrt(s);
-        m[i] = tau * alpha * slopes[i];
-        m[i + 1] = tau * beta * slopes[i];
-      }
-    }
-  }
-
-  // 4. Build SVG Cubic Bezier Path
-  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const dx = dxs[i];
-
-    const cp1x = p1.x + dx / 3;
-    const cp1y = p1.y + (m[i] * dx) / 3;
-    const cp2x = p2.x - dx / 3;
-    const cp2y = p2.y - (m[i + 1] * dx) / 3;
-
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-
-  return d;
-}
-
-// Compact axis labels in the Indian system, matching the en-IN amounts shown
-// everywhere else: full figures under ₹10,000, then k (thousand), L (lakh)
-// and Cr (crore).
-export function formatChartTick(val, symbol) {
-  const major = Math.abs(val) / 100;
-  const sign = val < 0 ? '-' : '';
-  const compact = (n) => String(Math.round(n * 10) / 10);
-
-  if (major >= 10000000) return `${sign}${symbol}${compact(major / 10000000)}Cr`;
-  if (major >= 100000) return `${sign}${symbol}${compact(major / 100000)}L`;
-  if (major >= 10000) return `${sign}${symbol}${compact(major / 1000)}k`;
-  return `${sign}${symbol}${Math.round(major).toLocaleString('en-IN')}`;
-}
-
-/**
- * Interactive SVG Step Line Balance Chart.
- * Displays daily running balance across the month, supports relative negative pre-month days (-1, -2),
- * and provides interactive tooltips synchronized with timeline selection.
+ * Daily balance chart for the Plan page.
+ *
+ * A step line: a balance holds its level through the day and changes only when
+ * money moves, so the line is flat between days with a vertical jump on the day
+ * of each entry. Solid up to today, dashed for the projection. Marks the
+ * upcoming low, the safety floor and any days below it, and shows each day's
+ * entries as one marker (income ▲, planned bill ▽, paid •, with a count when a
+ * day has several).
+ *
+ * Hover shows a compact tooltip; the day panel below carries the full
+ * breakdown. The plot is keyboard-operable (←/→, Home/End, Enter, Esc) and the
+ * numbers are available as a table.
  */
 export function StepLineChart({
   dailyBalances = [],
@@ -100,18 +32,18 @@ export function StepLineChart({
   currencySymbol = '₹',
   floorBreached = false,
   lowestDate = '',
+  upcomingLow = null,
   selectedDay = null,
   onSelectDay = null,
   currentDay = null,
   onOpenReview = null,
-  bankAccounts = [],
-  wallets = [],
   selectedAccountId = 'all',
   selectedAccount = null,
   safeDailyRate = null
 }) {
   const [hoveredDay, setHoveredDay] = useState(null);
-  const [hoveredPointId, setHoveredPointId] = useState(null);
+  const [hoverSource, setHoverSource] = useState(null); // 'pointer' | 'keyboard' | null
+  const [showTable, setShowTable] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const containerRef = useRef(null);
   // Measured drawing area: the SVG is drawn at its real pixel size (viewBox matches),
@@ -160,118 +92,8 @@ export function StepLineChart({
     return () => mq.removeEventListener?.('change', onChange);
   }, []);
 
-  const isFilteringAccount = selectedAccountId && selectedAccountId !== 'all';
-  const normSelectedId = String(selectedAccountId || '');
-  const alt1 = String(selectedAccount?._id || '');
-  const alt2 = String(selectedAccount?.id || '');
-  const alt3 = String(selectedAccount?.altId || '');
-
-  const matchesSelectedAccount = (ev) => {
-    if (!isFilteringAccount) return true;
-    if (!ev) return false;
-
-    const checkMatch = (val) => {
-      if (!val) return false;
-      const s = String(val._id || val.id || val);
-      return s === normSelectedId || (alt1 && s === alt1) || (alt2 && s === alt2) || (alt3 && s === alt3);
-    };
-
-    if (checkMatch(ev.bankAccountId) || checkMatch(ev.walletId) || checkMatch(ev.accountId)) return true;
-    if (checkMatch(ev.sourceBankAccountId) || checkMatch(ev.sourceWalletId) || checkMatch(ev.sourceAccountId)) return true;
-    if (checkMatch(ev.destinationBankAccountId) || checkMatch(ev.destinationWalletId) || checkMatch(ev.destinationAccountId)) return true;
-    if (ev.accountBalances) {
-      if (ev.accountBalances[normSelectedId] !== undefined) return true;
-      if (alt1 && ev.accountBalances[alt1] !== undefined) return true;
-      if (alt2 && ev.accountBalances[alt2] !== undefined) return true;
-      if (alt3 && ev.accountBalances[alt3] !== undefined) return true;
-    }
-    return false;
-  };
-
-  const getEventBalance = (ev, fallbackBalance) => {
-    if (!ev) return fallbackBalance;
-    if (!isFilteringAccount) {
-      return (typeof ev.balanceAfter === 'number' && !isNaN(ev.balanceAfter))
-        ? ev.balanceAfter
-        : ((typeof ev.displayBalance === 'number' && !isNaN(ev.displayBalance)) ? ev.displayBalance : fallbackBalance);
-    }
-
-    // 1. Precise snapshot from accountBalances map
-    if (ev.accountBalances) {
-      if (ev.accountBalances[normSelectedId] !== undefined) return ev.accountBalances[normSelectedId];
-      if (alt1 && ev.accountBalances[alt1] !== undefined) return ev.accountBalances[alt1];
-      if (alt2 && ev.accountBalances[alt2] !== undefined) return ev.accountBalances[alt2];
-      if (alt3 && ev.accountBalances[alt3] !== undefined) return ev.accountBalances[alt3];
-    }
-
-    // 2. Transfers
-    if (ev.itemType === 'transfer') {
-      const sBank = String(ev.sourceBankAccountId?._id || ev.sourceBankAccountId?.id || ev.sourceBankAccountId || ev.sourceAccountId || '');
-      const sWall = String(ev.sourceWalletId?._id || ev.sourceWalletId?.id || ev.sourceWalletId || '');
-      if ((sBank && (sBank === normSelectedId || sBank === alt1 || sBank === alt2)) || (sWall && (sWall === normSelectedId || sWall === alt1 || sWall === alt2))) {
-        if (typeof ev.sourceAccountBalanceAfter === 'number' && !isNaN(ev.sourceAccountBalanceAfter)) {
-          return ev.sourceAccountBalanceAfter;
-        }
-      }
-      const dBank = String(ev.destinationBankAccountId?._id || ev.destinationBankAccountId?.id || ev.destinationBankAccountId || ev.destinationAccountId || '');
-      const dWall = String(ev.destinationWalletId?._id || ev.destinationWalletId?.id || ev.destinationWalletId || '');
-      if ((dBank && (dBank === normSelectedId || dBank === alt1 || dBank === alt2)) || (dWall && (dWall === normSelectedId || dWall === alt1 || dWall === alt2))) {
-        if (typeof ev.destinationAccountBalanceAfter === 'number' && !isNaN(ev.destinationAccountBalanceAfter)) {
-          return ev.destinationAccountBalanceAfter;
-        }
-      }
-    }
-
-    // 3. Direct account balance properties
-    if (typeof ev.accountBalanceAfter === 'number' && !isNaN(ev.accountBalanceAfter)) {
-      return ev.accountBalanceAfter;
-    }
-    if (typeof ev.displayBalance === 'number' && !isNaN(ev.displayBalance)) {
-      return ev.displayBalance;
-    }
-
-    // 4. If ev.globalBalanceAfter is set, ev.balanceAfter is already mapped to account balance
-    if (ev.globalBalanceAfter !== undefined && typeof ev.balanceAfter === 'number' && !isNaN(ev.balanceAfter)) {
-      return ev.balanceAfter;
-    }
-
-    return fallbackBalance;
-  };
-
-  // Fast account lookup for tooltip account identification
-  const accountMap = useMemo(() => {
-    const map = new Map();
-    (bankAccounts || []).forEach((b) => {
-      const id = b.id || b._id;
-      if (id) map.set(String(id), { name: b.name, type: 'Bank' });
-    });
-    (wallets || []).forEach((w) => {
-      const id = w.id || w._id;
-      if (id) map.set(String(id), { name: w.name, type: 'Wallet' });
-    });
-    return map;
-  }, [bankAccounts, wallets]);
-
-  const getEventAccountInfo = (ev) => {
-    if (!ev) return null;
-    const accId = ev.bankAccountId || ev.walletId || ev.accountId || ev.sourceBankAccountId || ev.sourceWalletId;
-    const idStr = accId ? String(accId._id || accId.id || accId) : null;
-    if (idStr && accountMap.has(idStr)) {
-      return accountMap.get(idStr);
-    }
-    if (ev.sourceBankAccountId || ev.destinationBankAccountId) {
-      const dId = ev.destinationBankAccountId ? String(ev.destinationBankAccountId._id || ev.destinationBankAccountId.id || ev.destinationBankAccountId) : null;
-      if (dId && accountMap.has(dId)) return accountMap.get(dId);
-    }
-    if (ev.isSalary) {
-      const primaryBank = (bankAccounts || []).find((b) => b.isPrimary) || (bankAccounts || [])[0];
-      if (primaryBank) return { name: primaryBank.name, type: 'Bank' };
-    }
-    return null;
-  };
-
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile((prev) => (prev !== mobile ? mobile : prev));
@@ -280,535 +102,362 @@ export function StepLineChart({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!dailyBalances || dailyBalances.length === 0) {
-    return (
-      <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        No balance history available for this month.
-      </div>
-    );
-  }
+  // ---- Account filtering ----
+  const isFilteringAccount = Boolean(selectedAccountId && selectedAccountId !== 'all');
+  const accountIds = [String(selectedAccountId || ''), String(selectedAccount?._id || ''), String(selectedAccount?.id || ''), String(selectedAccount?.altId || '')]
+    .filter(Boolean);
+  const isSelectedId = (val) => {
+    if (!val) return false;
+    return accountIds.includes(String(val._id || val.id || val));
+  };
 
-  // Memoize all expensive SVG curve paths, scales, and tick coordinates to run at 60fps during hover
-  const chartData = useMemo(() => {
-    // Collect all balance values across daily snapshots, intraday intermediate events, and timeline events
-    const allBalances = [
-      ...dailyBalances.map((d) => d.balance),
-      safetyFloor,
-      1000
-    ];
+  // Strict attribution: when an event names its account(s), only those count.
+  // The balance snapshot (accountBalances) lists every account, so it is used
+  // only for events with no account ids at all.
+  const belongsToSelectedAccount = (ev) => {
+    if (!isFilteringAccount) return true;
+    if (!ev) return false;
+    const ids = [
+      ev.bankAccountId, ev.walletId, ev.accountId,
+      ev.sourceBankAccountId, ev.sourceWalletId, ev.sourceAccountId,
+      ev.destinationBankAccountId, ev.destinationWalletId, ev.destinationAccountId
+    ].filter(Boolean);
+    if (ids.length > 0) return ids.some(isSelectedId);
+    return Boolean(ev.accountBalances && accountIds.some((id) => ev.accountBalances[id] !== undefined));
+  };
 
-    dailyBalances.forEach((point) => {
-      const rawDayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
-        ? point.intradayEvents
-        : (events || []).filter((e) => e.day === point.day || e.date === point.date);
-
-      const dayEvents = isFilteringAccount
-        ? rawDayEvents.filter(matchesSelectedAccount)
-        : rawDayEvents;
-
-      dayEvents.forEach((ev) => {
-        const bal = getEventBalance(ev, point.balance);
-        if (typeof bal === 'number' && !isNaN(bal)) {
-          allBalances.push(bal);
-        }
-      });
+  // ---- Per-day rows: one source for the markers, panel, tooltip and table ----
+  const rows = useMemo(() => {
+    if (!hasChartData) return [];
+    return dailyBalances.map((pt, i) => {
+      const raw = (pt.intradayEvents && pt.intradayEvents.length > 0)
+        ? pt.intradayEvents
+        : (events || []).filter((e) => e.day === pt.day || e.date === pt.date);
+      const evts = raw.filter(belongsToSelectedAccount);
+      const inflow = evts.reduce((sum, e) => (e.amount > 0 && e.itemType !== 'transfer' ? sum + e.amount : sum), 0);
+      const outflow = evts.reduce((sum, e) => (e.amount < 0 && e.itemType !== 'transfer' ? sum + Math.abs(e.amount) : sum), 0);
+      const opening = i > 0
+        ? dailyBalances[i - 1].balance
+        : pt.balance - evts.reduce((sum, e) => sum + (e.amount || 0), 0);
+      return { day: pt.day, date: pt.date, closing: pt.balance, opening, inflow, outflow, evts };
     });
+    // belongsToSelectedAccount only depends on the account props listed here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyBalances, events, hasChartData, selectedAccountId, selectedAccount]);
 
-    const filteredEvents = isFilteringAccount
-      ? (events || []).filter(matchesSelectedAccount)
-      : (events || []);
+  // ---- Scales and paths ----
+  const chart = useMemo(() => {
+    if (!hasChartData) return null;
+    const balances = dailyBalances.map((d) => d.balance);
+    if (safetyFloor > 0) balances.push(safetyFloor);
+    const dataMin = Math.min(...balances);
+    const dataMax = Math.max(...balances, 1000);
+    // The axis starts at 0 unless the balance goes negative.
+    const ticks = niceTicks(Math.min(0, dataMin), dataMax, isMobile ? 3 : 4);
+    const yMin = ticks[0];
+    const yMax = ticks[ticks.length - 1];
 
-    filteredEvents.forEach((e) => {
-      const bal = getEventBalance(e, null);
-      if (typeof bal === 'number' && !isNaN(bal)) {
-        allBalances.push(bal);
-      }
-    });
+    const tickLabels = ticks.map((v) => formatChartTick(v, currencySymbol));
+    const maxTickLen = Math.max(...tickLabels.map((t) => t.length), 4);
+    const paddingLeft = Math.max(isMobile ? 48 : 56, Math.round(maxTickLen * 7 + 14));
 
-    const actualMin = Math.min(...allBalances);
-    const minVal = actualMin < 0 ? actualMin : 0;
-    const maxVal = Math.max(...allBalances);
-
-    // Y-axis minimum starts from 0 (or lower if debt / negative balance), never above 0.
-    // 12% headroom removes clipping on high peaks, intraday step-ups, and curved bezier arcs.
-    const range = maxVal - minVal || 1000;
-    const yMin = minVal < 0 ? minVal - range * 0.04 : 0;
-    const yMax = maxVal + range * 0.12;
-
-    // Format y-axis tick values (top, middle, bottom)
-    const yTicks = [
-      { val: yMax, label: formatChartTick(yMax, currencySymbol) },
-      { val: (yMax + yMin) / 2, label: formatChartTick((yMax + yMin) / 2, currencySymbol) },
-      { val: yMin, label: formatChartTick(yMin, currencySymbol) }
-    ];
-
-    // Dynamically calculate left padding based on longest tick label length
-    const maxTickLen = Math.max(...yTicks.map((t) => t.label.length), 4);
-    const basePadding = isMobile ? 68 : 76;
-    const paddingLeft = Math.max(basePadding, Math.round(maxTickLen * 8.5 + 18));
-
-    // Dynamic SVG dimensions: larger and taller on mobile for enhanced visual presence and touch usability
     const measuredW = size.w > 0 ? size.w : (isMobile ? 540 : 600);
     const width = Math.max(300, measuredW);
     const height = fillHeight && size.h > 0
       ? Math.max(240, Math.min(560, size.h))
       : Math.max(220, Math.min(300, Math.round(width * 0.58)));
-    const paddingRight = 18;
-    const paddingTop = 26;
-    const paddingBottom = 32;
-
-    const chartWidth = width - paddingLeft - paddingRight;
-    const chartHeight = height - paddingTop - paddingBottom;
+    const chartWidth = width - paddingLeft - PAD_RIGHT;
+    const chartHeight = height - PAD_TOP - PAD_BOTTOM;
 
     const minDay = dailyBalances[0].day;
     const maxDay = dailyBalances[dailyBalances.length - 1].day;
-    const totalDaySpan = maxDay - minDay || 1;
+    const span = maxDay - minDay || 1;
+    const getX = (day) => paddingLeft + ((day - minDay) / span) * chartWidth;
+    const getY = (val) => PAD_TOP + (1 - (val - yMin) / (yMax - yMin || 1)) * chartHeight;
 
-    const getX = (day, frac = 0) => {
-      return paddingLeft + (((day + frac) - minDay) / totalDaySpan) * chartWidth;
-    };
+    const points = dailyBalances.map((d) => ({ day: d.day, date: d.date, balance: d.balance, x: getX(d.day), y: getY(d.balance) }));
+    const baselineY = getY(Math.max(yMin, 0));
+    const pathD = getStepPath(points);
+    const areaD = getStepAreaPath(points, baselineY);
 
-    const getY = (val) => {
-      const norm = (val - yMin) / (yMax - yMin || 1);
-      const rawY = height - paddingBottom - norm * chartHeight;
-      // Strictly clamp to chart coordinate box: guarantees zero overflow outside component view area
-      return Math.max(paddingTop + 6, Math.min(height - paddingBottom, rawY));
-    };
-
-    // Build smooth monotonic curved spline path with zero overshoot,
-    // including fractional intraday transaction steps
-    const points = [];
-    dailyBalances.forEach((point) => {
-      const rawDayEvents = (point.intradayEvents && point.intradayEvents.length > 0)
-        ? point.intradayEvents
-        : (events || []).filter((e) => e.day === point.day || e.date === point.date);
-
-      const dayEvents = isFilteringAccount
-        ? rawDayEvents.filter(matchesSelectedAccount)
-        : rawDayEvents;
-
-      if (dayEvents.length > 1) {
-        // Multiple transactions on same day: generate intermediate steps with fractional offsets
-        const n = dayEvents.length;
-        dayEvents.forEach((ev, idx) => {
-          // Spread across +/- 0.35 of a day
-          const frac = -0.35 + ((idx + 1) / (n + 1)) * 0.7;
-          const evBal = getEventBalance(ev, point.balance);
-          points.push({
-            x: getX(point.day, frac),
-            y: getY(evBal),
-            day: point.day,
-            date: point.date,
-            balance: evBal,
-            isIntermediate: true,
-            event: ev,
-            eventId: ev.transactionId || ev.itemId || `${point.day}-${idx}`
-          });
-        });
-      } else {
-        const singleEv = dayEvents[0] || null;
-        const singleBal = singleEv ? getEventBalance(singleEv, point.balance) : point.balance;
-        points.push({
-          x: getX(point.day, 0),
-          y: getY(singleBal),
-          day: point.day,
-          date: point.date,
-          balance: singleBal,
-          isIntermediate: false,
-          event: singleEv,
-          eventId: singleEv?.transactionId || singleEv?.itemId || `${point.day}-0`
-        });
-      }
-    });
-
-    const pathD = getMonotoneCubicSplinePath(points);
-    let areaD = '';
-
-    if (points.length > 0) {
-      const baselineY = getY(yMin);
-      areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baselineY.toFixed(1)} L ${points[0].x.toFixed(1)} ${baselineY.toFixed(1)} Z`;
-    }
-
-    // Dual-phase paths: Realized (history up to Today) vs Projected (future days reflecting planned transactions)
     let realizedPathD = '';
     let projectedPathD = '';
-    if (typeof currentDay === 'number' && currentDay >= minDay && currentDay <= maxDay) {
-      const realizedPts = points.filter((p) => p.day <= currentDay);
-      const projectedPts = points.filter((p) => p.day >= currentDay);
-      if (realizedPts.length > 1) {
-        realizedPathD = getMonotoneCubicSplinePath(realizedPts);
-      } else if (realizedPts.length === 1) {
-        realizedPathD = `M ${realizedPts[0].x.toFixed(1)} ${realizedPts[0].y.toFixed(1)}`;
-      }
-      if (projectedPts.length > 1) {
-        projectedPathD = getMonotoneCubicSplinePath(projectedPts);
-      }
+    if (typeof currentDay === 'number' && currentDay >= minDay && currentDay < maxDay) {
+      realizedPathD = getStepPath(points.filter((p) => p.day <= currentDay));
+      projectedPathD = getStepPath(points.filter((p) => p.day >= currentDay));
     }
 
-    const floorY = getY(safetyFloor);
-
-  // Adaptive X Ticks with Collision Pruning
-  // Prioritizes: pre-month day (if any), Day 1 (month start), and maxDay (month end)
-  const candidateDays = [];
-  if (minDay < 0) {
-    candidateDays.push(minDay);
-  }
-  candidateDays.push(1);
-  [5, 10, 15, 20, 25].forEach((d) => {
-    if (d > minDay && d < maxDay) {
-      candidateDays.push(d);
-    }
-  });
-  if (!candidateDays.includes(maxDay)) {
-    candidateDays.push(maxDay);
-  }
-
-  // Enforce minimum 42px clearance between adjacent labels to prevent overlapping
-  const prunedXTicks = [];
-  candidateDays.forEach((day) => {
-    const x = getX(day);
-
-    // If candidate is not the last day, avoid collision with maxDay
-    if (day !== maxDay && Math.abs(getX(maxDay) - x) < 38) {
-      return;
-    }
-
-    if (prunedXTicks.length === 0) {
-      prunedXTicks.push(day);
-    } else {
-      const prevX = getX(prunedXTicks[prunedXTicks.length - 1]);
-      if (x - prevX >= 40) {
-        prunedXTicks.push(day);
-      }
-    }
-  });
-
-    // Guarantee maxDay is represented at the month-end boundary
-    if (!prunedXTicks.includes(maxDay)) {
-      if (prunedXTicks.length > 0 && Math.abs(getX(maxDay) - getX(prunedXTicks[prunedXTicks.length - 1])) < 38) {
-        prunedXTicks[prunedXTicks.length - 1] = maxDay;
-      } else {
-        prunedXTicks.push(maxDay);
-      }
-    }
-
-    return {
-      minDay,
-      maxDay,
-      width,
-      height,
-      paddingLeft,
-      paddingRight,
-      paddingTop,
-      paddingBottom,
-      chartWidth,
-      chartHeight,
-      getX,
-      getY,
-      points,
-      pathD,
-      realizedPathD,
-      projectedPathD,
-      areaD,
-      floorY,
-      yTicks,
-      prunedXTicks
-    };
-  }, [dailyBalances, safetyFloor, currencySymbol, isMobile, currentDay, size.w, size.h, fillHeight]);
-
-  const {
-    minDay,
-    maxDay,
-    width,
-    height,
-    paddingLeft,
-    paddingRight,
-    paddingTop,
-    paddingBottom,
-    chartWidth,
-    chartHeight,
-    getX,
-    getY,
-    points,
-    pathD,
-    realizedPathD,
-    projectedPathD,
-    areaD,
-    floorY,
-    yTicks,
-    prunedXTicks
-  } = chartData;
-
-  // Days with planned commitments (transactions/events)
-  const plannedDaySet = useMemo(() => {
-    const set = new Set();
-    (events || []).forEach((e) => {
-      if (e.isPlannedTransaction || (!e.isActual && e.amount < 0 && e.itemType !== 'income')) {
-        set.add(e.day);
+    // Date labels on the x-axis, pruned so neighbours never collide.
+    const minGap = isMobile ? 46 : 54;
+    const candidates = [minDay, ...[8, 15, 22].filter((d) => d > minDay && d < maxDay), maxDay];
+    if (minDay < 1 && maxDay >= 1) candidates.splice(1, 0, 1);
+    const xTicks = [];
+    candidates.forEach((day) => {
+      const x = getX(day);
+      const prev = xTicks[xTicks.length - 1];
+      if (prev === undefined || x - getX(prev) >= minGap) {
+        xTicks.push(day);
+      } else if (day === maxDay) {
+        xTicks[xTicks.length - 1] = maxDay;
       }
     });
-    return set;
-  }, [events]);
 
-  // Income events get their own marker (▲) so paydays read differently from bills
-  const isIncomePoint = (pt) => Boolean(pt?.event && (pt.event.amount > 0) && pt.event.itemType !== 'transfer');
-  const hasIncomeMarkers = points.some(isIncomePoint);
+    return {
+      width, height, paddingLeft, chartWidth, chartHeight, minDay, maxDay,
+      getX, getY, points, pathD, areaD, realizedPathD, projectedPathD,
+      ticks, tickLabels, xTicks, baselineY,
+      floorY: getY(safetyFloor)
+    };
+  }, [dailyBalances, hasChartData, safetyFloor, currencySymbol, isMobile, currentDay, size.w, size.h, fillHeight]);
 
-  const lastPoint = points.length ? points[points.length - 1] : null;
-  const firstPoint = points.length ? points[0] : null;
-  const lowestPoint = points.reduce((min, p) => (!min || p.balance < min.balance ? p : min), null);
-  const chartSummary = lastPoint && firstPoint && lowestPoint
-    ? `Balance starts at ${formatCurrency(firstPoint.balance, currencySymbol)} and is projected to end the month at ${formatCurrency(lastPoint.balance, currencySymbol)}. `
-      + `Lowest point ${formatCurrency(lowestPoint.balance, currencySymbol)}${lowestPoint.date ? ` on ${formatDisplayDate(lowestPoint.date, true)}` : ''}, `
-      + (safetyFloor > 0
-        ? (lowestPoint.balance < safetyFloor
-          ? `${formatCurrency(safetyFloor - lowestPoint.balance, currencySymbol)} below the safety floor.`
-          : `${formatCurrency(lowestPoint.balance - safetyFloor, currencySymbol)} above the safety floor.`)
-        : 'no safety floor set.')
-    : '';
+  if (!hasChartData || !chart) {
+    return (
+      <div className="card chart-empty">
+        No balance history available for this month.
+      </div>
+    );
+  }
 
-  // Active point for tooltip inspection (can be specific intraday event point or day point)
+  const {
+    width, height, paddingLeft, chartWidth, minDay, maxDay,
+    getX, getY, points, pathD, areaD, realizedPathD, projectedPathD,
+    ticks, tickLabels, xTicks, baselineY, floorY
+  } = chart;
+  const plotBottom = height - PAD_BOTTOM;
+  const dayWidth = chartWidth / Math.max(1, maxDay - minDay);
+  const fmtDate = (date, day, weekday = false) => (date ? formatDisplayDate(date, weekday) : `Day ${day}`);
+
+  // ---- Low point and breaches ----
+  const low = (upcomingLow && typeof upcomingLow.balance === 'number' && upcomingLow.date)
+    ? upcomingLow
+    : summarizeLowPoints(dailyBalances, { currentDay, floor: safetyFloor }).upcoming;
+  const lowPoint = points.find((p) => p.date === low?.date) || null;
+  const lowUnderFloor = Boolean(lowPoint && safetyFloor > 0 && lowPoint.balance < safetyFloor);
+  const breachRuns = findBreachRuns(dailyBalances, safetyFloor);
+  const runForDay = (day) => breachRuns.find((r) => day >= r.startDay && day <= r.endDay) || null;
+  const runLabel = (r) => (r.startDay === r.endDay
+    ? fmtDate(r.startDate, r.startDay)
+    : `${fmtDate(r.startDate, r.startDay)} – ${fmtDate(r.endDate, r.endDay)}`);
+
+  const lastPoint = points[points.length - 1];
+  const todayPoint = typeof currentDay === 'number' ? points.find((p) => p.day === currentDay) : null;
+  const hasToday = Boolean(todayPoint);
+  const lowName = hasToday ? 'Lowest from today' : 'Lowest point';
+
+  // ---- Markers: one per day with entries ----
+  const markerFor = (row) => {
+    if (!row || row.evts.length === 0) return null;
+    const hasIncome = row.evts.some((e) => e.amount > 0 && e.itemType !== 'transfer');
+    const hasPlannedBill = row.evts.some((e) => e.amount < 0 && (e.isPlannedTransaction || !e.isActual));
+    const kind = hasIncome ? 'income' : hasPlannedBill ? 'bill' : 'paid';
+    return { kind, count: row.evts.length };
+  };
+  const hasIncomeMarkers = rows.some((r) => markerFor(r)?.kind === 'income');
+  const hasBillMarkers = rows.some((r) => markerFor(r)?.kind === 'bill');
+  const hasPaidMarkers = rows.some((r) => markerFor(r)?.kind === 'paid');
+
+  // ---- Active day: hover/keyboard first, then the selected day ----
   const activeDay = hoveredDay !== null ? hoveredDay : selectedDay;
-  const activePoint = hoveredPointId !== null
-    ? points.find((p) => p.eventId === hoveredPointId)
-    : (activeDay !== null ? (points.find((p) => p.day === activeDay && !p.isIntermediate) || points.find((p) => p.day === activeDay)) : null);
+  const activePoint = activeDay !== null ? points.find((p) => p.day === activeDay) : null;
+  const activeRow = activeDay !== null ? rows.find((r) => r.day === activeDay) : null;
 
-  const activeDayObj = activePoint ? dailyBalances.find((d) => d.day === activePoint.day) : null;
-  const activeIndex = activeDayObj ? dailyBalances.indexOf(activeDayObj) : -1;
-  const prevPoint = activeIndex > 0 ? dailyBalances[activeIndex - 1] : null;
-  const isBreached = activePoint ? activePoint.balance < safetyFloor : false;
-
-  // Day calculations: opening balance, spending on that day, and closing balance
-  const closingBalance = activePoint ? activePoint.balance : 0;
-  const rawDayEvents = activePoint
-    ? ((activeDayObj && activeDayObj.intradayEvents && activeDayObj.intradayEvents.length > 0)
-        ? activeDayObj.intradayEvents
-        : (events || []).filter((e) => e.day === activePoint.day || e.date === activePoint.date))
-    : [];
-
-  const dayEvents = isFilteringAccount
-    ? rawDayEvents.filter(matchesSelectedAccount)
-    : rawDayEvents;
-
-  const eventSpend = dayEvents.reduce((sum, e) => {
-    return e.amount < 0 ? sum + Math.abs(e.amount) : sum;
-  }, 0);
-
-  let openingBalance = closingBalance;
-  if (prevPoint) {
-    openingBalance = prevPoint.balance;
-  } else if (dayEvents.length > 0) {
-    const netChange = dayEvents.reduce((sum, e) => sum + (e.amount || 0), 0);
-    openingBalance = closingBalance - netChange;
-  }
-
-  let daySpend = eventSpend;
-  if (daySpend === 0 && prevPoint && prevPoint.balance > closingBalance) {
-    daySpend = prevPoint.balance - closingBalance;
-  }
-
-  // Active event on intermediate points (or single event for the day)
-  const activeEvent = activePoint?.event || (dayEvents.length === 1 ? dayEvents[0] : null);
-  const activeAccount = getEventAccountInfo(activeEvent);
-
-  // Tooltip geometry
-  const tooltipWidth = 224;
-  const tooltipHeight = activeEvent
-    ? (activeAccount ? (isBreached ? 142 : 124) : (isBreached ? 122 : 106))
-    : (isBreached ? 96 : 84);
-  let tooltipX = activePoint ? activePoint.x - tooltipWidth / 2 : 0;
-  if (tooltipX < 6) tooltipX = 6;
-  if (tooltipX + tooltipWidth > width - 6) tooltipX = width - tooltipWidth - 6;
-
-  let tooltipY = activePoint ? activePoint.y - tooltipHeight - 12 : 0;
-  if (tooltipY < 6) {
-    tooltipY = activePoint ? activePoint.y + 12 : 6;
-  }
-  if (tooltipY + tooltipHeight > height - 6) {
-    tooltipY = height - tooltipHeight - 6;
-  }
-
-  const todayPoint = typeof currentDay === 'number' ? dailyBalances.find((p) => p.day === currentDay) : null;
-
-  // ---- Day insights: hovered day, else selected day, else today, else month-end ----
-  // Strict attribution for the day panel: when an event names its account(s),
-  // only those count. The balance snapshot (accountBalances) lists every
-  // account, so it is used only for events with no account ids at all.
-  const belongsToSelectedAccount = (ev) => {
-    if (!isFilteringAccount) return true;
-    const ids = [
-      ev.bankAccountId, ev.walletId, ev.accountId,
-      ev.sourceBankAccountId, ev.sourceWalletId, ev.sourceAccountId,
-      ev.destinationBankAccountId, ev.destinationWalletId, ev.destinationAccountId
-    ].filter(Boolean).map((v) => String(v._id || v.id || v));
-    if (ids.length === 0) return matchesSelectedAccount(ev);
-    return ids.some((id) => id === normSelectedId || (alt1 && id === alt1) || (alt2 && id === alt2) || (alt3 && id === alt3));
-  };
-
-  const eventsForDay = (pt) => {
-    if (!pt) return [];
-    const raw = (pt.intradayEvents && pt.intradayEvents.length > 0)
-      ? pt.intradayEvents
-      : (events || []).filter((e) => e.day === pt.day || e.date === pt.date);
-    return raw.filter(belongsToSelectedAccount);
-  };
-  const dayOutflow = (evts) => evts.reduce((sum, e) => (e.amount < 0 && e.itemType !== 'transfer' ? sum + Math.abs(e.amount) : sum), 0);
-
-  const insightDayNum = hoveredDay ?? selectedDay ?? (todayPoint ? todayPoint.day : dailyBalances[dailyBalances.length - 1]?.day);
-  const insightIdx = dailyBalances.findIndex((d) => d.day === insightDayNum);
-  const insightPt = insightIdx >= 0 ? dailyBalances[insightIdx] : null;
+  // ---- Day panel: active day, else today, else month-end ----
+  const insightDay = activeDay ?? (todayPoint ? todayPoint.day : lastPoint.day);
+  const insightRow = rows.find((r) => r.day === insightDay) || null;
   let insight = null;
-  if (insightPt) {
-    const evts = eventsForDay(insightPt);
-    const inflow = evts.reduce((sum, e) => (e.amount > 0 && e.itemType !== 'transfer' ? sum + e.amount : sum), 0);
-    const outflow = dayOutflow(evts);
-    const prevBal = insightIdx > 0
-      ? dailyBalances[insightIdx - 1].balance
-      : insightPt.balance - evts.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const change = insightPt.balance - prevBal;
-    const headroom = insightPt.balance - safetyFloor;
-
-    // Biggest outflow day across the month (for context)
-    let maxOut = 0;
-    dailyBalances.forEach((d) => { maxOut = Math.max(maxOut, dayOutflow(eventsForDay(d))); });
-    const unplannedOut = evts.reduce((sum, e) => (e.amount < 0 && e.itemType === 'unplanned-transaction' ? sum + Math.abs(e.amount) : sum), 0);
+  if (insightRow) {
+    const change = insightRow.closing - insightRow.opening;
+    const headroom = insightRow.closing - safetyFloor;
+    const maxOut = Math.max(...rows.map((r) => r.outflow));
+    const unplannedOut = insightRow.evts.reduce((sum, e) => (e.amount < 0 && e.itemType === 'unplanned-transaction' ? sum + Math.abs(e.amount) : sum), 0);
+    const run = runForDay(insightRow.day);
 
     const flags = [];
-    if (insightPt.date && insightPt.date === lowestDate) flags.push({ key: 'low', text: 'Lowest point of the month' });
-    if (evts.some((e) => e.isSalary || e.itemType === 'salary')) flags.push({ key: 'pay', text: 'Payday' });
-    if (outflow > 0 && outflow === maxOut) flags.push({ key: 'big', text: 'Biggest spending day' });
-    if (safetyFloor > 0 && headroom < 0) flags.push({ key: 'breach', text: `${formatCurrency(Math.abs(headroom), currencySymbol)} below floor` });
+    if (insightRow.date && insightRow.date === lowestDate) {
+      flags.push({ key: 'low', text: 'Lowest point of the month' });
+    } else if (hasToday && insightRow.date && insightRow.date === low?.date) {
+      flags.push({ key: 'low', text: 'Lowest point from today' });
+    }
+    if (insightRow.evts.some((e) => e.isSalary || e.itemType === 'salary')) flags.push({ key: 'pay', text: 'Payday' });
+    if (insightRow.outflow > 0 && insightRow.outflow === maxOut) flags.push({ key: 'big', text: 'Biggest spending day' });
+    if (safetyFloor > 0 && headroom < 0) {
+      flags.push({ key: 'breach', text: `${formatCurrency(Math.abs(headroom), currencySymbol)} below floor${run && run.startDay !== run.endDay ? ` (${runLabel(run)})` : ''}` });
+    }
     if (typeof safeDailyRate === 'number' && safeDailyRate > 0 && unplannedOut > safeDailyRate) {
       flags.push({ key: 'pace', text: `${formatCurrency(unplannedOut - safeDailyRate, currencySymbol)} over the daily safe amount` });
     }
-
     const phase = typeof currentDay === 'number'
-      ? (insightPt.day === currentDay ? 'Today' : insightPt.day > currentDay ? 'Projected' : 'Actual')
+      ? (insightRow.day === currentDay ? 'Today' : insightRow.day > currentDay ? 'Projected' : 'Actual')
       : null;
-
-    insight = { pt: insightPt, evts, inflow, outflow, change, headroom, flags, phase };
+    insight = { row: insightRow, change, headroom, flags, phase };
   }
 
+  // ---- Screen-reader summary ----
+  const firstPoint = points[0];
+  const chartSummary = `Balance starts at ${formatCurrency(firstPoint.balance, currencySymbol)} and is projected to end the month at ${formatCurrency(lastPoint.balance, currencySymbol)}. `
+    + (lowPoint ? `${hasToday ? 'Lowest point from today' : 'Lowest point'} ${formatCurrency(lowPoint.balance, currencySymbol)} on ${fmtDate(lowPoint.date, lowPoint.day, true)}, ` : '')
+    + (safetyFloor > 0
+      ? (lowUnderFloor
+        ? `${formatCurrency(safetyFloor - lowPoint.balance, currencySymbol)} below the safety floor.`
+        : `above the safety floor of ${formatCurrency(safetyFloor, currencySymbol)}.`)
+      : 'no safety floor set.')
+    + ' Use the left and right arrow keys to move between days.';
+
+  // ---- Interaction ----
   const nearestDayFromClientX = (clientX) => {
     if (!containerRef.current) return null;
     const rect = containerRef.current.getBoundingClientRect();
     if (!rect.width) return null;
     const relX = ((clientX - rect.left) / rect.width) * width;
-    let closestDay = dailyBalances[0]?.day ?? 1;
-    let minDistance = Infinity;
-    dailyBalances.forEach((pt) => {
-      const dist = Math.abs(getX(pt.day) - relX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestDay = pt.day;
-      }
-    });
-    return closestDay;
+    const raw = Math.round(minDay + ((relX - paddingLeft) / (chartWidth || 1)) * (maxDay - minDay));
+    return Math.max(minDay, Math.min(maxDay, raw));
   };
+  const toggleSelect = (day) => onSelectDay?.(selectedDay === day ? null : day);
 
   const handleMouseMove = (e) => {
-    if (hoveredPointId) return; // a specific intraday pin is being inspected
     const day = nearestDayFromClientX(e.clientX);
-    if (day !== null && day !== hoveredDay) setHoveredDay(day);
+    if (day !== null && (day !== hoveredDay || hoverSource !== 'pointer')) {
+      setHoveredDay(day);
+      setHoverSource('pointer');
+    }
   };
+  const clearHover = () => { setHoveredDay(null); setHoverSource(null); };
 
+  // Tap selects the nearest day and keeps it; dragging scrubs across days.
   const handleTouch = (e) => {
-    if (!e.touches || e.touches.length === 0 || !containerRef.current) return;
-    const touch = e.touches[0];
-    const rect = containerRef.current.getBoundingClientRect();
-    if (!rect.width) return;
-    const touchX = touch.clientX - rect.left;
-    const relX = (touchX / rect.width) * width;
-
-    let closestDay = dailyBalances[0]?.day ?? 1;
-    let minDistance = Infinity;
-
-    dailyBalances.forEach((pt) => {
-      const px = getX(pt.day);
-      const dist = Math.abs(px - relX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestDay = pt.day;
-      }
-    });
-
-    setHoveredDay(closestDay);
-    onSelectDay?.(closestDay);
+    if (!e.touches || e.touches.length === 0) return;
+    const day = nearestDayFromClientX(e.touches[0].clientX);
+    if (day === null) return;
+    setHoveredDay(day);
+    setHoverSource('touch');
+    if (day !== selectedDay) onSelectDay?.(day);
   };
+
+  const handleKeyDown = (e) => {
+    const base = hoveredDay ?? selectedDay ?? (todayPoint ? todayPoint.day : minDay);
+    let next = null;
+    if (e.key === 'ArrowRight') next = Math.min(maxDay, base + 1);
+    else if (e.key === 'ArrowLeft') next = Math.max(minDay, base - 1);
+    else if (e.key === 'Home') next = minDay;
+    else if (e.key === 'End') next = maxDay;
+    else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSelect(base);
+      return;
+    } else if (e.key === 'Escape') {
+      clearHover();
+      onSelectDay?.(null);
+      return;
+    }
+    if (next !== null) {
+      e.preventDefault();
+      setHoveredDay(next);
+      setHoverSource('keyboard');
+    }
+  };
+
+  // Tooltip: pointer hover only (keyboard and touch use the panel)
+  const tooltip = hoverSource === 'pointer' && activePoint && activeRow ? {
+    xPct: (activePoint.x / width) * 100,
+    yPct: (activePoint.y / height) * 100,
+    date: activePoint.date,
+    day: activePoint.day,
+    balance: activeRow.closing,
+    change: activeRow.closing - activeRow.opening,
+    belowFloorBy: safetyFloor > 0 && activeRow.closing < safetyFloor ? safetyFloor - activeRow.closing : 0
+  } : null;
+
+  // Low-point label placement: below the point (it is the lowest point from
+  // today, so the line beside it is never lower), or above it when there is no
+  // room under it. Anchored inward near either end of the plot.
+  // On phones the plot is too narrow for a direct label without covering the
+  // line or markers, so the low is stated in a line under the title instead.
+  const lowText = lowPoint
+    ? (lowUnderFloor
+      ? `${formatCurrencyWhole(safetyFloor - lowPoint.balance, currencySymbol)} under floor · ${fmtDate(lowPoint.date, lowPoint.day)}`
+      : `Low ${formatCurrencyWhole(lowPoint.balance, currencySymbol)} · ${fmtDate(lowPoint.date, lowPoint.day)}`)
+    : '';
+  let lowLabel = null;
+  if (lowPoint && !isMobile) {
+    const text = lowText;
+    const nearRight = lowPoint.x > paddingLeft + chartWidth * 0.8;
+    const nearLeft = lowPoint.x < paddingLeft + chartWidth * 0.2;
+    // Below the point, unless that runs off the plot or into the floor line and its label
+    const belowY = lowPoint.y + 22;
+    const hitsFloor = safetyFloor > 0 && floorY > lowPoint.y && floorY < belowY + 18;
+    const below = belowY < plotBottom - 6 && !hitsFloor;
+    lowLabel = {
+      text,
+      x: nearRight ? lowPoint.x - 8 : nearLeft ? lowPoint.x + 8 : lowPoint.x,
+      y: below ? lowPoint.y + 22 : lowPoint.y - 12,
+      anchor: nearRight ? 'end' : nearLeft ? 'start' : 'middle'
+    };
+  }
+  // Floor label: above its line at the left. If the low label would sit on it,
+  // try just below the line, then the right end of the line; with no clear spot
+  // it is left out (the legend still shows the floor). Text widths estimated at 11px.
+  const floorLabelText = `Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`;
+  let floorLabel = safetyFloor > 0 ? { x: paddingLeft + 4, y: floorY - 6, anchor: 'start' } : null;
+  if (floorLabel && lowLabel) {
+    const textW = (s) => s.length * 6.2;
+    const span = (x, anchor, w) => (anchor === 'start' ? [x, x + w] : anchor === 'end' ? [x - w, x] : [x - w / 2, x + w / 2]);
+    const [lx1, lx2] = span(lowLabel.x, lowLabel.anchor, textW(lowLabel.text));
+    const clashes = (c) => {
+      const [fx1, fx2] = span(c.x, c.anchor, textW(floorLabelText));
+      return fx1 < lx2 && lx1 < fx2 && Math.abs(lowLabel.y - c.y) < 14;
+    };
+    if (clashes(floorLabel)) {
+      const candidates = [
+        { x: paddingLeft + 4, y: floorY + 14, anchor: 'start' },
+        { x: width - PAD_RIGHT - 4, y: floorY - 6, anchor: 'end' }
+      ].filter((c) => c.y < plotBottom - 2 && c.y > PAD_TOP + 10);
+      floorLabel = candidates.find((c) => !clashes(c)) || null;
+    }
+  }
+
+  // Month-end label only when it says something the low label does not
+  const showMonthEndLabel = projectedPathD && lastPoint && (!lowPoint || lastPoint.balance !== lowPoint.balance);
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: '6px', marginBottom: '2px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="card-title">Daily balance timeline</span>
-          {selectedDay !== null && (
-            <span
-              className="selected-day-tag tabular-nums"
-              style={{
-                fontSize: 'var(--fs-xs)',
-                padding: '2px 8px',
-                background: 'var(--text)',
-                color: 'var(--bg)',
-                borderRadius: 'var(--radius-pill)',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
-              onClick={() => onSelectDay?.(null)}
-              title="Click to clear day filter"
-            >
-              Day {selectedDay} &times;
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-          <ul className="chart-legend" aria-label="Chart legend">
-            <li><span className="chart-key key-actual" aria-hidden="true" />{projectedPathD ? 'Actual' : 'Balance'}</li>
-            {projectedPathD && (
-              <li><span className="chart-key key-projected" aria-hidden="true" />Projected</li>
-            )}
-            {hasIncomeMarkers && (
-              <li><span className="chart-key key-income" aria-hidden="true" />Income</li>
-            )}
-            {plannedDaySet.size > 0 && (
-              <li><span className="chart-key key-bill" aria-hidden="true" />Planned bill</li>
-            )}
-            {safetyFloor > 0 && (
-              <li><span className="chart-key key-floor" aria-hidden="true" /><span>{`Floor: ${formatCurrency(safetyFloor, currencySymbol)}`}</span></li>
-            )}
-          </ul>
-          {onOpenReview && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={onOpenReview}
-              style={{
-                padding: '3px 9px',
-                fontSize: 'var(--fs-xs)',
-                fontWeight: 600,
-                borderRadius: 'var(--radius)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginLeft: '4px'
-              }}
-              title="Review Month Performance"
-            >
-              Review Month
-            </button>
-          )}
-        </div>
+    <div className="card balance-chart">
+      <div className="card-header balance-chart-head">
+        <span className="card-title">Daily balance timeline</span>
+        {isFilteringAccount && selectedAccount?.name && (
+          <span className="bc-account">{selectedAccount.name}</span>
+        )}
+        {selectedDay !== null && (
+          <button
+            type="button"
+            className="selected-day-tag tabular-nums"
+            onClick={() => onSelectDay?.(null)}
+            title="Clear the selected day"
+          >
+            Day {selectedDay} <span aria-hidden="true">&times;</span>
+          </button>
+        )}
       </div>
+      {lowPoint && isMobile && (
+        <p className={`bc-low-note ${lowUnderFloor ? 'under' : ''}`}>
+          <span className="chart-key key-low" aria-hidden="true" />
+          {lowUnderFloor ? lowText : `${hasToday ? 'Lowest from today' : 'Lowest'}: ${lowText.replace(/^Low /, '')}`}
+        </p>
+      )}
 
       <div
         ref={containerRef}
         className="chart-container"
-        style={{ position: 'relative', touchAction: 'pan-y', width: '100%', overflow: 'hidden' }}
+        tabIndex={0}
+        role="application"
+        aria-roledescription="balance chart"
+        aria-label={chartSummary}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { setHoveredDay(null); setHoveredPointId(null); }}
+        onMouseLeave={clearHover}
         onTouchStart={handleTouch}
         onTouchMove={handleTouch}
-        onTouchEnd={() => setHoveredDay(null)}
-        onTouchCancel={() => setHoveredDay(null)}
+        onTouchEnd={clearHover}
+        onTouchCancel={clearHover}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { if (hoverSource === 'keyboard') clearHover(); }}
       >
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -816,535 +465,203 @@ export function StepLineChart({
           height={height}
           className={`chart-svg ${fillHeight ? 'chart-svg-fill' : ''}`}
           preserveAspectRatio="none"
-          style={{ overflow: 'visible', userSelect: 'none', display: 'block', maxWidth: '100%' }}
+          aria-hidden="true"
         >
-          {/* Defs for soft ambient curve glow & modern area gradient */}
-          <defs>
-            <linearGradient id="monochromeCurveGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--text)" stopOpacity="0.16" />
-              <stop offset="60%" stopColor="var(--text)" stopOpacity="0.04" />
-              <stop offset="100%" stopColor="var(--text)" stopOpacity="0.0" />
-            </linearGradient>
-            <filter id="chartCurveGlow" x="-10%" y="-20%" width="120%" height="150%">
-              <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="var(--text)" floodOpacity="0.15" />
-            </filter>
-          </defs>
-
           {/* Plot background: clicking anywhere selects the nearest day */}
           <rect
+            className="bc-plot-hit"
             x={paddingLeft}
-            y={paddingTop}
+            y={PAD_TOP}
             width={chartWidth}
-            height={chartHeight}
+            height={plotBottom - PAD_TOP}
             fill="transparent"
-            style={{ cursor: 'crosshair' }}
             onClick={(e) => {
               const day = nearestDayFromClientX(e.clientX);
-              if (day !== null) onSelectDay?.(selectedDay === day ? null : day);
+              if (day !== null) toggleSelect(day);
             }}
           />
 
-          {/* Subtle Horizontal Grid lines */}
-          {yTicks.map((t, idx) => (
-            <g key={idx}>
-              <line
-                x1={paddingLeft}
-                y1={getY(t.val)}
-                x2={width - paddingRight}
-                y2={getY(t.val)}
-                stroke="var(--border)"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                opacity="0.45"
-              />
-              <text
-                x={paddingLeft - 8}
-                y={getY(t.val) + 4}
-                textAnchor="end"
-                className="chart-axis-text"
-                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500, fill: 'var(--text-muted)' }}
-              >
-                {t.label}
-              </text>
+          {/* Grid and y-axis: round values */}
+          {ticks.map((v, i) => (
+            <g key={v}>
+              <line className="bc-grid" x1={paddingLeft} y1={getY(v)} x2={width - PAD_RIGHT} y2={getY(v)} />
+              <text className="chart-axis-text" x={paddingLeft - 8} y={getY(v) + 4} textAnchor="end">{tickLabels[i]}</text>
             </g>
           ))}
 
-          {/* Dashed Safety Floor Line */}
-          <line
-            x1={paddingLeft}
-            y1={floorY}
-            x2={width - paddingRight}
-            y2={floorY}
-            stroke={floorBreached ? 'var(--rose)' : 'var(--text-muted)'}
-            strokeWidth="1.5"
-            strokeDasharray="4 4"
-            opacity={floorBreached ? 0.85 : 0.45}
-          />
-          {/* Floor label sits at the left end; the right end carries the month-end value */}
-          <text
-            x={paddingLeft + 4}
-            y={floorY - 6}
-            textAnchor="start"
-            style={{
-              fontSize: 'var(--fs-2xs)',
-              fill: floorBreached ? 'var(--rose)' : 'var(--text-secondary)',
-              fontWeight: 600
-            }}
-          >
-            {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
-          </text>
-
-          {/* Below-floor zone: makes "danger" a place on the chart, not just a number */}
-          {safetyFloor > 0 && floorY < height - paddingBottom && (
-            <rect
-              x={paddingLeft}
-              y={floorY}
-              width={chartWidth}
-              height={Math.max(0, height - paddingBottom - floorY)}
-              fill="var(--rose)"
-              opacity={floorBreached ? 0.1 : 0.05}
-            />
+          {/* Below-floor zone and floor line */}
+          {safetyFloor > 0 && floorY < plotBottom && (
+            <rect className="bc-floor-zone" x={paddingLeft} y={floorY} width={chartWidth} height={Math.max(0, plotBottom - floorY)} />
+          )}
+          {safetyFloor > 0 && (
+            <>
+              <line className={`bc-floor ${floorBreached ? 'breached' : ''}`} x1={paddingLeft} y1={floorY} x2={width - PAD_RIGHT} y2={floorY} />
+              {floorLabel && (
+                <text className={`bc-floor-label ${floorBreached ? 'breached' : ''}`} x={floorLabel.x} y={floorLabel.y} textAnchor={floorLabel.anchor}>
+                  {floorLabelText}
+                </text>
+              )}
+            </>
           )}
 
-          {/* Smooth area fill under the curve */}
-          {areaD && (
-            <path d={areaD} fill="url(#monochromeCurveGrad)" />
-          )}
+          {/* Area under the line */}
+          {areaD && <path className="bc-area" d={areaD} />}
 
-          {/* Crisp Today Indicator Line & Glow Badge */}
+          {/* Today */}
           {todayPoint && (
-            <g className="chart-today-group">
-              <line
-                x1={getX(todayPoint.day)}
-                y1={paddingTop}
-                x2={getX(todayPoint.day)}
-                y2={height - paddingBottom}
-                stroke="var(--text-secondary)"
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-                opacity="0.8"
-              />
-              <rect
-                x={getX(todayPoint.day) - 22}
-                y={paddingTop - 13}
-                width="44"
-                height="15"
-                rx="3.5"
-                fill="var(--text)"
-                filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25))"
-              />
-              <text
-                x={getX(todayPoint.day)}
-                y={paddingTop - 2}
-                textAnchor="middle"
-                fill="var(--bg)"
-                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, letterSpacing: '0.04em' }}
-              >
-                TODAY
-              </text>
+            <g className="bc-today">
+              <line x1={todayPoint.x} y1={PAD_TOP} x2={todayPoint.x} y2={plotBottom} />
+              <rect x={todayPoint.x - 22} y={PAD_TOP - 15} width="44" height="15" rx="3.5" />
+              <text x={todayPoint.x} y={PAD_TOP - 4} textAnchor="middle">TODAY</text>
             </g>
           )}
 
-          {/* Active / Hovered Point Guideline */}
+          {/* Crosshair on the active day */}
           {activePoint && (
-            <line
-              x1={getX(activePoint.day)}
-              y1={paddingTop}
-              x2={getX(activePoint.day)}
-              y2={height - paddingBottom}
-              stroke="var(--text-secondary)"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-              opacity="0.6"
-            />
+            <line className="bc-crosshair" x1={activePoint.x} y1={PAD_TOP} x2={activePoint.x} y2={plotBottom} />
           )}
 
-          {/* Dual-Phase Curved Line Paths: Solid Realized vs Dashed Projected */}
+          {/* Step line: solid up to today, dashed projection after */}
           {realizedPathD && projectedPathD ? (
             <>
-              {/* Realized History Line up to Today with Ambient Glow */}
-              <path
-                d={realizedPathD}
-                fill="none"
-                stroke="var(--text)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#chartCurveGlow)"
-              />
-              {/* Future Projection Line reflecting Planned Commitments */}
-              <path
-                d={projectedPathD}
-                fill="none"
-                stroke="var(--text-secondary)"
-                strokeWidth="2.2"
-                strokeDasharray="4 4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.85"
-              />
+              <path className="bc-line bc-line-actual" d={realizedPathD} />
+              <path className="bc-line bc-line-projected" d={projectedPathD} />
             </>
           ) : (
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--text)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#chartCurveGlow)"
-            />
+            <path className="bc-line bc-line-actual" d={pathD} />
           )}
 
-          {/* Data Points (supports multiple same-day transaction pins) */}
-          {points.map((pt) => {
-            const isLowest = pt.date === lowestDate;
-            const isSelected = selectedDay === pt.day;
-            const isHovered = hoveredPointId === pt.eventId || (hoveredDay === pt.day && !hoveredPointId);
-            const isPlannedDay = plannedDaySet.has(pt.day);
-            const x = pt.x;
-            const y = pt.y;
+          {/* Days below the floor, as a band along the axis */}
+          {breachRuns.map((r) => {
+            const x1 = getX(r.startDay);
+            const x2 = r.endDay >= maxDay ? getX(maxDay) : getX(r.endDay + 1);
+            return <rect key={r.startDay} className="bc-breach-band" x={x1} y={plotBottom - 4} width={Math.max(3, x2 - x1)} height="4" />;
+          })}
 
+          {/* Entry markers: one per day */}
+          {rows.map((row) => {
+            const m = markerFor(row);
+            const pt = points.find((p) => p.day === row.day);
+            if (!m || !pt) return null;
+            const active = activeDay === row.day;
+            const s = active ? 6.5 : 5.5;
             return (
-              <g key={pt.eventId}>
-                {/* Visual circle dot */}
-                {isLowest ? (
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={isSelected || isHovered ? '6' : '5'}
-                    fill="var(--surface)"
-                    stroke="var(--text)"
-                    strokeWidth="2.5"
-                  />
-                ) : isIncomePoint(pt) ? (
-                  <path
-                    d={`M ${x} ${y - (isSelected || isHovered ? 7 : 5.5)} L ${x + (isSelected || isHovered ? 6.5 : 5)} ${y + (isSelected || isHovered ? 4.5 : 3.5)} L ${x - (isSelected || isHovered ? 6.5 : 5)} ${y + (isSelected || isHovered ? 4.5 : 3.5)} Z`}
-                    fill="var(--positive)"
-                    stroke="var(--surface)"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                ) : (isPlannedDay || pt.event?.isPlannedTransaction) ? (
-                  <>
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isSelected || isHovered ? '6.5' : (pt.isIntermediate ? '4.5' : '5')}
-                      fill="var(--surface)"
-                      stroke="var(--indigo)"
-                      strokeWidth={isSelected || isHovered ? '2.5' : '1.8'}
-                    />
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isSelected || isHovered ? '3' : '2'}
-                      fill="var(--indigo)"
-                    />
-                  </>
-                ) : (
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={isSelected || isHovered ? '5' : (pt.isIntermediate ? '3' : '2.5')}
-                    fill={isSelected || isHovered ? 'var(--text)' : 'var(--text-secondary)'}
-                    opacity={isSelected || isHovered ? '1' : '0.55'}
-                    stroke={isSelected || isHovered ? 'var(--surface)' : 'none'}
-                    strokeWidth={isSelected || isHovered ? '1.5' : '0'}
-                  />
+              <g key={`m-${row.day}`} className={`bc-marker bc-marker-${m.kind} ${active ? 'active' : ''}`}>
+                {m.kind === 'income' && (
+                  <path d={`M ${pt.x} ${pt.y - s - 1} L ${pt.x + s} ${pt.y + s - 2} L ${pt.x - s} ${pt.y + s - 2} Z`} />
                 )}
-
-                {/* Invisible hit-box circle for click/hover/tap */}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={pt.isIntermediate ? '14' : '18'}
-                  fill="transparent"
-                  style={{ cursor: 'pointer' }}
-                  onMouseEnter={() => {
-                    setHoveredPointId(pt.eventId);
-                    setHoveredDay(pt.day);
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredPointId(null);
-                    setHoveredDay(null);
-                  }}
-                  onClick={() => onSelectDay?.(selectedDay === pt.day ? null : pt.day)}
-                />
+                {m.kind === 'bill' && (
+                  <path d={`M ${pt.x} ${pt.y + s + 1} L ${pt.x + s} ${pt.y - s + 2} L ${pt.x - s} ${pt.y - s + 2} Z`} />
+                )}
+                {m.kind === 'paid' && <circle cx={pt.x} cy={pt.y} r={active ? 5 : 4} />}
+                {m.count > 1 && (
+                  <text className="bc-count" x={pt.x + s + 3} y={pt.y - s}>{m.count}</text>
+                )}
               </g>
             );
           })}
 
-          {/* Month-end value at the end of the line (the projection's answer) */}
-          {lastPoint && (
-            <text
-              x={lastPoint.x - 4}
-              y={Math.max(paddingTop + 4, lastPoint.y - 10)}
-              textAnchor="end"
-              className="chart-endpoint-label"
-              style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, fill: 'var(--text)' }}
-            >
-              {`${projectedPathD ? 'Month-end ' : ''}${formatChartTick(lastPoint.balance, currencySymbol)}`}
+          {/* Upcoming low */}
+          {lowPoint && (
+            <g className={`bc-low ${lowUnderFloor ? 'under' : ''}`}>
+              {/* An outer ring, so that day's entry marker stays visible inside it */}
+              <circle cx={lowPoint.x} cy={lowPoint.y} r="9" />
+              {lowLabel && <text x={lowLabel.x} y={lowLabel.y} textAnchor={lowLabel.anchor}>{lowLabel.text}</text>}
+            </g>
+          )}
+
+          {/* Selected/hovered day point */}
+          {activePoint && <circle className="bc-active-point" cx={activePoint.x} cy={activePoint.y} r="5" />}
+
+          {/* Month-end value at the end of the projection */}
+          {showMonthEndLabel && (
+            <text className="bc-end-label" x={lastPoint.x - 4} y={Math.max(PAD_TOP + 12, lastPoint.y - 10)} textAnchor="end">
+              {`Month-end ${formatCurrencyWhole(lastPoint.balance, currencySymbol)}`}
             </text>
           )}
 
-          {/* X Axis ticks: pruned for clarity and zero collisions */}
-          {prunedXTicks.map((day) => {
-            const point = dailyBalances.find((p) => p.day === day);
-            const isSelected = selectedDay === day;
-            const isNegative = day < 0;
+          {/* Per-day hit areas (pointer and click) */}
+          {points.map((pt) => (
+            <circle
+              key={`h-${pt.day}`}
+              className="bc-hit"
+              cx={pt.x}
+              cy={pt.y}
+              r={Math.max(10, Math.min(18, dayWidth / 2))}
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={() => toggleSelect(pt.day)}
+            />
+          ))}
 
-            let labelText = `${day}`;
-            if (isNegative && point) {
-              labelText = formatDisplayDate(point.date, false);
-            } else if (day === 1 && point) {
-              labelText = formatDisplayDate(point.date, false);
-            }
-
-            // Smart textAnchor to prevent boundary clipping on edges
-            const isLeftEdge = day === minDay;
-            const isRightEdge = day === maxDay;
-            const textAnchor = isLeftEdge ? (isNegative ? 'start' : 'middle') : isRightEdge ? 'end' : 'middle';
-
+          {/* Date labels */}
+          {xTicks.map((day) => {
+            const pt = points.find((p) => p.day === day);
+            const anchor = day === minDay ? 'start' : day === maxDay ? 'end' : 'middle';
             return (
               <text
-                key={day}
+                key={`x-${day}`}
+                className={`chart-axis-text bc-x ${selectedDay === day ? 'selected' : ''}`}
                 x={getX(day)}
-                y={height - 8}
-                textAnchor={textAnchor}
-                className="chart-axis-text"
-                style={{
-                  fill: isSelected ? 'var(--text)' : isNegative ? 'var(--text)' : undefined,
-                  fontWeight: isSelected || isNegative ? 600 : 500,
-                  fontSize: 'var(--fs-xs)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => onSelectDay?.(selectedDay === day ? null : day)}
+                y={height - 10}
+                textAnchor={anchor}
+                onClick={() => toggleSelect(day)}
               >
-                {labelText}
+                {fmtDate(pt?.date, day)}
               </text>
             );
           })}
-
-          {/* Interactive Floating Tooltip */}
-          {activePoint && (
-            <g transform={`translate(${tooltipX}, ${tooltipY})`} style={{ pointerEvents: 'none' }}>
-              <rect
-                width={tooltipWidth}
-                height={tooltipHeight}
-                rx="8"
-                fill="var(--surface)"
-                stroke="var(--border)"
-                strokeWidth="1"
-                filter="drop-shadow(0 4px 14px rgba(0, 0, 0, 0.12))"
-              />
-              {/* Header: Date */}
-              <text
-                x="12"
-                y="17"
-                fill="var(--text-secondary)"
-                style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600 }}
-              >
-                {activePoint.day < 0
-                  ? `${formatDisplayDate(activePoint.date, true)} (Day ${activePoint.day})`
-                  : formatDisplayDate(activePoint.date, true)}
-              </text>
-
-              {/* Active Transaction specific details (if an intraday transaction pin is hovered) */}
-              {activeEvent ? (
-                <>
-                  <text
-                    x="12"
-                    y="35"
-                    fill="var(--text)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                  >
-                    {(activeEvent.name || activeEvent.description || activeEvent.label || 'Transaction').slice(0, 16)}
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y="35"
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill={activeEvent.amount < 0 ? 'var(--text)' : 'var(--emerald)'}
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}
-                  >
-                    {activeEvent.amount < 0 ? `-${formatCurrency(Math.abs(activeEvent.amount), currencySymbol)}` : `+${formatCurrency(activeEvent.amount, currencySymbol)}`}
-                  </text>
-
-                  {/* Account Name & Type (Bank / Wallet) */}
-                  {activeAccount && (
-                    <>
-                      <text
-                        x="12"
-                        y="52"
-                        fill="var(--text-secondary)"
-                        style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
-                      >
-                        Account:
-                      </text>
-                      <text
-                        x={tooltipWidth - 12}
-                        y="52"
-                        textAnchor="end"
-                        fill="var(--text-secondary)"
-                        style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                      >
-                        {activeAccount.name.slice(0, 16)} ({activeAccount.type})
-                      </text>
-                    </>
-                  )}
-
-                  {/* Balance After this transaction */}
-                  <text
-                    x="12"
-                    y={activeAccount ? 70 : 52}
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
-                  >
-                    Balance:
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y={activeAccount ? 70 : 52}
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill="var(--text)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                  >
-                    {formatCurrency(activePoint.balance, currencySymbol)}
-                  </text>
-
-                  {/* Day Closing Balance */}
-                  <text
-                    x="12"
-                    y={activeAccount ? 88 : 69}
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-2xs)', fontWeight: 500 }}
-                  >
-                    Day End:
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y={activeAccount ? 88 : 69}
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                  >
-                    {formatCurrency(closingBalance, currencySymbol)}
-                  </text>
-                </>
-              ) : (
-                <>
-                  {/* Opening Balance */}
-                  <text
-                    x="12"
-                    y="35"
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
-                  >
-                    Opening:
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y="35"
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill="var(--text)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                  >
-                    {formatCurrency(openingBalance, currencySymbol)}
-                  </text>
-
-                  {/* Day Spending */}
-                  <text
-                    x="12"
-                    y="52"
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
-                  >
-                    Spending:
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y="52"
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill={daySpend > 0 ? 'var(--text)' : 'var(--text-secondary)'}
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}
-                  >
-                    {daySpend > 0 ? `-${formatCurrency(daySpend, currencySymbol)}` : formatCurrency(0, currencySymbol)}
-                  </text>
-
-                  {/* Closing Balance */}
-                  <text
-                    x="12"
-                    y="69"
-                    fill="var(--text-secondary)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}
-                  >
-                    Closing:
-                  </text>
-                  <text
-                    x={tooltipWidth - 12}
-                    y="69"
-                    textAnchor="end"
-                    className="tabular-nums"
-                    fill="var(--text)"
-                    style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}
-                  >
-                    {formatCurrency(closingBalance, currencySymbol)}
-                  </text>
-                </>
-              )}
-
-              {/* Floor Breached Warning */}
-              {isBreached && (
-                <text
-                  x="12"
-                  y={activeEvent ? (activeAccount ? 106 : 88) : 87}
-                  fill="var(--danger)"
-                  style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600 }}
-                >
-                  ▲ Floor breached
-                </text>
-              )}
-            </g>
-          )}
         </svg>
-        {chartSummary && <p className="sr-only">{chartSummary}</p>}
+
+        {tooltip && <ChartTooltip {...tooltip} currencySymbol={currencySymbol} />}
       </div>
+
+      <ul className="chart-legend" aria-label="Chart legend">
+        <li><span className="chart-key key-actual" aria-hidden="true" />{projectedPathD ? 'Actual' : 'Balance'}</li>
+        {projectedPathD && <li><span className="chart-key key-projected" aria-hidden="true" />Projected</li>}
+        {hasIncomeMarkers && <li><span className="chart-key key-income" aria-hidden="true" />Income</li>}
+        {hasBillMarkers && <li><span className="chart-key key-bill" aria-hidden="true" />Planned bill</li>}
+        {hasPaidMarkers && <li><span className="chart-key key-paid" aria-hidden="true" />Paid</li>}
+        {lowPoint && <li><span className="chart-key key-low" aria-hidden="true" />{lowName}</li>}
+        {safetyFloor > 0 && (
+          <li><span className="chart-key key-floor" aria-hidden="true" /><span>{`Floor: ${formatCurrency(safetyFloor, currencySymbol)}`}</span></li>
+        )}
+      </ul>
 
       {insight && (
         <div className="day-insight" aria-live="polite">
           <div className="di-head">
-            <span className="di-date">
-              {insight.pt.date ? formatDisplayDate(insight.pt.date, true) : `Day ${insight.pt.day}`}
-            </span>
+            <span className="di-date">{fmtDate(insight.row.date, insight.row.day, true)}</span>
             {insight.phase && <span className={`di-phase phase-${insight.phase.toLowerCase()}`}>{insight.phase}</span>}
             <span className="di-hint">
-              {hoveredDay !== null ? 'Hovering' : selectedDay !== null ? 'Selected day' : 'Hover or tap the chart to inspect a day'}
+              {hoverSource === 'keyboard'
+                ? 'Enter selects · Esc clears'
+                : hoveredDay !== null
+                  ? 'Hovering'
+                  : selectedDay !== null
+                    ? 'Selected day'
+                    : 'Hover, tap or use the arrow keys to inspect a day'}
             </span>
           </div>
 
           <dl className="di-stats">
             <div className="di-stat">
               <dt>Closing balance</dt>
-              <dd className="tabular-nums">{formatCurrency(insight.pt.balance, currencySymbol)}</dd>
+              <dd className="tabular-nums">{formatCurrency(insight.row.closing, currencySymbol)}</dd>
             </div>
             <div className="di-stat">
               <dt>Change from day before</dt>
               <dd className={`tabular-nums ${insight.change > 0 ? 'di-up' : insight.change < 0 ? 'di-down' : ''}`}>
                 {insight.change > 0 ? '▲ +' : insight.change < 0 ? '▼ ' : ''}{formatCurrency(insight.change, currencySymbol)}
               </dd>
+              <span className="di-sub tabular-nums">Opened at {formatCurrency(insight.row.opening, currencySymbol)}</span>
             </div>
             <div className="di-stat">
               <dt>Money in / out</dt>
               <dd className="tabular-nums">
-                <span className="di-up">+{formatCurrency(insight.inflow, currencySymbol)}</span>
+                <span className="di-up">+{formatCurrency(insight.row.inflow, currencySymbol)}</span>
                 {' / '}
-                <span>-{formatCurrency(insight.outflow, currencySymbol)}</span>
+                <span>-{formatCurrency(insight.row.outflow, currencySymbol)}</span>
               </dd>
             </div>
             <div className="di-stat">
@@ -1363,9 +680,9 @@ export function StepLineChart({
             </ul>
           )}
 
-          {insight.evts.length > 0 ? (
+          {insight.row.evts.length > 0 ? (
             <ul className="di-events">
-              {insight.evts.slice(0, 4).map((e, i) => (
+              {insight.row.evts.slice(0, 4).map((e, i) => (
                 <li key={`${e.transactionId || e.itemId || e.label}-${i}`} className="di-event">
                   <span className="di-event-name">{e.label || e.name || 'Entry'}</span>
                   <span className={`di-event-amt tabular-nums ${e.amount > 0 ? 'di-up' : ''}`}>
@@ -1375,12 +692,39 @@ export function StepLineChart({
                   </span>
                 </li>
               ))}
-              {insight.evts.length > 4 && <li className="di-more">+{insight.evts.length - 4} more in the timeline</li>}
+              {insight.row.evts.length > 4 && <li className="di-more">+{insight.row.evts.length - 4} more in the timeline</li>}
             </ul>
           ) : (
             <p className="di-quiet">No money moved on this day.</p>
           )}
         </div>
+      )}
+
+      <div className="bc-footer">
+        <button
+          type="button"
+          className="btn-subtle btn-sm bc-table-toggle"
+          aria-expanded={showTable}
+          onClick={() => setShowTable((v) => !v)}
+        >
+          {showTable ? 'Hide table' : 'Show as table'}
+        </button>
+        {onOpenReview && (
+          <button type="button" className="btn-secondary btn-sm" onClick={onOpenReview}>
+            Review month
+          </button>
+        )}
+      </div>
+
+      {showTable && (
+        <BalanceTable
+          rows={rows}
+          safetyFloor={safetyFloor}
+          currentDay={currentDay}
+          currencySymbol={currencySymbol}
+          selectedDay={selectedDay}
+          onSelectDay={onSelectDay}
+        />
       )}
     </div>
   );

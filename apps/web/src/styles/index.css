@@ -26,6 +26,7 @@
 @import './components/timeline-rows.css' layer(app);
 @import './screens/plan-timeline.css' layer(app);
 @import './screens/plan-insights.css' layer(app);
+@import './components/balance-chart.css' layer(app);
 @import './components/ui.css' layer(app);
 @import './moved/unified-entry-modal.css';
 @import './moved/accounts-screen.css';
