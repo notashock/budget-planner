@@ -502,6 +502,23 @@ export function StepLineChart({
     return set;
   }, [events]);
 
+  // Income events get their own marker (▲) so paydays read differently from bills
+  const isIncomePoint = (pt) => Boolean(pt?.event && (pt.event.amount > 0) && pt.event.itemType !== 'transfer');
+  const hasIncomeMarkers = points.some(isIncomePoint);
+
+  const lastPoint = points.length ? points[points.length - 1] : null;
+  const firstPoint = points.length ? points[0] : null;
+  const lowestPoint = points.reduce((min, p) => (!min || p.balance < min.balance ? p : min), null);
+  const chartSummary = lastPoint && firstPoint && lowestPoint
+    ? `Balance starts at ${formatCurrency(firstPoint.balance, currencySymbol)} and is projected to end the month at ${formatCurrency(lastPoint.balance, currencySymbol)}. `
+      + `Lowest point ${formatCurrency(lowestPoint.balance, currencySymbol)}${lowestPoint.date ? ` on ${formatDisplayDate(lowestPoint.date, true)}` : ''}, `
+      + (safetyFloor > 0
+        ? (lowestPoint.balance < safetyFloor
+          ? `${formatCurrency(safetyFloor - lowestPoint.balance, currencySymbol)} below the safety floor.`
+          : `${formatCurrency(lowestPoint.balance - safetyFloor, currencySymbol)} above the safety floor.`)
+        : 'no safety floor set.')
+    : '';
+
   // Active point for tooltip inspection (can be specific intraday event point or day point)
   const activeDay = hoveredDay !== null ? hoveredDay : selectedDay;
   const activePoint = hoveredPointId !== null
@@ -614,13 +631,21 @@ export function StepLineChart({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '12px', height: '2px', background: 'var(--text)', display: 'inline-block' }} />
-            Balance
-          </span>
-          <span style={{ fontWeight: 500 }}>
-            Floor: {formatCurrency(safetyFloor, currencySymbol)}
-          </span>
+          <ul className="chart-legend" aria-label="Chart legend">
+            <li><span className="chart-key key-actual" aria-hidden="true" />{projectedPathD ? 'Actual' : 'Balance'}</li>
+            {projectedPathD && (
+              <li><span className="chart-key key-projected" aria-hidden="true" />Projected</li>
+            )}
+            {hasIncomeMarkers && (
+              <li><span className="chart-key key-income" aria-hidden="true" />Income</li>
+            )}
+            {plannedDaySet.size > 0 && (
+              <li><span className="chart-key key-bill" aria-hidden="true" />Planned bill</li>
+            )}
+            {safetyFloor > 0 && (
+              <li><span className="chart-key key-floor" aria-hidden="true" />Floor {formatCurrency(safetyFloor, currencySymbol)}</li>
+            )}
+          </ul>
           {onOpenReview && (
             <button
               type="button"
@@ -720,6 +745,18 @@ export function StepLineChart({
           >
             {`Safety floor: ${formatCurrency(safetyFloor, currencySymbol)}`}
           </text>
+
+          {/* Below-floor zone: makes "danger" a place on the chart, not just a number */}
+          {safetyFloor > 0 && floorY < height - paddingBottom && (
+            <rect
+              x={paddingLeft}
+              y={floorY}
+              width={chartWidth}
+              height={Math.max(0, height - paddingBottom - floorY)}
+              fill="var(--rose)"
+              opacity={floorBreached ? 0.1 : 0.05}
+            />
+          )}
 
           {/* Smooth area fill under the curve */}
           {areaD && (
@@ -832,6 +869,14 @@ export function StepLineChart({
                     stroke="var(--text)"
                     strokeWidth="2.5"
                   />
+                ) : isIncomePoint(pt) ? (
+                  <path
+                    d={`M ${x} ${y - (isSelected || isHovered ? 7 : 5.5)} L ${x + (isSelected || isHovered ? 6.5 : 5)} ${y + (isSelected || isHovered ? 4.5 : 3.5)} L ${x - (isSelected || isHovered ? 6.5 : 5)} ${y + (isSelected || isHovered ? 4.5 : 3.5)} Z`}
+                    fill="var(--positive)"
+                    stroke="var(--surface)"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
                 ) : (isPlannedDay || pt.event?.isPlannedTransaction) ? (
                   <>
                     <circle
@@ -839,14 +884,14 @@ export function StepLineChart({
                       cy={y}
                       r={isSelected || isHovered ? '6.5' : (pt.isIntermediate ? '4.5' : '5')}
                       fill="var(--surface)"
-                      stroke="#3b82f6"
+                      stroke="var(--indigo)"
                       strokeWidth={isSelected || isHovered ? '2.5' : '1.8'}
                     />
                     <circle
                       cx={x}
                       cy={y}
                       r={isSelected || isHovered ? '3' : '2'}
-                      fill="#3b82f6"
+                      fill="var(--indigo)"
                     />
                   </>
                 ) : (
@@ -881,6 +926,19 @@ export function StepLineChart({
               </g>
             );
           })}
+
+          {/* Month-end value at the end of the line (the projection's answer) */}
+          {lastPoint && (
+            <text
+              x={lastPoint.x - 4}
+              y={Math.max(paddingTop + 4, lastPoint.y - 10)}
+              textAnchor="end"
+              className="chart-endpoint-label"
+              style={{ fontSize: '11px', fontWeight: 600, fill: 'var(--text)' }}
+            >
+              {`${projectedPathD ? 'Month-end ' : ''}${formatChartTick(lastPoint.balance, currencySymbol)}`}
+            </text>
+          )}
 
           {/* X Axis ticks: pruned for clarity and zero collisions */}
           {prunedXTicks.map((day) => {
@@ -1107,6 +1165,7 @@ export function StepLineChart({
             </g>
           )}
         </svg>
+        {chartSummary && <p className="sr-only">{chartSummary}</p>}
       </div>
     </div>
   );

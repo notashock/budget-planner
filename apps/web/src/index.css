@@ -8570,6 +8570,333 @@ main {
   border-color: var(--rose-border) !important;
 }
 
+/* ---- Screen-reader-only text ---- */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Chart legend (keys drawn in the same shapes the chart uses) ---- */
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.chart-key {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.chart-key.key-actual {
+  width: 14px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.chart-key.key-projected {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed var(--text-secondary);
+}
+
+.chart-key.key-income {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid var(--positive);
+}
+
+.chart-key.key-bill {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--indigo);
+  box-sizing: border-box;
+}
+
+.chart-key.key-floor {
+  width: 14px;
+  height: 8px;
+  border-top: 1.5px dashed var(--rose);
+  background: var(--rose-subtle);
+}
+
+/* ---- Insight cards row ---- */
+.plan-insights-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.plan-insight-card {
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.pic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pic-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pic-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pic-sub {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pic-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pic-note.status-over { color: var(--amber); }
+
+.pic-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.pic-status.status-on,
+.pic-status.status-under {
+  background: var(--emerald-subtle);
+  border-color: var(--emerald-border);
+  color: var(--positive);
+}
+
+.pic-status.status-over {
+  background: var(--amber-subtle);
+  border-color: var(--amber-border);
+  color: var(--amber);
+}
+
+/* ---- Allowance pace meter ---- */
+.pace-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pace-spent {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pace-of {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* Track is a lighter step of the fill's own hue so state reads along the whole bar */
+.pace-meter {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--indigo-subtle);
+  margin: 4px 0;
+}
+
+.pace-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--indigo);
+  min-width: 4px;
+}
+
+.pace-meter.status-over {
+  background: var(--amber-subtle);
+}
+
+.pace-meter.status-over .pace-fill {
+  background: var(--amber);
+}
+
+/* "Expected by today" marker with a surface ring so it reads over the fill */
+.pace-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.pace-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.pace-scale strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---- Upcoming payments ---- */
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  min-width: 0;
+}
+
+.upcoming-row + .upcoming-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.upcoming-row.is-overdue {
+  background: var(--rose-subtle);
+}
+
+.upcoming-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.upcoming-row.is-overdue .upcoming-icon { color: var(--rose); }
+.upcoming-row.is-today .upcoming-icon { color: var(--amber); }
+
+.upcoming-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.upcoming-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upcoming-when {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.upcoming-row.is-overdue .upcoming-when { color: var(--rose); font-weight: 600; }
+.upcoming-row.is-today .upcoming-when { color: var(--amber); font-weight: 600; }
+
+.upcoming-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.upcoming-pay {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.upcoming-pay:hover,
+.upcoming-pay:focus-visible {
+  color: var(--positive);
+  border-color: var(--emerald-border);
+  background: var(--emerald-subtle);
+}
+
+.upcoming-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+@media (max-width: 1023px) {
+  .plan-insights-row { display: contents; }
+}
+
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
 @media (max-width: 1023px) {
   .month-health-hero { order: 1; }

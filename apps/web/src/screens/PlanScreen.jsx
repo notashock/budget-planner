@@ -8,6 +8,8 @@ import {
   QuarterlyBreakdownTable
 } from '../components/SummaryCards.jsx';
 import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
+import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
+import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
@@ -353,9 +355,6 @@ export function PlanScreen({
     ? (activeAccountSummary?.safeVelocity?.rate ?? safeToSpendPerDay)
     : (simulation?.safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay);
 
-  const activeAllowanceLeft = isFilteringAccount
-    ? (activeAccountSummary?.safeVelocity?.allowanceLeft ?? allowanceLeft)
-    : (simulation?.safeVelocity?.freeSurplus ?? allowanceLeft);
 
   // Single source for the figures shared by the hero and the KPI strip
   const activeTodayBalance = isFilteringAccount
@@ -370,6 +369,33 @@ export function PlanScreen({
   const activeLowestDate = isFilteringAccount
     ? (activeAccountSummary?.lowestDate || activeLowestPt.date)
     : (simulation?.lowestDate || activeLowestPt.date);
+
+  // "Today" for the upcoming-payments card: the real date in the current month,
+  // the month's first day when planning ahead, and nothing for past months.
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const realTodayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const monthStartStr = month ? `${month.year}-${pad2(month.month)}-01` : null;
+  const upcomingTodayStr = isReviewMode || !month
+    ? null
+    : isCurrentCalendarMonth
+      ? realTodayStr
+      : (monthStartStr && monthStartStr > realTodayStr ? monthStartStr : null);
+
+  const handlePayUpcoming = (evt) => {
+    const targetId = evt.transactionId || evt.itemId || evt._id || evt.id;
+    if (!targetId) return;
+    const rawAcc = evt.bankAccountId || evt.walletId || evt.accountId || (selectedAccount?.id || selectedAccount?._id);
+    const resolvedAccountId = rawAcc ? (rawAcc.id || rawAcc._id || rawAcc) : null;
+    if (onPayTransaction) {
+      onPayTransaction(targetId, {
+        amount: Math.abs(evt.amount || 0),
+        date: realTodayStr,
+        accountId: resolvedAccountId ? String(resolvedAccountId) : undefined
+      });
+    } else if (onTogglePaid) {
+      onTogglePaid(targetId, true);
+    }
+  };
 
   useGSAP(() => {
     if (!containerRef.current) return;
@@ -830,6 +856,28 @@ export function PlanScreen({
             />
           </ErrorBoundary>
         </div>
+      </div>
+
+      {/* Planner insights: what's due next and how the allowance is pacing */}
+      <div className="plan-insights-row">
+        <ErrorBoundary title="Upcoming payments unavailable">
+          <UpcomingOutflows
+            events={activeEvents}
+            todayStr={upcomingTodayStr}
+            currencySymbol={month.currencySymbol}
+            isReviewMode={isReviewMode}
+            onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
+          />
+        </ErrorBoundary>
+        <ErrorBoundary title="Allowance pace unavailable">
+          <AllowancePaceMeter
+            unplannedAllowance={activeSim?.unplannedAllowance ?? 0}
+            totalUnplannedSpent={activeSim?.totalUnplannedSpent ?? 0}
+            daysElapsed={activeSim?.daysElapsed ?? simulation?.daysElapsed ?? 1}
+            daysInMonth={activeSim?.daysInMonth ?? simulation?.daysInMonth ?? (activeDailyBalances.length || 30)}
+            currencySymbol={month.currencySymbol}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}
