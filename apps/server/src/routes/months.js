@@ -1,117 +1,59 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { MonthLifecycle } from '../domain/monthLifecycle.js';
+import { route, yearMonth } from './routeHelpers.js';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
 
-// List all months
-monthsRouter.get('/', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const months = await MonthLifecycle.listMonths(userId);
-    return res.success(months);
-  } catch (err) {
-    next(err);
-  }
-});
+/**
+ * Month (budget period) handlers, mounted here on /api/months and on
+ * /api/v1/periods, so both surfaces run the same code.
+ */
+export const monthHandlers = {
+  list: route(async (req, res) => res.success(await MonthLifecycle.listMonths(req.userId))),
 
-// Create month
-monthsRouter.post('/', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const fullMonth = await MonthLifecycle.createMonth(userId, req.body);
-    return res.success(fullMonth, 201);
-  } catch (err) {
-    next(err);
-  }
-});
+  create: route(async (req, res) => res.success(await MonthLifecycle.createMonth(req.userId, req.body), 201)),
 
-// Get single month with dual simulations
-monthsRouter.get('/:year/:month', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const snapshot = await MonthLifecycle.getMonthDetails(userId, year, monthNum);
-    return res.success(snapshot);
-  } catch (err) {
-    next(err);
-  }
-});
+  // Month detail with simulations
+  detail: route(async (req, res) => res.success(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)))),
 
-// Update month settings / overrides
-monthsRouter.put('/:year/:month', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const updated = await MonthLifecycle.updateMonth(userId, year, monthNum, req.body);
-    return res.success(updated);
-  } catch (err) {
-    next(err);
-  }
-});
+  // Month settings / overrides
+  update: route(async (req, res) => res.success(await MonthLifecycle.updateMonth(req.userId, ...yearMonth(req), req.body))),
 
-// Dedicated 1-click salary credit endpoint
-monthsRouter.post('/:year/:month/credit-salary', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const result = await MonthLifecycle.creditSalary(userId, year, monthNum, req.body);
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
+  // 1-click salary credit
+  creditSalary: route(async (req, res) => res.success(await MonthLifecycle.creditSalary(req.userId, ...yearMonth(req), req.body))),
 
-// Recommend purchase date
-monthsRouter.post('/:year/:month/recommend-purchase-date', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
+  recommendPurchaseDate: route(async (req, res) => {
     const rawAmt = req.body.amount ?? req.body.purchaseAmount;
     const rec = await MonthLifecycle.recommendPurchaseDate(
-      userId,
-      year,
-      monthNum,
+      req.userId,
+      ...yearMonth(req),
       rawAmt,
       req.body.fundingSource,
       req.body.currentDay
     );
     return res.success(rec);
-  } catch (err) {
-    next(err);
-  }
-});
+  }),
 
-// Month rollover handlers
-const handleRollover = async (req, res, next) => {
-  try {
-    const userId = req.userId;
+  rollover: route(async (req, res) => {
     const currentYear = Number(req.params.year || req.body.currentYear);
     const currentMonthNum = Number(req.params.month || req.body.currentMonthNum);
-    const result = await MonthLifecycle.rolloverMonth(userId, currentYear, currentMonthNum, req.body);
-    return res.success(result, 201);
-  } catch (err) {
-    next(err);
-  }
+    return res.success(await MonthLifecycle.rolloverMonth(req.userId, currentYear, currentMonthNum, req.body), 201);
+  }),
+
+  // Cascade delete; ?force=true deletes a month that has activity
+  remove: route(async (req, res) => res.success(
+    await MonthLifecycle.deleteMonth(req.userId, ...yearMonth(req), req.query.force === 'true')
+  ))
 };
 
-monthsRouter.post('/:year/:month/rollover', handleRollover);
-monthsRouter.post('/rollover', handleRollover);
-
-// Delete month cascade
-monthsRouter.delete('/:year/:month', async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const year = Number(req.params.year);
-    const monthNum = Number(req.params.month);
-    const result = await MonthLifecycle.deleteMonth(userId, year, monthNum, req.query.force === 'true');
-    return res.success(result);
-  } catch (err) {
-    next(err);
-  }
-});
+monthsRouter.get('/', monthHandlers.list);
+monthsRouter.post('/', monthHandlers.create);
+monthsRouter.get('/:year/:month', monthHandlers.detail);
+monthsRouter.put('/:year/:month', monthHandlers.update);
+monthsRouter.post('/:year/:month/credit-salary', monthHandlers.creditSalary);
+monthsRouter.post('/:year/:month/recommend-purchase-date', monthHandlers.recommendPurchaseDate);
+monthsRouter.post('/:year/:month/rollover', monthHandlers.rollover);
+monthsRouter.post('/rollover', monthHandlers.rollover);
+monthsRouter.delete('/:year/:month', monthHandlers.remove);

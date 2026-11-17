@@ -117,9 +117,18 @@ export const MonthTransitions = {
     const fullMonth = await attachAccountOpeningsToMonth(updatedMonth);
 
     const [items, transactions, transfers] = await Promise.all([
-      db.query.items.findMany({ where: and(eq(s.items.userId, userId), eq(s.items.monthId, month.id)) }),
-      db.query.transactions.findMany({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)) }),
-      db.query.transfers.findMany({ where: and(eq(s.transfers.userId, userId), eq(s.transfers.monthId, month.id)) })
+      db.query.items.findMany({
+        where: and(eq(s.items.userId, userId), eq(s.items.monthId, month.id)),
+        orderBy: [asc(s.items.priority), asc(s.items.createdAt)]
+      }),
+      db.query.transactions.findMany({
+        where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)),
+        orderBy: [asc(s.transactions.date), asc(s.transactions.createdAt)]
+      }),
+      db.query.transfers.findMany({
+        where: and(eq(s.transfers.userId, userId), eq(s.transfers.monthId, month.id)),
+        orderBy: [asc(s.transfers.date), asc(s.transfers.createdAt)]
+      })
     ]);
 
     const goalsForSim = await loadGoalsForUser(userId);

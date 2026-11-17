@@ -1,5 +1,5 @@
 // Purchase-date recommendation returned by the server
-// (POST /api/months/:year/:month/goals/recommend-date). The app only parses it;
+// (POST /api/v1/periods/:year/:month/goals/recommend-date). The app only parses it;
 // the recommendation itself is computed by @budget/engine on the server.
 
 class RecommendationResult {
