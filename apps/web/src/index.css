@@ -1752,6 +1752,12 @@ main {
   color: var(--emerald);
 }
 
+.header-floor-pill.tight {
+  border-color: var(--amber-border);
+  background: var(--amber-subtle);
+  color: var(--amber);
+}
+
 .header-floor-pill.breached {
   border-color: var(--rose-border) !important;
   background: var(--rose-subtle) !important;

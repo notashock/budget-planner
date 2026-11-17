@@ -252,6 +252,8 @@ export default function App() {
     }
   };
 
+  // Verdict reported by the Plan page for the scope being viewed (header mirrors it)
+  const [planVerdict, setPlanVerdict] = useState(null);
   const [serverSimulation, setServerSimulation] = useState(() => {
     try {
       const cached = localStorage.getItem('budget_cached_simulation');
@@ -1043,6 +1045,7 @@ export default function App() {
         onCycleTheme={cycleTheme}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        verdict={activeTab === 'plan' ? planVerdict : null}
       />
 
       <div className="app-container" style={{ position: 'relative', zIndex: 10 }}>
@@ -1152,6 +1155,7 @@ export default function App() {
                 }}
                 onPayTransaction={handlePayTransaction}
                 onEditTransaction={handleEditItem}
+                onVerdictChange={setPlanVerdict}
               />
             )
           )}

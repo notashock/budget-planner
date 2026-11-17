@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { formatCurrency, getSalaryWindowStatus } from '@budget/engine';
+import { formatCurrency, getSalaryWindowStatus, getUnifiedVerdict } from '@budget/engine';
 import {
   PlusIcon,
   ZapIcon,
@@ -51,6 +51,7 @@ export function Header({
   themeMode = 'system',
   onCycleTheme,
   activeTab = 'plan',
+  verdict: pageVerdict = null,
   onSelectTab
 }) {
   const [activeDropdown, setActiveDropdown] = useState(null); // 'month' | 'user' | null
@@ -80,12 +81,14 @@ export function Header({
     ? (currentMonth.name || (currentMonth.month ? `${MONTH_NAMES[currentMonth.month - 1]} ${currentMonth.year}` : 'Select month'))
     : 'Select month';
 
-  const safetyFloor = currentMonth?.safetyFloor ?? 0;
   const currencySymbol = currentMonth?.currencySymbol ?? '₹';
-  const lowestBalance = simulation?.lowestBalance ?? 0;
-  const floorBreached = simulation?.floorBreached ?? false;
-  const deficit = safetyFloor - lowestBalance;
-  const margin = lowestBalance - safetyFloor;
+  // Same verdict as the Plan page: the page reports its own (for the account
+  // being viewed); elsewhere the header derives the all-accounts verdict from
+  // the engine with the same function, the engine's floor and the upcoming low.
+  const verdict = pageVerdict || getUnifiedVerdict(simulation);
+  const verdictClass = verdict ? { good: 'safe', tight: 'tight', critical: 'breached' }[verdict.key] : 'safe';
+  const headroomAmount = verdict?.headroom?.amount ?? 0;
+  const verdictScope = pageVerdict?.scope || 'All accounts';
 
   const salaryLockStatus = useMemo(() => {
     return getSalaryWindowStatus(currentMonth);
@@ -344,23 +347,18 @@ export function Header({
 
         {/* Zone 3: Symmetrical Status & Global Utilities */}
         <div className="app-header-right">
-          {currentMonth && safetyFloor > 0 && (
+          {currentMonth && verdict && (
             <div
-              className={`header-floor-pill ${floorBreached ? 'breached' : 'safe'}`}
-              title={
-                floorBreached
-                  ? `Safety floor breached by ${formatCurrency(deficit, currencySymbol)}. Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
-                  : `Safety floor maintained (+${formatCurrency(margin, currencySymbol)} cushion). Lowest balance: ${formatCurrency(lowestBalance, currencySymbol)}`
-              }
+              className={`header-floor-pill ${verdictClass}`}
+              role="status"
+              title={`${verdictScope}: ${verdict.label}. ${headroomAmount < 0
+                ? `${formatCurrency(Math.abs(headroomAmount), currencySymbol)} below the safety floor at the lowest point.`
+                : `${formatCurrency(headroomAmount, currencySymbol)} above the safety floor at the lowest point.`}`}
             >
-              <span className={`floor-indicator-glyph ${floorBreached ? 'breached' : 'safe'}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                {floorBreached ? <AlertTriangleIcon size={11} /> : <CheckCircleIcon size={11} />}
+              <span className={`floor-indicator-glyph ${verdictClass}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {verdict.key === 'good' ? <CheckCircleIcon size={11} /> : <AlertTriangleIcon size={11} />}
               </span>
-              <span className="header-floor-text">
-                {floorBreached
-                  ? `-${formatCurrency(deficit, currencySymbol)}`
-                  : `Floor Safe`}
-              </span>
+              <span className="header-floor-text">{verdict.label}</span>
             </div>
           )}
 

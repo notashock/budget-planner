@@ -328,3 +328,36 @@ export function getGoalMonthlyReserve(goals = [], { year, month } = {}) {
 
   return { total: items.reduce((s, i) => s + i.reserve, 0), items };
 }
+
+/**
+ * The month's one-line verdict, shared by the Plan page and the header so they
+ * can never disagree.
+ * - critical: the (upcoming) low point is below the safety floor
+ * - tight:    within 15% of the floor, spending faster than the daily limit,
+ *             or no daily limit left
+ * - good:     otherwise
+ */
+export function getMonthVerdict({ lowestBalance = 0, safetyFloor = 0, paceStatus = '', safeRate = 0 } = {}) {
+  const headroom = getHeadroom(lowestBalance, safetyFloor);
+  const pace = String(paceStatus || '').toLowerCase();
+  if (headroom.status === 'breached') return { key: 'critical', label: 'Below floor', headroom };
+  if (headroom.status === 'warning' || pace.includes('contract') || pace.includes('crit') || safeRate <= 0) {
+    return { key: 'tight', label: 'Tight month', headroom };
+  }
+  return { key: 'good', label: 'On track', headroom };
+}
+
+/**
+ * Verdict for the whole household from a simulation result (all accounts).
+ * Uses the upcoming low and the engine's unified floor.
+ */
+export function getUnifiedVerdict(simulation) {
+  if (!simulation) return null;
+  const sv = simulation.safeVelocity || {};
+  return getMonthVerdict({
+    lowestBalance: simulation.lowestUpcomingBalance ?? simulation.lowestBalance ?? 0,
+    safetyFloor: simulation.safetyFloor ?? 0,
+    paceStatus: sv.paceStatus || sv.status || '',
+    safeRate: sv.safeVelocityPerDay ?? sv.rate ?? simulation.safeToSpendPerDay ?? 0
+  });
+}

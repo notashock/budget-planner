@@ -12,7 +12,9 @@ export {
   groupSpendByCategory,
   getRunwayBand,
   getHeadroom,
-  getGoalMonthlyReserve
+  getGoalMonthlyReserve,
+  getMonthVerdict,
+  getUnifiedVerdict
 } from './planInsights.js';
 
 /**
