@@ -46,7 +46,7 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     expect(status.windowEndDate).toBe('2026-11-05');
   });
 
-  it('renders "Link Salary & Safeline" unlocked in Header during the active window on Nov 4', () => {
+  it('renders "Salary schedule" unlocked in Header during the active window on Nov 4', () => {
     const handleOpenSalarySafeline = vi.fn();
     render(
       <Header
@@ -84,7 +84,7 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
       />
     );
 
-    expect(screen.getByText('Link Salary & Safeline')).toBeInTheDocument();
+    expect(screen.getByText('Salary schedule')).toBeInTheDocument();
 
     const salaryInput = screen.getByLabelText(/monthly salary amount/i);
     const dateInput = screen.getByLabelText(/date of salary credit/i);
@@ -102,7 +102,7 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
     fireEvent.change(dateInput, { target: { value: '2026-11-04' } });
 
     // Submit form
-    const submitBtn = screen.getByRole('button', { name: /save salary & safeline/i });
+    const submitBtn = screen.getByRole('button', { name: /save salary schedule/i });
     expect(submitBtn).not.toBeDisabled();
     fireEvent.click(submitBtn);
 

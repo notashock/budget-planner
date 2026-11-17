@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { formatCurrency, formatDisplayDate, evaluateGoalsWithReservation } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
+import { PageTitle } from '../components/PageTitle.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 
 function computeAffordableGoalBundles(activeGoals, availableCushion) {
@@ -173,7 +174,7 @@ export function GoalsScreen({
   return (
     <div className="screen-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-        <h2>Purchase goals</h2>
+        <PageTitle title="Goals" subtitle="Things you are saving for, and when you can afford them." />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isReviewMode && (
             <span className="review-badge-tag" style={{ fontSize: '11px', padding: '3px 8px' }}>
@@ -506,7 +507,7 @@ export function GoalsScreen({
                               <span>Floor breach risk</span>
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
-                              Breaches floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
+                              Goes below your floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
                               {rec.lowestDate ? ` on ${formatDisplayDate(rec.lowestDate, true)}` : ''}.
                             </div>
                           </>

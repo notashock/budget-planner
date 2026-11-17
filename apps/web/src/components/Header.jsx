@@ -421,9 +421,20 @@ export function Header({
                       }}
                     >
                       {salaryLockStatus.isLocked ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
-                      <span>Link Salary & Safeline</span>
+                      <span>Salary schedule</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    className="app-dropdown-item"
+                    data-testid="open-assistant-btn"
+                    style={{ fontSize: '12px' }}
+                    onClick={() => onSelectTab?.('assistant')}
+                  >
+                    <SparklesIcon size={13} />
+                    <span>AI assistant</span>
+                  </button>
 
                   <div className="app-dropdown-divider" />
 

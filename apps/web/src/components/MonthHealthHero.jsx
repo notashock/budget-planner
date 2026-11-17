@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, formatDisplayDate, getMonthVerdict } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, formatDisplayDate, getMonthVerdict } from '@budget/engine';
 import { CheckCircleIcon, AlertTriangleIcon, ShieldAlertIcon } from './Icons.jsx';
 import { CashAllocationBar } from './CashAllocationBar.jsx';
 
@@ -76,7 +76,7 @@ export function MonthHealthHero({
       <div className="mh-figure">
         <span className="mh-label">Safe to spend</span>
         <div className="mh-value-row">
-          <span className="mh-value">{formatCurrency(rate, currencySymbol)}</span>
+          <span className="mh-value">{formatCurrencyWhole(Math.floor(Math.max(0, rate) / 100) * 100, currencySymbol)}</span>
           <span className="mh-unit">/ day</span>
         </div>
         <p className="mh-explain">

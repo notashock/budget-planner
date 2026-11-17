@@ -1,8 +1,10 @@
 import React from 'react';
 import {
   formatCurrency,
+  formatCurrencyWhole,
   formatDisplayDate,
   getNetPosition,
+  splitInvestments,
   splitPaidAndPlanned,
   getHeadroom
 } from '@budget/engine';
@@ -45,7 +47,8 @@ export function DetailedKpiGrid({
     ? totalExpenses
     : paid + planned;
 
-  const { net, savingsRate } = getNetPosition(incomeAmount, totalOutflow);
+  const { invested } = splitInvestments(events);
+  const { net, savingsRate, savedAndInvested } = getNetPosition(incomeAmount, totalOutflow, { invested });
   const headroom = getHeadroom(lowestBalance, safetyFloor);
   const floorBreached = headroom.status === 'breached';
 
@@ -62,7 +65,7 @@ export function DetailedKpiGrid({
         </div>
 
         <span className="summary-value">
-          {formatCurrency(incomeAmount, currencySymbol)}
+          {formatCurrencyWhole(incomeAmount, currencySymbol)}
         </span>
 
         <div className="kpi-footer">
@@ -87,7 +90,7 @@ export function DetailedKpiGrid({
           </div>
         </div>
         <span className="summary-value">
-          {formatCurrency(totalOutflow, currencySymbol)}
+          {formatCurrencyWhole(totalOutflow, currencySymbol)}
         </span>
         <div className="kpi-footer">
           <span className="kpi-subtext">
@@ -104,19 +107,21 @@ export function DetailedKpiGrid({
             <span className={`kpi-icon-badge ${net < 0 ? 'kpi-expense' : 'kpi-balance'}`} aria-hidden="true">
               <WalletIcon size={13} strokeWidth={2.2} />
             </span>
-            <span className="summary-label">Net this month</span>
+            <span className="summary-label">Projected net</span>
           </div>
         </div>
         <span className={`summary-value ${net < 0 ? 'text-breached' : 'text-net-positive'}`}>
-          {net > 0 ? '+' : ''}{formatCurrency(net, currencySymbol)}
+          {net > 0 ? '+' : ''}{formatCurrencyWhole(net, currencySymbol)}
         </span>
         <div className="kpi-footer">
           <span className="kpi-subtext">
             {savingsRate === null
               ? 'No income recorded'
-              : net >= 0
-                ? `${formatPercent(savingsRate)} of income saved`
-                : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
+              : invested > 0
+                ? `${formatCurrencyWhole(savedAndInvested, currencySymbol)} saved & invested · ${formatPercent(Math.max(0, savingsRate))} of income`
+                : net >= 0
+                  ? `${formatPercent(savingsRate)} of income saved`
+                  : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
           </span>
         </div>
       </div>
@@ -131,7 +136,7 @@ export function DetailedKpiGrid({
           </div>
         </div>
         <span className={`summary-value ${floorBreached ? 'text-breached' : ''}`}>
-          {formatCurrency(lowestBalance, currencySymbol)}
+          {formatCurrencyWhole(lowestBalance, currencySymbol)}
         </span>
         <div className="kpi-footer">
           {floorBreached && (
@@ -176,7 +181,7 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
       <div className="summary-card kpi-card">
         <span className="summary-label">Smoothed income</span>
         <span className="summary-value text-net-positive">
-          {formatCurrency(smoothedMonthlyIncome, currencySymbol)}<span className="irr-unit"> / mo</span>
+          {formatCurrencyWhole(smoothedMonthlyIncome, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
         <span className="kpi-subtext">{periodLabel}: {formatCurrency(trailing12mIncome, currencySymbol)}</span>
       </div>
@@ -184,7 +189,7 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
       <div className="summary-card kpi-card">
         <span className="summary-label">Avg monthly spending</span>
         <span className="summary-value">
-          {formatCurrency(avgMonthlySpending, currencySymbol)}<span className="irr-unit"> / mo</span>
+          {formatCurrencyWhole(avgMonthlySpending, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
         <span className="kpi-subtext">{periodLabel}: {formatCurrency(trailing12mSpending, currencySymbol)}</span>
       </div>
@@ -203,7 +208,7 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
 
       <div className="summary-card kpi-card">
         <span className="summary-label">Total liquid balance</span>
-        <span className="summary-value">{formatCurrency(currentBalance, currencySymbol)}</span>
+        <span className="summary-value">{formatCurrencyWhole(currentBalance, currencySymbol)}</span>
         <span className="kpi-subtext">Across all accounts</span>
       </div>
     </div>

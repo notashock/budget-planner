@@ -74,19 +74,18 @@ function getMonotoneCubicSplinePath(points) {
   return d;
 }
 
+// Compact axis labels in the Indian system, matching the en-IN amounts shown
+// everywhere else: full figures under ₹10,000, then k (thousand), L (lakh)
+// and Cr (crore).
 export function formatChartTick(val, symbol) {
   const major = Math.abs(val) / 100;
   const sign = val < 0 ? '-' : '';
+  const compact = (n) => String(Math.round(n * 10) / 10);
 
-  if (major >= 1000000) {
-    const formatted = (major / 1000000).toFixed(1).replace(/\.0$/, '');
-    return `${sign}${symbol}${formatted}m`;
-  }
-  if (major >= 10000) {
-    const formatted = (major / 1000).toFixed(1).replace(/\.0$/, '');
-    return `${sign}${symbol}${formatted}k`;
-  }
-  return `${sign}${symbol}${Math.round(major)}`;
+  if (major >= 10000000) return `${sign}${symbol}${compact(major / 10000000)}Cr`;
+  if (major >= 100000) return `${sign}${symbol}${compact(major / 100000)}L`;
+  if (major >= 10000) return `${sign}${symbol}${compact(major / 1000)}k`;
+  return `${sign}${symbol}${Math.round(major).toLocaleString('en-IN')}`;
 }
 
 /**

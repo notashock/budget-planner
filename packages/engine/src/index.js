@@ -6,6 +6,8 @@ export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoun
 export {
   buildCashAllocation,
   getNetPosition,
+  isInvestment,
+  splitInvestments,
   splitPaidAndPlanned,
   getAllowancePace,
   getUpcomingOutflows,
@@ -29,14 +31,33 @@ export function toMajorUnits(minor, scale = 100) {
   return Number(minor || 0) / scale;
 }
 
-export function formatCurrency(minor, symbol = '₹', scale = 100) {
+/**
+ * Formats minor units as currency with Indian digit grouping.
+ * @param {number} minor
+ * @param {string} [symbol='₹']
+ * @param {number} [scale=100]
+ * @param {{ decimals?: 0 | 2 | 'auto' }} [options]
+ *   2 (default): always show paise, for lists and the ledger.
+ *   0: whole rupees (rounded), for headline figures and totals.
+ *   'auto': drop paise only when the amount is a whole number of rupees.
+ */
+export function formatCurrency(minor, symbol = '₹', scale = 100, options = {}) {
   const major = toMajorUnits(minor, scale);
+  const { decimals = 2 } = options || {};
+  const digits = decimals === 'auto'
+    ? (Number.isInteger(Math.round(Math.abs(major) * 100) / 100) ? 0 : 2)
+    : (decimals === 0 ? 0 : 2);
   const formatted = Math.abs(major).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
   });
-  const sign = major < 0 ? '-' : '';
+  const sign = major < 0 && formatted.replace(/[0,.]/g, '') !== '' ? '-' : '';
   return `${sign}${symbol}${formatted}`;
+}
+
+/** Whole-rupee headline figure (rounded). */
+export function formatCurrencyWhole(minor, symbol = '₹', scale = 100) {
+  return formatCurrency(minor, symbol, scale, { decimals: 0 });
 }
 
 /**

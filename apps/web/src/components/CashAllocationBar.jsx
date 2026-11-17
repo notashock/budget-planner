@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, buildCashAllocation } from '@budget/engine';
+import { formatCurrencyWhole as formatCurrency, buildCashAllocation } from '@budget/engine';
 
 const SEGMENT_META = {
   committed: { label: 'Upcoming bills', className: 'alloc-committed' },

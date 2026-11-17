@@ -273,20 +273,22 @@ describe('StepLineChart component', () => {
       expect(formatChartTick(0, '₹')).toBe('₹0');
       expect(formatChartTick(1000, '₹')).toBe('₹10');
       expect(formatChartTick(10000, '₹')).toBe('₹100');
-      expect(formatChartTick(100000, '₹')).toBe('₹1000');
-      expect(formatChartTick(950000, '₹')).toBe('₹9500');
+      expect(formatChartTick(100000, '₹')).toBe('₹1,000');
+      expect(formatChartTick(950000, '₹')).toBe('₹9,500');
     });
 
-    it('formats values at and above 10k using "k" suffix (10k, 100k)', () => {
+    it('formats thousands with "k" and lakhs with "L" (Indian system)', () => {
       expect(formatChartTick(1000000, '₹')).toBe('₹10k');
       expect(formatChartTick(5000000, '₹')).toBe('₹50k');
-      expect(formatChartTick(10000000, '₹')).toBe('₹100k');
-      expect(formatChartTick(15500000, '₹')).toBe('₹155k');
+      expect(formatChartTick(10000000, '₹')).toBe('₹1L');
+      expect(formatChartTick(15500000, '₹')).toBe('₹1.6L');
     });
 
-    it('formats values at and above 1m using "m" suffix', () => {
-      expect(formatChartTick(100000000, '₹')).toBe('₹1m');
-      expect(formatChartTick(250000000, '₹')).toBe('₹2.5m');
+    it('formats larger lakh values with "L" and crores with "Cr"', () => {
+      expect(formatChartTick(100000000, '₹')).toBe('₹10L');
+      expect(formatChartTick(250000000, '₹')).toBe('₹25L');
+      expect(formatChartTick(1000000000, '₹')).toBe('₹1Cr');
+      expect(formatChartTick(2550000000, '₹')).toBe('₹2.6Cr');
     });
 
     it('correctly handles negative values', () => {

@@ -82,7 +82,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
   };
 
   describe('PlanScreen Account Filter Bar', () => {
-    it('renders horizontal account filter pills and filters isolated trajectory on click', () => {
+    it('renders horizontal account filter pills and shows only the selected account on click', () => {
       render(
         <PlanScreen
           month={mockMonth}
@@ -95,7 +95,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('All Accounts (Unified)')).toBeInTheDocument();
+      expect(screen.getByText('All accounts')).toBeInTheDocument();
       expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
@@ -103,12 +103,12 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const bankPill = screen.getAllByText('HDFC Salary Account')[0].closest('button');
       fireEvent.click(bankPill);
 
-      expect(screen.getByText(/Viewing isolated trajectory for/i)).toBeInTheDocument();
+      expect(screen.getByText(/Showing only/i)).toBeInTheDocument();
       expect(screen.getByText('Reset')).toBeInTheDocument();
 
       // Reset back to unified via Reset button
       fireEvent.click(screen.getByText('Reset'));
-      expect(screen.queryByText(/Viewing isolated trajectory for/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Showing only/i)).not.toBeInTheDocument();
     });
 
     it('renders Prominent Data Transfer Banner when migrationEligible is true and opens migration on click', () => {
@@ -127,10 +127,10 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText(/Transfer Existing Calculations to Bank Account/i)).toBeInTheDocument();
-      expect(screen.getByText(/1-Tap Ingestion/i)).toBeInTheDocument();
+      expect(screen.getByText(/Move your balance into a bank account/i)).toBeInTheDocument();
+      expect(screen.getByText(/One step/i)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Transfer Existing Calculations Now/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Move my balance/i }));
       expect(handleOpenMigration).toHaveBeenCalledTimes(1);
     });
 
@@ -215,15 +215,15 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000.00')).toBeInTheDocument();
+      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
 
       // Isolated Today's balance for HDFC Salary Account is ₹49,000.00 (appears in filter pill and KPI card)
-      expect(screen.getAllByText('₹49,000.00').length).toBeGreaterThanOrEqual(2);
-      // Isolated safe velocity rate for HDFC is ₹32.00 / day
-      expect(screen.getByText('₹32.00')).toBeInTheDocument();
+      expect(screen.getAllByText('₹49,000').length).toBeGreaterThanOrEqual(2);
+      // Isolated daily spending limit for HDFC is ₹32 / day (whole rupees)
+      expect(screen.getByText('₹32')).toBeInTheDocument();
     });
   });
 
@@ -658,7 +658,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Monthly Income displays 75,000 (simulation.incomeAmount)
-      expect(screen.getByText('₹75,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹75,000')).toBeInTheDocument();
 
       // Click on ICICI Savings (bank-2)
       fireEvent.click(screen.getByText('ICICI Savings'));

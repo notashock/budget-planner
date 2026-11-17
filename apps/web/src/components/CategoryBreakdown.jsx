@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, groupSpendByCategory } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, groupSpendByCategory } from '@budget/engine';
 
 /**
  * Spending by category, largest first. Each bar is one hue split into
@@ -17,7 +17,7 @@ export function CategoryBreakdown({ events = [], currencySymbol = '₹', topN = 
     <section className="summary-card plan-insight-card plan-category-card" aria-labelledby="category-title">
       <div className="pic-head">
         <h3 id="category-title" className="pic-title">Spending by category</h3>
-        <span className="pic-total tabular-nums">{formatCurrency(total, currencySymbol)}</span>
+        <span className="pic-total tabular-nums">{formatCurrencyWhole(total, currencySymbol)}</span>
       </div>
 
       {hasPaid && hasPlanned && (
@@ -46,7 +46,7 @@ export function CategoryBreakdown({ events = [], currencySymbol = '₹', topN = 
                 {c.paid > 0 && <span className="cat-bar cat-paid" style={{ width: `${paidPct}%` }} />}
                 {c.planned > 0 && <span className="cat-bar cat-planned" style={{ width: `${plannedPct}%` }} />}
               </span>
-              <span className="cat-value tabular-nums">{formatCurrency(c.total, currencySymbol)}</span>
+              <span className="cat-value tabular-nums">{formatCurrencyWhole(c.total, currencySymbol)}</span>
               <span className="cat-share tabular-nums">{Math.round(c.share * 100)}%</span>
             </li>
           );

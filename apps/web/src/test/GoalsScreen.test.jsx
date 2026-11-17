@@ -32,7 +32,7 @@ describe('GoalsScreen', () => {
       />
     );
 
-    expect(screen.getByText(/^Purchase goals$/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Goals' })).toBeInTheDocument();
 
     const nameInput = screen.getByPlaceholderText(/e\.g\. Noise Cancelling Headphones, Laptop/i);
     const amountInput = screen.getByPlaceholderText('0.00');

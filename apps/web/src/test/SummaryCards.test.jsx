@@ -29,7 +29,7 @@ describe('SummaryCards components', () => {
       );
 
       expect(screen.getByText('Safe to spend')).toBeInTheDocument();
-      expect(screen.getByText('₹450.00')).toBeInTheDocument();
+      expect(screen.getByText('₹450')).toBeInTheDocument();
       expect(screen.getByText('12 days left')).toBeInTheDocument();
       expect(screen.getByText('On track')).toBeInTheDocument();
       expect(screen.getByText(/of upcoming bills, your/i)).toBeInTheDocument();
@@ -49,10 +49,10 @@ describe('SummaryCards components', () => {
       expect(screen.getByText("Where today's balance goes")).toBeInTheDocument();
       // 20,400 = 5,000 bills + 10,000 floor + 5,400 free
       expect(screen.getByText('Upcoming bills')).toBeInTheDocument();
-      expect(screen.getByText('₹5,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹5,000')).toBeInTheDocument();
       expect(screen.getByText('Safety floor')).toBeInTheDocument();
       expect(screen.getByText('Free to spend')).toBeInTheDocument();
-      expect(screen.getByText('₹5,400.00')).toBeInTheDocument();
+      expect(screen.getByText('₹5,400')).toBeInTheDocument();
       expect(screen.getByRole('img', { name: /Today's balance split/i })).toBeInTheDocument();
     });
 
@@ -86,8 +86,8 @@ describe('SummaryCards components', () => {
 
       // 20,400 = 5,000 bills + 10,000 floor + 2,000 goals + 3,400 free
       expect(screen.getByText('Goal savings')).toBeInTheDocument();
-      expect(screen.getByText('₹2,000.00')).toBeInTheDocument();
-      expect(screen.getByText('₹3,400.00')).toBeInTheDocument();
+      expect(screen.getByText('₹2,000')).toBeInTheDocument();
+      expect(screen.getByText('₹3,400')).toBeInTheDocument();
       expect(screen.getByText(/set aside for goals this month/i)).toBeInTheDocument();
     });
 
@@ -127,17 +127,36 @@ describe('SummaryCards components', () => {
       );
 
       expect(screen.getByText('Monthly income')).toBeInTheDocument();
-      expect(screen.getByText('₹60,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹60,000')).toBeInTheDocument();
       expect(screen.getByText('Total expenses')).toBeInTheDocument();
-      expect(screen.getByText('₹4,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹4,000')).toBeInTheDocument();
       expect(screen.getByText(/₹1,500.00 paid · ₹2,500.00 planned/)).toBeInTheDocument();
-      expect(screen.getByText('Net this month')).toBeInTheDocument();
-      expect(screen.getByText('+₹56,000.00')).toBeInTheDocument();
+      expect(screen.getByText('Projected net')).toBeInTheDocument();
+      expect(screen.getByText('+₹56,000')).toBeInTheDocument();
       expect(screen.getByText('93% of income saved')).toBeInTheDocument();
       expect(screen.getByText('Lowest balance')).toBeInTheDocument();
-      expect(screen.getByText('₹42,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹42,000')).toBeInTheDocument();
       expect(screen.getByText(/₹32,000.00 above floor/)).toBeInTheDocument();
       expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
+    });
+
+    it("counts SIPs and goal contributions as saving, not spending", () => {
+      render(
+        <DetailedKpiGrid
+          incomeAmount={10000000}
+          events={[
+            { amount: -5000000, category: 'Rent', isActual: true },
+            { amount: -1500000, category: 'Investments', tag: 'SIP' },
+            { amount: -500000, origin: 'goal', category: 'Phone' }
+          ]}
+          lowestBalance={3000000}
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+      // Income 1,00,000 - outflows 70,000 = 30,000 left; + 20,000 invested = 50,000 → 50%
+      expect(screen.getByText('+₹30,000')).toBeInTheDocument();
+      expect(screen.getByText('₹50,000 saved & invested · 50% of income')).toBeInTheDocument();
     });
 
     it("flags a breach earlier this month even when the upcoming low is above the floor", () => {
@@ -168,7 +187,7 @@ describe('SummaryCards components', () => {
 
       expect(screen.getByText('▲ Below floor')).toBeInTheDocument();
       expect(screen.getByText(/₹5.00 under floor/)).toBeInTheDocument();
-      expect(screen.getByText('-₹150.00')).toBeInTheDocument();
+      expect(screen.getByText('-₹150')).toBeInTheDocument();
       expect(screen.getByText('Spending 50% more than income')).toBeInTheDocument();
     });
 

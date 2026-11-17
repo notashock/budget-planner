@@ -119,7 +119,7 @@ export function SalarySafelineModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BuildingLibraryIcon size={18} />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
-                Link Salary & Safeline
+                Salary schedule
               </h3>
             </div>
             <button type="button" className="btn-icon" onClick={() => requestClose()}>✕</button>
@@ -146,7 +146,7 @@ export function SalarySafelineModal({
             data-testid="salary-lock-banner"
           >
             <LockIcon size={14} />
-            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason} Safeline floor remains editable.</span>
+            <span><strong>Salary logging locked:</strong> {salaryLockStatus.reason} Your safety floor can still be changed.</span>
           </div>
         )}
 
@@ -237,7 +237,7 @@ export function SalarySafelineModal({
           {/* Overall Safeline Floor */}
           <div>
             <label className="form-label" htmlFor="safeline-floor-input">
-              Overall Safeline Floor ({currencySymbol}) *
+              Safety floor ({currencySymbol}) *
             </label>
             <input
               id="safeline-floor-input"
@@ -311,8 +311,8 @@ export function SalarySafelineModal({
               disabled={loading || (!salaryLockStatus.isLocked && bankAccounts.length === 0)}
             >
               {salaryLockStatus.isLocked
-                ? (loading ? 'Updating...' : 'Update Safeline Floor')
-                : (loading ? 'Saving...' : 'Save Salary & Safeline')}
+                ? (loading ? 'Updating...' : 'Update safety floor')
+                : (loading ? 'Saving...' : 'Save salary schedule')}
             </button>
           </div>
         </form>

@@ -239,7 +239,7 @@ export function MonthEndReviewModal({
   const totalRecurringCommitted = recurringItems.reduce((sum, i) => sum + (i.amount || 0), 0);
   const totalFixedCommitted = fixedItems.reduce((sum, i) => sum + (i.amount || 0), 0);
 
-  // Dynamic Survival Cushion from safe velocity simulation or fallback
+  // Safety cushion from safe velocity simulation or fallback
   const survivalCushion = simulation?.safeVelocity?.freeSurplus != null
     ? simulation.safeVelocity.freeSurplus
     : (simulation?.allowanceLeft != null ? simulation.allowanceLeft : (review?.unplannedAllowance || 0));
@@ -308,7 +308,7 @@ export function MonthEndReviewModal({
               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
                 {review?.isAccountSpecific
                   ? `Isolated cashflow audit of income, spend, and transfers for ${review.accountName}`
-                  : 'Unified audit of planned baselines, recurring commitments, and dynamic survival cushion'}
+                  : 'How this month went against your plan, your bills and your safety cushion'}
               </div>
             </div>
             <button
@@ -384,7 +384,7 @@ export function MonthEndReviewModal({
                 ) : (
                   <div className="month-review-hero">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Dynamic Survival Cushion</span>
+                      <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Safety cushion</span>
                       {paceStatus && (
                         <span
                           style={{
@@ -406,7 +406,7 @@ export function MonthEndReviewModal({
                       {formatCurrency(survivalCushion, currencySymbol)}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                      <span>Safe velocity pace: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(safeVelocityPerDay, currencySymbol)}/day</strong></span>
+                      <span>Daily spending limit: <strong className="tabular-nums" style={{ color: 'var(--text)' }}>{formatCurrency(safeVelocityPerDay, currencySymbol)}/day</strong></span>
                       <span>Actual unplanned: <strong className="tabular-nums" style={{ color: review.totalUnplannedActual > survivalCushion ? 'var(--danger)' : 'var(--text)' }}>{formatCurrency(review.totalUnplannedActual, currencySymbol)}</strong></span>
                     </div>
                   </div>
@@ -613,19 +613,19 @@ export function MonthEndReviewModal({
                   </div>
                 </div>
 
-                {/* 5. Suggested Next-Month Survival Cushion */}
+                {/* 5. Suggested safety cushion for next month */}
                 <div className="month-review-projection">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Suggested Next-Month Survival Cushion</span>
+                    <span className="summary-label" style={{ color: 'var(--text-secondary)' }}>Suggested safety cushion for next month</span>
                     <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>
-                      Velocity + 10% Buffer
+                      Your pace + 10% buffer
                     </span>
                   </div>
                   <div className="tabular-nums" style={{ fontSize: '22px', fontWeight: 700, color: 'var(--accent)' }}>
                     {formatCurrency(review.suggestedNextMonthAllowance, currencySymbol)}
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                    Dynamically projected based on actual spending velocity + 10% safety buffer to safeguard your salary floor and active commitments.
+                    Based on how fast you actually spent this month, plus a 10% buffer to protect your safety floor and bills.
                   </p>
                 </div>
 
