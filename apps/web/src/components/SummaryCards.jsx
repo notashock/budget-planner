@@ -28,6 +28,7 @@ export function DetailedKpiGrid({
   totalExpenses,
   lowestBalance = 0,
   lowestDate = '',
+  pastBreach = null,
   safetyFloor = 0,
   currencySymbol = '₹',
   isSalaryCredited = false,
@@ -135,6 +136,11 @@ export function DetailedKpiGrid({
         <div className="kpi-footer">
           {floorBreached && (
             <span className="kpi-chip kpi-chip-bad">▲ Below floor</span>
+          )}
+          {!floorBreached && pastBreach && (
+            <span className="kpi-chip kpi-chip-warn" title={`Dropped to ${formatCurrency(pastBreach.balance, currencySymbol)}`}>
+              ▲ Dipped below on {pastBreach.date ? formatDisplayDate(pastBreach.date, false) : 'an earlier day'}
+            </span>
           )}
           <span className="kpi-subtext">
             {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}

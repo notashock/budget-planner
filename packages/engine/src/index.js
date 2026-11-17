@@ -1,4 +1,4 @@
-export { simulate, deriveTransactionState } from './simulator.js';
+export { simulate, deriveTransactionState, summarizeLowPoints, isDiscretionarySpend } from './simulator.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
@@ -12,7 +12,9 @@ export {
   groupSpendByCategory,
   getRunwayBand,
   getHeadroom,
-  getGoalMonthlyReserve
+  getGoalMonthlyReserve,
+  getMonthVerdict,
+  getUnifiedVerdict
 } from './planInsights.js';
 
 /**

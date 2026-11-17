@@ -70,6 +70,48 @@ export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
  * 
  * @returns {object} SimulationResult
  */
+/**
+ * Whether a transaction counts toward the day-to-day spending pace.
+ * Pace compares against the discretionary daily limit, so it must only count
+ * discretionary spending that actually happened: not planned bills or rent
+ * (already budgeted), not goal or salary flows, not transfers, and not
+ * planned/cancelled entries that have not been paid.
+ */
+export function isDiscretionarySpend(tx) {
+  if (!tx || tx.isIncome) return false;
+  const status = tx.status || 'successful';
+  if (status !== 'successful') return false;
+  if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) return false;
+  if (tx.origin === 'planned' || tx.origin === 'goal' || tx.origin === 'salary') return false;
+  if (tx.plannedItemId || tx.goalId) return false;
+  return true;
+}
+
+/**
+ * Low points of a balance curve, without hiding anything that already happened.
+ * - lowest: the true minimum of the whole month (past included)
+ * - upcoming: the minimum from today onward (what the user can still act on)
+ * - pastBreach: the first day before today that dropped below the floor, if any
+ * Before this, a curve that had touched zero earlier in the month silently
+ * dropped all past days, so a real overdraft disappeared from the figures.
+ */
+export function summarizeLowPoints(points = [], { currentDay = null, floor = 0, fallbackDate = '', fallbackBalance = 0 } = {}) {
+  const pts = (points || []).filter((p) => p && typeof p.balance === 'number' && !Number.isNaN(p.balance));
+  if (pts.length === 0) {
+    const pt = { balance: fallbackBalance, date: fallbackDate };
+    return { lowest: pt, upcoming: pt, pastBreach: null };
+  }
+  const minOf = (arr) => arr.reduce((min, p) => (p.balance < min.balance ? p : min), arr[0]);
+  const hasToday = typeof currentDay === 'number' && currentDay >= 1;
+  const future = hasToday ? pts.filter((p) => p.day >= currentDay) : pts;
+  const past = hasToday ? pts.filter((p) => p.day < currentDay) : [];
+  const lowest = minOf(pts);
+  const upcoming = future.length > 0 ? minOf(future) : lowest;
+  const breach = past.find((p) => p.balance < floor) || null;
+  const toPt = (p) => ({ balance: p.balance, date: p.date || fallbackDate });
+  return { lowest: toPt(lowest), upcoming: toPt(upcoming), pastBreach: breach ? toPt(breach) : null };
+}
+
 export function simulate(
   settings = {},
   items = [],
@@ -1099,10 +1141,10 @@ export function simulate(
     if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
       return;
     }
-    if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) {
+    if (!isDiscretionarySpend(tx)) {
       return;
     }
-    if (!tx.isIncome) {
+    {
       const txAmt = Math.round(Number(tx.amount) || 0);
       const txDay = getRelativeDay(tx.date, year, monthNum);
       if (txDay <= effectiveDay) {
@@ -1198,8 +1240,8 @@ export function simulate(
       if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
         return;
       }
-      // Exclude formal transfers from burn pace
-      if (tx.itemType === 'transfer' || tx.isTransfer || tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId) {
+      // Only discretionary spending counts toward the pace (no bills, goals, transfers)
+      if (!isDiscretionarySpend(tx)) {
         return;
       }
 
@@ -1251,26 +1293,14 @@ export function simulate(
       accPaceStatus = 'expanding';
     }
 
-    const allPts = accountDailyBalances[accId] || [];
-    const pastPts = typeof currentDay === 'number' && currentDay >= 1
-      ? allPts.filter((pt) => pt.day < currentDay)
-      : [];
-    const futurePts = typeof currentDay === 'number' && currentDay >= 1
-      ? allPts.filter((pt) => pt.day >= currentDay)
-      : allPts;
-
-    const pastTouchedZero = pastPts.some((pt) => pt.balance <= 0);
-    const eligiblePts = (pastTouchedZero && futurePts.length > 0)
-      ? futurePts
-      : (allPts.length > 0 ? allPts : [{ date: formatDate(year, monthNum, 1), balance: accountInitialBalances[accId] || 0 }]);
-
-    const lowestPt = eligiblePts.reduce(
-      (min, pt) => (pt.balance < min.balance ? pt : min),
-      eligiblePts[0]
-    );
-
-    const lowestBal = lowestPt.balance;
-    const lowestDt = lowestPt.date || formatDate(year, monthNum, 1);
+    const accLows = summarizeLowPoints(accountDailyBalances[accId] || [], {
+      currentDay,
+      floor: minBal,
+      fallbackDate: formatDate(year, monthNum, 1),
+      fallbackBalance: accountInitialBalances[accId] || 0
+    });
+    const lowestBal = accLows.lowest.balance;
+    const lowestDt = accLows.lowest.date;
 
     const floorBreached = lowestBal < minBal;
 
@@ -1287,6 +1317,9 @@ export function simulate(
       todayBalance: accToday,
       lowestBalance: lowestBal,
       lowestDate: lowestDt,
+      lowestUpcomingBalance: accLows.upcoming.balance,
+      lowestUpcomingDate: accLows.upcoming.date,
+      pastBreach: accLows.pastBreach,
       minimumBalance: minBal,
       floorBreached,
       incomeAmount: accIncome,
@@ -1328,6 +1361,9 @@ export function simulate(
       endingBalance: s.endingBalance,
       lowestBalance: s.lowestBalance,
       lowestDate: s.lowestDate,
+      lowestUpcomingBalance: s.lowestUpcomingBalance,
+      lowestUpcomingDate: s.lowestUpcomingDate,
+      pastBreach: s.pastBreach,
       floorBreached: s.floorBreached,
       dailyBalances: accountDailyBalances[s.id] || [],
       openingBalance: s.openingBalance,
@@ -1361,6 +1397,13 @@ export function simulate(
   const aggLowestBalance = (dailyBalances && dailyBalances.length > 0)
     ? Math.min(...dailyBalances.map((d) => (d.balance !== undefined ? d.balance : (d.closingBalance !== undefined ? d.closingBalance : lowestBalance))))
     : lowestBalance;
+
+  const unifiedLows = summarizeLowPoints(dailyBalances, {
+    currentDay,
+    floor: safetyFloor,
+    fallbackDate: lowestDate,
+    fallbackBalance: aggLowestBalance
+  });
 
   const aggFloorBreached = accountSummaries.length > 0
     ? (aggLowestBalance < safetyFloor)
@@ -1401,7 +1444,11 @@ export function simulate(
     todaysBalance: todayBalance,
     openingBalance: effectiveOpeningBalance,
     lowestBalance: aggLowestBalance,
-    lowestDate,
+    // Date of the same low point the balance comes from (was the event-loop date)
+    lowestDate: dailyBalances.length > 0 && unifiedLows.lowest.balance === aggLowestBalance ? unifiedLows.lowest.date : lowestDate,
+    lowestUpcomingBalance: unifiedLows.upcoming.balance,
+    lowestUpcomingDate: unifiedLows.upcoming.date,
+    pastBreach: unifiedLows.pastBreach,
     lowestBalanceDay: (() => {
       const match = days.find((d) => d.date === lowestDate || d.closingBalance === aggLowestBalance);
       return match ? match.day : 1;
@@ -1411,7 +1458,10 @@ export function simulate(
     totalIncome: totalSimIncome,
     incomeAmount: totalSimIncome,
     totalPlannedExpenses: totalSimExpenses,
-    totalActualExpenses: 0,
+    // Spending that has actually happened (paid/logged), excluding transfers
+    totalActualExpenses: events
+      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && (e.isActual || e.isPaid))
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0),
     totalExpenses: totalSimExpenses,
     isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
     salaryCreditedDate: salaryTx ? salaryTx.date : (settings.salaryCreditedDate || (isSalaryMarkedCredited ? formatDate(year, monthNum, 1) : null)),
