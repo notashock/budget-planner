@@ -76,13 +76,13 @@
 /* Desktop-only vs Mobile Responsive Rules */
 @media (min-width: 768px) {
   .desktop-only {
-    display: inline-flex !important;
+    display: inline-flex;
   }
 }
 
 @media (max-width: 767px) {
   .desktop-only {
-    display: none !important;
+    display: none;
   }
 
   .apple-tx-header-row-1 {
@@ -93,7 +93,7 @@
   }
 
   .apple-tx-title-group.tx-desktop-header {
-    display: block !important;
+    display: block;
   }
 
   
@@ -138,7 +138,7 @@
 }
 
 .apple-segmented-tab.tx-section-tab::after {
-  display: none !important;
+  display: none;
 }
 
 .apple-segmented-tab.tx-section-tab:hover {
@@ -213,31 +213,31 @@
 /* Mobile Media Query for Apple Inset Group */
 @media (max-width: 767px) {
   .apple-tx-group .apple-tx-row.tx-card {
-    padding: 11px 14px !important;
-    gap: 12px !important;
+    padding: 11px 14px;
+    gap: 12px;
   }
 
   .apple-tx-group .apple-tx-row.tx-card:not(:last-child)::after {
-    left: 60px !important;
-    right: 14px !important;
+    left: 60px;
+    right: 14px;
   }
 
   .apple-tx-icon-box {
-    width: 34px !important;
-    height: 34px !important;
-    border-radius: 9px !important;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
   }
 
   .apple-tx-group .tx-card-title {
-    font-size: 13.5px !important;
+    font-size: 13.5px;
   }
 
   .apple-tx-group .tx-card-center {
-    display: none !important;
+    display: none;
   }
 
   .apple-tx-group .tx-meta-dot,
   .apple-tx-group .tx-date-inline {
-    display: inline !important;
+    display: inline;
   }
 }

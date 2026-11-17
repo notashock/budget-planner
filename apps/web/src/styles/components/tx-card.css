@@ -252,7 +252,7 @@
 
 .tx-amount-display.amount-credit,
 .tx-amount-display.positive {
-  color: #10b981 !important;
+  color: #10b981;
 }
 
 .tx-amount-display.amount-debit {

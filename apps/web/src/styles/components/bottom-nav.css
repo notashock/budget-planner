@@ -2,13 +2,13 @@
 .bottom-nav {
   position: fixed;
   bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  left: 50%;
+  transform: translateX(-50%);
   margin: 0 auto;
   width: calc(100vw - 24px) !important;
   max-width: min(390px, calc(100vw - 24px)) !important;
   min-width: 0 !important;
-  box-sizing: border-box !important;
+  box-sizing: border-box;
   background: var(--dock-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -166,6 +166,6 @@
 
 @media (max-width: 767px) {
   .desktop-header-rollover-btn {
-    display: none !important;
+    display: none;
   }
 }

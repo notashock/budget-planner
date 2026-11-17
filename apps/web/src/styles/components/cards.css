@@ -205,13 +205,13 @@
 }
 
 .kpi-card-breached {
-  border-color: var(--rose-border) !important;
+  border-color: var(--rose-border);
   background: var(--rose-subtle);
 }
 
 .text-breached {
-  color: var(--rose) !important;
-  font-weight: 700 !important;
+  color: var(--rose);
+  font-weight: 700;
 }
 
 .kpi-subtext {
@@ -235,8 +235,8 @@
 }
 
 .skeleton-card {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
+  background: var(--surface);
+  border: 1px solid var(--border);
   position: relative;
   overflow: hidden;
 }

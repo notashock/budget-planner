@@ -14,15 +14,15 @@
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 99990 !important;
+  z-index: 99990;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  overflow: visible !important;
+  overflow: visible;
 }
 
 .app-header:has(.app-dropdown-menu),
 .app-header.has-active-dropdown {
-  z-index: 100000 !important;
+  z-index: 100000;
 }
 
 .app-header-inner {
@@ -36,12 +36,12 @@
   max-width: 100%;
   box-sizing: border-box;
   gap: 8px;
-  overflow: visible !important;
+  overflow: visible;
 }
 
 .app-header-left,
 .app-header-right {
-  overflow: visible !important;
+  overflow: visible;
 }
 
 .app-header-left {
@@ -180,7 +180,7 @@ main {
 
 @media (max-width: 767px) {
   .desktop-header-nav {
-    display: none !important;
+    display: none;
   }
   .bottom-nav {
     display: flex;

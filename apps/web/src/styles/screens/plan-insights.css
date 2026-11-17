@@ -292,21 +292,21 @@
 /* Tablet: one row of four; phone and the laptop side panel: two by two */
 @media (min-width: 600px) and (max-width: 1023px) {
   .detailed-kpi-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .text-net-positive {
-  color: var(--positive) !important;
+  color: var(--positive);
 }
 
 .kpi-card-negative {
-  border-color: var(--rose-border) !important;
+  border-color: var(--rose-border);
 }
 
 /* ---- Screen-reader-only text ---- */
 .sr-only {
-  position: absolute !important;
+  position: absolute;
   width: 1px;
   height: 1px;
   padding: 0;
@@ -766,7 +766,7 @@
 /* The header now carries the date, so rows drop their repeated date badge */
 .apple-tx-group.timeline-grouped .tx-card-center,
 .apple-tx-group.timeline-grouped .tx-date-inline {
-  display: none !important;
+  display: none;
 }
 
 /* A row directly above a day header shouldn't draw its hairline into it */

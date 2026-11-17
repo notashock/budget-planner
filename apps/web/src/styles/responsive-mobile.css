@@ -28,7 +28,7 @@
 
   .app-brand-text,
   .beta-badge {
-    display: none !important;
+    display: none;
   }
 
   .desktop-only-btn {
@@ -89,17 +89,17 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .dashboard-chart-panel .chart-svg {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: 0 !important;
-    height: auto !important;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    height: auto;
   }
 
   /* Compact Summary & Safe Velocity */
@@ -275,7 +275,7 @@
   .app-header-inner,
   .app-header-left,
   .app-header-right {
-    overflow: visible !important;
+    overflow: visible;
   }
 
   .app-container,
@@ -286,18 +286,18 @@ main,
 .chart-container,
 .dashboard-chart-panel,
 .dashboard-chart-panel .card {
-    max-width: 100vw !important;
-    width: 100% !important;
-    min-width: 0 !important;
+    max-width: 100vw;
+    width: 100%;
+    min-width: 0;
     overflow-x: hidden;
     box-sizing: border-box;
   }
 
   .chart-svg {
-    max-width: 100% !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    min-height: 0;
   }
 
   .salary-scheduled-banner {
@@ -307,17 +307,17 @@ main,
   }
 
   .salary-scheduled-banner-actions {
-    width: 100% !important;
-    justify-content: flex-end !important;
+    width: 100%;
+    justify-content: flex-end;
   }
 
   
 
   .tx-search-box.compact {
-    flex: 1 1 0 !important;
-    min-width: 160px !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+    flex: 1 1 0;
+    min-width: 160px;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   
@@ -325,48 +325,48 @@ main,
   .bottom-nav {
     width: calc(100vw - 24px) !important;
     max-width: min(390px, calc(100vw - 24px)) !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    box-sizing: border-box !important;
+    left: 50%;
+    transform: translateX(-50%);
+    box-sizing: border-box;
   }
 
   .summary-grid,
   .detailed-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .summary-grid .kpi-card,
   .detailed-kpi-grid .kpi-card {
-    padding: 10px 10px !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
+    padding: 10px 10px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .summary-grid .summary-value,
   .detailed-kpi-grid .summary-value {
     font-size: clamp(14px, 4.2vw, 17px) !important;
     line-height: 1.2 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .summary-grid .summary-label,
   .detailed-kpi-grid .summary-label {
-    font-size: 10px !important;
-    letter-spacing: 0.03em !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .summary-grid .kpi-subtext,
   .detailed-kpi-grid .kpi-subtext {
-    font-size: 10px !important;
+    font-size: 10px;
     line-height: 1.2 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

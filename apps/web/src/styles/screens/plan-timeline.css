@@ -156,13 +156,13 @@
 
 /* Neutralise legacy timeline typography inside the inset group */
 .apple-tx-group .timeline-event-label {
-  display: block !important;
+  display: block;
   -webkit-line-clamp: unset;
 }
 
 .apple-tx-group .timeline-event-type {
-  font-size: inherit !important;
-  color: inherit !important;
+  font-size: inherit;
+  color: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -177,12 +177,12 @@
 
 .apple-tx-group .timeline-event-date,
 .apple-tx-group .timeline-event-numbers {
-  min-width: 0 !important;
+  min-width: 0;
 }
 
 .apple-tx-group .timeline-event-balance {
-  margin: 1px 0 0 !important;
-  font-size: 10.5px !important;
+  margin: 1px 0 0;
+  font-size: 10.5px;
 }
 
 /* Tag tone for credited salary (replaces the old inline style) */
@@ -194,7 +194,7 @@
 
 /* Chart-day selection: leading accent bar + tint (Transactions rows have no selection) */
 .apple-tx-group .apple-tx-row.tx-card.timeline-event-row.selected {
-  background: var(--surface-subtle) !important;
+  background: var(--surface-subtle);
 }
 
 .apple-tx-group .apple-tx-row.tx-card.timeline-event-row.selected::before {
@@ -210,11 +210,11 @@
 
 /* Floor breach: faint rose wash so it reads at a glance without a heavy border */
 .apple-tx-group .apple-tx-row.tx-card.timeline-event-row.row-breached {
-  background: var(--rose-subtle, rgba(244, 63, 94, 0.06)) !important;
+  background: var(--rose-subtle, rgba(244, 63, 94, 0.06));
 }
 
 .apple-tx-group .apple-tx-row.tx-card.timeline-event-row.row-breached:hover {
-  background: rgba(244, 63, 94, 0.1) !important;
+  background: rgba(244, 63, 94, 0.1);
 }
 
 /* "Today" marker as an inset section separator inside the grouped list */
