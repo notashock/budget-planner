@@ -12,3 +12,6 @@ audits/
 
 .vercel
 .env*
+
+# Local development signing secret (generated on first run)
+.jwt-dev-secret

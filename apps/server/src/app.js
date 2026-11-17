@@ -37,11 +37,8 @@ export function createApp(options = {}) {
     app.set('trust proxy', 1);
   }
 
-  const effectiveCorsOrigin = options.corsOrigin ?? (
-    config.corsOrigin === '*'
-      ? true
-      : (config.corsOrigin.includes(',') ? config.corsOrigin.split(',').map((s) => s.trim()) : config.corsOrigin)
-  );
+  // config.corsOrigin is already validated: never a wildcard (see resolveCorsOrigin)
+  const effectiveCorsOrigin = options.corsOrigin ?? config.corsOrigin;
 
   app.use(cors({
     origin: effectiveCorsOrigin,
