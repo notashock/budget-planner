@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, summarizeLowPoints } from '../src/index.js';
+import { simulate, summarizeLowPoints, isDiscretionarySpend } from '../src/index.js';
 
 const PERIOD = { year: 2026, month: 10 };
 
@@ -52,5 +52,33 @@ describe("Sprint 2: low points never hide a past breach", () => {
     expect(acc.lowestUpcomingBalance).toBe(80000);
     expect(result.pastBreach).toEqual({ balance: -20000, date: '2026-10-03' });
     expect(result.lowestUpcomingBalance).toBe(80000);
+  });
+});
+
+describe("Sprint 2: pace compares discretionary spending with the daily limit", () => {
+  const settings = { openingBalance: 2000000, incomeAmount: 0, incomeCreditDay: 1, safetyFloor: 0, currentDay: 10 };
+
+  it("paying rent on day 1 does not make the month look over pace", () => {
+    const transactions = [
+      // Rent paid from a planned item: budgeted, not day-to-day spending
+      { id: 'rent', date: '2026-10-01', amount: 1500000, tag: 'Rent', status: 'successful', origin: 'planned', plannedItemId: 'item-rent' },
+      // Small everyday spend
+      { id: 'coffee', date: '2026-10-05', amount: 5000, tag: 'Food', status: 'successful', origin: 'spot' }
+    ];
+    const result = simulate(settings, [], PERIOD, transactions);
+    // Only the 50 coffee counts: 5,000 / 10 days = 500 per day
+    expect(result.safeVelocity.burnRatePerDay).toBe(500);
+    expect(result.safeVelocity.paceStatus).not.toBe('contracting');
+  });
+
+  it("isDiscretionarySpend ignores planned, goal, salary, transfer, unpaid and income entries", () => {
+    expect(isDiscretionarySpend({ amount: 100, origin: 'spot', status: 'successful' })).toBe(true);
+    expect(isDiscretionarySpend({ amount: 100 })).toBe(true); // legacy rows without status/origin
+    expect(isDiscretionarySpend({ amount: 100, origin: 'planned' })).toBe(false);
+    expect(isDiscretionarySpend({ amount: 100, plannedItemId: 'x' })).toBe(false);
+    expect(isDiscretionarySpend({ amount: 100, origin: 'goal' })).toBe(false);
+    expect(isDiscretionarySpend({ amount: 100, origin: 'transfer' })).toBe(false);
+    expect(isDiscretionarySpend({ amount: 100, status: 'planned' })).toBe(false);
+    expect(isDiscretionarySpend({ amount: 100, isIncome: true })).toBe(false);
   });
 });

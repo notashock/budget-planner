@@ -71,6 +71,23 @@ export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
  * @returns {object} SimulationResult
  */
 /**
+ * Whether a transaction counts toward the day-to-day spending pace.
+ * Pace compares against the discretionary daily limit, so it must only count
+ * discretionary spending that actually happened: not planned bills or rent
+ * (already budgeted), not goal or salary flows, not transfers, and not
+ * planned/cancelled entries that have not been paid.
+ */
+export function isDiscretionarySpend(tx) {
+  if (!tx || tx.isIncome) return false;
+  const status = tx.status || 'successful';
+  if (status !== 'successful') return false;
+  if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) return false;
+  if (tx.origin === 'planned' || tx.origin === 'goal' || tx.origin === 'salary') return false;
+  if (tx.plannedItemId || tx.goalId) return false;
+  return true;
+}
+
+/**
  * Low points of a balance curve, without hiding anything that already happened.
  * - lowest: the true minimum of the whole month (past included)
  * - upcoming: the minimum from today onward (what the user can still act on)
@@ -1124,10 +1141,10 @@ export function simulate(
     if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
       return;
     }
-    if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) {
+    if (!isDiscretionarySpend(tx)) {
       return;
     }
-    if (!tx.isIncome) {
+    {
       const txAmt = Math.round(Number(tx.amount) || 0);
       const txDay = getRelativeDay(tx.date, year, monthNum);
       if (txDay <= effectiveDay) {
@@ -1223,8 +1240,8 @@ export function simulate(
       if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
         return;
       }
-      // Exclude formal transfers from burn pace
-      if (tx.itemType === 'transfer' || tx.isTransfer || tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId) {
+      // Only discretionary spending counts toward the pace (no bills, goals, transfers)
+      if (!isDiscretionarySpend(tx)) {
         return;
       }
 
