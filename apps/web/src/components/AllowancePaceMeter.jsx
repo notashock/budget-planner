@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, getAllowancePace } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, getAllowancePace } from '@budget/engine';
 import { CheckCircleIcon, AlertTriangleIcon, TrendingDownIcon } from './Icons.jsx';
 
 const STATUS = {
@@ -45,8 +45,8 @@ export function AllowancePaceMeter({
       </div>
 
       <div className="pace-figures">
-        <span className="pace-spent">{formatCurrency(pace.spent, currencySymbol)}</span>
-        <span className="pace-of">of {formatCurrency(pace.allowance, currencySymbol)} used</span>
+        <span className="pace-spent">{formatCurrencyWhole(pace.spent, currencySymbol)}</span>
+        <span className="pace-of">of {formatCurrencyWhole(pace.allowance, currencySymbol)} used</span>
       </div>
 
       <div

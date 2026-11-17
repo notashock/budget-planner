@@ -215,15 +215,15 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000.00')).toBeInTheDocument();
+      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
 
       // Isolated Today's balance for HDFC Salary Account is ₹49,000.00 (appears in filter pill and KPI card)
-      expect(screen.getAllByText('₹49,000.00').length).toBeGreaterThanOrEqual(2);
-      // Isolated safe velocity rate for HDFC is ₹32.00 / day
-      expect(screen.getByText('₹32.00')).toBeInTheDocument();
+      expect(screen.getAllByText('₹49,000').length).toBeGreaterThanOrEqual(2);
+      // Isolated daily spending limit for HDFC is ₹32 / day (whole rupees)
+      expect(screen.getByText('₹32')).toBeInTheDocument();
     });
   });
 
@@ -658,7 +658,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       // In Unified view, Monthly Income displays 75,000 (simulation.incomeAmount)
-      expect(screen.getByText('₹75,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹75,000')).toBeInTheDocument();
 
       // Click on ICICI Savings (bank-2)
       fireEvent.click(screen.getByText('ICICI Savings'));

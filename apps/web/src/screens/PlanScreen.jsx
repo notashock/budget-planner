@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { formatCurrency, calculateIrregularMetrics, getHeadroom, summarizeLowPoints, getMonthVerdict } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, calculateIrregularMetrics, getHeadroom, summarizeLowPoints, getMonthVerdict } from '@budget/engine';
 import {
   DetailedKpiGrid,
   IrregularHeroCards,
@@ -743,7 +743,7 @@ export function PlanScreen({
                     <BuildingLibraryIcon size={12} />
                     <span>{b.name}</span>
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
-                      {formatCurrency(bal, month.currencySymbol)}
+                      {formatCurrencyWhole(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                     {headroom && (
@@ -779,7 +779,7 @@ export function PlanScreen({
                     <WalletIcon size={12} />
                     <span>{w.name}</span>
                     <span className="tabular-nums" style={{ opacity: isSelected ? 1 : 0.8, fontWeight: 700 }}>
-                      {formatCurrency(bal, month.currencySymbol)}
+                      {formatCurrencyWhole(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
                     {headroom && (

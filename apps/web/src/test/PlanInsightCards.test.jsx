@@ -22,7 +22,7 @@ describe('UpcomingOutflows', () => {
     render(<UpcomingOutflows events={events} todayStr="2026-11-17" currencySymbol="₹" onPay={vi.fn()} />);
 
     expect(screen.getByText('Next 7 days')).toBeInTheDocument();
-    expect(screen.getByText('₹44,600.00')).toBeInTheDocument();
+    expect(screen.getByText('₹44,600')).toBeInTheDocument();
     expect(screen.getByText(/3 payments · 1 overdue · 13 days to salary/)).toBeInTheDocument();
     expect(screen.getByText('Due today')).toBeInTheDocument();
     expect(screen.getByText(/^Overdue ·/)).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('AllowancePaceMeter', () => {
 
     expect(screen.getByText('Unplanned allowance')).toBeInTheDocument();
     expect(screen.getByText('Over pace')).toBeInTheDocument();
-    expect(screen.getByText('₹6,200.00')).toBeInTheDocument();
+    expect(screen.getByText('₹6,200')).toBeInTheDocument();
     expect(screen.getByText(/₹1,200.00 ahead of an even pace for day 15/)).toBeInTheDocument();
     expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '620000');
   });
@@ -102,7 +102,7 @@ describe('CategoryBreakdown', () => {
     );
 
     expect(screen.getByText('Spending by category')).toBeInTheDocument();
-    expect(screen.getByText('₹42,000.00')).toBeInTheDocument();
+    expect(screen.getByText('₹42,000')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Planned')).toBeInTheDocument();
     const names = Array.from(document.querySelectorAll('.cat-name')).map((n) => n.textContent);

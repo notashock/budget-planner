@@ -184,3 +184,17 @@ describe('Plan insights: getRunwayBand and getHeadroom', () => {
     expect(getHeadroom(0, 0).ratio).toBe(0);
   });
 });
+
+describe("formatCurrency decimals option", () => {
+  it("keeps paise by default and offers whole-rupee and auto modes", async () => {
+    const { formatCurrency, formatCurrencyWhole } = await import('../src/index.js');
+    expect(formatCurrency(13500000)).toBe('₹1,35,000.00');
+    expect(formatCurrencyWhole(13500000)).toBe('₹1,35,000');
+    expect(formatCurrencyWhole(267142)).toBe('₹2,671');
+    expect(formatCurrency(13500000, '₹', 100, { decimals: 'auto' })).toBe('₹1,35,000');
+    expect(formatCurrency(267142, '₹', 100, { decimals: 'auto' })).toBe('₹2,671.42');
+    expect(formatCurrencyWhole(-760000)).toBe('-₹7,600');
+    // A tiny negative that rounds to zero is not shown as "-₹0"
+    expect(formatCurrencyWhole(-20)).toBe('₹0');
+  });
+});
