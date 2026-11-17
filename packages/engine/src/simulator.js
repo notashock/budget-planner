@@ -6,40 +6,19 @@ import {
   getDateFromRelativeDay
 } from './calendar.js';
 import { getGoalMonthlyReserve } from './planInsights.js';
+import {
+  deriveTransactionState,
+  isDiscretionarySpend,
+  summarizeLowPoints,
+  isSameTransaction,
+  dailyLimit,
+  classifyPace,
+  buildDayRows,
+  indexAccountSummaries
+} from './simulatorParts.js';
 
-/**
- * Computes derived transaction status based on scheduled date vs today's date.
- * Never stored; computed dynamically.
- * 
- * @param {object} tx - Transaction record
- * @param {string} todayStr - Local calendar date 'YYYY-MM-DD'
- * @param {number} [dueWindowDays=3] - Days window within which a planned transaction is 'due'
- * @returns {'planned' | 'due' | 'overdue' | 'successful' | 'cancelled'}
- */
-export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
-  if (!tx) return 'planned';
-  const status = tx.status || 'planned';
-  if (status !== 'planned') {
-    return status;
-  }
-  const txDate = tx.plannedDate || tx.date;
-  if (!txDate || !todayStr) {
-    return 'planned';
-  }
-  if (txDate < todayStr) {
-    return 'overdue';
-  }
-  const [tY, tM, tD] = todayStr.split('-').map(Number);
-  const [pY, pM, pD] = txDate.split('-').map(Number);
-  const todayUtc = Date.UTC(tY, tM - 1, tD);
-  const targetUtc = Date.UTC(pY, pM - 1, pD);
-  const diffDays = Math.round((targetUtc - todayUtc) / (1000 * 60 * 60 * 24));
-
-  if (diffDays >= 0 && diffDays <= dueWindowDays) {
-    return 'due';
-  }
-  return 'planned';
-}
+// Re-exported so existing imports from './simulator.js' keep working
+export { deriveTransactionState, isDiscretionarySpend, summarizeLowPoints };
 
 /**
  * Pure simulation engine.
@@ -70,48 +49,6 @@ export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
  * 
  * @returns {object} SimulationResult
  */
-/**
- * Whether a transaction counts toward the day-to-day spending pace.
- * Pace compares against the discretionary daily limit, so it must only count
- * discretionary spending that actually happened: not planned bills or rent
- * (already budgeted), not goal or salary flows, not transfers, and not
- * planned/cancelled entries that have not been paid.
- */
-export function isDiscretionarySpend(tx) {
-  if (!tx || tx.isIncome) return false;
-  const status = tx.status || 'successful';
-  if (status !== 'successful') return false;
-  if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) return false;
-  if (tx.origin === 'planned' || tx.origin === 'goal' || tx.origin === 'salary') return false;
-  if (tx.plannedItemId || tx.goalId) return false;
-  return true;
-}
-
-/**
- * Low points of a balance curve, without hiding anything that already happened.
- * - lowest: the true minimum of the whole month (past included)
- * - upcoming: the minimum from today onward (what the user can still act on)
- * - pastBreach: the first day before today that dropped below the floor, if any
- * Before this, a curve that had touched zero earlier in the month silently
- * dropped all past days, so a real overdraft disappeared from the figures.
- */
-export function summarizeLowPoints(points = [], { currentDay = null, floor = 0, fallbackDate = '', fallbackBalance = 0 } = {}) {
-  const pts = (points || []).filter((p) => p && typeof p.balance === 'number' && !Number.isNaN(p.balance));
-  if (pts.length === 0) {
-    const pt = { balance: fallbackBalance, date: fallbackDate };
-    return { lowest: pt, upcoming: pt, pastBreach: null };
-  }
-  const minOf = (arr) => arr.reduce((min, p) => (p.balance < min.balance ? p : min), arr[0]);
-  const hasToday = typeof currentDay === 'number' && currentDay >= 1;
-  const future = hasToday ? pts.filter((p) => p.day >= currentDay) : pts;
-  const past = hasToday ? pts.filter((p) => p.day < currentDay) : [];
-  const lowest = minOf(pts);
-  const upcoming = future.length > 0 ? minOf(future) : lowest;
-  const breach = past.find((p) => p.balance < floor) || null;
-  const toPt = (p) => ({ balance: p.balance, date: p.date || fallbackDate });
-  return { lowest: toPt(lowest), upcoming: toPt(upcoming), pastBreach: breach ? toPt(breach) : null };
-}
-
 export function simulate(
   settings = {},
   items = [],
@@ -557,7 +494,7 @@ export function simulate(
       return;
     }
     // If this transaction was already fulfilled as the main salary event, skip to avoid double counting
-    if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
+    if (salaryTx && isSameTransaction(tx, salaryTx)) {
       return;
     }
     if (tx.origin === 'transfer') {
@@ -1133,12 +1070,13 @@ export function simulate(
   const goalReserveInfo = getGoalMonthlyReserve(goals, { year, month: monthNum });
   const activeGoalsCost = goalReserveInfo.total;
 
-  const freeSurplus = Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost);
-  const safeVelocityPerDay = Math.max(0, Math.floor(freeSurplus / daysLeft));
+  const { freeSurplus, rate: safeVelocityPerDay } = dailyLimit({
+    balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft
+  });
 
   let totalAllSpentToDate = 0;
   (transactions || []).forEach((tx) => {
-    if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
+    if (salaryTx && isSameTransaction(tx, salaryTx)) {
       return;
     }
     if (!isDiscretionarySpend(tx)) {
@@ -1155,14 +1093,7 @@ export function simulate(
 
   const burnRatePerDay = totalAllSpentToDate > 0 ? Math.round(totalAllSpentToDate / daysElapsed) : 0;
 
-  let paceStatus = 'stable';
-  if (safeVelocityPerDay <= 0) {
-    paceStatus = 'critical';
-  } else if (burnRatePerDay > safeVelocityPerDay * 1.25) {
-    paceStatus = 'contracting';
-  } else if (burnRatePerDay < safeVelocityPerDay * 0.75) {
-    paceStatus = 'expanding';
-  }
+  const paceStatus = classifyPace(safeVelocityPerDay, burnRatePerDay);
 
   const dynamicAllowance = unplannedAllowance > 0
     ? unplannedAllowance
@@ -1237,7 +1168,7 @@ export function simulate(
     let accSpentToDate = 0;
     (transactions || []).forEach((tx) => {
       // Exclude main salary transaction from expense burn pace
-      if (salaryTx && (tx === salaryTx || (tx._id && String(tx._id) === String(salaryTx._id)) || (tx.id && String(tx.id) === String(salaryTx.id)))) {
+      if (salaryTx && isSameTransaction(tx, salaryTx)) {
         return;
       }
       // Only discretionary spending counts toward the pace (no bills, goals, transfers)
@@ -1280,18 +1211,11 @@ export function simulate(
       .filter((it) => it.fundingIds.some((fid) => matchesThisAcc(fid)))
       .reduce((sum, it) => sum + it.reserve, 0);
 
-    const accFreeSurplus = Math.max(0, accToday - accCommitted - minBal - accGoals);
-    const accSafeVelocity = Math.max(0, Math.floor(accFreeSurplus / daysLeft));
+    const { freeSurplus: accFreeSurplus, rate: accSafeVelocity } = dailyLimit({
+      balance: accToday, committed: accCommitted, floor: minBal, goalReserve: accGoals, daysLeft
+    });
     const accBurnRate = accSpentToDate > 0 ? Math.round(accSpentToDate / daysElapsed) : 0;
-
-    let accPaceStatus = 'stable';
-    if (accSafeVelocity <= 0) {
-      accPaceStatus = 'critical';
-    } else if (accBurnRate > accSafeVelocity * 1.25) {
-      accPaceStatus = 'contracting';
-    } else if (accBurnRate < accSafeVelocity * 0.75) {
-      accPaceStatus = 'expanding';
-    }
+    const accPaceStatus = classifyPace(accSafeVelocity, accBurnRate);
 
     const accLows = summarizeLowPoints(accountDailyBalances[accId] || [], {
       currentDay,
@@ -1347,37 +1271,7 @@ export function simulate(
     };
   });
 
-  const accountsMap = {};
-  const accountSimulations = {};
-  accountSummaries.forEach((s) => {
-    accountsMap[s.id] = s;
-    if (s.altId) {
-      accountsMap[s.altId] = s;
-    }
-
-    const accSim = {
-      todayBalance: s.todayBalance,
-      todaysBalance: s.todayBalance,
-      endingBalance: s.endingBalance,
-      lowestBalance: s.lowestBalance,
-      lowestDate: s.lowestDate,
-      lowestUpcomingBalance: s.lowestUpcomingBalance,
-      lowestUpcomingDate: s.lowestUpcomingDate,
-      pastBreach: s.pastBreach,
-      floorBreached: s.floorBreached,
-      dailyBalances: accountDailyBalances[s.id] || [],
-      openingBalance: s.openingBalance,
-      minimumBalance: s.minimumBalance,
-      safetyFloor: s.minimumBalance,
-      incomeAmount: s.incomeAmount,
-      totalExpenses: s.totalExpenses,
-      safeVelocity: s.safeVelocity
-    };
-    accountSimulations[s.id] = accSim;
-    if (s.altId) {
-      accountSimulations[s.altId] = accSim;
-    }
-  });
+  const { accountsMap, accountSimulations } = indexAccountSummaries(accountSummaries, accountDailyBalances);
 
   normalizedAccounts.forEach((acc) => {
     if (acc.altId && !accountDailyBalances[acc.altId] && accountDailyBalances[acc.id]) {
@@ -1409,30 +1303,8 @@ export function simulate(
     ? (aggLowestBalance < safetyFloor)
     : floorBreached;
 
-  // 12. Build rich normalized days array for graph & interactive timeline parity
-  let prevBal = effectiveOpeningBalance;
-  const days = dailyBalances.map((pt) => {
-    const dayEvts = events.filter((e) => e.day === pt.day);
-    let dayInflow = 0;
-    let dayOutflow = 0;
-    dayEvts.forEach((e) => {
-      if (e.amount > 0) dayInflow += e.amount;
-      if (e.amount < 0) dayOutflow += Math.abs(e.amount);
-    });
-    const dayObj = {
-      day: pt.day,
-      date: pt.date,
-      balance: pt.balance,
-      openingBalance: prevBal,
-      closingBalance: pt.balance,
-      totalInflow: dayInflow,
-      totalOutflow: dayOutflow,
-      events: dayEvts,
-      hasBreach: pt.balance < safetyFloor
-    };
-    prevBal = pt.balance;
-    return dayObj;
-  });
+  // 12. One row per day for the chart and the timeline
+  const days = buildDayRows(dailyBalances, events, effectiveOpeningBalance, safetyFloor);
 
   return {
     events,
@@ -1476,47 +1348,20 @@ export function simulate(
     // One unified daily limit, from unified figures. Summing per-account limits
     // let an account in deficit vanish (each was floored at 0) and ignored the
     // month's own safety floor, which only applies to the total.
-    safeToSpendPerDay: (() => {
-      if (accountSummaries.length > 0) {
-        return Math.max(0, Math.floor(Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost) / daysLeft));
-      }
-      return safeToSpendPerDay;
-    })(),
+    safeToSpendPerDay: accountSummaries.length > 0
+      ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft }).rate
+      : safeToSpendPerDay,
     safeVelocity: (() => {
-      if (accountSummaries.length > 0) {
-        const unifiedFree = Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost);
-        const unifiedRate = Math.max(0, Math.floor(unifiedFree / daysLeft));
-
-        let unifiedPace = 'stable';
-        if (unifiedRate <= 0) {
-          unifiedPace = 'critical';
-        } else if (burnRatePerDay > unifiedRate * 1.25) {
-          unifiedPace = 'contracting';
-        } else if (burnRatePerDay < unifiedRate * 0.75) {
-          unifiedPace = 'expanding';
-        }
-
-        return {
-          safeVelocityPerDay: unifiedRate,
-          rate: unifiedRate,
-          freeSurplus: unifiedFree,
-          burnRatePerDay,
-          burnRate: burnRatePerDay,
-          committedUpcomingItems,
-          committedBills: committedUpcomingItems,
-          activeGoalsCost,
-          goalReserve: activeGoalsCost,
-          daysLeft,
-          daysElapsed,
-          paceStatus: unifiedPace,
-          status: unifiedPace
-        };
-      }
-
+      // With accounts, the limit and pace come from unified figures, so an account
+      // in deficit lowers the total instead of vanishing at 0.
+      const { freeSurplus: free, rate } = accountSummaries.length > 0
+        ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft })
+        : { freeSurplus, rate: safeVelocityPerDay };
+      const pace = accountSummaries.length > 0 ? classifyPace(rate, burnRatePerDay) : paceStatus;
       return {
-        safeVelocityPerDay,
-        rate: safeVelocityPerDay,
-        freeSurplus,
+        safeVelocityPerDay: rate,
+        rate,
+        freeSurplus: free,
         burnRatePerDay,
         burnRate: burnRatePerDay,
         committedUpcomingItems,
@@ -1525,8 +1370,8 @@ export function simulate(
         goalReserve: activeGoalsCost,
         daysLeft,
         daysElapsed,
-        paceStatus,
-        status: paceStatus
+        paceStatus: pace,
+        status: pace
       };
     })(),
     accounts: accountsMap,
