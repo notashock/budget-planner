@@ -1,0 +1,372 @@
+/* ==========================================================================
+   Mobile Density Tier (< 768px)
+   High-density native-app feel with tightened card insets, padding, typography,
+   and controls, without disturbing desktop or tablet layouts.
+   ========================================================================== */
+@media (max-width: 767px) {
+  :root {
+    --radius: 6px;
+  }
+
+  /* Compact Header */
+  .app-header-inner {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .app-header-left {
+    gap: 8px;
+  }
+
+  .app-header-right {
+    gap: 6px;
+  }
+
+  .app-brand {
+    font-size: 12px;
+  }
+
+  .app-brand-text,
+  .beta-badge {
+    display: none !important;
+  }
+
+  .desktop-only-btn {
+    display: none !important;
+  }
+
+  .month-picker-btn {
+    font-size: 13px;
+    padding: 2px 4px;
+    font-weight: 600;
+  }
+
+  .header-floor-pill {
+    padding: 2px 6px;
+    font-size: 10px;
+    gap: 4px;
+    max-width: 125px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  
+
+  /* Compact Container & Screen Paddings */
+  .app-container {
+    padding: 10px 10px calc(68px + env(safe-area-inset-bottom, 0px)) 10px;
+  }
+
+  .screen-content {
+    padding: 8px 4px;
+    gap: 10px;
+  }
+
+  /* Compact Dashboard Layout */
+  .dashboard-layout {
+    gap: 10px;
+  }
+
+  /* Compact Standard Cards */
+  .card {
+    padding: 10px;
+  }
+
+  .card-header {
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  .card-title {
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+  }
+
+  /* Mobile Chart Responsive Containment */
+  .dashboard-chart-panel .chart-container {
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-chart-panel .chart-svg {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* Compact Summary & Safe Velocity */
+  .summary-grid {
+    gap: 7px;
+  }
+
+  .summary-card {
+    padding: 8px 10px;
+    gap: 3px;
+  }
+
+  .summary-label {
+    font-size: 11px;
+  }
+
+  .summary-value {
+    font-size: 16px;
+  }
+
+  
+
+  
+
+  
+
+  
+
+  /* Compact Action Bar Buttons */
+  
+
+  
+
+  /* Compact Floor Banner */
+  .floor-banner {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .floor-banner-title {
+    font-size: 12px;
+  }
+
+  .floor-banner-desc {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  /* Compact Timeline List */
+  .timeline-list {
+    gap: 5px;
+  }
+
+  .timeline-event-row {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+
+  .timeline-event-date {
+    font-size: 11px;
+    min-width: 64px;
+  }
+
+  .timeline-event-label {
+    font-size: 13px;
+  }
+
+  .timeline-event-type {
+    font-size: 10px;
+  }
+
+  .timeline-event-numbers {
+    min-width: 68px;
+  }
+
+  .timeline-event-amount {
+    font-size: 13px;
+  }
+
+  .timeline-event-balance {
+    font-size: 11px;
+  }
+
+  /* Compact Buttons & Form Inputs */
+  button {
+    padding: 6px 12px;
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  input, select, textarea {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .form-group {
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: 11px;
+  }
+
+  .form-row {
+    gap: 8px;
+  }
+
+  /* Compact Bottom Navigation */
+  .bottom-nav {
+    height: 52px;
+  }
+
+  .nav-tab {
+    padding: 3px 0;
+    gap: 2px;
+    font-size: 10px;
+  }
+
+  .nav-tab-icon {
+    font-size: 14px;
+  }
+
+  /* Compact Bottom-Sheet Modal */
+  .modal-content {
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
+    gap: 12px;
+  }
+
+  .modal-drag-handle {
+    margin: -4px auto 8px auto;
+  }
+
+  /* Compact Items Grid on Mobile */
+  .items-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .item-bento-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .item-bento-amount {
+    font-size: 17px;
+  }
+
+  /* Compact Goals Grid on Mobile */
+  .goals-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .goal-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .goal-card-amount {
+    font-size: 17px;
+  }
+}
+
+/* Extra Compact Mobile Viewport (< 600px, e.g. 375px iPhone SE) */
+@media (max-width: 599px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  .app-header,
+  .app-header-inner,
+  .app-header-left,
+  .app-header-right {
+    overflow: visible !important;
+  }
+
+  .app-container,
+.screen-content,
+.dashboard-layout,
+main,
+.card,
+.chart-container,
+.dashboard-chart-panel,
+.dashboard-chart-panel .card {
+    max-width: 100vw !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .chart-svg {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .salary-scheduled-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .salary-scheduled-banner-actions {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  
+
+  .tx-search-box.compact {
+    flex: 1 1 0 !important;
+    min-width: 160px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  
+
+  .bottom-nav {
+    width: calc(100vw - 24px) !important;
+    max-width: min(390px, calc(100vw - 24px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    box-sizing: border-box !important;
+  }
+
+  .summary-grid,
+  .detailed-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .summary-grid .kpi-card,
+  .detailed-kpi-grid .kpi-card {
+    padding: 10px 10px !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .summary-grid .summary-value,
+  .detailed-kpi-grid .summary-value {
+    font-size: clamp(14px, 4.2vw, 17px) !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .summary-grid .summary-label,
+  .detailed-kpi-grid .summary-label {
+    font-size: 10px !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .summary-grid .kpi-subtext,
+  .detailed-kpi-grid .kpi-subtext {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}

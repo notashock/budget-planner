@@ -1,0 +1,243 @@
+/* =========================================================================
+   ROW 2: UNIFIED CONTINUOUS INLINE FILTER STRIP (NO BACKGROUND CARD)
+   ========================================================================= */
+.apple-filter-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  box-sizing: border-box;
+}
+
+.apple-filter-strip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.apple-filter-strip-row .apple-segmented-bar.tx-section-tabs-bar {
+  flex-shrink: 0;
+  max-width: 280px;
+  width: auto;
+  margin-bottom: 0;
+  padding: 2.5px;
+}
+
+.apple-filter-strip-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.apple-account-chips-inline,
+.apple-status-chips-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.apple-chip {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-chip:hover {
+  border-color: var(--text-secondary);
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+
+.apple-chip.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  font-weight: 600;
+}
+
+/* Desktop-only vs Mobile Responsive Rules */
+@media (min-width: 768px) {
+  .desktop-only {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .apple-tx-header-row-1 {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .apple-tx-title-group.tx-desktop-header {
+    display: block !important;
+  }
+
+  
+
+  
+
+  .apple-tx-row1-actions {
+    width: 100%;
+  }
+
+  .apple-search-sort-capsule {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .apple-filter-strip-row {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .apple-filter-strip-row .apple-segmented-bar.tx-section-tabs-bar {
+    max-width: 250px;
+  }
+}
+
+.apple-segmented-tab.tx-section-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-segmented-tab.tx-section-tab::after {
+  display: none !important;
+}
+
+.apple-segmented-tab.tx-section-tab:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.apple-segmented-tab.tx-section-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.apple-segmented-tab.tx-section-tab .tx-section-tab-count {
+  font-size: 11px;
+  padding: 1.5px 6.5px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.apple-segmented-tab.tx-section-tab.active .tx-section-tab-count {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Apple Empty State */
+.apple-tx-empty-state {
+  padding: 50px 20px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.apple-tx-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.apple-tx-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.apple-tx-empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Mobile Media Query for Apple Inset Group */
+@media (max-width: 767px) {
+  .apple-tx-group .apple-tx-row.tx-card {
+    padding: 11px 14px !important;
+    gap: 12px !important;
+  }
+
+  .apple-tx-group .apple-tx-row.tx-card:not(:last-child)::after {
+    left: 60px !important;
+    right: 14px !important;
+  }
+
+  .apple-tx-icon-box {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 9px !important;
+  }
+
+  .apple-tx-group .tx-card-title {
+    font-size: 13.5px !important;
+  }
+
+  .apple-tx-group .tx-card-center {
+    display: none !important;
+  }
+
+  .apple-tx-group .tx-meta-dot,
+  .apple-tx-group .tx-date-inline {
+    display: inline !important;
+  }
+}

@@ -1,0 +1,462 @@
+/* ==========================================================================
+   Ledger Onboarding Experience (Frontend Design Principles compliant)
+   Monochrome precision, tactile cards, subtle elevation & micro-motion.
+   ========================================================================== */
+
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overflow-y: auto;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 620px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+  color: var(--text);
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .onboarding-card {
+    padding: 20px;
+  }
+}
+
+.onboarding-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.onboarding-top-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.onboarding-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.onboarding-step-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  box-shadow: 0 0 6px var(--accent-subtle);
+}
+
+.onboarding-stepper-bars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.onboarding-step-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transition: background-color 0.25s ease;
+}
+
+.onboarding-step-bar.active {
+  background: var(--text);
+}
+
+.onboarding-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.25;
+}
+
+.onboarding-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.onboarding-error-banner {
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--danger-subtle);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.onboarding-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-field-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.onboarding-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 767px) {
+  .onboarding-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onboarding-account-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  padding: 14px 14px 12px 14px;
+  min-height: 116px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text);
+  position: relative;
+}
+
+.onboarding-account-card:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+}
+
+.onboarding-account-card.selected {
+  background: var(--surface-subtle);
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text), var(--shadow-subtle);
+}
+
+.onboarding-account-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.onboarding-card-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.onboarding-account-card.selected .onboarding-card-icon-badge {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.onboarding-radio-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.onboarding-account-card.selected .onboarding-radio-dot {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.onboarding-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.onboarding-card-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.onboarding-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 767px) {
+  .onboarding-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onboarding-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.onboarding-input-prefix {
+  position: absolute;
+  left: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
+}
+
+.onboarding-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.onboarding-input:focus {
+  background: var(--surface);
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+  outline: none;
+}
+
+.onboarding-input.has-prefix {
+  padding-left: 30px;
+}
+
+/* Ledger Preview Strip: domain-specific signature element */
+.onboarding-ledger-strip {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-ledger-strip-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.onboarding-ledger-strip-tag {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.onboarding-ledger-strip-amount {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Step 2 Income Cards - Structured like Step 1 Account Cards */
+.onboarding-income-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 767px) {
+  .onboarding-income-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onboarding-income-card-v2 {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  padding: 14px 14px 12px 14px;
+  min-height: 116px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text);
+  position: relative;
+}
+
+.onboarding-income-card-v2:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+}
+
+.onboarding-income-card-v2.selected {
+  background: var(--surface-subtle);
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text), var(--shadow-subtle);
+}
+
+.onboarding-income-card-v2-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* Salary details container (Frontend Design Principles compliant) */
+.onboarding-subpanel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-subtle);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-subpanel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-subpanel-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Actions footer */
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.onboarding-btn-submit {
+  flex: 1;
+  height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-subtle);
+}
+
+.onboarding-btn-submit:hover:not(:disabled) {
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
+  color: var(--bg);
+}
+
+.onboarding-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboarding-btn-back {
+  height: 44px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.onboarding-btn-back:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}

@@ -1,0 +1,99 @@
+/* ==========================================================================
+   TRANSACTIONS & PLANNED SECTION TABS & 3-ZONE CARD STYLES
+   ========================================================================== */
+
+.tx-desktop-header {
+  margin-bottom: 20px;
+}
+
+.transactions-screen {
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .tx-desktop-header {
+    display: none;
+  }
+}
+
+.tx-section-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 2px solid var(--border-subtle);
+  margin-bottom: 18px;
+  padding: 0 4px;
+}
+
+.tx-section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tx-section-tab:hover {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+
+.tx-section-tab.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tx-section-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--text);
+  border-radius: var(--radius-xs);
+}
+
+.tx-section-tab.active .tx-section-tab-count {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+.tx-section-tab:active {
+  transform: scale(0.97);
+}
+
+.tx-section-tab-label {
+  font-size: 13px;
+}
+
+.tx-section-tab-count {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.tx-tab-urgent-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--rose-subtle);
+  color: var(--rose);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
