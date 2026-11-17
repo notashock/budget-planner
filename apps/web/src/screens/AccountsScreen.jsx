@@ -5,6 +5,7 @@ import { formatCurrency, formatDisplayDate } from '@budget/engine';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
+import { PageTitle } from '../components/PageTitle.jsx';
 import {
   BuildingLibraryIcon,
   WalletIcon,
@@ -446,6 +447,8 @@ export function AccountsScreen({
 
   return (
     <div className="screen-content">
+      <PageTitle title="Accounts" subtitle="Your bank accounts and wallets, and how much each holds." />
+
       {/* Header and Quick Stats */}
       <div className="accounts-header-minimal">
         <div>

@@ -15,6 +15,7 @@ import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
+import { PageTitle } from '../components/PageTitle.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 
 gsap.registerPlugin(useGSAP);
@@ -706,6 +707,11 @@ export function PlanScreen({
           </div>
         </div>
       )}
+
+      <PageTitle
+        title="Plan"
+        subtitle={`${new Date(month.year, month.month - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })} · where your money stands`}
+      />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

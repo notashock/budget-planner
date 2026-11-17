@@ -425,6 +425,17 @@ export function Header({
                     </button>
                   )}
 
+                  <button
+                    type="button"
+                    className="app-dropdown-item"
+                    data-testid="open-assistant-btn"
+                    style={{ fontSize: '12px' }}
+                    onClick={() => onSelectTab?.('assistant')}
+                  >
+                    <SparklesIcon size={13} />
+                    <span>AI assistant</span>
+                  </button>
+
                   <div className="app-dropdown-divider" />
 
                   <button

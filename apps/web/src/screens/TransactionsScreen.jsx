@@ -20,6 +20,7 @@ import {
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
+import { PageTitle } from '../components/PageTitle.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 
 function pad(n) {
@@ -330,10 +331,11 @@ export function TransactionsScreen({
           ========================================================================= */}
       <div className="apple-tx-header-row-1">
         {/* Left: Cupertino Large Title & Subtitle */}
-        <div className="apple-tx-title-group tx-desktop-header">
-          <h1 className="tx-header-title">Transactions</h1>
-          <p className="tx-header-sub">Unified record of commitments and actual cash movement.</p>
-        </div>
+        <PageTitle
+          className="apple-tx-title-group tx-desktop-header"
+          title="Transactions"
+          subtitle="Everything you have paid, and everything still planned."
+        />
 
         {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
         <div className="apple-tx-row1-actions">

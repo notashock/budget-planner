@@ -22,8 +22,8 @@ export function BottomNav({
   ];
 
   const rightTabs = [
-    { id: 'accounts', label: 'Accounts', Icon: WalletIcon },
-    { id: 'goals', label: 'Goals', Icon: TargetIcon }
+    { id: 'goals', label: 'Goals', Icon: TargetIcon },
+    { id: 'accounts', label: 'Accounts', Icon: WalletIcon }
   ];
 
   return (

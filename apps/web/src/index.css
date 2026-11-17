@@ -9614,6 +9614,42 @@ main {
   .di-hint { margin-left: 0; width: 100%; }
 }
 
+/* ---- Page titles: one heading style on every screen ---- */
+.page-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Inside an existing header row the row handles spacing */
+.apple-tx-header-row-1 .page-title-group,
+.screen-content > div > .page-title-group {
+  margin-bottom: 0;
+}
+
+@media (max-width: 767px) {
+  .page-title { font-size: 22px; }
+  .page-subtitle { font-size: 12.5px; }
+}
+
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
 @media (max-width: 1023px) {
   .month-health-hero { order: 1; }
