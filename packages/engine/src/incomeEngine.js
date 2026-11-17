@@ -33,7 +33,7 @@ function parseUtcDate(dateStr) {
 /**
  * Calculates irregular income metrics:
  * - Trailing 12-Month (T12M) Income
- * - Smoothed Monthly Income (T12M / 12)
+ * - Smoothed Monthly Income (trailing income / months of history present, at most 12)
  * - Trailing 12-Month Spending & Average Monthly Spending
  * - Emergency Runway in months (current balance / average monthly spending, safe against zero division)
  * - Quarterly and Yearly aggregates
@@ -127,8 +127,26 @@ export function calculateIrregularMetrics({
     }
   }
 
-  const smoothedMonthlyIncome = Math.round(trailing12mIncome / (windowMonths || 12));
-  const avgMonthlySpending = Math.max(0, Math.round(trailing12mSpending / (windowMonths || 12)));
+  // Average over the months of history actually present, not always 12.
+  // Dividing a 3-month history by 12 made income and spending look 4x smaller
+  // and the runway 4x longer. History starts at the later of the window start
+  // and the earliest opening-balance or transaction date; whole calendar months,
+  // inclusive of the as-of month, capped at the window.
+  const candidateStarts = [
+    ...(accounts || []).map((a) => a && a.openingBalanceDate).filter(Boolean),
+    ...(transactions || [])
+      .filter((t) => t && t.status === 'successful' && t.date && t.date <= asOfStr)
+      .map((t) => t.date)
+  ].map(String).sort();
+  const earliestStr = candidateStarts.length > 0 ? candidateStarts[0] : asOfStr;
+  const historyStartStr = earliestStr > windowStartStr ? earliestStr : windowStartStr;
+  const [hy, hm] = historyStartStr.split('-').map(Number);
+  const [ay, am] = asOfStr.split('-').map(Number);
+  const calendarMonths = (ay * 12 + am) - (hy * 12 + hm) + 1;
+  const monthsOfHistory = Math.max(1, Math.min(windowMonths || 12, calendarMonths));
+
+  const smoothedMonthlyIncome = Math.round(trailing12mIncome / monthsOfHistory);
+  const avgMonthlySpending = Math.max(0, Math.round(trailing12mSpending / monthsOfHistory));
 
   // Runway calculation with strict zero-division protection
   let runwayMonths = 0;
@@ -165,6 +183,7 @@ export function calculateIrregularMetrics({
     windowStartDate: windowStartStr,
     currentBalance,
     trailing12mIncome,
+    monthsOfHistory,
     smoothedMonthlyIncome,
     trailing12mSpending,
     avgMonthlySpending,

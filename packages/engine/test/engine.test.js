@@ -366,12 +366,12 @@ describe('Engine Suite - Core & Sprint Features', () => {
       // Safety Floor: 100,000
       // Current Day: 10
       // Upcoming planned item on Day 20: 150,000
-      // Active goal: 50,000
+      // Active goal: 50,000 due by November -> 2 months left (Oct, Nov) -> reserve 25,000 this month
       // Unplanned spending so far (days 1-10): 20,000
       // Liquid cash on Day 10: 500,000 - 20,000 = 480,000
-      // Free Surplus: 480,000 - 150,000 (upcoming) - 100,000 (floor) - 50,000 (goal) = 180,000
+      // Free Surplus: 480,000 - 150,000 (upcoming) - 100,000 (floor) - 25,000 (goal share) = 205,000
       // Days left in October (31 days, day 10): 31 - 10 + 1 = 22 days
-      // Safe velocity per day: Math.floor(180,000 / 22) = 8,181
+      // Safe velocity per day: Math.floor(205,000 / 22) = 9,318
       const settings = {
         openingBalance: 0,
         incomeAmount: 500000,
@@ -390,7 +390,7 @@ describe('Engine Suite - Core & Sprint Features', () => {
       ];
 
       const goals = [
-        { id: 'goal-1', status: 'active', name: 'Headphones', targetAmount: 50000 }
+        { id: 'goal-1', status: 'active', name: 'Headphones', targetAmount: 50000, targetDate: '2026-11-30' }
       ];
 
       const result = simulate(settings, items, { year: 2026, month: 10 }, transactions, goals);
@@ -398,19 +398,25 @@ describe('Engine Suite - Core & Sprint Features', () => {
       expect(result.safeVelocity).toBeDefined();
       // All committed upcoming planned bills are considered into Safe Velocity
       expect(result.safeVelocity.committedUpcomingItems).toBe(150000);
-      expect(result.safeVelocity.freeSurplus).toBe(180000);
+      expect(result.safeVelocity.freeSurplus).toBe(205000);
       expect(result.safeVelocity.daysLeft).toBe(22);
-      expect(result.safeVelocity.safeVelocityPerDay).toBe(8181);
-      expect(result.safeToSpendPerDay).toBe(8181);
-      expect(result.allowanceLeft).toBe(180000);
-      expect(result.safeVelocity.activeGoalsCost).toBe(50000);
+      expect(result.safeVelocity.safeVelocityPerDay).toBe(9318);
+      expect(result.safeToSpendPerDay).toBe(9318);
+      expect(result.allowanceLeft).toBe(205000);
+      expect(result.safeVelocity.activeGoalsCost).toBe(25000);
+      expect(result.safeVelocity.goalReserve).toBe(25000);
       expect(result.safeVelocity.burnRatePerDay).toBe(2000); // 20,000 / 10 days
 
-      // When the upcoming item is marked paid, its cash is debited from todayBalance directly (committedUpcomingItems is 0, freeSurplus remains 180000)
+      // When the upcoming item is marked paid, its cash is debited from todayBalance directly (committedUpcomingItems is 0, freeSurplus remains 205000)
       const paidResult = simulate(settings, [{ ...items[0], isPaid: true }], { year: 2026, month: 10 }, transactions, goals);
       expect(paidResult.safeVelocity.committedUpcomingItems).toBe(0);
-      expect(paidResult.safeVelocity.freeSurplus).toBe(180000);
-      expect(paidResult.safeVelocity.safeVelocityPerDay).toBe(8181);
+      expect(paidResult.safeVelocity.freeSurplus).toBe(205000);
+      expect(paidResult.safeVelocity.safeVelocityPerDay).toBe(9318);
+
+      // A goal without a target date reserves nothing this month
+      const undated = simulate(settings, items, { year: 2026, month: 10 }, transactions, [{ ...goals[0], targetDate: null }]);
+      expect(undated.safeVelocity.activeGoalsCost).toBe(0);
+      expect(undated.safeVelocity.freeSurplus).toBe(230000);
     });
 
     it('preserves cash in todayBalance for unpaid past-due items and deducts when marked isPaid: true', () => {

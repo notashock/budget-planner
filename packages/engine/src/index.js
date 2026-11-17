@@ -11,7 +11,8 @@ export {
   getUpcomingOutflows,
   groupSpendByCategory,
   getRunwayBand,
-  getHeadroom
+  getHeadroom,
+  getGoalMonthlyReserve
 } from './planInsights.js';
 
 /**

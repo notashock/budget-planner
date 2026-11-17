@@ -5,6 +5,7 @@ import {
   getRelativeDay,
   getDateFromRelativeDay
 } from './calendar.js';
+import { getGoalMonthlyReserve } from './planInsights.js';
 
 /**
  * Computes derived transaction status based on scheduled date vs today's date.
@@ -1086,12 +1087,9 @@ export function simulate(
     }
   });
 
-  let activeGoalsCost = 0;
-  (goals || []).forEach((g) => {
-    if (g && (g.status === 'active' || g.status === 'evaluating')) {
-      activeGoalsCost += Math.round(Number(g.targetAmount) || 0);
-    }
-  });
+  // Goals reserve this month's share (target ÷ months left), not the full target.
+  const goalReserveInfo = getGoalMonthlyReserve(goals, { year, month: monthNum });
+  const activeGoalsCost = goalReserveInfo.total;
 
   const freeSurplus = Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost);
   const safeVelocityPerDay = Math.max(0, Math.floor(freeSurplus / daysLeft));
@@ -1235,14 +1233,10 @@ export function simulate(
       }
     });
 
-    let accGoals = 0;
-    (goals || []).forEach((g) => {
-      const isGoalAcct = String(g.fundingBankAccountId?._id || g.fundingBankAccountId) === accId ||
-                        String(g.fundingWalletId?._id || g.fundingWalletId) === accId;
-      if (isGoalAcct && (g.status === 'active' || g.status === 'evaluating')) {
-        accGoals += Math.round(Number(g.targetAmount) || 0);
-      }
-    });
+    // This account's share of goal reserves (goals funded from this account)
+    const accGoals = goalReserveInfo.items
+      .filter((it) => it.fundingIds.some((fid) => matchesThisAcc(fid)))
+      .reduce((sum, it) => sum + it.reserve, 0);
 
     const accFreeSurplus = Math.max(0, accToday - accCommitted - minBal - accGoals);
     const accSafeVelocity = Math.max(0, Math.floor(accFreeSurplus / daysLeft));
@@ -1429,41 +1423,43 @@ export function simulate(
     allowanceLeft,
     daysLeft,
     daysElapsed,
+    // One unified daily limit, from unified figures. Summing per-account limits
+    // let an account in deficit vanish (each was floored at 0) and ignored the
+    // month's own safety floor, which only applies to the total.
     safeToSpendPerDay: (() => {
       if (accountSummaries.length > 0) {
-        return accountSummaries.reduce((sum, a) => sum + (a.safeVelocity?.safeVelocityPerDay || 0), 0);
+        return Math.max(0, Math.floor(Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost) / daysLeft));
       }
       return safeToSpendPerDay;
     })(),
     safeVelocity: (() => {
       if (accountSummaries.length > 0) {
-        const aggSafeVelocity = accountSummaries.reduce((sum, a) => sum + (a.safeVelocity?.safeVelocityPerDay || 0), 0);
-        const aggBurnRate = accountSummaries.reduce((sum, a) => sum + (a.safeVelocity?.burnRatePerDay || 0), 0);
-        const aggCommitted = accountSummaries.reduce((sum, a) => sum + (a.safeVelocity?.committedUpcomingItems || 0), 0);
-        const aggFreeSurplus = accountSummaries.reduce((sum, a) => sum + (a.safeVelocity?.freeSurplus || 0), 0);
+        const unifiedFree = Math.max(0, todayBalance - committedUpcomingItems - safetyFloor - activeGoalsCost);
+        const unifiedRate = Math.max(0, Math.floor(unifiedFree / daysLeft));
 
-        let aggPaceStatus = 'stable';
-        if (aggSafeVelocity <= 0) {
-          aggPaceStatus = 'critical';
-        } else if (aggBurnRate > aggSafeVelocity * 1.25) {
-          aggPaceStatus = 'contracting';
-        } else if (aggBurnRate < aggSafeVelocity * 0.75) {
-          aggPaceStatus = 'expanding';
+        let unifiedPace = 'stable';
+        if (unifiedRate <= 0) {
+          unifiedPace = 'critical';
+        } else if (burnRatePerDay > unifiedRate * 1.25) {
+          unifiedPace = 'contracting';
+        } else if (burnRatePerDay < unifiedRate * 0.75) {
+          unifiedPace = 'expanding';
         }
 
         return {
-          safeVelocityPerDay: aggSafeVelocity,
-          rate: aggSafeVelocity,
-          freeSurplus: aggFreeSurplus,
-          burnRatePerDay: aggBurnRate,
-          burnRate: aggBurnRate,
-          committedUpcomingItems: aggCommitted,
-          committedBills: aggCommitted,
+          safeVelocityPerDay: unifiedRate,
+          rate: unifiedRate,
+          freeSurplus: unifiedFree,
+          burnRatePerDay,
+          burnRate: burnRatePerDay,
+          committedUpcomingItems,
+          committedBills: committedUpcomingItems,
           activeGoalsCost,
+          goalReserve: activeGoalsCost,
           daysLeft,
           daysElapsed,
-          paceStatus: aggPaceStatus,
-          status: aggPaceStatus
+          paceStatus: unifiedPace,
+          status: unifiedPace
         };
       }
 
@@ -1476,6 +1472,7 @@ export function simulate(
         committedUpcomingItems,
         committedBills: committedUpcomingItems,
         activeGoalsCost,
+        goalReserve: activeGoalsCost,
         daysLeft,
         daysElapsed,
         paceStatus,

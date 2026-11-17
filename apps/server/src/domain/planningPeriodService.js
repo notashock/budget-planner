@@ -2,7 +2,7 @@ import { eq, and, desc, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { deriveTransactionState } from '@budget/engine';
-import { SimulationService } from './simulationService.js';
+import { SimulationService, loadGoalsForUser } from './simulationService.js';
 import { attachAccountOpeningsToMonth, isHistoricalPastMonth } from './monthLifecycle.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
@@ -88,7 +88,8 @@ export const PlanningPeriodService = {
       currentDay = 0;
     }
 
-    // Execute single-pass multi-account simulation
+    // Execute single-pass multi-account simulation (goals reserve this month's share)
+    const goals = await loadGoalsForUser(userId);
     const { simulation, accountSimulations } = SimulationService.computeSimulation({
       month,
       bankAccounts,
@@ -96,6 +97,7 @@ export const PlanningPeriodService = {
       accountOpenings: month.accountOpeningBalances || [],
       transactions,
       transfers,
+      goals,
       currentDay
     });
 

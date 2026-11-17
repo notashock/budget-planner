@@ -43,6 +43,15 @@ describe('Plan insights: buildCashAllocation', () => {
     expect(a.shortfall).toBe(1500);
   });
 
+  it('sets aside goal savings after bills and floor, and never turns goals into a shortfall', () => {
+    const a = buildCashAllocation({ todayBalance: 100000, committedUpcomingItems: 40000, safetyFloor: 20000, goalReserve: 15000 });
+    expect(a).toMatchObject({ committed: 40000, floorReserve: 20000, goalSavings: 15000, free: 25000, shortfall: 0 });
+    expect(a.segments.map((s) => s.key)).toEqual(['committed', 'floor', 'goals', 'free']);
+
+    const tight = buildCashAllocation({ todayBalance: 50000, committedUpcomingItems: 40000, safetyFloor: 20000, goalReserve: 15000 });
+    expect(tight).toMatchObject({ goalSavings: 0, free: 0, shortfall: 10000 });
+  });
+
   it('handles empty input', () => {
     const a = buildCashAllocation();
     expect(a.total).toBe(0);

@@ -150,6 +150,14 @@ describe('Irregular income view', () => {
     expect(screen.getByText('3–6 months')).toBeInTheDocument();
     expect(screen.getByText(/₹42,000.00 covers 4.2 months of average spending \(₹10,000.00\/mo\)/)).toBeInTheDocument();
     expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '4.2');
+    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument();
+  });
+
+  it('says how many months of history the runway is based on', () => {
+    const { rerender } = render(<RunwayGauge runwayMonths={10} monthsOfHistory={3} currencySymbol="₹" />);
+    expect(screen.getByText('Based on 3 months of history.')).toBeInTheDocument();
+    rerender(<RunwayGauge runwayMonths={10} monthsOfHistory={1} currencySymbol="₹" />);
+    expect(screen.getByText(/Based on 1 month of history\. This will steady/)).toBeInTheDocument();
   });
 
   it('flags under three months and handles indefinite runway', () => {
@@ -165,7 +173,7 @@ describe('Irregular income view', () => {
     render(
       <IrregularHeroCards
         currencySymbol="₹"
-        metrics={{ smoothedMonthlyIncome: 1500000, trailing12mIncome: 18000000, avgMonthlySpending: 900000, trailing12mSpending: 10800000, currentBalance: 5000000 }}
+        metrics={{ smoothedMonthlyIncome: 1500000, trailing12mIncome: 18000000, avgMonthlySpending: 900000, trailing12mSpending: 10800000, currentBalance: 5000000, monthsOfHistory: 12 }}
       />
     );
     expect(screen.getByText('Savings rate')).toBeInTheDocument();

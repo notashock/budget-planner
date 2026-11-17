@@ -31,26 +31,32 @@ export function buildCashAllocation({
   todayBalance = 0,
   committedUpcomingItems = 0,
   safetyFloor = 0,
+  goalReserve = 0,
   freeSurplus
 } = {}) {
   const balance = Math.max(0, toInt(todayBalance));
   const committedNeed = Math.max(0, toInt(committedUpcomingItems));
   const floorNeed = Math.max(0, toInt(safetyFloor));
+  const goalNeed = Math.max(0, toInt(goalReserve));
 
-  // Bills are paid first, then the floor is held back, then the rest is free.
+  // Bills are paid first, then the floor is held back, then this month's goal
+  // savings are set aside, and the rest is free. This is the same order as the
+  // engine's freeSurplus = today - bills - floor - goal reserve.
   const committed = Math.min(balance, committedNeed);
   const floorReserve = Math.min(balance - committed, floorNeed);
-  const computedFree = Math.max(0, balance - committed - floorReserve);
-  // Prefer the engine's own figure (it is summed per account in multi-account mode)
-  // but never let it exceed what is actually left after bills and floor.
+  const goalSavings = Math.min(balance - committed - floorReserve, goalNeed);
+  const computedFree = Math.max(0, balance - committed - floorReserve - goalSavings);
+  // Never let the engine's figure exceed what is actually left over.
   const free = freeSurplus === undefined || freeSurplus === null
     ? computedFree
     : Math.min(computedFree, Math.max(0, toInt(freeSurplus)));
+  // Goals are a target, not an obligation, so they never create a shortfall.
   const shortfall = Math.max(0, committedNeed + floorNeed - balance);
 
   const segments = [
     { key: 'committed', amount: committed },
     { key: 'floor', amount: floorReserve },
+    { key: 'goals', amount: goalSavings },
     { key: 'free', amount: free },
     { key: 'shortfall', amount: shortfall }
   ].filter((s) => s.amount > 0);
@@ -59,6 +65,7 @@ export function buildCashAllocation({
     total: balance + shortfall,
     committed,
     floorReserve,
+    goalSavings,
     free,
     shortfall,
     segments
@@ -277,4 +284,47 @@ export function getHeadroom(balance = 0, minimum = 0) {
     ratio: bal > 0 ? Math.max(0, Math.min(1, amount / bal)) : 0,
     status
   };
+}
+
+const RESERVING_GOAL_STATUSES = new Set(['active', 'logged', 'evaluating']);
+
+const goalFundingIds = (g) => [g?.fundingAccountId, g?.fundingBankAccountId, g?.fundingWalletId]
+  .filter(Boolean)
+  .map((v) => String(v._id || v.id || v));
+
+/**
+ * This month's share of each open goal: the money to set aside now so the
+ * goal is fully funded by its target date.
+ *
+ *   reserve = ceil(targetAmount / monthsRemaining)   (this month counts as 1)
+ *
+ * Only goals still being saved for reserve money:
+ * - 'active' / 'logged' / 'evaluating' with a target date this month or later
+ * - 'scheduled' goals are already planned transactions (inside committed bills),
+ *   so reserving for them would count the money twice
+ * - goals without a target date, and achieved / dropped / deferred goals, reserve 0
+ *
+ * @param {Array<object>} goals
+ * @param {{ year: number, month: number }} period
+ * @returns {{ total: number, items: Array<{ goal: object, reserve: number, monthsRemaining: number, fundingIds: string[] }> }}
+ */
+export function getGoalMonthlyReserve(goals = [], { year, month } = {}) {
+  const items = [];
+  if (!year || !month) return { total: 0, items };
+  const periodIndex = Number(year) * 12 + (Number(month) - 1);
+
+  (goals || []).forEach((g) => {
+    if (!g || !RESERVING_GOAL_STATUSES.has(String(g.status || 'logged').toLowerCase())) return;
+    const target = toInt(g.targetAmount);
+    if (target <= 0 || !g.targetDate) return;
+    const [ty, tm] = String(g.targetDate).split('-').map(Number);
+    if (!ty || !tm) return;
+    const targetIndex = ty * 12 + (tm - 1);
+    if (targetIndex < periodIndex) return; // target date already passed
+    const monthsRemaining = targetIndex - periodIndex + 1;
+    const reserve = Math.ceil(target / monthsRemaining);
+    items.push({ goal: g, reserve, monthsRemaining, fundingIds: goalFundingIds(g) });
+  });
+
+  return { total: items.reduce((s, i) => s + i.reserve, 0), items };
 }

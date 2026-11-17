@@ -6,7 +6,7 @@ import { backfillUnassignedTransactions } from '../services/accountMigration.js'
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { SalaryCycleJob } from '../services/salaryCycleJob.js';
-import { SimulationService } from './simulationService.js';
+import { SimulationService, loadGoalsForUser } from './simulationService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 
@@ -274,6 +274,7 @@ export const MonthLifecycle = {
       currentDay = 0;
     }
 
+    const goals = await loadGoalsForUser(userId);
     const { simulation, accountSimulations } = SimulationService.computeSimulation({
       month,
       bankAccounts,
@@ -282,6 +283,7 @@ export const MonthLifecycle = {
       items,
       transactions,
       transfers,
+      goals,
       currentDay
     });
 
@@ -590,6 +592,7 @@ export const MonthLifecycle = {
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : null;
 
+    const goalsForSim = await loadGoalsForUser(userId);
     const simulation = simulate(
       {
         openingBalance: month.openingBalance,
@@ -610,7 +613,7 @@ export const MonthLifecycle = {
       serialize(items),
       { year, month: monthNum },
       serialize(transactions),
-      [],
+      goalsForSim,
       serialize(transfers)
     );
 
@@ -775,6 +778,7 @@ export const MonthLifecycle = {
       db.query.transfers.findMany({ where: and(eq(s.transfers.userId, userId), eq(s.transfers.monthId, month.id)) })
     ]);
 
+    const goalsForSim = await loadGoalsForUser(userId);
     const simulation = simulate(
       {
         openingBalance: fullMonth.openingBalance,
@@ -795,7 +799,7 @@ export const MonthLifecycle = {
       serialize(items),
       { year, month: monthNum },
       serialize(transactions),
-      [],
+      goalsForSim,
       serialize(transfers)
     );
 
@@ -841,6 +845,7 @@ export const MonthLifecycle = {
     const bankAccounts = allAccounts.filter(a => a.type === 'bank');
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
+    const rolloverGoals = await loadGoalsForUser(userId);
     const currentSimulation = simulate(
       {
         openingBalance: currentMonth.openingBalance,
@@ -858,7 +863,7 @@ export const MonthLifecycle = {
       serialize(currentItems),
       { year: currentYear, month: currentMonthNum },
       serialize(currentTransactions),
-      [],
+      rolloverGoals,
       serialize(currentTransfers)
     );
 
@@ -1029,7 +1034,7 @@ export const MonthLifecycle = {
       serialize(allNextItems),
       { year: nextYear, month: nextMonthNum },
       [],
-      [],
+      rolloverGoals,
       []
     );
 
