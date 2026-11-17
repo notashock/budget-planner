@@ -3,6 +3,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
+import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
+import { TimelineList } from '../components/TimelineList.jsx';
 
 describe('UpcomingOutflows', () => {
   const events = [
@@ -79,5 +81,59 @@ describe('AllowancePaceMeter', () => {
 
     rerender(<AllowancePaceMeter unplannedAllowance={0} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('CategoryBreakdown', () => {
+  it('ranks categories by total with share and a paid/planned legend', () => {
+    render(
+      <CategoryBreakdown
+        currencySymbol="₹"
+        events={[
+          { category: 'Rent', amount: -4000000 },
+          { category: 'Food', amount: -150000, isActual: true },
+          { category: 'Food', amount: -50000 },
+          { category: 'Transfer', amount: -999999, itemType: 'transfer' },
+          { label: 'Salary', amount: 13500000, isSalary: true }
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Spending by category')).toBeInTheDocument();
+    expect(screen.getByText('₹42,000.00')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    const names = Array.from(document.querySelectorAll('.cat-name')).map((n) => n.textContent);
+    expect(names).toEqual(['Rent', 'Food']);
+    expect(screen.getByText('95%')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Food: ₹2,000.00, 5% of spending; ₹1,500.00 paid, ₹500.00 planned/ })).toBeInTheDocument();
+  });
+
+  it('renders nothing when there is no spending', () => {
+    const { container } = render(<CategoryBreakdown events={[{ amount: 5000, isSalary: true }]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('TimelineList day grouping', () => {
+  it('adds one statement-style header per date with entry count and day net', () => {
+    const { container } = render(
+      <TimelineList
+        currencySymbol="₹"
+        bankAccounts={[{ _id: 'bank-1', id: 'bank-1', name: 'HDFC' }]}
+        events={[
+          { sourceIndex: 1, day: 1, date: '2026-11-01', label: 'Salary', amount: 5000000, balanceAfter: 5000000, itemType: 'salary', isSalary: true, isActual: true, bankAccountId: 'bank-1' },
+          { sourceIndex: 2, day: 1, date: '2026-11-01', label: 'Rent', amount: -4000000, balanceAfter: 1000000, itemType: 'transaction', isActual: true, bankAccountId: 'bank-1' },
+          { sourceIndex: 3, day: 5, date: '2026-11-05', label: 'Lunch', amount: -45000, balanceAfter: 955000, itemType: 'transaction', isActual: true, bankAccountId: 'bank-1' }
+        ]}
+      />
+    );
+
+    const headers = container.querySelectorAll('.timeline-day-header');
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toHaveTextContent('2 entries');
+    expect(headers[0]).toHaveTextContent('+₹10,000.00');
+    expect(headers[1]).toHaveTextContent('1 entry');
+    expect(headers[1]).toHaveTextContent('-₹450.00');
   });
 });

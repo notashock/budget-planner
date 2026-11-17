@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { formatCurrency, calculateIrregularMetrics } from '@budget/engine';
+import { formatCurrency, calculateIrregularMetrics, getHeadroom } from '@budget/engine';
 import {
   DetailedKpiGrid,
   IrregularHeroCards,
@@ -10,6 +10,7 @@ import {
 import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
 import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
+import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
@@ -699,13 +700,18 @@ export function PlanScreen({
                 const accSim = simulation?.accounts?.[accId];
                 const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
                 const hasBreach = accSim?.floorBreached;
+                const minBal = Number(b.minimumBalance) || 0;
+                const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
 
                 return (
                   <button
                     key={accId}
                     type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''} ${headroom ? 'has-headroom' : ''}`}
                     onClick={() => setSelectedAccountId(accId)}
+                    title={headroom
+                      ? `${formatCurrency(Math.abs(headroom.amount), month.currencySymbol)} ${headroom.amount < 0 ? 'below' : 'above'} its ${formatCurrency(minBal, month.currencySymbol)} minimum`
+                      : undefined}
                   >
                     <BuildingLibraryIcon size={12} />
                     <span>{b.name}</span>
@@ -713,6 +719,13 @@ export function PlanScreen({
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {headroom && (
+                      <span
+                        className={`pill-headroom headroom-${headroom.status}`}
+                        style={{ width: `${Math.max(6, headroom.ratio * 100)}%` }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -723,13 +736,18 @@ export function PlanScreen({
                 const accSim = simulation?.accounts?.[accId];
                 const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
                 const hasBreach = accSim?.floorBreached;
+                const minBal = Number(w.minimumBalance) || 0;
+                const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
 
                 return (
                   <button
                     key={accId}
                     type="button"
-                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''}`}
+                    className={`filter-pill account-filter-pill ${isSelected ? 'active' : ''} ${hasBreach ? 'breached' : ''} ${headroom ? 'has-headroom' : ''}`}
                     onClick={() => setSelectedAccountId(accId)}
+                    title={headroom
+                      ? `${formatCurrency(Math.abs(headroom.amount), month.currencySymbol)} ${headroom.amount < 0 ? 'below' : 'above'} its ${formatCurrency(minBal, month.currencySymbol)} minimum`
+                      : undefined}
                   >
                     <WalletIcon size={12} />
                     <span>{w.name}</span>
@@ -737,6 +755,13 @@ export function PlanScreen({
                       {formatCurrency(bal, month.currencySymbol)}
                     </span>
                     {hasBreach && <AlertTriangleIcon size={10} color="var(--rose, #f43f5e)" />}
+                    {headroom && (
+                      <span
+                        className={`pill-headroom headroom-${headroom.status}`}
+                        style={{ width: `${Math.max(6, headroom.ratio * 100)}%` }}
+                        aria-hidden="true"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -877,6 +902,9 @@ export function PlanScreen({
             daysInMonth={activeSim?.daysInMonth ?? simulation?.daysInMonth ?? (activeDailyBalances.length || 30)}
             currencySymbol={month.currencySymbol}
           />
+        </ErrorBoundary>
+        <ErrorBoundary title="Category breakdown unavailable">
+          <CategoryBreakdown events={activeEvents} currencySymbol={month.currencySymbol} />
         </ErrorBoundary>
       </div>
 

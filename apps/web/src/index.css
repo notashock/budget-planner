@@ -8897,6 +8897,175 @@ main {
   .plan-insights-row { display: contents; }
 }
 
+/* ---- Spending by category ---- */
+.cat-legend {
+  list-style: none;
+  margin: -2px 0 0;
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.cat-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cat-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.cat-paid { background: var(--indigo); }
+.cat-planned { background: color-mix(in srgb, var(--indigo) 38%, var(--surface)); }
+
+.cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cat-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 96px) minmax(0, 1fr) auto 34px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.cat-name {
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-track {
+  display: flex;
+  gap: 2px; /* surface gap between paid and planned */
+  height: 10px;
+  min-width: 0;
+}
+
+.cat-bar {
+  height: 100%;
+  min-width: 3px;
+}
+
+/* square at the baseline, 4px rounded at the data end */
+.cat-bar:first-child { border-radius: 0; }
+.cat-bar:last-child { border-radius: 0 4px 4px 0; }
+
+.cat-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cat-share {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ---- Statement-style day headers in the timeline ---- */
+.apple-tx-group .timeline-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 18px;
+  background: var(--surface-subtle);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.apple-tx-group .timeline-day-header:first-child {
+  border-top: none;
+}
+
+.tdh-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tdh-today {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.tdh-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tdh-count {
+  color: var(--text-muted);
+}
+
+.tdh-net {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.tdh-net.net-in { color: var(--positive); }
+.tdh-net.net-out { color: var(--text); }
+
+/* The header now carries the date, so rows drop their repeated date badge */
+.apple-tx-group.timeline-grouped .tx-card-center,
+.apple-tx-group.timeline-grouped .tx-date-inline {
+  display: none !important;
+}
+
+/* A row directly above a day header shouldn't draw its hairline into it */
+.apple-tx-group .apple-tx-row.tx-card:has(+ .timeline-day-header)::after,
+.apple-tx-group .apple-tx-row.tx-card:has(+ .timeline-today-divider)::after {
+  display: none;
+}
+
+/* ---- Account pill headroom bar ---- */
+.account-filter-pill.has-headroom {
+  position: relative;
+  overflow: hidden;
+}
+
+.pill-headroom {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--positive);
+  opacity: 0.85;
+}
+
+.pill-headroom.headroom-warning { background: var(--amber); }
+.pill-headroom.headroom-breached { background: var(--rose); width: 100% !important; }
+
+@media (max-width: 599px) {
+  .apple-tx-group .timeline-day-header { padding: 7px 14px; }
+  .cat-row { grid-template-columns: minmax(56px, 80px) minmax(0, 1fr) auto; }
+  .cat-share { display: none; }
+}
+
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
 @media (max-width: 1023px) {
   .month-health-hero { order: 1; }

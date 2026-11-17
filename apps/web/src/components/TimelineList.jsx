@@ -293,6 +293,17 @@ export function TimelineList({
     return true;
   });
 
+  // Per-date totals for the statement-style day headers (net = sum of signed amounts;
+  // in unified mode transfers net to zero, in account mode they count as in/out)
+  const dayGroups = new Map();
+  filteredEvents.forEach((evt) => {
+    const g = dayGroups.get(evt.date) || { net: 0, count: 0 };
+    const amt = Number(evt.displayAmount);
+    g.net += Number.isFinite(amt) ? amt : 0;
+    g.count += 1;
+    dayGroups.set(evt.date, g);
+  });
+
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -387,7 +398,7 @@ export function TimelineList({
           </button>
         </div>
       ) : (
-        <div className="timeline-list apple-tx-group tx-cards-container">
+        <div className="timeline-list apple-tx-group tx-cards-container timeline-grouped">
           {filteredEvents.map((evt, idx) => {
             const isPreMonth = evt.day < 0;
             const isSelected = selectedDay === evt.day;
@@ -465,6 +476,10 @@ export function TimelineList({
               evt.day >= currentDay &&
               (idx === 0 || filteredEvents[idx - 1].day < currentDay);
 
+            // Statement-style day header: first row of each date
+            const showDayHeader = idx === 0 || filteredEvents[idx - 1].date !== evt.date;
+            const dayGroup = showDayHeader ? dayGroups.get(evt.date) : null;
+
             const isCredit = evt.displayAmount > 0 || isSalary;
             const cardTypeClass = isOverdue
               ? 'row-overdue has-overdue'
@@ -512,6 +527,21 @@ export function TimelineList({
                       Today ({formatDisplayDate(todayStr, true)})
                     </span>
                     <div className="today-line" />
+                  </div>
+                )}
+
+                {showDayHeader && dayGroup && (
+                  <div className="timeline-day-header" role="heading" aria-level={4}>
+                    <span className="tdh-date">
+                      {formatDisplayDate(evt.date, true)}
+                      {evt.date === todayStr && <span className="tdh-today">Today</span>}
+                    </span>
+                    <span className="tdh-meta">
+                      <span className="tdh-count">{dayGroup.count} {dayGroup.count === 1 ? 'entry' : 'entries'}</span>
+                      <span className={`tdh-net tabular-nums ${dayGroup.net > 0 ? 'net-in' : dayGroup.net < 0 ? 'net-out' : ''}`}>
+                        {dayGroup.net > 0 ? '+' : ''}{formatCurrency(dayGroup.net, currencySymbol)}
+                      </span>
+                    </span>
                   </div>
                 )}
 
