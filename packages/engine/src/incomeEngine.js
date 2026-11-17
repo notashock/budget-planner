@@ -64,6 +64,18 @@ export function calculateIrregularMetrics({
     0
   );
 
+  // An opening balance already includes everything that happened before its
+  // date, so those transactions must not be added to it again.
+  const openingDateById = new Map();
+  (accounts || []).forEach((acc) => {
+    if (!acc || !acc.openingBalanceDate) return;
+    [acc.id, acc._id, acc.altId].filter(Boolean).forEach((id) => openingDateById.set(String(id), String(acc.openingBalanceDate)));
+  });
+  const txAccountId = (t) => {
+    const raw = t.accountId || t.bankAccountId || t.walletId;
+    return raw ? String(raw._id || raw.id || raw) : null;
+  };
+
   let currentBalance = openingTotal;
   let trailing12mIncome = 0;
   let trailing12mSpending = 0;
@@ -82,8 +94,11 @@ export function calculateIrregularMetrics({
     const amount = Number(t.amount) || 0;
     const isIncome = Boolean(t.isIncome);
 
-    // Apply to current balance if on or before asOfDate
-    if (tDate <= asOfStr) {
+    // Apply to current balance if on or before asOfDate, and not already
+    // reflected in its account's opening balance
+    const openedOn = openingDateById.get(txAccountId(t) || '');
+    const predatesOpening = Boolean(openedOn && tDate < openedOn);
+    if (tDate <= asOfStr && !predatesOpening) {
       if (isIncome) {
         currentBalance += amount;
       } else {
