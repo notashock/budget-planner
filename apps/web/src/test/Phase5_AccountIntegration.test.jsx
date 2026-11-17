@@ -134,6 +134,42 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       expect(handleOpenMigration).toHaveBeenCalledTimes(1);
     });
 
+    it("judges the unified view against the engine's floor, even when the month floor exceeds account minimums", () => {
+      // Account minimums sum to ₹15,000; the engine's unified floor is ₹25,000 (a larger month floor).
+      render(
+        <PlanScreen
+          month={mockMonth}
+          items={[]}
+          simulation={{ ...mockSimulation, safetyFloor: 2500000 }}
+          bankAccounts={mockBankAccounts}
+          wallets={mockWallets}
+          onOpenUnifiedEntry={vi.fn()}
+          onOpenReview={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Floor: ₹25,000.00')).toBeInTheDocument();
+      expect(screen.getByText(/₹25,000.00 safety floor/)).toBeInTheDocument();
+      expect(screen.queryByText('Floor: ₹15,000.00')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the larger of the month floor and account minimums when the engine gives none', () => {
+      const { safetyFloor, ...simWithoutFloor } = mockSimulation;
+      render(
+        <PlanScreen
+          month={mockMonth}
+          items={[]}
+          simulation={simWithoutFloor}
+          bankAccounts={mockBankAccounts}
+          wallets={mockWallets}
+          onOpenUnifiedEntry={vi.fn()}
+          onOpenReview={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Floor: ₹15,000.00')).toBeInTheDocument();
+    });
+
     it('calculates unified sums across all accounts and isolates safe velocity when account is selected', () => {
       const mockSimWithRichAccounts = {
         ...mockSimulation,

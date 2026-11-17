@@ -265,9 +265,13 @@ export function PlanScreen({
   const totalAccountsSafetyFloor = (bankAccounts || []).reduce((sum, b) => sum + (Number(b.minimumBalance) || 0), 0) +
     (wallets || []).reduce((sum, w) => sum + (Number(w.minimumBalance) || 0), 0);
 
+  // One floor everywhere: the engine's unified floor = max(month floor, sum of
+  // account minimums). Only the single-account view uses that account's minimum.
   const activeSafetyFloor = isFilteringAccount
     ? (selectedAccount?.minimumBalance || 0)
-    : (hasAccounts ? totalAccountsSafetyFloor : (month?.safetyFloor || 0));
+    : (typeof simulation?.safetyFloor === 'number'
+      ? simulation.safetyFloor
+      : Math.max(month?.safetyFloor || 0, hasAccounts ? totalAccountsSafetyFloor : 0));
 
   const designatedSalaryBankId = String(
     month?.salaryBankAccountId?._id ||

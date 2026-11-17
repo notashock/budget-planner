@@ -31,26 +31,32 @@ export function buildCashAllocation({
   todayBalance = 0,
   committedUpcomingItems = 0,
   safetyFloor = 0,
+  goalReserve = 0,
   freeSurplus
 } = {}) {
   const balance = Math.max(0, toInt(todayBalance));
   const committedNeed = Math.max(0, toInt(committedUpcomingItems));
   const floorNeed = Math.max(0, toInt(safetyFloor));
+  const goalNeed = Math.max(0, toInt(goalReserve));
 
-  // Bills are paid first, then the floor is held back, then the rest is free.
+  // Bills are paid first, then the floor is held back, then this month's goal
+  // savings are set aside, and the rest is free. This is the same order as the
+  // engine's freeSurplus = today - bills - floor - goal reserve.
   const committed = Math.min(balance, committedNeed);
   const floorReserve = Math.min(balance - committed, floorNeed);
-  const computedFree = Math.max(0, balance - committed - floorReserve);
-  // Prefer the engine's own figure (it is summed per account in multi-account mode)
-  // but never let it exceed what is actually left after bills and floor.
+  const goalSavings = Math.min(balance - committed - floorReserve, goalNeed);
+  const computedFree = Math.max(0, balance - committed - floorReserve - goalSavings);
+  // Never let the engine's figure exceed what is actually left over.
   const free = freeSurplus === undefined || freeSurplus === null
     ? computedFree
     : Math.min(computedFree, Math.max(0, toInt(freeSurplus)));
+  // Goals are a target, not an obligation, so they never create a shortfall.
   const shortfall = Math.max(0, committedNeed + floorNeed - balance);
 
   const segments = [
     { key: 'committed', amount: committed },
     { key: 'floor', amount: floorReserve },
+    { key: 'goals', amount: goalSavings },
     { key: 'free', amount: free },
     { key: 'shortfall', amount: shortfall }
   ].filter((s) => s.amount > 0);
@@ -59,6 +65,7 @@ export function buildCashAllocation({
     total: balance + shortfall,
     committed,
     floorReserve,
+    goalSavings,
     free,
     shortfall,
     segments

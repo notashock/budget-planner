@@ -32,7 +32,7 @@ describe('SummaryCards components', () => {
       expect(screen.getByText('₹450.00')).toBeInTheDocument();
       expect(screen.getByText('12 days left')).toBeInTheDocument();
       expect(screen.getByText('On track')).toBeInTheDocument();
-      expect(screen.getByText(/of upcoming bills and your/i)).toBeInTheDocument();
+      expect(screen.getByText(/of upcoming bills, your/i)).toBeInTheDocument();
     });
 
     it("shows where today's balance goes with legend amounts that add up", () => {
@@ -71,6 +71,24 @@ describe('SummaryCards components', () => {
       expect(screen.getByText('Below floor')).toBeInTheDocument();
       expect(screen.getByText(/under your safety floor/i)).toBeInTheDocument();
       expect(screen.getByText('Shortfall')).toBeInTheDocument();
+    });
+
+    it("sets aside this month's goal share as its own part of the bar and names it in the explanation", () => {
+      render(
+        <MonthHealthHero
+          safeVelocity={{ ...baseVelocity, goalReserve: 200000, freeSurplus: 340000 }}
+          todayBalance={2040000}
+          lowestBalance={1600000}
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+
+      // 20,400 = 5,000 bills + 10,000 floor + 2,000 goals + 3,400 free
+      expect(screen.getByText('Goal savings')).toBeInTheDocument();
+      expect(screen.getByText('₹2,000.00')).toBeInTheDocument();
+      expect(screen.getByText('₹3,400.00')).toBeInTheDocument();
+      expect(screen.getByText(/set aside for goals this month/i)).toBeInTheDocument();
     });
 
     it('calls a month tight when the low point is within 15% of the floor', () => {
