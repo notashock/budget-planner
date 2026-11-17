@@ -72,16 +72,53 @@ export function buildCashAllocation({
   };
 }
 
+const INVESTMENT_PATTERN = /invest|saving|\bsip\b|mutual fund|\bmf\b|fixed deposit|\bfd\b|recurring deposit|\brd\b|\bppf\b|\bnps\b|\belss\b|stock|equit|\bgold\b|retirement|pension/i;
+
 /**
- * Net cash position for the period and the savings rate (net ÷ income).
- * `savingsRate` is null when there is no income to divide by.
+ * Whether an outflow is money set aside (saved or invested) rather than spent:
+ * investment/savings categories (SIP, mutual funds, FD/RD, PPF, NPS, stocks...)
+ * and goal contributions. Transfers between own accounts are neither.
  */
-export function getNetPosition(incomeAmount = 0, totalExpenses = 0) {
+export function isInvestment(evt) {
+  if (!evt || isTransferEvent(evt)) return false;
+  if (evt.origin === 'goal' || evt.goalId) return true;
+  const text = `${evt.category || ''} ${evt.tag || ''}`;
+  return INVESTMENT_PATTERN.test(text);
+}
+
+/**
+ * Splits outflow events into money spent and money saved or invested.
+ */
+export function splitInvestments(events = []) {
+  let invested = 0;
+  let spending = 0;
+  (events || []).forEach((evt) => {
+    if (!evt || isTransferEvent(evt)) return;
+    const amt = toInt(evt.amount);
+    if (amt >= 0) return;
+    if (isInvestment(evt)) invested += Math.abs(amt);
+    else spending += Math.abs(amt);
+  });
+  return { invested, spending };
+}
+
+/**
+ * Projected net cash position for the period and the savings rate.
+ *
+ * net         = income − all outflows (the cash left over at month-end)
+ * invested    = outflows that are saving or investing (SIP, FD, goals...)
+ * savedAndInvested = net + invested
+ * savingsRate = savedAndInvested ÷ income, so investing counts as saving,
+ *               not as spending. null when there is no income.
+ */
+export function getNetPosition(incomeAmount = 0, totalExpenses = 0, { invested = 0 } = {}) {
   const income = toInt(incomeAmount);
   const expenses = Math.abs(toInt(totalExpenses));
+  const investedAmt = Math.min(expenses, Math.max(0, toInt(invested)));
   const net = income - expenses;
-  const savingsRate = income > 0 ? net / income : null;
-  return { income, expenses, net, savingsRate };
+  const savedAndInvested = net + investedAmt;
+  const savingsRate = income > 0 ? savedAndInvested / income : null;
+  return { income, expenses, net, invested: investedAmt, savedAndInvested, savingsRate };
 }
 
 /**

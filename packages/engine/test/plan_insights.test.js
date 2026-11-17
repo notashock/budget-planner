@@ -198,3 +198,28 @@ describe("formatCurrency decimals option", () => {
     expect(formatCurrencyWhole(-20)).toBe('₹0');
   });
 });
+
+describe("Investments count as saving", () => {
+  it("isInvestment recognises investment categories and goal contributions, not transfers", async () => {
+    const { isInvestment, splitInvestments, getNetPosition } = await import('../src/index.js');
+    expect(isInvestment({ category: 'Investments', amount: -1 })).toBe(true);
+    expect(isInvestment({ tag: 'SIP', amount: -1 })).toBe(true);
+    expect(isInvestment({ category: 'Fixed Deposit', amount: -1 })).toBe(true);
+    expect(isInvestment({ origin: 'goal', amount: -1 })).toBe(true);
+    expect(isInvestment({ category: 'Rent', amount: -1 })).toBe(false);
+    expect(isInvestment({ category: 'Savings', amount: -1, itemType: 'transfer' })).toBe(false);
+    // "sip" only as a whole word: not "Gossip Magazine"
+    expect(isInvestment({ category: 'Gossip magazine', amount: -1 })).toBe(false);
+
+    const { invested, spending } = splitInvestments([
+      { amount: -5000, category: 'Rent' },
+      { amount: -2000, category: 'SIP' },
+      { amount: 9000, isSalary: true }
+    ]);
+    expect({ invested, spending }).toEqual({ invested: 2000, spending: 5000 });
+
+    const n = getNetPosition(10000, 7000, { invested: 2000 });
+    expect(n).toMatchObject({ net: 3000, invested: 2000, savedAndInvested: 5000 });
+    expect(n.savingsRate).toBeCloseTo(0.5);
+  });
+});

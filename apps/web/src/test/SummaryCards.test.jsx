@@ -131,13 +131,32 @@ describe('SummaryCards components', () => {
       expect(screen.getByText('Total expenses')).toBeInTheDocument();
       expect(screen.getByText('₹4,000')).toBeInTheDocument();
       expect(screen.getByText(/₹1,500.00 paid · ₹2,500.00 planned/)).toBeInTheDocument();
-      expect(screen.getByText('Net this month')).toBeInTheDocument();
+      expect(screen.getByText('Projected net')).toBeInTheDocument();
       expect(screen.getByText('+₹56,000')).toBeInTheDocument();
       expect(screen.getByText('93% of income saved')).toBeInTheDocument();
       expect(screen.getByText('Lowest balance')).toBeInTheDocument();
       expect(screen.getByText('₹42,000')).toBeInTheDocument();
       expect(screen.getByText(/₹32,000.00 above floor/)).toBeInTheDocument();
       expect(screen.queryByText('▲ Below floor')).not.toBeInTheDocument();
+    });
+
+    it("counts SIPs and goal contributions as saving, not spending", () => {
+      render(
+        <DetailedKpiGrid
+          incomeAmount={10000000}
+          events={[
+            { amount: -5000000, category: 'Rent', isActual: true },
+            { amount: -1500000, category: 'Investments', tag: 'SIP' },
+            { amount: -500000, origin: 'goal', category: 'Phone' }
+          ]}
+          lowestBalance={3000000}
+          safetyFloor={1000000}
+          currencySymbol="₹"
+        />
+      );
+      // Income 1,00,000 - outflows 70,000 = 30,000 left; + 20,000 invested = 50,000 → 50%
+      expect(screen.getByText('+₹30,000')).toBeInTheDocument();
+      expect(screen.getByText('₹50,000 saved & invested · 50% of income')).toBeInTheDocument();
     });
 
     it("flags a breach earlier this month even when the upcoming low is above the floor", () => {

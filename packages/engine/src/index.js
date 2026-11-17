@@ -6,6 +6,8 @@ export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoun
 export {
   buildCashAllocation,
   getNetPosition,
+  isInvestment,
+  splitInvestments,
   splitPaidAndPlanned,
   getAllowancePace,
   getUpcomingOutflows,

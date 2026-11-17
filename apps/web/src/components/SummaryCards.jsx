@@ -4,6 +4,7 @@ import {
   formatCurrencyWhole,
   formatDisplayDate,
   getNetPosition,
+  splitInvestments,
   splitPaidAndPlanned,
   getHeadroom
 } from '@budget/engine';
@@ -46,7 +47,8 @@ export function DetailedKpiGrid({
     ? totalExpenses
     : paid + planned;
 
-  const { net, savingsRate } = getNetPosition(incomeAmount, totalOutflow);
+  const { invested } = splitInvestments(events);
+  const { net, savingsRate, savedAndInvested } = getNetPosition(incomeAmount, totalOutflow, { invested });
   const headroom = getHeadroom(lowestBalance, safetyFloor);
   const floorBreached = headroom.status === 'breached';
 
@@ -105,7 +107,7 @@ export function DetailedKpiGrid({
             <span className={`kpi-icon-badge ${net < 0 ? 'kpi-expense' : 'kpi-balance'}`} aria-hidden="true">
               <WalletIcon size={13} strokeWidth={2.2} />
             </span>
-            <span className="summary-label">Net this month</span>
+            <span className="summary-label">Projected net</span>
           </div>
         </div>
         <span className={`summary-value ${net < 0 ? 'text-breached' : 'text-net-positive'}`}>
@@ -115,9 +117,11 @@ export function DetailedKpiGrid({
           <span className="kpi-subtext">
             {savingsRate === null
               ? 'No income recorded'
-              : net >= 0
-                ? `${formatPercent(savingsRate)} of income saved`
-                : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
+              : invested > 0
+                ? `${formatCurrencyWhole(savedAndInvested, currencySymbol)} saved & invested · ${formatPercent(Math.max(0, savingsRate))} of income`
+                : net >= 0
+                  ? `${formatPercent(savingsRate)} of income saved`
+                  : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
           </span>
         </div>
       </div>
