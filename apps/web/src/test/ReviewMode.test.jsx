@@ -226,7 +226,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       expect(screen.queryByTitle(/Archive Account/i)).toBeNull();
 
       // Verify snapshotted breakdown
-      expect(screen.getByText(/Snapshotted Closing Balances/i)).toBeInTheDocument();
+      expect(screen.getByText(/Month-end balances/i)).toBeInTheDocument();
       expect(screen.getAllByText(/Closing Balance \(Snapshotted\)/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Total Inflow/i)).toBeInTheDocument();
       expect(screen.getByText(/Total Outflow/i)).toBeInTheDocument();

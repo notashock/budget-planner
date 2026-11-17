@@ -82,7 +82,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
   };
 
   describe('PlanScreen Account Filter Bar', () => {
-    it('renders horizontal account filter pills and filters isolated trajectory on click', () => {
+    it('renders horizontal account filter pills and shows only the selected account on click', () => {
       render(
         <PlanScreen
           month={mockMonth}
@@ -95,7 +95,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('All Accounts (Unified)')).toBeInTheDocument();
+      expect(screen.getByText('All accounts')).toBeInTheDocument();
       expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
@@ -103,12 +103,12 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const bankPill = screen.getAllByText('HDFC Salary Account')[0].closest('button');
       fireEvent.click(bankPill);
 
-      expect(screen.getByText(/Viewing isolated trajectory for/i)).toBeInTheDocument();
+      expect(screen.getByText(/Showing only/i)).toBeInTheDocument();
       expect(screen.getByText('Reset')).toBeInTheDocument();
 
       // Reset back to unified via Reset button
       fireEvent.click(screen.getByText('Reset'));
-      expect(screen.queryByText(/Viewing isolated trajectory for/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Showing only/i)).not.toBeInTheDocument();
     });
 
     it('renders Prominent Data Transfer Banner when migrationEligible is true and opens migration on click', () => {
@@ -127,10 +127,10 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText(/Transfer Existing Calculations to Bank Account/i)).toBeInTheDocument();
-      expect(screen.getByText(/1-Tap Ingestion/i)).toBeInTheDocument();
+      expect(screen.getByText(/Move your balance into a bank account/i)).toBeInTheDocument();
+      expect(screen.getByText(/One step/i)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Transfer Existing Calculations Now/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Move my balance/i }));
       expect(handleOpenMigration).toHaveBeenCalledTimes(1);
     });
 

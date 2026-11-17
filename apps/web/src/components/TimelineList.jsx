@@ -360,11 +360,11 @@ export function TimelineList({
       <div className="timeline-filters-row apple-segmented-bar timeline-segmented-bar" role="tablist" aria-label="Timeline Filters">
         {[
           { id: 'all', label: 'All', count: counts.all },
-          { id: 'incomes', label: 'Incomes', count: counts.incomes },
+          { id: 'incomes', label: 'Income', count: counts.incomes },
           { id: 'planned', label: 'Planned', count: counts.planned },
           ...(counts.pending > 0 ? [{ id: 'pending', label: 'Pending', count: counts.pending }] : []),
-          { id: 'actuals', label: 'Actuals', count: counts.actuals },
-          { id: 'breaches', label: 'Breaches', count: counts.breaches }
+          { id: 'actuals', label: 'Paid', count: counts.actuals },
+          { id: 'breaches', label: 'Below minimum', count: counts.breaches }
         ].map((tab) => (
           <button
             key={tab.id}

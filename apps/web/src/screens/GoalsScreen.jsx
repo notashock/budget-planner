@@ -506,7 +506,7 @@ export function GoalsScreen({
                               <span>Floor breach risk</span>
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.3, marginTop: '2px' }}>
-                              Breaches floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
+                              Goes below your floor by {formatCurrency(Math.abs(rec.projectedFloorDeficit || 0), currencySymbol)}
                               {rec.lowestDate ? ` on ${formatDisplayDate(rec.lowestDate, true)}` : ''}.
                             </div>
                           </>

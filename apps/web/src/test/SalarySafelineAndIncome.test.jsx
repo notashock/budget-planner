@@ -185,11 +185,11 @@ describe('Salary Linking and Income Logging Integration', () => {
     expect(screen.getByLabelText(/salary already credited for this month/i)).toBeDisabled();
 
     // Verify safeline floor input is enabled
-    const safelineInput = screen.getByLabelText(/overall safeline floor/i);
+    const safelineInput = screen.getByLabelText(/safety floor/i);
     expect(safelineInput).toBeEnabled();
 
     // Verify submit button label
-    const submitBtn = screen.getByRole('button', { name: /update safeline floor/i });
+    const submitBtn = screen.getByRole('button', { name: /update safety floor/i });
     expect(submitBtn).toBeEnabled();
 
     // Edit safeline floor and submit

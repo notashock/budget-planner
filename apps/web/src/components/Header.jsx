@@ -421,7 +421,7 @@ export function Header({
                       }}
                     >
                       {salaryLockStatus.isLocked ? <LockIcon size={13} /> : <BuildingLibraryIcon size={13} />}
-                      <span>Link Salary & Safeline</span>
+                      <span>Salary schedule</span>
                     </button>
                   )}
 

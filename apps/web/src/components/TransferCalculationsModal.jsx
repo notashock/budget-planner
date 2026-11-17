@@ -94,7 +94,7 @@ export function TransferCalculationsModal({
                 <ArrowRightLeftIcon size={16} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Transfer Existing Calculations</h3>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Move your balance into an account</h3>
                 <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
                   Single unified migration to your bank ledger
                 </p>

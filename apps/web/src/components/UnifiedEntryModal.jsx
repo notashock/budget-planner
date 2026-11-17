@@ -1470,7 +1470,7 @@ export function UnifiedEntryModal({
                   </div>
                   {mode === 'income' && (
                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
-                      Note: Your primary monthly salary is managed via Link Salary & Safeline. Use this form to record ad-hoc earnings, bonuses, or side income.
+                      Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
                     </span>
                   )}
                 </>

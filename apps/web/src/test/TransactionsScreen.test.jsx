@@ -136,7 +136,7 @@ describe('TransactionsScreen', () => {
     fireEvent.click(markPaidButtons[0]);
 
     // Modal opens
-    expect(screen.getByText('Confirm Payment Settlement')).toBeInTheDocument();
+    expect(screen.getByText('Confirm payment')).toBeInTheDocument();
 
     // Submit payment
     const confirmBtn = screen.getByRole('button', { name: /Confirm Paid/i });

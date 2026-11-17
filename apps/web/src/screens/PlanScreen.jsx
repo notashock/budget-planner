@@ -451,7 +451,7 @@ export function PlanScreen({
                 className={`filter-pill ${viewSubmode === 'irregular' ? 'active' : ''}`}
                 style={{ fontSize: '11px', padding: '4px 10px' }}
               >
-                Runway & Irregular Cashflow
+                Irregular income
               </button>
             </div>
           </div>
@@ -540,7 +540,7 @@ export function PlanScreen({
                 Cashflow & Earnings Analysis
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-                Volatility-smoothed metrics decoupled from arbitrary month cuts.
+                Income and spending averaged over the months you have recorded.
               </p>
             </div>
 
@@ -684,15 +684,15 @@ export function PlanScreen({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BuildingLibraryIcon size={18} />
               <span style={{ fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Transfer Existing Calculations to Bank Account
+                Move your balance into a bank account
               </span>
             </div>
             <span style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontWeight: 500, color: 'var(--text-secondary)' }}>
-              1-Tap Ingestion
+              One step
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            Transfer your active calculations ({formatCurrency(todayBalance, month.currencySymbol)} balance) into your primary bank account for live balance tracking.
+            Move your current balance ({formatCurrency(todayBalance, month.currencySymbol)}) into your main bank account so it updates as you spend.
           </p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
             <button
@@ -701,7 +701,7 @@ export function PlanScreen({
               style={{ padding: '7px 16px', fontSize: '12px' }}
               onClick={onOpenMigration}
             >
-              Transfer Existing Calculations Now
+              Move my balance
             </button>
           </div>
         </div>
@@ -718,7 +718,7 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId('all')}
               >
-                <span>All Accounts (Unified)</span>
+                <span>All accounts</span>
               </button>
 
               {bankAccounts.map((b) => {
@@ -832,9 +832,9 @@ export function PlanScreen({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {selectedBank ? <BuildingLibraryIcon size={13} /> : <WalletIcon size={13} />}
             <span>
-              Viewing isolated trajectory for <strong>{selectedAccount.name}</strong>
-              {selectedAccount?.minimumBalance ? ` • Min Balance: ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
-              {activeAccountSummary ? ` • Projected End: ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
+              Showing only <strong>{selectedAccount.name}</strong>
+              {selectedAccount?.minimumBalance ? ` • Minimum balance ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
+              {activeAccountSummary ? ` • Month-end ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
             </span>
           </div>
           <button

@@ -460,7 +460,7 @@ export function AccountsScreen({
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isReviewMode ? (
             <span className="review-badge-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
-              <span>👁️</span> Snapshotted Closing Balances
+              <span>👁️</span> Month-end balances
             </span>
           ) : (
             <>

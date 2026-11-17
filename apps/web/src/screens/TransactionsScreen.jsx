@@ -826,10 +826,10 @@ export function TransactionsScreen({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-                    Confirm Payment Settlement
+                    Confirm payment
                   </h3>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Reconcile commitment against actual cash
+                    Enter what you actually paid and when
                   </span>
                 </div>
               </div>
