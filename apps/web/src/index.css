@@ -8352,3 +8352,241 @@ main {
     padding: 0;
   }
 }
+
+/* =========================================================================
+   PLAN PAGE — FINANCIAL INSIGHTS
+   Month Health hero, cash allocation bar, KPI strip and insight cards.
+   Built only on existing tokens; colour never carries meaning alone
+   (every state also has an icon/label, every bar part a legend entry).
+   ========================================================================= */
+
+/* ---- Month Health hero ---- */
+.month-health-hero {
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.mh-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mh-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.mh-verdict.verdict-good {
+  background: var(--emerald-subtle);
+  color: var(--positive);
+  border-color: var(--emerald-border);
+}
+
+.mh-verdict.verdict-tight {
+  background: var(--amber-subtle);
+  color: var(--amber);
+  border-color: var(--amber-border);
+}
+
+.mh-verdict.verdict-critical {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border-color: var(--rose-border);
+}
+
+.mh-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mh-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mh-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Hero figure: proportional digits at display size (tabular only in columns) */
+.mh-value {
+  font-size: clamp(32px, 4.2vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.mh-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mh-explain {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.mh-verdict-line {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.mh-verdict-line strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mh-verdict-line.verdict-critical {
+  background: var(--rose-subtle);
+  border-color: var(--rose-border);
+}
+
+.mh-verdict-line.verdict-critical strong {
+  color: var(--rose);
+}
+
+/* ---- Cash allocation: thin segmented bar + legend ---- */
+.alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alloc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alloc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.alloc-total {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alloc-bar {
+  display: flex;
+  gap: 2px; /* surface gap separates parts — no strokes */
+  height: 8px;
+  width: 100%;
+}
+
+.alloc-seg {
+  min-width: 3px;
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.alloc-committed { background: var(--indigo); }
+.alloc-free { background: var(--positive); }
+.alloc-shortfall { background: var(--rose); }
+
+/* Floor reserve is a neutral "held back" amount: grey + 45° hatch as the
+   secondary encoding (it sits next to green, which some CVD types confuse) */
+.alloc-floor {
+  background-color: var(--border-strong);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--text-muted) 0 1.5px,
+    transparent 1.5px 4px
+  );
+}
+
+.alloc-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.alloc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+}
+
+.alloc-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.alloc-legend-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alloc-legend-value {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---- KPI strip additions ---- */
+.text-net-positive {
+  color: var(--positive) !important;
+}
+
+.kpi-card-negative {
+  border-color: var(--rose-border) !important;
+}
+
+/* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
+@media (max-width: 1023px) {
+  .month-health-hero { order: 1; }
+  .detailed-kpi-grid { order: 2; }
+  .plan-upcoming-card { order: 3; }
+  .dashboard-chart-panel { order: 4; }
+  .plan-pace-card { order: 5; }
+  .plan-category-card { order: 6; }
+  .dashboard-bottom-timeline { order: 7; }
+}
+
+@media (max-width: 599px) {
+  .month-health-hero {
+    padding: 14px;
+  }
+
+  .alloc-legend {
+    grid-template-columns: 1fr;
+  }
+}

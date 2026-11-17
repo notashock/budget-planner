@@ -3,11 +3,11 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { formatCurrency, calculateIrregularMetrics } from '@budget/engine';
 import {
-  SafeVelocityCard,
   DetailedKpiGrid,
   IrregularHeroCards,
   QuarterlyBreakdownTable
 } from '../components/SummaryCards.jsx';
+import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon } from '../components/Icons.jsx';
@@ -357,9 +357,23 @@ export function PlanScreen({
     ? (activeAccountSummary?.safeVelocity?.allowanceLeft ?? allowanceLeft)
     : (simulation?.safeVelocity?.freeSurplus ?? allowanceLeft);
 
+  // Single source for the figures shared by the hero and the KPI strip
+  const activeTodayBalance = isFilteringAccount
+    ? (activeAccountSummary?.todayBalance ?? todayBalance)
+    : (simulation?.todayBalance ?? unifiedTodayBalance);
+  const activeEndingBalance = isFilteringAccount
+    ? (activeAccountSummary?.endingBalance ?? endingBalance)
+    : unifiedEndingBalance;
+  const activeLowestBalance = isFilteringAccount
+    ? (activeAccountSummary?.lowestBalance !== undefined ? activeAccountSummary.lowestBalance : activeLowestPt.balance)
+    : (simulation?.lowestBalance !== undefined ? simulation.lowestBalance : activeLowestPt.balance);
+  const activeLowestDate = isFilteringAccount
+    ? (activeAccountSummary?.lowestDate || activeLowestPt.date)
+    : (simulation?.lowestDate || activeLowestPt.date);
+
   useGSAP(() => {
     if (!containerRef.current) return;
-    const cards = containerRef.current.querySelectorAll('.summary-card, .dashboard-insights-panel, .dashboard-chart-panel');
+    const cards = containerRef.current.querySelectorAll('.summary-card, .plan-insight-card, .dashboard-chart-panel');
     if (cards.length > 0) {
       gsap.fromTo(
         cards,
@@ -761,12 +775,16 @@ export function PlanScreen({
       <div className="dashboard-top-grid">
         {/* COMPONENT 1: TOP-LEFT INSIGHTS */}
         <div className="dashboard-insights-panel">
-          {/* Safe Velocity Card */}
-          <SafeVelocityCard
+          {/* Month Health hero: daily safe-to-spend, verdict and where today's balance goes */}
+          <MonthHealthHero
             safeVelocity={activeSafeVelocity}
             daysLeft={daysLeft}
             safeToSpendPerDay={activeSafeToSpend}
-            allowanceLeft={activeAllowanceLeft}
+            todayBalance={activeTodayBalance}
+            endingBalance={activeEndingBalance}
+            lowestBalance={activeLowestBalance}
+            lowestDate={activeLowestDate}
+            safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
           />
 
@@ -776,10 +794,8 @@ export function PlanScreen({
             incomeCreditDay={month.incomeCreditDay}
             events={activeEvents}
             totalExpenses={isFilteringAccount ? activeAccountSummary?.totalExpenses : simulation?.totalExpenses}
-            endingBalance={isFilteringAccount ? (activeAccountSummary?.endingBalance ?? endingBalance) : unifiedEndingBalance}
-            todayBalance={isFilteringAccount ? (activeAccountSummary?.todayBalance ?? todayBalance) : (simulation?.todayBalance ?? unifiedTodayBalance)}
-            lowestBalance={isFilteringAccount ? (activeAccountSummary?.lowestBalance !== undefined ? activeAccountSummary.lowestBalance : activeLowestPt.balance) : (simulation?.lowestBalance !== undefined ? simulation.lowestBalance : activeLowestPt.balance)}
-            lowestDate={isFilteringAccount ? (activeAccountSummary?.lowestDate || activeLowestPt.date) : (simulation?.lowestDate || activeLowestPt.date)}
+            lowestBalance={activeLowestBalance}
+            lowestDate={activeLowestDate}
             safetyFloor={activeSafetyFloor}
             currencySymbol={month.currencySymbol}
             isSalaryCredited={isSalaryAccount

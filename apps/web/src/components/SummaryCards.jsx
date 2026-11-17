@@ -1,5 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { formatCurrency, formatDisplayDate } from '@budget/engine';
+import React from 'react';
+import {
+  formatCurrency,
+  formatDisplayDate,
+  getNetPosition,
+  splitPaidAndPlanned,
+  getHeadroom
+} from '@budget/engine';
 import {
   TrendingUpIcon,
   TrendingDownIcon,
@@ -7,151 +13,19 @@ import {
   ShieldAlertIcon
 } from './Icons.jsx';
 
-export function SafeVelocityCard({
-  safeVelocity = null,
-  daysLeft = 1,
-  safeToSpendPerDay = 0,
-  allowanceLeft = 0,
-  currencySymbol = '₹'
-}) {
-  const [showInfo, setShowInfo] = useState(false);
-  const popoverRef = useRef(null);
+const formatPercent = (ratio) => `${Math.round(ratio * 100)}%`;
 
-  // Mutual collapse & outside click listener for popover explanation
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-        setShowInfo(false);
-      }
-    }
-    if (showInfo) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('touchstart', handleClickOutside);
-      };
-    }
-  }, [showInfo]);
-
-  const rawPace = (safeVelocity?.paceStatus || '').toLowerCase();
-  const rate = safeVelocity?.safeVelocityPerDay ?? safeToSpendPerDay;
-
-  // Calibrate glowing status micro-indicators: expanding, tight, critical, stable
-  let statusKey = 'stable';
-  let statusLabel = safeVelocity?.paceStatus || 'On Pace';
-  if (rawPace.includes('expand')) {
-    statusKey = 'expanding';
-    statusLabel = 'Expanding Pace';
-  } else if (rawPace.includes('tight') || rawPace.includes('contract') || rawPace.includes('warn') || rawPace.includes('slow')) {
-    statusKey = 'tight';
-    statusLabel = 'Pacing Tight';
-  } else if (rawPace.includes('crit') || rate <= 0) {
-    statusKey = 'critical';
-    statusLabel = 'Critical Deficit';
-  }
-
-  const remainingDays = safeVelocity?.daysLeft || daysLeft;
-  const committed = safeVelocity?.committedUpcomingItems ?? safeVelocity?.committedBills ?? 0;
-  const burn = safeVelocity?.burnRatePerDay ?? safeVelocity?.burnRate ?? 0;
-
-  return (
-    <div className="summary-card safe-velocity-card">
-      <div className="card-top-row">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="summary-label">
-            Safe Velocity
-          </span>
-          <div
-            className={`pace-status-badge velocity-status-indicator ${statusKey}`}
-            title={`Status: ${statusLabel}`}
-          >
-            <span className={`status-micro-dot ${statusKey}`} />
-            <span>{statusLabel}</span>
-          </div>
-          <button
-            type="button"
-            className="velocity-info-btn"
-            onClick={() => setShowInfo((prev) => !prev)}
-            aria-label="Safe Velocity Explanation"
-            title="What is Safe Velocity? Click for breakdown"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </button>
-        </div>
-        <span className="days-remaining-pill">
-          {remainingDays} days left
-        </span>
-      </div>
-
-      {/* Interactive Glassmorphism Explanation Popover */}
-      {showInfo && (
-        <div ref={popoverRef} className="velocity-popover">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Safe Velocity Mechanics
-            </span>
-            <button
-              type="button"
-              className="btn-subtle"
-              style={{ padding: '0 4px', fontSize: '13px', lineHeight: 1 }}
-              onClick={() => setShowInfo(false)}
-            >
-              &times;
-            </button>
-          </div>
-          <p style={{ margin: '0 0 8px', color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.45 }}>
-            Safe Velocity calculates the exact discretionary cash allowance you can spend each day without breaching your Safety Floor or jeopardizing committed upcoming bills.
-          </p>
-          <div style={{ background: 'var(--surface-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '10.5px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Formula:</span>
-              <span style={{ fontWeight: 600 }}>Uncommitted Surplus ÷ Days Remaining</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Committed Upcoming Items:</span>
-              <span className="tabular-nums" style={{ fontWeight: 600 }}>{formatCurrency(committed, currencySymbol)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Days Remaining:</span>
-              <span className="tabular-nums" style={{ fontWeight: 600 }}>{remainingDays} days</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="safe-velocity-hero">
-        <span className="safe-velocity-value tabular-nums">
-          {formatCurrency(rate, currencySymbol)}
-        </span>
-        <span className="safe-velocity-per-day">/ day</span>
-      </div>
-
-      <div className="safe-velocity-footer">
-        <span className="safe-velocity-meta-item">
-          Committed: <strong className="tabular-nums">{formatCurrency(committed, currencySymbol)}</strong>
-        </span>
-        {(safeVelocity?.burnRatePerDay !== undefined || safeVelocity?.burnRate !== undefined) && (
-          <span className="safe-velocity-meta-item">
-            Burn pace: <strong className="tabular-nums">{formatCurrency(burn, currencySymbol)}/day</strong>
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
+/**
+ * KPI strip for the month, built around net position:
+ * Income · Expenses (paid vs still planned) · Net & savings rate · Lowest point
+ * (with headroom against the safety floor). Today's balance lives in the
+ * Month Health hero, so it is not repeated here.
+ */
 export function DetailedKpiGrid({
   incomeAmount = 0,
   incomeCreditDay = 1,
   events = [],
   totalExpenses,
-  endingBalance = 0,
-  todayBalance,
   lowestBalance = 0,
   lowestDate = '',
   safetyFloor = 0,
@@ -165,12 +39,14 @@ export function DetailedKpiGrid({
     salaryCreditedDate && month && salaryCreditedDate < `${month.year}-${String(month.month).padStart(2, '0')}-01`
   );
 
-  const expenseEvents = events.filter((e) => e.amount < 0 && e.itemType !== 'transfer');
-  const totalOutflow = totalExpenses !== undefined
+  const { paid, planned } = splitPaidAndPlanned(events);
+  const totalOutflow = totalExpenses !== undefined && totalExpenses !== null
     ? totalExpenses
-    : expenseEvents.reduce((sum, e) => sum + Math.abs(e.amount), 0);
+    : paid + planned;
 
-  const floorBreached = lowestBalance < safetyFloor;
+  const { net, savingsRate } = getNetPosition(incomeAmount, totalOutflow);
+  const headroom = getHeadroom(lowestBalance, safetyFloor);
+  const floorBreached = headroom.status === 'breached';
 
   return (
     <div className="detailed-kpi-grid summary-grid">
@@ -189,7 +65,7 @@ export function DetailedKpiGrid({
           )}
         </div>
 
-        <span className="summary-value tabular-nums">
+        <span className="summary-value">
           {formatCurrency(incomeAmount, currencySymbol)}
         </span>
 
@@ -209,28 +85,34 @@ export function DetailedKpiGrid({
             <span className="summary-label">Total expenses</span>
           </div>
         </div>
-        <span className="summary-value tabular-nums">
+        <span className="summary-value">
           {formatCurrency(totalOutflow, currencySymbol)}
         </span>
         <span className="kpi-subtext">
-          {events.filter((e) => e.amount < 0).length} occurrences
+          {paid + planned > 0
+            ? <>{formatCurrency(paid, currencySymbol)} paid · {formatCurrency(planned, currencySymbol)} planned</>
+            : 'Nothing planned yet'}
         </span>
       </div>
 
-      <div className="summary-card kpi-card">
+      <div className={`summary-card kpi-card ${net < 0 ? 'kpi-card-negative' : ''}`}>
         <div className="kpi-card-header">
           <div className="kpi-title-with-icon">
-            <span className="kpi-icon-badge kpi-balance" aria-hidden="true">
+            <span className={`kpi-icon-badge ${net < 0 ? 'kpi-expense' : 'kpi-balance'}`} aria-hidden="true">
               <WalletIcon size={13} strokeWidth={2.2} />
             </span>
-            <span className="summary-label">Today's balance</span>
+            <span className="summary-label">Net this month</span>
           </div>
         </div>
-        <span className="summary-value tabular-nums">
-          {formatCurrency(todayBalance !== undefined ? todayBalance : endingBalance, currencySymbol)}
+        <span className={`summary-value ${net < 0 ? 'text-breached' : 'text-net-positive'}`}>
+          {net > 0 ? '+' : ''}{formatCurrency(net, currencySymbol)}
         </span>
         <span className="kpi-subtext">
-          Month-end: <span className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</span>
+          {savingsRate === null
+            ? 'No income recorded'
+            : net >= 0
+              ? `${formatPercent(savingsRate)} of income saved`
+              : `Spending ${formatPercent(Math.abs(savingsRate))} more than income`}
         </span>
       </div>
 
@@ -244,27 +126,24 @@ export function DetailedKpiGrid({
           </div>
           {floorBreached && (
             <span className="kpi-breach-badge">
-              ▲ BREACH
+              ▲ Below floor
             </span>
           )}
         </div>
-        <span className={`summary-value tabular-nums ${floorBreached ? 'text-breached' : ''}`}>
+        <span className={`summary-value ${floorBreached ? 'text-breached' : ''}`}>
           {formatCurrency(lowestBalance, currencySymbol)}
         </span>
         <span className="kpi-subtext">
-          On {lowestDate ? formatDisplayDate(lowestDate, true) : 'N/A'}
+          {lowestDate ? formatDisplayDate(lowestDate, true) : 'No date'}
+          {safetyFloor > 0 && (
+            <>
+              {' · '}
+              {formatCurrency(Math.abs(headroom.amount), currencySymbol)} {floorBreached ? 'under' : 'above'} floor
+            </>
+          )}
         </span>
       </div>
     </div>
-  );
-}
-
-export function SummaryCards(props) {
-  return (
-    <>
-      <SafeVelocityCard {...props} />
-      <DetailedKpiGrid {...props} />
-    </>
   );
 }
 
