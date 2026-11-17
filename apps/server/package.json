@@ -12,21 +12,16 @@
     "db:rollback-unified": "node src/scripts/rollback_unified_transactions.js",
     "db:clean": "node src/scripts/db_clean.js",
     "db:prepare": "node src/scripts/db_prepare.js",
-    "db:verify": "node src/scripts/db_verify.js",
-    "db:migrate-mongo": "node src/scripts/migrate_mongo_to_supabase.js",
-    "db:verify-mongo": "node src/scripts/verify_mongo_migration.js"
+    "db:verify": "node src/scripts/db_verify.js"
   },
   "dependencies": {
     "@budget/engine": "*",
     "bcryptjs": "^2.4.3",
-    "connect-mongo": "^5.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
-    "express-session": "^1.18.1",
-    "mongoose": "^8.9.5",
     "pg": "^8.23.1"
   },
   "devDependencies": {

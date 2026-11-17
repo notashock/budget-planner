@@ -47,20 +47,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd mongosh
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NODE_ENV: test
       PORT: 4000
       DATABASE_URL: postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner_ci
-      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
       SESSION_SECRET: ci_session_secret_for_testing
       SESSION_MAX_AGE_DAYS: 14
       CORS_ORIGIN: http://localhost:3000
@@ -135,20 +125,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd mongosh
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner_ci
-      MONGODB_URI: mongodb://127.0.0.1:27017/budget_planner_ci
       SESSION_SECRET: ci_session_secret_production_check
     steps:
       - uses: actions/checkout@v4

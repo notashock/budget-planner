@@ -11,16 +11,16 @@ All financial calculations live in a pure deterministic simulation engine. The o
 The project is structured as an npm workspaces monorepo:
 
 - `packages/engine`: Pure, zero-dependency calculation engine shared by both client and server. Operates on integer minor units to eliminate floating-point errors.
-- `apps/server`: Express backend with MongoDB persistence (Mongoose), stateless JWT bearer authentication, rate limiting, and an optional AI assistant adapter.
+- `apps/server`: Express backend on PostgreSQL (Drizzle ORM), stateless signed-token authentication (httpOnly cookie for the web app, Bearer header for mobile), rate limiting, and an optional AI assistant adapter. It runs the same engine and is the source of truth for the mobile app.
 - `apps/web`: React with Vite mobile-first Progressive Web App (PWA). Imports `@budget/engine` directly so What-If exploration recomputes instantly in the browser without network requests.
-- `apps/mobile`: Cross-platform Flutter mobile application. Implements a 1:1 Dart port of the deterministic engine for zero-latency 60fps projections on physical hardware and communicates seamlessly with the backend API.
+- `apps/mobile`: Cross-platform Flutter mobile application. It shows the simulation the server computes, so phone and web always show the same numbers.
 
 ---
 
 ## Prerequisites
 
 - Node.js 18.0.0 or higher
-- MongoDB instance running locally on `mongodb://127.0.0.1:27017` or accessible via a connection string
+- PostgreSQL 14 or newer, local or hosted (e.g. Supabase), reachable through `DATABASE_URL`
 
 ---
 
@@ -42,10 +42,10 @@ cp apps/web/.env.example apps/web/.env
 | :--- | :--- | :--- |
 | `PORT` | `4000` | HTTP port the Express API server listens on |
 | `NODE_ENV` | `development` | Runtime environment (`development`, `production`, `test`) |
-| `MONGODB_URI` | `mongodb://127.0.0.1:27017/budget_planner` | MongoDB connection string |
-| `SESSION_SECRET` | `dev_session_secret_change_in_production` | Secret string for signing session cookies |
-| `SESSION_MAX_AGE_DAYS` | `14` | Session cookie and MongoDB session TTL in days |
-| `CORS_ORIGIN` | `http://localhost:3000` | Allowed origins (supports comma-separated list or `*`) |
+| `DATABASE_URL` | `postgresql://postgres:postgrespassword@127.0.0.1:5432/budget_planner` (development only) | PostgreSQL connection string; required in production |
+| `JWT_SECRET` | _(generated per machine in development)_ | Secret for signing login tokens; required in production (`SESSION_SECRET` is accepted as a fallback name) |
+| `SESSION_MAX_AGE_DAYS` | `14` | Login lifetime in days |
+| `CORS_ORIGIN` | `http://localhost:3000` | Allowed origins, comma-separated. `*` is refused in production |
 | `GEMINI_API_KEY` | _(empty)_ | Optional Google Gemini API key for assistant features |
 
 ### Web Client Variables (`apps/web/.env`)
@@ -84,8 +84,10 @@ npm run test --workspace=@budget/server
 
 ## Running the Application Locally
 
-1. Start MongoDB:
-   Make sure MongoDB is running on your system (e.g. `mongod` or the MongoDB Windows Service).
+1. Start PostgreSQL and prepare the schema:
+   ```bash
+   npm run db:prepare
+   ```
 
 2. Start the backend API server:
    ```bash
@@ -156,18 +158,19 @@ The repository includes a production-ready, multi-stage `Dockerfile` and `docker
 # Build the production container image
 docker build -t budget-planner .
 
-# Run the container (connecting to external MongoDB)
+# Run the container (connecting to an external PostgreSQL)
 docker run -p 4000:4000 \
   -e PORT=4000 \
-  -e MONGODB_URI="mongodb://your-mongo-host:27017/budget_planner" \
-  -e SESSION_SECRET="your_production_secret" \
+  -e DATABASE_URL="postgresql://user:password@your-db-host:5432/budget_planner" \
+  -e JWT_SECRET="a-long-random-secret" \
+  -e CORS_ORIGIN="https://your-domain.example" \
   budget-planner
 ```
 
-### Running with Docker Compose (Includes MongoDB)
+### Running with Docker Compose (Includes PostgreSQL)
 
 ```bash
-docker compose up -d --build
+JWT_SECRET="a-long-random-secret" docker compose up -d --build
 ```
 
 Access the application in your browser at `http://localhost:4000`.

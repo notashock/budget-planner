@@ -11,7 +11,7 @@ transactionsRouter.use(requireAuth);
 // GET /api/transactions (Global / Period-Free Transactions List)
 transactionsRouter.get('/transactions', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const transactions = await BudgetExecution.listAllTransactions(userId, req.query);
     return res.success(transactions);
   } catch (err) {
@@ -22,7 +22,7 @@ transactionsRouter.get('/transactions', async (req, res, next) => {
 // POST /api/transactions (Global / Period-Free Transaction Creation)
 transactionsRouter.post('/transactions', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const transaction = await BudgetExecution.recordGlobalTransaction(userId, req.body);
     return res.success(transaction, 201);
   } catch (err) {
@@ -33,7 +33,7 @@ transactionsRouter.post('/transactions', async (req, res, next) => {
 // GET /api/reports/irregular (Irregular income analytics: trailing 12M, smoothed income, runway, quarters, years)
 transactionsRouter.get('/reports/irregular', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const reports = await BudgetExecution.getIrregularReports(userId, req.query);
     return res.success(reports);
   } catch (err) {
@@ -44,7 +44,7 @@ transactionsRouter.get('/reports/irregular', async (req, res, next) => {
 // GET /api/months/:year/:month/transactions
 transactionsRouter.get('/months/:year/:month/transactions', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const transactions = await BudgetExecution.listTransactions(userId, year, monthNum, req.query);
@@ -57,7 +57,7 @@ transactionsRouter.get('/months/:year/:month/transactions', async (req, res, nex
 // POST /api/months/:year/:month/transactions
 transactionsRouter.post('/months/:year/:month/transactions', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const transaction = await BudgetExecution.recordTransaction(userId, year, monthNum, req.body);
@@ -70,7 +70,7 @@ transactionsRouter.post('/months/:year/:month/transactions', async (req, res, ne
 // PATCH /api/transactions/:id/pay (One-tap Mark as Paid with actual confirmation)
 transactionsRouter.patch('/transactions/:id/pay', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const txId = req.params.id;
     const result = await BudgetExecution.markTransactionPaid(userId, txId, req.body);
     return res.success(result);
@@ -82,7 +82,7 @@ transactionsRouter.patch('/transactions/:id/pay', async (req, res, next) => {
 // PATCH /api/transactions/:id/cancel (Cancel planned transaction with goal prompt action)
 transactionsRouter.patch('/transactions/:id/cancel', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const txId = req.params.id;
     const result = await BudgetExecution.cancelTransaction(userId, txId, req.body);
     return res.success(result);
@@ -94,7 +94,7 @@ transactionsRouter.patch('/transactions/:id/cancel', async (req, res, next) => {
 // PUT /api/transactions/:id
 transactionsRouter.put('/transactions/:id', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const txId = req.params.id;
     const result = await BudgetExecution.updateTransaction(userId, txId, req.body);
     return res.success(result);
@@ -106,7 +106,7 @@ transactionsRouter.put('/transactions/:id', async (req, res, next) => {
 // DELETE /api/transactions/:id
 transactionsRouter.delete('/transactions/:id', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const txId = req.params.id;
     const result = await BudgetExecution.deleteTransaction(userId, txId);
     return res.success(result);
@@ -118,7 +118,7 @@ transactionsRouter.delete('/transactions/:id', async (req, res, next) => {
 // GET /api/months/:year/:month/month-end-review
 transactionsRouter.get('/months/:year/:month/month-end-review', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const monthNum = Number(req.params.month);
     const review = await BudgetExecution.getMonthEndReview(userId, year, monthNum, {

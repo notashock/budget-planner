@@ -9,7 +9,7 @@ v1PeriodsRouter.use(requireAuth);
 // GET /api/v1/periods - Idempotent list of budget periods
 v1PeriodsRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const periods = await PlanningPeriodService.listPeriods(userId);
     return res.success(periods);
   } catch (err) {
@@ -20,7 +20,7 @@ v1PeriodsRouter.get('/', async (req, res, next) => {
 // GET /api/v1/periods/:year/:month - Idempotent period details and single-pass simulation
 v1PeriodsRouter.get('/:year/:month', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const month = Number(req.params.month);
     const periodDetails = await PlanningPeriodService.getPeriodDetails(userId, year, month);
@@ -33,7 +33,7 @@ v1PeriodsRouter.get('/:year/:month', async (req, res, next) => {
 // POST /api/v1/periods/:year/:month/close - Explicit period closure
 v1PeriodsRouter.post('/:year/:month/close', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const year = Number(req.params.year);
     const month = Number(req.params.month);
     const closed = await MonthLifecycle.closeMonth(userId, year, month, req.body);

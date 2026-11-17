@@ -8,27 +8,32 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-4000}
-      - MONGODB_URI=mongodb://mongodb:27017/budget_planner
-      - JWT_SECRET=${JWT_SECRET:-}
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/budget_planner
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a long random string}
+      # Login cookies are sent with requests, so a wildcard origin is refused in production
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:4000}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     depends_on:
-      mongodb:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
-  mongodb:
-    image: mongo:6.0
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgrespassword}
+      - POSTGRES_DB=budget_planner
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
 volumes:
-  mongo_data:
+  postgres_data:

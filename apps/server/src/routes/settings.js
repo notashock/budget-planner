@@ -10,7 +10,7 @@ settingsRouter.use(requireAuth);
 
 settingsRouter.get('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     let userSettings = await db.query.settings.findFirst({
       where: eq(s.settings.userId, userId)
     });
@@ -36,7 +36,7 @@ settingsRouter.get('/', async (req, res) => {
 
 settingsRouter.put('/', async (req, res) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const {
       defaultIncomeAmount,
       defaultIncomeCreditDay,

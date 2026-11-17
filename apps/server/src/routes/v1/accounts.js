@@ -12,7 +12,7 @@ v1AccountsRouter.use(requireAuth);
 // GET /api/v1/accounts - List all active accounts with materialized balances
 v1AccountsRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const includeArchived = req.query.includeArchived === 'true';
     const accountList = await LedgerService.getAccountsWithBalances(userId, includeArchived);
     return res.success(accountList);
@@ -24,7 +24,7 @@ v1AccountsRouter.get('/', async (req, res, next) => {
 // POST /api/v1/accounts - Create a new account (bank, wallet, cash)
 v1AccountsRouter.post('/', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const {
       name,
       type = 'bank',
@@ -67,7 +67,7 @@ v1AccountsRouter.post('/', async (req, res, next) => {
 // PATCH /api/v1/accounts/:id - Update account details
 v1AccountsRouter.patch('/:id', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const { id } = req.params;
     const { name, institution, minimumBalance, isPrimary, isArchived, color } = req.body;
 
@@ -100,7 +100,7 @@ v1AccountsRouter.patch('/:id', async (req, res, next) => {
 // POST /api/v1/accounts/transfers - Inter-account transfer with atomic balance movement
 v1AccountsRouter.post('/transfers', async (req, res, next) => {
   try {
-    const userId = req.userId || req.session?.userId;
+    const userId = req.userId;
     const result = await LedgerService.recordTransfer(userId, req.body);
     return res.success(result, 201);
   } catch (err) {
