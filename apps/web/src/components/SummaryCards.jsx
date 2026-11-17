@@ -157,8 +157,11 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
     trailing12mIncome = 0,
     currentBalance = 0,
     avgMonthlySpending = 0,
-    trailing12mSpending = 0
+    trailing12mSpending = 0,
+    monthsOfHistory = 12
   } = metrics || {};
+
+  const periodLabel = `Last ${monthsOfHistory} month${monthsOfHistory === 1 ? '' : 's'}`;
 
   const { net, savingsRate } = getNetPosition(trailing12mIncome, trailing12mSpending);
 
@@ -169,7 +172,7 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
         <span className="summary-value text-net-positive">
           {formatCurrency(smoothedMonthlyIncome, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
-        <span className="kpi-subtext">Last 12 months: {formatCurrency(trailing12mIncome, currencySymbol)}</span>
+        <span className="kpi-subtext">{periodLabel}: {formatCurrency(trailing12mIncome, currencySymbol)}</span>
       </div>
 
       <div className="summary-card kpi-card">
@@ -177,7 +180,7 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
         <span className="summary-value">
           {formatCurrency(avgMonthlySpending, currencySymbol)}<span className="irr-unit"> / mo</span>
         </span>
-        <span className="kpi-subtext">Last 12 months: {formatCurrency(trailing12mSpending, currencySymbol)}</span>
+        <span className="kpi-subtext">{periodLabel}: {formatCurrency(trailing12mSpending, currencySymbol)}</span>
       </div>
 
       <div className={`summary-card kpi-card ${net < 0 ? 'kpi-card-negative' : ''}`}>
@@ -187,8 +190,8 @@ export function IrregularHeroCards({ metrics = {}, currencySymbol = '₹' }) {
         </span>
         <span className="kpi-subtext">
           {savingsRate === null
-            ? 'No income in the last 12 months'
-            : `${net >= 0 ? '+' : ''}${formatCurrency(net, currencySymbol)} kept over 12 months`}
+            ? `No income in the last ${monthsOfHistory} month${monthsOfHistory === 1 ? '' : 's'}`
+            : `${net >= 0 ? '+' : ''}${formatCurrency(net, currencySymbol)} kept over ${monthsOfHistory} month${monthsOfHistory === 1 ? '' : 's'}`}
         </span>
       </div>
 

@@ -125,8 +125,10 @@ describe('Financial Reconciliation & Engine Integrity Audits', () => {
       windowMonths: 12
     });
 
-    // Average spending should be based on 20,000 / 12, NOT (20,000 + 40,000) / 12
-    expect(metrics.avgMonthlySpending).toBe(Math.round(20000 / 12));
+    // History starts with the first transaction in May → May..Oct = 6 months.
+    // Average spending is 20,000 / 6, NOT (20,000 + 40,000 transfer) / 6
+    expect(metrics.monthsOfHistory).toBe(6);
+    expect(metrics.avgMonthlySpending).toBe(Math.round(20000 / 6));
     // Current balance should NOT have the 40,000 transfer deducted
     expect(metrics.currentBalance).toBe(40000 + 60000 - 20000);
   });

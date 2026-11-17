@@ -513,6 +513,7 @@ export function PlanScreen({
           isIndefinite={irregularMetrics.isIndefinite}
           currentBalance={irregularMetrics.currentBalance}
           avgMonthlySpending={irregularMetrics.avgMonthlySpending}
+          monthsOfHistory={irregularMetrics.monthsOfHistory ?? null}
           currencySymbol={currencySymbol}
         />
 
