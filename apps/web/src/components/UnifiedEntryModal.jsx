@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import {
@@ -943,7 +944,9 @@ export function UnifiedEntryModal({
     else if (mode === 'transfer') handleTransferSubmit(e);
   };
 
-  return (
+  // Rendered on <body> so no parent stacking context can put it under the
+  // header or bottom nav; its order comes from --z-modal.
+  const modal = (
     <div ref={containerRef}>
       <div
         ref={overlayRef}
@@ -1880,6 +1883,8 @@ export function UnifiedEntryModal({
       </div>
     </div>
   );
+
+  return typeof document === 'undefined' ? modal : createPortal(modal, document.body);
 }
 
 export default UnifiedEntryModal;

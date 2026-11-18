@@ -15,7 +15,7 @@
   display: flex;
   height: 56px;
   padding: 0 4px;
-  z-index: 100;
+  z-index: var(--z-nav);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-lg);

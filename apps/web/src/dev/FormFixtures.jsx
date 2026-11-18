@@ -42,7 +42,11 @@ const FORMS = {
   'edit-spend': { kind: 'entry', mode: 'log', edit: true },
   'edit-plan': { kind: 'entry', mode: 'plan', edit: true },
   'held-form': { kind: 'held' },
-  cards: { kind: 'cards' }
+  cards: { kind: 'cards' },
+  // The app's real layering: sticky header, screens inside <main class="app-box-3">,
+  // fixed bottom nav. A modal opened from a screen must cover all three.
+  stacking: { kind: 'stacking' },
+  'stacking-entry': { kind: 'stacking', entry: true }
 };
 
 function Fixture() {
@@ -83,6 +87,33 @@ function Fixture() {
         <AnimatedModal isOpen={open} onClose={() => setOpen(false)}>
           <HeldLentForm bankAccounts={bankAccounts} wallets={wallets} month={month} initialAction="lend" onCancel={() => setOpen(false)} />
         </AnimatedModal>
+      )}
+
+      {form.kind === 'stacking' && (
+        <div className="app-shell">
+          <header className="app-header" data-testid="fixture-header" style={{ height: 56 }}>Header</header>
+          <main className="app-box-3" style={{ minHeight: 600 }}>
+            <p>Screen content</p>
+            {!form.entry && (
+              <AnimatedModal isOpen={open} onClose={() => setOpen(false)} dataTestId="screen-modal">
+                <HeldLentForm bankAccounts={bankAccounts} wallets={wallets} month={month} initialAction="lend" onCancel={() => setOpen(false)} />
+              </AnimatedModal>
+            )}
+          </main>
+          <nav className="bottom-nav" data-testid="fixture-nav">Bottom nav</nav>
+          {form.entry && (
+            <UnifiedEntryModal
+              isOpen={open}
+              onClose={() => setOpen(false)}
+              initialMode="log"
+              onLogTransaction={noop}
+              onSaveItem={noop}
+              bankAccounts={bankAccounts}
+              wallets={wallets}
+              month={month}
+            />
+          )}
+        </div>
       )}
 
       {form.kind === 'cards' && (

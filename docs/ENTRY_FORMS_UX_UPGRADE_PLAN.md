@@ -172,6 +172,8 @@ Measured from `styles/base.css`, `components/modals.css`, `components/controls.c
 
 **V12 — Mobile (Flutter) has no shared input theme.** Every sheet builds `InputDecoration(labelText…, border: OutlineInputBorder())` by hand, uses `EdgeInsets.all(20)` sheet padding, and sizes chips/tabs per file. Web and mobile fields share neither height, radius nor label position.
 
+**V13 — Modals opened from a screen sat under the header and bottom nav.** Screens render inside `<main class="app-box-3">` (`position: relative; z-index: 1`), which is its own stacking context, so a modal's `z-index: 110000` only competed inside `main`; the sticky header (99990) and the fixed bottom nav (100) drew on top, and on phones the nav covered the sheet's Save button. `AnimatedModal` also wrapped every modal in `z-index: 1000`, which kept even app-level modals (salary, rollover, migration) under the header. **Fixed:** modals render in a portal on `<body>`, and app-wide layers use one scale in `tokens.css` (`--z-nav` < `--z-header` < `--z-modal` < `--z-modal-popover` < `--z-modal-nested` < `--z-progress`). Values that only compete inside one screen or form stay local.
+
 ---
 
 ## 4. Design principles

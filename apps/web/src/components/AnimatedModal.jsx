@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
@@ -106,8 +107,11 @@ export function AnimatedModal({
 
   if (!shouldRender) return null;
 
-  return (
-    <div ref={containerRef} style={{ position: 'relative', zIndex: 1000 }}>
+  // Rendered on <body>: a screen wrapper with its own stacking context (e.g.
+  // <main class="app-box-3">, z-index 1) would otherwise keep the overlay under
+  // the sticky header and the bottom nav. Its order comes from --z-modal.
+  const modal = (
+    <div ref={containerRef}>
       <div
         ref={overlayRef}
         className="modal-overlay"
@@ -129,4 +133,6 @@ export function AnimatedModal({
       </div>
     </div>
   );
+
+  return typeof document === 'undefined' ? modal : createPortal(modal, document.body);
 }

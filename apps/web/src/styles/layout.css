@@ -14,7 +14,7 @@
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 99990;
+  z-index: var(--z-header);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   overflow: visible;
@@ -22,7 +22,7 @@
 
 .app-header:has(.app-dropdown-menu),
 .app-header.has-active-dropdown {
-  z-index: 100000;
+  z-index: var(--z-header-menu);
 }
 
 .app-header-inner {

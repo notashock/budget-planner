@@ -8,7 +8,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 110000;
+  z-index: var(--z-modal);
   overflow: hidden;
   touch-action: none;
   will-change: opacity;
@@ -392,7 +392,7 @@
 }
 
 .modal-variable-pill.has-popover-open {
-  z-index: 125000;
+  z-index: var(--z-modal-popover);
 }
 
 .modal-variable-checkbox {
@@ -429,7 +429,7 @@
   top: calc(100% + 8px);
   bottom: auto;
   right: 0;
-  z-index: 125000;
+  z-index: var(--z-modal-popover);
   width: min(280px, calc(100vw - 48px));
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -545,7 +545,7 @@
 .modal-overlay .custom-select-dropdown,
 .modal-overlay .app-dropdown-menu,
 .modal-overlay .datepicker-popover {
-  z-index: 115000;
+  z-index: var(--z-modal-popover);
 }
 
 /* Mobile (< 768px): chips keep their 36px touch height from --control-h-sm */
@@ -559,7 +559,7 @@
 
 [data-testid="floor-breach-modal"],
 [data-testid="under-spend-modal"] {
-  z-index: 120000;
+  z-index: var(--z-modal-nested);
 }
 
 /* Month Review Modal Optimization */
