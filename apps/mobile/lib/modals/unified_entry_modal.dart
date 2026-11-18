@@ -3,16 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../engine/category_suggest.dart';
+import '../engine/entry_assists.dart';
+import 'mark_paid_modal.dart';
+import 'salary_safeline_modal.dart';
+import '../services/entry_memory.dart';
+import '../widgets/confirm_dialog.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import 'held_lent_modal.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
 enum EntryType { transaction, income, item, goal, transfer }
 
+/// Name saved for an entry: what the user typed, else the category (as on web),
+/// else the entry type's title. Never a generic "Entry".
+String resolveEntryName(String typed, String category, String typeTitle) {
+  final t = typed.trim();
+  if (t.isNotEmpty) return t;
+  final c = category.trim();
+  return c.isNotEmpty ? c : typeTitle;
+}
+
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
 
-  const UnifiedEntryModal({super.key, this.initialType = EntryType.transaction});
+  /// Editing: the record to change (a transaction, planned bill or goal). The type
+  /// is locked while editing, as on web.
+  final Map<String, dynamic>? initialItem;
+
+  const UnifiedEntryModal({super.key, this.initialType = EntryType.transaction, this.initialItem});
 
   @override
   State<UnifiedEntryModal> createState() => _UnifiedEntryModalState();
@@ -46,6 +68,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   bool _submitting = false;
 
+  // Move tab: 'account' (between my accounts), 'card' (pay a card bill), 'person' (held / lent)
+  String _moveTarget = 'account';
+
+  // Refund: the recorded spend it gives money back for (ADR 0062)
+  String? _refundTargetId;
+  String? _cardId;
+
   // Server-authoritative goal recommendation state
   Timer? _debounceTimer;
   RecommendationResult? _serverGoalRec;
@@ -55,9 +84,30 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   late DateTime _selectedDate;
 
   // Category Selection
-  final List<String> _quickCategories = const ['Food', 'Travel', 'Health', 'Other'];
+  final List<String> _quickCategories = const ['Food', 'Travel', 'Utilities', 'Health', 'Other'];
+
+  /// Quick amounts (major units). Tapping one sets the amount.
+  static const List<int> quickAmounts = [100, 500, 1000, 2000];
   String _selectedCategory = 'Food';
   bool _isCustomCategory = false;
+
+  // Category suggestion stops once the user picks a category
+  bool _categoryTouched = false;
+  bool _tagSuggested = false;
+  EntryMemory? _memory;
+
+  // "Save & add another": entries saved since the sheet opened
+  int _sessionCount = 0;
+  int _sessionTotal = 0;
+  final FocusNode _amountFocus = FocusNode();
+  late final BudgetProvider _budgetRef;
+
+  // Smart assists: people (for the held/lent hint), dismissed hints, the person preset
+  List<dynamic> _personFunds = const [];
+  final Set<String> _dismissedAssists = {};
+  String? _personAction;
+  String? _personFundId;
+  String _personName = '';
 
   @override
   void initState() {
@@ -68,6 +118,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     _amountCtrl.addListener(_onAmountChanged);
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
+    _budgetRef = budget;
+    if (widget.initialItem == null) {
+      budget.getPersonFunds().then((res) {
+        if (!mounted) return;
+        final list = res['funds'];
+        if (list is List) setState(() => _personFunds = list);
+      }).catchError((_) {});
+    }
     if (budget.bankAccounts.isNotEmpty) {
       _accountType = 'bank';
       final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
@@ -91,6 +149,193 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     if (_activeType == EntryType.goal) {
       _fetchGoalRecommendation();
     }
+
+    if (widget.initialItem != null) _prefillFromItem(budget);
+
+    // Remembered: the account used last time for this kind of entry
+    EntryMemory.load().then((memory) {
+      if (!mounted) return;
+      _memory = memory;
+      if (_isEditing) return;
+      final remembered = memory.accountFor(_activeType.name);
+      if (remembered == null) return;
+      final type = remembered['accountType']!;
+      final id = remembered['accountId']!;
+      final pool = type == 'wallet' ? budget.wallets : (type == 'credit_card' ? budget.creditCards : budget.bankAccounts);
+      final cardsAllowed = _activeType == EntryType.transaction || _activeType == EntryType.item;
+      if ((type == 'credit_card' && !cardsAllowed) || !pool.any((a) => (a['_id'] ?? a['id'])?.toString() == id)) return;
+      setState(() {
+        if (_activeType == EntryType.transfer) {
+          if (type == 'credit_card') return;
+          _sourceAccountType = type;
+          _sourceAccountId = id;
+        } else {
+          _accountType = type;
+          _selectedAccountId = id;
+        }
+      });
+    });
+  }
+
+  bool get _isEditing => widget.initialItem != null;
+
+  /// Recorded spends a refund can be linked to, newest first.
+  List<Map<String, dynamic>> _refundTargets(BudgetProvider budget) {
+    const passThrough = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+    final editingId = _isEditing ? _editId : null;
+    final list = budget.transactions
+        .whereType<Map>()
+        .map((t) => Map<String, dynamic>.from(t))
+        .where((t) {
+          final id = (t['_id'] ?? t['id'])?.toString();
+          final amount = num.tryParse('${t['amount'] ?? 0}') ?? 0;
+          return id != null &&
+              id != editingId &&
+              t['status'] == 'successful' &&
+              amount > 0 &&
+              t['isIncome'] != true &&
+              t['origin'] != 'transfer' &&
+              t['origin'] != 'salary' &&
+              !passThrough.contains(t['origin']);
+        })
+        .toList()
+      ..sort((a, b) => '${b['date'] ?? ''}'.compareTo('${a['date'] ?? ''}'));
+    return list.take(100).toList();
+  }
+
+  String _txLabel(Map<String, dynamic> t) {
+    final name = (t['title'] ?? t['name'] ?? t['description'] ?? t['category'] ?? 'Spend').toString();
+    final date = t['date']?.toString();
+    return '$name · ${formatCurrency(_minorOf(t['amount']))}${date != null && date.length >= 10 ? ' · ${date.substring(0, 10)}' : ''}';
+  }
+
+  /// "Refund for": pick the spend this refund gives money back for. Set when the
+  /// refund is created; shown read-only when editing (the server doesn't change it).
+  Widget _buildRefundLink(BudgetProvider budget) {
+    final targets = _refundTargets(budget);
+    if (_isEditing) {
+      final linkedId = widget.initialItem?['refundTargetTransactionId']?.toString();
+      Map<String, dynamic>? linked;
+      for (final t in budget.transactions.whereType<Map>()) {
+        if ((t['_id'] ?? t['id'])?.toString() == linkedId) linked = Map<String, dynamic>.from(t);
+      }
+      return Text(
+        linked != null ? 'Refund for ${_txLabel(linked)}' : (linkedId != null ? 'Linked to an earlier spend.' : 'Not linked to a spend.'),
+        key: const ValueKey('refund-link-readonly'),
+        style: const TextStyle(fontSize: 12),
+      );
+    }
+    final valid = targets.any((t) => (t['_id'] ?? t['id']).toString() == _refundTargetId);
+    return DropdownButtonFormField<String?>(
+      key: const ValueKey('refund-for'),
+      initialValue: valid ? _refundTargetId : null,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Refund for'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('Not linked to a spend')),
+        ...targets.map((t) => DropdownMenuItem<String?>(
+              value: (t['_id'] ?? t['id']).toString(),
+              child: Text(_txLabel(t), overflow: TextOverflow.ellipsis),
+            )),
+      ],
+      onChanged: (id) => setState(() {
+        _refundTargetId = id;
+        if (id == null) return;
+        final target = targets.firstWhere((t) => (t['_id'] ?? t['id']).toString() == id);
+        // Same category and account as the spend being refunded, unless already chosen
+        final cat = (target['category'] ?? '').toString();
+        if (!_categoryTouched && _quickCategories.contains(cat)) {
+          _selectedCategory = cat;
+          _isCustomCategory = false;
+        }
+        final acc = _plainId(target['accountId']) ?? _plainId(target['bankAccountId']) ?? _plainId(target['walletId']);
+        if (acc != null) {
+          bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == acc);
+          if (inList(budget.bankAccounts) || inList(budget.wallets) || inList(budget.creditCards)) {
+            _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
+            _selectedAccountId = acc;
+          }
+        }
+        if (_nameCtrl.text.trim().isEmpty) {
+          _nameCtrl.text = 'Refund: ${(target['title'] ?? target['name'] ?? 'spend')}';
+        }
+      }),
+    );
+  }
+
+  String? _plainId(dynamic v) => v is Map ? (v['_id'] ?? v['id'])?.toString() : v?.toString();
+
+  String get _editId => (widget.initialItem?['_id'] ?? widget.initialItem?['id'] ?? '').toString();
+
+  /// Fill the form from the record being edited, so saving without changes
+  /// sends back what was there.
+  void _prefillFromItem(BudgetProvider budget) {
+    final item = widget.initialItem!;
+    final rawAmount = num.tryParse('${item['amount'] ?? item['targetAmount'] ?? item['plannedAmount'] ?? 0}') ?? 0;
+    final amt = rawAmount.abs();
+    if (amt > 0) _amountCtrl.text = (amt / 100).toStringAsFixed(amt % 100 == 0 ? 0 : 2);
+    _nameCtrl.text = (item['title'] ?? item['name'] ?? item['description'] ?? '').toString();
+    final parsed = DateTime.tryParse('${item['date'] ?? ''}');
+    if (parsed != null) _selectedDate = parsed;
+
+    if (_activeType == EntryType.goal) {
+      _goalPriority = (num.tryParse('${item['priority'] ?? 1}') ?? 1).toInt();
+      return;
+    }
+    final cat = (item['category'] ?? item['tag'] ?? '').toString();
+    if (_activeType == EntryType.income) {
+      if (cat.isNotEmpty) _incSource = cat;
+    } else if (cat.isNotEmpty) {
+      if (_quickCategories.contains(cat)) {
+        _selectedCategory = cat;
+      } else {
+        _isCustomCategory = true;
+        _customCategoryCtrl.text = cat;
+      }
+      _categoryTouched = true;
+    }
+    if (_activeType == EntryType.transaction && rawAmount < 0) _txType = 'income';
+    if (_activeType == EntryType.item) {
+      _itemType = item['type'] == 'recurring' ? 'recurring' : 'one-time';
+      if (_itemType == 'recurring') _dayCtrl.text = '${item['dayOfMonth'] ?? 1}';
+      _isFixed = item['isFixed'] == true;
+    }
+    final accId = _plainId(item['accountId']) ?? _plainId(item['bankAccountId']) ?? _plainId(item['walletId']);
+    if (accId != null && accId.isNotEmpty) {
+      bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == accId);
+      _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
+      _selectedAccountId = accId;
+    }
+  }
+
+  // Save helpers: update when editing, create otherwise
+  Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload) =>
+      _isEditing ? budget.updateTransaction(_editId, payload) : budget.addTransaction(payload);
+
+  Future<void> _saveItem(BudgetProvider budget, Map<String, dynamic> payload) =>
+      _isEditing ? budget.updateItem(_editId, payload) : budget.addItem(payload);
+
+  Future<void> _saveGoal(BudgetProvider budget, Map<String, dynamic> payload) => _isEditing
+      ? budget.updateGoal(_editId, {
+          'name': payload['name'],
+          'targetAmount': payload['targetAmount'],
+          'priority': payload['priority'],
+        })
+      : budget.addGoal(payload);
+
+  bool get _isDirty => _amountCtrl.text.trim().isNotEmpty || _nameCtrl.text.trim().isNotEmpty;
+
+  void _onDescriptionChanged(String value) {
+    if (_categoryTouched) return;
+    if (_activeType != EntryType.transaction && _activeType != EntryType.item) return;
+    final suggested = suggestCategory(value, allowed: _quickCategories, remembered: _memory?.categoryFor);
+    if (suggested != null && (suggested != _selectedCategory || _isCustomCategory)) {
+      setState(() {
+        _selectedCategory = suggested;
+        _isCustomCategory = false;
+        _tagSuggested = true;
+      });
+    }
   }
 
 
@@ -109,8 +354,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     }
     if (mounted) setState(() => _loadingGoalRec = true);
     try {
-      final budget = Provider.of<BudgetProvider>(context, listen: false);
-      final res = await budget.recommendPurchaseDate(amt);
+      // Captured in initState: this can run from a timer after the sheet has closed
+      final res = await _budgetRef.recommendPurchaseDate(amt);
       if (mounted) {
         setState(() {
           _loadingGoalRec = false;
@@ -129,6 +374,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     _amountCtrl.dispose();
     _dayCtrl.dispose();
     _customCategoryCtrl.dispose();
+    _amountFocus.dispose();
     super.dispose();
   }
 
@@ -165,10 +411,35 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
 
-    return Padding(
+    // Ask before throwing away a half-filled entry (back button, close icon)
+    // canPop stays false and the check happens when the pop is attempted: typing
+    // doesn't rebuild the sheet, so a build-time "is it dirty" would be stale.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        if (!_isDirty || _submitting) {
+          navigator.pop();
+          return;
+        }
+        final discard = await confirmDestructive(
+          context,
+          title: 'Discard this entry?',
+          message: 'What you typed will be lost.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+        );
+        if (discard && mounted) {
+          _amountCtrl.clear();
+          _nameCtrl.clear();
+          navigator.pop();
+        }
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -182,41 +453,98 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Quick Log & Schedule',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                  // Expanded: a long title ("Edit purchase goal") must not push the close button off
+                  Expanded(
+                    child: Text(
+                      _isEditing
+                          ? 'Edit ${_titleForType(_activeType).toLowerCase()}'
+                          : (widget.initialType == EntryType.goal ? 'New purchase goal' : 'New entry'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.pop(context),
+                    // maybePop goes through the discard guard
+                    onPressed: () => Navigator.maybePop(context),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
 
-              // Segmented Tabs
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+              // Segmented tabs: four equal segments, no horizontal scrolling
+              if (widget.initialType != EntryType.goal && !_isEditing)
+                Row(
                   children: [
-                    _buildTab(EntryType.transaction, 'Actual Spend', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.income, 'Log Income', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.item, 'Planned Expense', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.goal, 'Purchase Goal', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.transfer, 'Transfer', isDark),
+                    _buildTab(EntryType.transaction, 'Spend', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.income, 'Income', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.item, 'Plan', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.transfer, 'Move', isDark),
                   ],
                 ),
-              ),
+
+              // Move: where the money goes
+              if (_activeType == EntryType.transfer) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('My accounts'),
+                      selected: _moveTarget == 'account',
+                      onSelected: (_) => setState(() => _moveTarget = 'account'),
+                    ),
+                    if (budget.creditCards.isNotEmpty)
+                      ChoiceChip(
+                        label: const Text('Pay a card'),
+                        selected: _moveTarget == 'card',
+                        onSelected: (_) => setState(() {
+                          _moveTarget = 'card';
+                          _cardId ??= _idOf(budget.creditCards.first);
+                        }),
+                      ),
+                    ChoiceChip(
+                      label: const Text('A person'),
+                      selected: _moveTarget == 'person',
+                      onSelected: (_) => setState(() => _moveTarget = 'person'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
 
+              if (_sessionCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '$_sessionCount added · ${formatCurrency(_sessionTotal)}',
+                    key: const ValueKey('entry-session'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.green),
+                  ),
+                ),
+
+              if (_isPersonMove)
+                HeldLentForm(
+                  initialAction: _personAction ?? 'lend',
+                  initialFundId: _personFundId,
+                  initialPersonName: _personName,
+                  initialAmount: _amountCtrl.text.trim(),
+                  initialNote: _nameCtrl.text.trim(),
+                  initialDate: _selectedDate,
+                  initialAccountId: _sourceAccountId,
+                  onSaved: () => Navigator.pop(context),
+                ),
+
+              if (!_isPersonMove) ...[
               // Scheduled Monthly Salary Info Card for Income Mode (matching web)
               if (_activeType == EntryType.income && salaryAmt > 0) ...[
                 Container(
@@ -233,13 +561,17 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'SCHEDULED MONTHLY SALARY',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          // Flexible: the label shrinks on narrow phones instead of overflowing
+                          Flexible(
+                            child: Text(
+                              'SCHEDULED MONTHLY SALARY',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
                             ),
                           ),
                           Text(
@@ -257,11 +589,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Deposit Target: $salaryBankName',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          Flexible(
+                            child: Text(
+                              'Deposit Target: $salaryBankName',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                              ),
                             ),
                           ),
                           Text(
@@ -287,7 +622,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       child: ChoiceChip(
                         label: const Center(child: Text('Expense')),
                         selected: _txType == 'expense',
-                        onSelected: (_) => setState(() => _txType = 'expense'),
+                        onSelected: (_) => setState(() {
+                          _txType = 'expense';
+                          _refundTargetId = null;
+                        }),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -301,6 +639,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                if (_txType == 'income') ...[
+                  _buildRefundLink(budget),
+                  const SizedBox(height: 12),
+                ],
               ] else if (_activeType == EntryType.income) ...[
                 // Income Source Pills
                 Text(
@@ -414,13 +756,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               // Name / Description field
               TextField(
                 controller: _nameCtrl,
+                onChanged: _onDescriptionChanged,
                 decoration: InputDecoration(
                   labelText: _activeType == EntryType.goal
                       ? 'Goal Name (e.g. New Headphones)'
                       : (_activeType == EntryType.income
                           ? 'Note / Payer Reference (optional)'
                           : (_activeType == EntryType.item ? 'Item Name (e.g. Internet Bill)' : 'Description')),
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -428,12 +770,24 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               // Amount Field
               TextField(
                 controller: _amountCtrl,
-                keyboardType: TextInputType.number,
+                focusNode: _amountFocus,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: _activeType == EntryType.income ? 'Income (₹) *' : 'Amount (₹) *',
-                  border: const OutlineInputBorder(),
                 ),
               ),
+              if (_activeType != EntryType.goal) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: quickAmounts.map((v) => ActionChip(
+                        label: Text(v >= 1000 ? '${v ~/ 1000}k' : '$v'),
+                        onPressed: () => setState(() => _amountCtrl.text = '$v'),
+                      )).toList(),
+                ),
+              ],
               const SizedBox(height: 12),
 
               // Date Picker or Recurring Day
@@ -441,7 +795,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 TextField(
                   controller: _dayCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Day of Month (1-31)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Day of Month (1-31)'),
                 )
               else
                 AppDatePickerField(
@@ -474,11 +828,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       children: [
                         const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                         const SizedBox(width: 10),
-                        Text(
-                          'Calculating optimal purchase date on server...',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        // Expanded: the fixed-width text overflowed narrow phones
+                        Expanded(
+                          child: Text(
+                            'Calculating optimal purchase date on server...',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
                           ),
                         ),
                       ],
@@ -562,6 +919,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   selectedAccountId: _selectedAccountId,
                   bankAccounts: budget.bankAccounts,
                   wallets: budget.wallets,
+                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.creditCards : const [],
                   isRequired: _activeType == EntryType.income,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -572,7 +930,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 ),
               ] else if (_activeType == EntryType.transfer) ...[
                 AccountSelector(
-                  label: 'Source Account (From)',
+                  label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
                   selectedAccountId: _sourceAccountId,
                   bankAccounts: budget.bankAccounts,
@@ -586,6 +944,68 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   },
                 ),
                 const SizedBox(height: 12),
+                if (_moveTarget == 'card') ...[
+                  Text('Card to pay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  const SizedBox(height: AppForm.fieldGap),
+                  ...budget.creditCards.map((c) {
+                    final card = Map<String, dynamic>.from(c as Map);
+                    final id = _idOf(card);
+                    final bill = card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
+                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
+                    final owed = (num.tryParse('${card['outstanding'] ?? 0}') ?? 0).round();
+                    final selected = id == _cardId;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        borderRadius: AppForm.radius,
+                        onTap: () => setState(() => _cardId = id),
+                        child: Container(
+                          width: double.infinity,
+                          constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+                          padding: AppForm.fieldPadding,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+                            borderRadius: AppForm.radius,
+                            border: Border.all(
+                              color: selected ? (isDark ? AppColors.darkText : AppColors.lightText) : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                              width: selected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(card['name']?.toString() ?? 'Card', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                'Owes ${formatCurrency(owed)}${remaining > 0 ? ' · bill ${formatCurrency(remaining)}' : ''}',
+                                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  Builder(builder: (_) {
+                    final card = _selectedCard(budget);
+                    final bill = card != null && card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
+                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
+                    final minimum = (num.tryParse('${bill?['minimumDue'] ?? 0}') ?? 0).round();
+                    final owed = (num.tryParse('${card?['outstanding'] ?? 0}') ?? 0).round();
+                    String major(int minor) => (minor / 100).toStringAsFixed(2);
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (remaining > 0)
+                          ActionChip(label: Text('Bill ${formatCurrency(remaining)}'), onPressed: () => setState(() => _amountCtrl.text = major(remaining))),
+                        if (minimum > 0)
+                          ActionChip(label: Text('Minimum ${formatCurrency(minimum < remaining || remaining == 0 ? minimum : remaining)}'), onPressed: () => setState(() => _amountCtrl.text = major(minimum < remaining || remaining == 0 ? minimum : remaining))),
+                        if (owed > 0)
+                          ActionChip(label: Text('All owed ${formatCurrency(owed)}'), onPressed: () => setState(() => _amountCtrl.text = major(owed))),
+                      ],
+                    );
+                  }),
+                ] else
                 AccountSelector(
                   label: 'Destination Account (To)',
                   accountType: _destAccountType,
@@ -604,10 +1024,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
 
               // Selectable Categories matching Web
-              if (_activeType == EntryType.item || (_activeType == EntryType.transaction && _txType != 'income')) ...[
+              if (_activeType == EntryType.item || _activeType == EntryType.transaction) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'Category',
+                  _tagSuggested ? 'Category · suggested' : 'Category',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -627,6 +1047,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                         onSelected: (_) => setState(() {
                           _selectedCategory = cat;
                           _isCustomCategory = false;
+                          _categoryTouched = true;
+                          _tagSuggested = false;
                         }),
                       );
                     }),
@@ -635,6 +1057,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       selected: _isCustomCategory,
                       onSelected: (_) => setState(() {
                         _isCustomCategory = true;
+                        _categoryTouched = true;
+                        _tagSuggested = false;
                       }),
                     ),
                   ],
@@ -645,12 +1069,40 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     controller: _customCategoryCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Custom Category (e.g. Rent, Utilities)',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],
               ],
+              // Smart assists: rebuilt as the amount or description changes
+              if (!_isEditing && (_activeType == EntryType.transaction || _activeType == EntryType.income))
+                AnimatedBuilder(
+                  animation: Listenable.merge([_amountCtrl, _nameCtrl]),
+                  builder: (context, _) => _buildAssist(budget, monthData, isDark),
+                ),
+              // Safety floor: spending from, or moving money out of, a bank account or wallet
+              if ((_activeType == EntryType.transaction && _txType == 'expense') || _activeType == EntryType.transfer)
+                FloorBreachNotice(
+                  amountController: _amountCtrl,
+                  accountId: _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId,
+                  showWhenSafe: true,
+                ),
               const SizedBox(height: 20),
+
+              if (_canAddAnother) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    key: const ValueKey('save-add-another'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(AppForm.controlHeight),
+                      shape: RoundedRectangleBorder(borderRadius: AppForm.radius),
+                    ),
+                    onPressed: _submitting ? null : () => _handleSubmit(again: true),
+                    child: const Text('Save & add another'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // Submit Button
               SizedBox(
@@ -666,27 +1118,158 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: _submitting ? null : _handleSubmit,
+                  onPressed: _submitting ? null : () => _handleSubmit(),
                   child: _submitting
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : Text(
-                          _activeType == EntryType.income
+                          _isEditing
+                              ? 'Save changes'
+                              : _activeType == EntryType.income
                               ? 'Log Income Inflow'
-                              : 'Add ${_titleForType(_activeType)}',
+                              : (_activeType == EntryType.transfer
+                                  ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?['name'] ?? 'card'}' : 'Record transfer')
+                                  : 'Add ${_titleForType(_activeType)}'),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
+              ],
             ],
           ),
         ),
       ),
+    ),
     );
+  }
+
+  /// One assist at a time: planned bill > duplicate salary > someone else's money.
+  Widget _buildAssist(BudgetProvider budget, Map<String, dynamic> monthData, bool isDark) {
+    final amount = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
+    final description = _nameCtrl.text;
+    final navigator = Navigator.of(context);
+
+    Widget banner(String key, String message, List<Widget> actions, {bool warn = false}) => Container(
+          key: ValueKey(key),
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: warn ? AppColors.amber.withAlpha(25) : AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: warn ? AppColors.amber.withAlpha(90) : AppColors.primary.withAlpha(70)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(message, style: const TextStyle(fontSize: 13, height: 1.35)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, children: actions),
+          ]),
+        );
+
+    // A spend that pays a planned bill
+    if (_activeType == EntryType.transaction && _txType == 'expense' && !_dismissedAssists.contains('bill')) {
+      final planned = budget.transactions.where((t) => t is Map && t['status'] == 'planned').toList();
+      final bill = findBillMatch(planned, amount: amount, description: description, today: _formatDateYmd(DateTime.now()));
+      if (bill != null) {
+        return banner('assist-bill', 'Paying ${bill['name'] ?? bill['title'] ?? 'a planned bill'} (${formatCurrency(_minorOf(bill['plannedAmount'] ?? bill['amount']))})?', [
+          TextButton(onPressed: () => setState(() => _dismissedAssists.add('bill')), child: const Text('No')),
+          FilledButton(
+            onPressed: () {
+              final rootContext = navigator.context;
+              navigator.pop();
+              showModalBottomSheet(
+                context: rootContext,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => MarkPaidModal(transaction: bill),
+              );
+            },
+            child: const Text('Yes, mark it paid'),
+          ),
+        ]);
+      }
+    }
+
+    // Salary already in the plan
+    if (_activeType == EntryType.income && !_dismissedAssists.contains('salary')) {
+      final salary = detectDuplicateSalary(description: description, amount: amount, month: monthData);
+      if (salary != null) {
+        return banner(
+          'assist-salary',
+          'Your ${formatCurrency(salary['amount'] as int)} salary${salary['date'] != null ? ' on ${salary['date']}' : ''} is already in the plan. Logging it here counts it twice.',
+          [
+            TextButton(onPressed: () => setState(() => _dismissedAssists.add('salary')), child: const Text("It's extra income")),
+            FilledButton(
+              onPressed: () {
+                final rootContext = navigator.context;
+                navigator.pop();
+                showModalBottomSheet(
+                  context: rootContext,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const SalarySafelineModal(),
+                );
+              },
+              child: const Text('Update salary instead'),
+            ),
+          ],
+          warn: true,
+        );
+      }
+    }
+
+    // Someone else's money
+    if (!_dismissedAssists.contains('person')) {
+      final flow = _activeType == EntryType.income || _txType == 'income' ? 'in' : 'out';
+      final hint = detectPersonHint(description: description, flow: flow, funds: _personFunds);
+      if (hint != null) {
+        final action = hint['action'] as String;
+        final who = (hint['personName'] as String).isEmpty ? 'someone' : hint['personName'] as String;
+        final possessive = who == 'someone' ? "someone's" : "$who's";
+        final question = {
+          'hold': 'Is this $possessive money to keep?',
+          'repaid': 'Is $who paying back money you lent?',
+          'lend': 'Lending this to $who?',
+          'return': 'Giving back $possessive money?',
+        }[action]!;
+        return banner('assist-person', "$question It wouldn't count as ${flow == 'in' ? 'income' : 'spending'}.", [
+          TextButton(onPressed: () => setState(() => _dismissedAssists.add('person')), child: const Text('No')),
+          FilledButton(
+            onPressed: () => setState(() {
+              final fund = hint['fund'] as Map<String, dynamic>?;
+              _personAction = action;
+              _personFundId = fund?['id']?.toString();
+              _personName = fund == null ? hint['personName'] as String : '';
+              _sourceAccountId = _selectedAccountId ?? _sourceAccountId;
+              _activeType = EntryType.transfer;
+              _moveTarget = 'person';
+            }),
+            child: Text('Track as ${action == 'hold' || action == 'return' ? 'held' : 'lent'}'),
+          ),
+        ]);
+      }
+    }
+    return const SizedBox.shrink();
+  }
+
+  int _minorOf(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round().abs();
+
+  bool get _canAddAnother =>
+      !_isEditing &&
+      (_activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item);
+
+  bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
+
+  String? _idOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
+
+  Map<String, dynamic>? _selectedCard(BudgetProvider budget) {
+    for (final c in budget.creditCards) {
+      if (_idOf(c) == _cardId) return Map<String, dynamic>.from(c as Map);
+    }
+    return null;
   }
 
   Widget _buildTab(EntryType type, String title, bool isDark) {
     final isSelected = _activeType == type;
-    return InkWell(
+    return Expanded(child: InkWell(
       onTap: () {
         setState(() => _activeType = type);
         if (type == EntryType.goal) {
@@ -695,7 +1278,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       },
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? (type == EntryType.income ? AppColors.green : (isDark ? Colors.white : Colors.black))
@@ -704,40 +1289,43 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         ),
         child: Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
-                ? Colors.white
+                ? (type == EntryType.income ? Colors.white : (isDark ? Colors.black : Colors.white))
                 : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
           ),
         ),
       ),
-    );
+    ));
   }
 
   String _titleForType(EntryType type) {
     switch (type) {
       case EntryType.transaction:
-        return 'Actual Spend';
+        return 'Spend';
       case EntryType.income:
         return 'Income';
       case EntryType.item:
-        return 'Planned Commitment';
+        return 'Planned Bill';
       case EntryType.goal:
         return 'Purchase Goal';
       case EntryType.transfer:
-        return 'Transfer';
+        return 'Move';
     }
   }
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({bool again = false}) async {
     final budget = context.read<BudgetProvider>();
     final amt = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
     final day = isRecurring ? (int.tryParse(_dayCtrl.text) ?? 1) : _selectedDate.day;
     final dateStr = _formatDateYmd(_selectedDate);
-    final name = _nameCtrl.text.trim().isEmpty ? 'Entry' : _nameCtrl.text.trim();
+    final typedCategory = _isCustomCategory ? _customCategoryCtrl.text.trim() : _selectedCategory;
+    final name = resolveEntryName(_nameCtrl.text, typedCategory, _titleForType(_activeType));
 
     if (amt <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
@@ -758,7 +1346,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         }
 
         final incNote = _nameCtrl.text.trim();
-        await budget.addTransaction({
+        await _saveTx(budget, {
           'amount': amt,
           'isIncome': true,
           'tag': _incSource,
@@ -773,24 +1361,29 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           if (isWallet) 'walletId': _selectedAccountId,
         });
       } else if (_activeType == EntryType.transaction) {
-        final isTxIncome = _txType == 'income';
-        await budget.addTransaction({
+        // "Credit / Refund" is a refund: a negative spend (as on web and per the server),
+        // not income, so it reduces spending in its category instead of inflating income
+        final isRefund = _txType == 'income';
+        await _saveTx(budget, {
           'description': name,
-          'amount': amt,
+          'amount': isRefund ? -amt : amt,
           'day': day,
           'date': dateStr,
-          'type': _txType,
-          'isIncome': isTxIncome,
-          'category': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
-          'tag': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
+          'type': 'expense',
+          'isIncome': false,
+          if (isRefund) 'isRefund': true,
+          if (isRefund && _refundTargetId != null && !_isEditing) 'refundTargetTransactionId': _refundTargetId,
+          'category': cat.isNotEmpty ? cat : 'Other',
+          'tag': cat.isNotEmpty ? cat : 'Other',
           if (_selectedAccountId != null) ...{
-            'accountType': isWallet ? 'wallet' : 'bank',
-            if (!isWallet) 'bankAccountId': _selectedAccountId,
+            'accountId': _selectedAccountId,
+            'accountType': _accountType == 'credit_card' ? 'credit_card' : (isWallet ? 'wallet' : 'bank'),
+            if (!isWallet && _accountType != 'credit_card') 'bankAccountId': _selectedAccountId,
             if (isWallet) 'walletId': _selectedAccountId,
           },
         });
       } else if (_activeType == EntryType.item) {
-        await budget.addItem({
+        await _saveItem(budget, {
           'name': name,
           'amount': amt,
           'day': day,
@@ -807,19 +1400,20 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         });
 
       } else if (_activeType == EntryType.goal) {
-        await budget.addGoal({
+        await _saveGoal(budget, {
           'name': name,
           'targetAmount': amt,
           'priority': _goalPriority,
           'targetDate': dateStr,
         });
       } else if (_activeType == EntryType.transfer) {
+        final toCard = _moveTarget == 'card';
         final srcId = _sourceAccountId;
-        final dstId = _destAccountId;
+        final dstId = toCard ? _cardId : _destAccountId;
         final isSrcWallet = _sourceAccountType == 'wallet';
-        final isDstWallet = _destAccountType == 'wallet';
+        final isDstWallet = !toCard && _destAccountType == 'wallet';
 
-        if (srcId == null || dstId == null || (srcId == dstId && _sourceAccountType == _destAccountType)) {
+        if (srcId == null || dstId == null || (!toCard && srcId == dstId && _sourceAccountType == _destAccountType)) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select distinct source and destination accounts')));
           setState(() => _submitting = false);
           return;
@@ -829,17 +1423,54 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'sourceType': isSrcWallet ? 'wallet' : 'bank',
           'sourceBankAccountId': isSrcWallet ? null : srcId,
           'sourceWalletId': isSrcWallet ? srcId : null,
-          'destinationType': isDstWallet ? 'wallet' : 'bank',
-          'destinationBankAccountId': isDstWallet ? null : dstId,
+          'sourceAccountId': srcId,
+          // Paying a card is a transfer into the card (ADR 0070)
+          'destinationType': toCard ? 'credit_card' : (isDstWallet ? 'wallet' : 'bank'),
+          'destinationAccountId': dstId,
+          'destinationBankAccountId': toCard || isDstWallet ? null : dstId,
           'destinationWalletId': isDstWallet ? dstId : null,
           'amount': amt,
           'date': dateStr,
-          'note': name,
+          'note': _nameCtrl.text.trim().isNotEmpty
+              ? _nameCtrl.text.trim()
+              : (toCard ? '${_selectedCard(budget)?['name'] ?? 'Card'} bill' : name),
         });
       }
 
 
-      if (mounted) Navigator.pop(context);
+      // Remember the account (and the category for this description) for next time
+      final memory = _memory ?? await EntryMemory.load();
+      if (_isEditing) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+      if (_activeType == EntryType.transfer) {
+        await memory.rememberAccount('transfer', _sourceAccountType, _sourceAccountId);
+      } else {
+        await memory.rememberAccount(_activeType.name, _accountType, _selectedAccountId);
+      }
+      if ((_activeType == EntryType.transaction || _activeType == EntryType.item) && _nameCtrl.text.trim().isNotEmpty && cat.isNotEmpty) {
+        await memory.rememberCategory(_nameCtrl.text, cat);
+      }
+
+      if (!mounted) return;
+      if (again && _canAddAnother) {
+        // Keep the tab, date and account; clear what changes per entry
+        setState(() {
+          _sessionCount += 1;
+          _sessionTotal += amt;
+          _amountCtrl.clear();
+          _nameCtrl.clear();
+          _customCategoryCtrl.clear();
+          _isCustomCategory = false;
+          _categoryTouched = false;
+          _tagSuggested = false;
+          _selectedCategory = 'Food';
+        });
+        _amountFocus.requestFocus();
+      } else {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {

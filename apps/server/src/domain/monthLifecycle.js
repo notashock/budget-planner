@@ -6,6 +6,8 @@ import { backfillUnassignedTransactions } from '../services/accountMigration.js'
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { SimulationService, loadGoalsForUser } from './simulationService.js';
+import { PersonFundService } from './personFundService.js';
+import { CardService } from './cardService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
@@ -136,8 +138,9 @@ export const MonthLifecycle = {
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
     // Auto-backfill unassigned if primary bank exists
-    if (allAccounts.length > 0) {
-      const primaryBank = allAccounts.find(b => b.isPrimary) || allAccounts[0];
+    if (allAccounts.some(a => a.type !== 'credit_card')) {
+      const cashAccounts = allAccounts.filter(a => a.type !== 'credit_card');
+      const primaryBank = cashAccounts.find(b => b.isPrimary) || cashAccounts[0];
       try {
         await backfillUnassignedTransactions(userId, primaryBank);
         if (!month.salaryAccountId) {
@@ -220,7 +223,11 @@ export const MonthLifecycle = {
       currentDay = 0;
     }
 
-    const goals = await loadGoalsForUser(userId);
+    const [goals, heldContext, cardContext] = await Promise.all([
+      loadGoalsForUser(userId),
+      PersonFundService.getSimulationContext(userId, month),
+      CardService.getSimulationContext(userId, month)
+    ]);
     const { simulation, accountSimulations } = SimulationService.computeSimulation({
       month,
       bankAccounts,
@@ -230,10 +237,13 @@ export const MonthLifecycle = {
       transactions,
       transfers,
       goals,
-      currentDay
+      currentDay,
+      heldContext,
+      cardContext
     });
 
     return {
+      creditCards: cardContext.creditCards,
       month: serialize(month),
       items: serialize(items),
       transactions: serialize(transactions),
@@ -319,6 +329,9 @@ export const MonthLifecycle = {
       });
       if (!validSalaryBank) {
         throw new ValidationError('Salary account is invalid or not owned by user');
+      }
+      if (validSalaryBank.type === 'credit_card') {
+        throw new ValidationError('Salary cannot be paid into a credit card');
       }
     }
 
@@ -468,6 +481,9 @@ export const MonthLifecycle = {
         });
         if (!validSalary) {
           throw new ValidationError('Salary account is invalid or not owned by user');
+        }
+        if (validSalary.type === 'credit_card') {
+          throw new ValidationError('Salary cannot be paid into a credit card');
         }
       }
       update.salaryAccountId = targetSalaryId || null;

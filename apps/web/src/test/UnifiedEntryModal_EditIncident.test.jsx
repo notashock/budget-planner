@@ -120,7 +120,7 @@ describe('UnifiedEntryModal - Plan Mode Recurring switch & Variable Info Popover
   ];
 
   it('renders Plan mode, switches to Recurring without throwing, and shows day stepper dock', () => {
-    const { container } = render(
+    render(
       <UnifiedEntryModal
         isOpen={true}
         onClose={vi.fn()}
@@ -138,7 +138,8 @@ describe('UnifiedEntryModal - Plan Mode Recurring switch & Variable Info Popover
     fireEvent.click(recurringBtn);
 
     // Verify day-of-month stepper dock is visible and contains day input
-    const dayDock = container.querySelector('.modal-day-stepper-dock');
+    // The modal renders in a portal on <body>, not inside the render container
+    const dayDock = document.body.querySelector('.modal-day-stepper-dock');
     expect(dayDock).toBeTruthy();
     expect(dayDock.textContent).toContain('Day');
     const dayInput = dayDock.querySelector('input[type="number"]');

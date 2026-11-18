@@ -3,6 +3,8 @@ import { formatCurrency, formatDisplayDate, evaluateGoalsWithReservation } from 
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
+import { AnimatedModal } from '../components/AnimatedModal.jsx';
+import { GoalEditForm } from '../components/GoalEditForm.jsx';
 
 function computeAffordableGoalBundles(activeGoals, availableCushion) {
   if (!activeGoals || activeGoals.length === 0 || availableCushion <= 0) return [];
@@ -53,8 +55,11 @@ export function GoalsScreen({
   onConvertGoalToItem,
   onDeferGoal,
   onReactivateGoal,
-  onDeleteGoal
+  onDeleteGoal,
+  onUpdateGoal
 }) {
+  // Goal being edited (null when the edit form is closed)
+  const [editingGoal, setEditingGoal] = useState(null);
   // Goal creation inputs
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
@@ -537,6 +542,15 @@ export function GoalsScreen({
                           )}
                         </div>
 
+                        {onUpdateGoal && (
+                          <button
+                            type="button"
+                            className="btn-subtle goals-btn-5"
+                            onClick={() => setEditingGoal(goal)}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn-subtle goals-btn-5"
@@ -553,6 +567,22 @@ export function GoalsScreen({
           )}
         </div>
       </div>
+
+      <AnimatedModal isOpen={Boolean(editingGoal)} onClose={() => setEditingGoal(null)} maxWidth="440px" dataTestId="goal-edit-modal">
+        {editingGoal && (
+          <GoalEditForm
+            goal={editingGoal}
+            bankAccounts={bankAccounts}
+            wallets={wallets}
+            currencySymbol={currencySymbol}
+            onCancel={() => setEditingGoal(null)}
+            onSubmit={async (updates) => {
+              await onUpdateGoal(editingGoal._id || editingGoal.id, updates);
+              setEditingGoal(null);
+            }}
+          />
+        )}
+      </AnimatedModal>
     </div>
   );
 }

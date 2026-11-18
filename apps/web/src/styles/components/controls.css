@@ -160,17 +160,90 @@
   background: var(--surface-subtle);
 }
 
-/* Unified Select Trigger */
+/*
+ * Form field (.input-field): text inputs and native selects in the account,
+ * card, held/lent and setup forms. Matches .app-select-trigger and
+ * .datepicker-trigger so fields in one form look like the same kind of thing.
+ * background-color (not background) keeps the select chevron from base.css.
+ */
+.input-field {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 8px var(--field-pad-x);
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+select.input-field {
+  padding-right: 36px;
+}
+
+.input-field:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+.input-field[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.input-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Phones: --control-h is 44px there; 16px text so iOS Safari doesn't zoom on focus */
+@media (max-width: 767px) {
+  .input-field,
+  .app-select-trigger,
+  .datepicker-trigger {
+    font-size: var(--fs-input);
+  }
+}
+
+/* Inline safety-floor warning above a form's footer (FloorBreachNotice) */
+.floor-breach-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-subtle);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.floor-breach-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+/* Unified Select Trigger (CustomSelect, AccountSelect) */
 .app-select-trigger {
   width: 100%;
+  min-height: var(--control-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: 8px var(--field-pad-x);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
+  border-radius: var(--field-radius);
+  font-size: var(--fs-base);
   color: var(--text);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
@@ -188,7 +261,18 @@
   outline: none;
   background: var(--surface-subtle);
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+.app-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.app-select-placeholder {
+  color: var(--text-secondary);
 }
 
 /* Stacking Context Elevation for Dropdowns & Form Popovers */
@@ -335,4 +419,537 @@
     gap: 6px;
     flex-shrink: 0;
   }
+}
+
+/* ==========================================================================
+   Shared form building blocks (entry and edit forms)
+   ========================================================================== */
+
+/* Helper text under a field */
+.field-hint {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.field-hint.is-positive {
+  color: var(--good-ink);
+}
+
+/* On/off pill (e.g. Spend <-> Refund) */
+.entry-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.entry-toggle.is-on {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+/* Two or three mutually exclusive short options */
+.entry-segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+}
+
+.entry-segment-btn {
+  min-height: calc(var(--control-h-sm) - 6px);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entry-segment-btn.active {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Option with a title and a sub-line (scope, settlement choices) */
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.choice-card.is-static {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+.choice-card.active {
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+.choice-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.choice-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.recurring-toggle-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.recurring-toggle-label.is-on {
+  color: var(--text);
+}
+
+/* Vertical form layout and its action row (modals without the entry sheet's sticky footer) */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--form-gap);
+}
+
+.form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.settle-amount-input {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .settle-amount-input {
+    font-size: var(--fs-input);
+  }
+}
+
+/* Server or form-level error, directly above the footer */
+.form-error {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+  color: var(--bad-ink);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+/* Settle (mark as paid) */
+.settle-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+}
+
+.settle-summary-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.settle-summary-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.settle-leftover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.settle-leftover legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+
+/* Move tab: who the money goes to */
+.move-target {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.move-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.move-card-list .choice-card {
+  width: 100%;
+}
+
+.move-bill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tx-action-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.settle-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.settle-modal-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.settle-modal-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* Live "After this: …" line above an entry form's footer */
+.consequence-line {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.consequence-line strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.consequence-line.tone-warn {
+  background: var(--amber-subtle, rgba(245, 158, 11, 0.1));
+  color: var(--warn-ink);
+}
+
+.consequence-line.tone-bad {
+  background: var(--danger-subtle);
+  color: var(--bad-ink);
+}
+
+.consequence-line.tone-bad strong {
+  color: var(--bad-ink);
+}
+
+/* Inline confirmations inside the entry sheet (no dialog on top of the sheet) */
+.floor-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+}
+
+.floor-confirm .entry-text-5 {
+  margin: 0;
+}
+
+.discard-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.discard-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.entry-session {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--good-ink);
+}
+
+.field-suggested {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* "Saved … Undo" toast */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bottom-nav-height) + var(--space-4) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(480px, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+}
+
+.app-toast-message {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-toast-action,
+.app-toast-close {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-toast-action:hover,
+.app-toast-close:hover {
+  background: rgba(127, 127, 127, 0.25);
+}
+
+.app-toast-close {
+  padding: 0 var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .app-toast {
+    left: auto;
+    right: var(--space-6);
+    bottom: var(--space-6);
+    transform: none;
+  }
+}
+
+/* Editing: what is changing, with Delete beside it */
+.edit-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--field-radius);
+}
+
+.edit-summary-text {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.edit-summary-text strong {
+  color: var(--text);
+}
+
+.edit-from {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Inline confirmation (delete, history changes) */
+.inline-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+  font-size: var(--fs-sm);
+}
+
+.inline-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-primary.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Text-style action */
+.link-btn {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--text);
+}
+
+.link-btn.danger {
+  color: var(--bad-ink);
+}
+
+/* Warning under a field whose change rewrites history */
+.history-warning {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--warn-ink);
+}
+
+/* Close button in the corner of a modal form */
+.modal-corner-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+
+/* Card forms: room for the corner close button; Remove sits on the left of the footer */
+.modal-content:has(> .modal-corner-close) {
+  position: relative;
+}
+
+.modal-content:has(> .modal-corner-close) .hl-modal-title {
+  padding-right: var(--space-8);
+}
+
+.hl-footer .card-remove-btn {
+  margin-right: auto;
+}
+
+/* Smart assists in the entry sheet ("Paying Rent?", duplicate salary, held/lent) */
+.assist-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--indigo-border, var(--border));
+  border-radius: var(--field-radius);
+  background: var(--indigo-subtle, var(--surface-subtle));
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.assist-banner > span {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.assist-banner > svg {
+  flex-shrink: 0;
+  color: var(--indigo, var(--text-secondary));
+}
+
+.assist-banner.tone-warn {
+  border-color: var(--amber-border, var(--border));
+  background: var(--amber-subtle);
+}
+
+.assist-banner.tone-warn > svg {
+  color: var(--warn-ink);
+}
+
+.assist-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.assist-actions button {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--fs-xs);
+}
+
+.edit-summary-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.hl-person-expected {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+.hl-person-expected.late {
+  color: var(--bad-ink);
+  font-weight: 600;
 }

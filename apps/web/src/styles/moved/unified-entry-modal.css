@@ -32,7 +32,7 @@
 
 .entry-box-2 {
   flex: 1;
-  max-width: 440px;
+  max-width: 520px;
 }
 
 .entry-btn {
@@ -348,7 +348,7 @@
   inset: 0;
   background-color: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(5px);
-  z-index: 120000;
+  z-index: var(--z-modal-nested);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -491,4 +491,122 @@
   font-size: var(--fs-xs);
   padding: 6px 12px;
   margin-top: 4px;
+}
+
+/* Five entry tabs on a phone: drop the icons so every label fits on one row.
+   Unlayered, like the rest of this file, so it outranks the icon sizing rules. */
+@media (max-width: 480px) {
+  .entry-box-2 .modal-tab-btn {
+    padding: 6px 2px;
+    gap: 0;
+    min-width: 0;
+  }
+  .entry-box-2 .modal-tab-btn svg {
+    display: none !important;
+  }
+}
+
+/* Edit mode: the record type, shown as a label (type can't change while editing) */
+.entry-edit-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.entry-edit-type.is-income {
+  background: var(--success-subtle);
+  color: var(--good-ink);
+}
+
+.entry-edit-type.is-transfer {
+  background: var(--indigo-subtle, var(--surface-subtle));
+}
+
+/* Refund submit reads as money coming in */
+.entry-submit.is-positive {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* Scope choice: stack on narrow sheets */
+@container (max-width: 400px) {
+  .entry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Amount label row: wrap as a whole instead of breaking words on narrow sheets */
+.entry-row-3 {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.entry-row-4 {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.entry-row-4 .form-label,
+.entry-btn-3,
+.entry-segment-btn,
+.entry-toggle,
+.modal-footer-row button,
+.recurring-toggle-label {
+  white-space: nowrap;
+}
+
+/* "Auto date" is a text link, not a full button */
+.entry-btn-3.sparkle-action-link {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-1);
+  font-size: var(--fs-xs);
+}
+
+/* Unselected category pills still read as buttons */
+.category-pill-btn.btn-subtle {
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.category-pill-btn.btn-primary {
+  font-weight: 600;
+}
+
+/* Footer: let the toggle and the buttons wrap as blocks on narrow sheets */
+.modal-footer-row {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+
+.entry-row-13 {
+  margin-left: auto;
+}
+
+/* Move tab: "My accounts / Pay a card / A person" under the tabs */
+.move-target-row {
+  margin-top: var(--space-3);
+}
+
+.move-target {
+  display: flex;
+  width: 100%;
+}
+
+.move-target .entry-segment-btn {
+  flex: 1;
+}
+
+.settle-intro {
+  margin: 0 0 var(--space-1);
 }

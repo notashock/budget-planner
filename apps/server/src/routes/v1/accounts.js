@@ -7,7 +7,7 @@ import { migrationStatusHandler, migrateHandler } from '../bankAccounts.js';
 export const v1AccountsRouter = express.Router();
 v1AccountsRouter.use(requireAuth);
 
-const ACCOUNT_TYPES = ['bank', 'wallet', 'cash'];
+const ACCOUNT_TYPES = ['bank', 'wallet', 'cash', 'credit_card'];
 
 // GET /api/v1/accounts?type=bank|wallet|cash&includeArchived=true
 // Without `type` this lists every account (legacy /api/bank-accounts/all).
@@ -28,7 +28,7 @@ v1AccountsRouter.post('/migrate', migrateHandler);
 // POST /api/v1/accounts - Create a bank, wallet or cash account (`type`, default bank)
 v1AccountsRouter.post('/', async (req, res, next) => {
   try {
-    const nameLabel = req.body?.type === 'wallet' ? 'Wallet' : 'Account';
+    const nameLabel = req.body?.type === 'wallet' ? 'Wallet' : (req.body?.type === 'credit_card' ? 'Card' : 'Account');
     const account = await AccountService.createAccount(req.userId, req.body, { defaultType: 'bank', nameLabel });
     return res.success(account, 201);
   } catch (err) {

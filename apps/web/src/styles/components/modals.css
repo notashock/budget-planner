@@ -8,7 +8,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 110000;
+  z-index: var(--z-modal);
   overflow: hidden;
   touch-action: none;
   will-change: opacity;
@@ -60,9 +60,11 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--border);
-  border-radius: 16px 16px 0 0;
-  padding: 16px 18px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-4) var(--sheet-pad-x);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom, 16px));
+  /* Forms inside lay out by the sheet's width, not the viewport's */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -79,11 +81,11 @@
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .modal-content {
-    max-width: 500px;
+    max-width: 480px;
     max-height: 82vh;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg, 16px);
-    padding: 18px 20px;
+    padding: var(--space-5) var(--sheet-pad-x);
     box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
     transition: none;
   }
@@ -96,11 +98,11 @@
 
 @media (min-width: 1024px) {
   .modal-content {
-    max-width: 520px;
+    max-width: 480px;
     max-height: 85vh;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg, 16px);
-    padding: 20px 22px;
+    padding: var(--space-5) var(--sheet-pad-x);
     box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
     transition: none;
   }
@@ -116,10 +118,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 12px 2px 6px 2px;
+  padding: var(--space-3) 2px var(--space-2) 2px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--form-gap);
   flex: 1;
   min-height: 0;
 }
@@ -128,10 +130,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 12px;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--border);
-  margin-top: 4px;
+  margin-top: var(--space-1);
   background: var(--surface);
   flex-shrink: 0;
 }
@@ -141,16 +143,17 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-height: var(--control-h-hero);
   background: var(--surface-subtle);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius, 8px);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
   overflow: hidden;
 }
 
 .modal-amount-dock:focus-within {
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
   background: var(--surface);
 }
 
@@ -183,9 +186,10 @@
 }
 
 .modal-amount-clear-btn {
-  margin-right: 8px;
-  padding: 4px 8px;
-  font-size: var(--fs-2xs);
+  margin-right: var(--space-2);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-muted);
   background: transparent;
@@ -237,13 +241,14 @@
 .category-pill-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .category-pill-btn {
-  padding: 5px 12px;
-  font-size: var(--fs-xs);
-  border-radius: 6px;
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--fs-sm);
+  border-radius: var(--field-radius);
   cursor: pointer;
   transition: all 0.14s ease;
   user-select: none;
@@ -259,9 +264,22 @@
   align-items: stretch;
 }
 
-@media (max-width: 767px) {
+/* Narrow sheets: stack amount and date so neither is squeezed */
+@container (max-width: 400px) {
   .modal-amount-date-grid {
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .modal-amount-date-grid .datepicker-container.compact,
+  .modal-amount-date-grid .datepicker-trigger.compact,
+  .modal-amount-date-grid .modal-day-stepper-dock {
+    width: 100%;
+  }
+
+  .modal-amount-date-grid .datepicker-trigger.compact,
+  .modal-amount-date-grid .modal-day-stepper-dock {
+    min-height: var(--control-h);
+    justify-content: flex-start;
   }
 }
 
@@ -276,12 +294,12 @@
   width: auto;
   min-width: 105px;
   height: 100%;
-  min-height: 48px;
-  padding: 0 12px;
+  min-height: var(--control-h-hero);
+  padding: 0 var(--field-pad-x);
   background: var(--surface-subtle);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius, 8px);
-  font-size: var(--fs-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   gap: 6px;
@@ -300,7 +318,7 @@
 .datepicker-trigger.compact.open,
 .datepicker-trigger.compact:focus {
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
   background: var(--surface);
 }
 
@@ -310,12 +328,12 @@
   align-items: center;
   gap: 6px;
   height: 100%;
-  min-height: 48px;
-  padding: 0 12px;
+  min-height: var(--control-h-hero);
+  padding: 0 var(--field-pad-x);
   background: var(--surface-subtle);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius, 8px);
-  font-size: var(--fs-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -339,14 +357,14 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .modal-pills-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -374,7 +392,7 @@
 }
 
 .modal-variable-pill.has-popover-open {
-  z-index: 125000;
+  z-index: var(--z-modal-popover);
 }
 
 .modal-variable-checkbox {
@@ -411,7 +429,7 @@
   top: calc(100% + 8px);
   bottom: auto;
   right: 0;
-  z-index: 125000;
+  z-index: var(--z-modal-popover);
   width: min(280px, calc(100vw - 48px));
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -527,28 +545,21 @@
 .modal-overlay .custom-select-dropdown,
 .modal-overlay .app-dropdown-menu,
 .modal-overlay .datepicker-popover {
-  z-index: 115000;
+  z-index: var(--z-modal-popover);
 }
 
-/* Mobile Scaling Tier (< 768px) */
+/* Mobile (< 768px): chips keep their 36px touch height from --control-h-sm */
 @media (max-width: 767px) {
-  .quick-amt-chip {
-    padding: 2.5px 7px !important;
-    font-size: var(--fs-2xs) !important;
-  }
-  .category-pill-btn {
-    padding: 4px 9px;
-    font-size: var(--fs-2xs);
-  }
   .modal-variable-pill {
-    padding: 2.5px 7px;
-    font-size: var(--fs-2xs);
+    min-height: var(--control-h-sm);
+    padding: 0 var(--space-3);
+    font-size: var(--fs-xs);
   }
 }
 
 [data-testid="floor-breach-modal"],
 [data-testid="under-spend-modal"] {
-  z-index: 120000;
+  z-index: var(--z-modal-nested);
 }
 
 /* Month Review Modal Optimization */
@@ -709,7 +720,7 @@
   align-items: center;
   background: var(--surface-subtle);
   padding: 3px;
-  border-radius: 7px;
+  border-radius: var(--field-radius);
   border: 1px solid var(--border);
   gap: 3px;
 }
@@ -717,7 +728,9 @@
 .modal-header-row .modal-tab-track {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* One equal column per tab, however many tabs the modal shows */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   width: 100%;
 }
 
@@ -727,7 +740,7 @@
   bottom: 3px;
   left: 0;
   background: var(--text);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
   z-index: 1;
   will-change: transform, width;
@@ -736,11 +749,12 @@
 .modal-tab-btn {
   position: relative;
   z-index: 2;
-  padding: 6px 8px;
-  font-size: var(--fs-2xs);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.01em;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -754,6 +768,13 @@
 
 .modal-tab-btn.active {
   color: var(--bg);
+}
+
+/* Five tabs on a narrow sheet: drop the icons so every label fits */
+@container (max-width: 400px) {
+  .modal-tab-btn svg {
+    display: none;
+  }
 }
 
 .modal-tab-btn:not(.active) {
@@ -786,9 +807,10 @@
 }
 
 .quick-amt-chip {
-  padding: 3px 9px;
-  border-radius: 9999px;
-  font-size: var(--fs-2xs);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--field-radius);
+  font-size: var(--fs-sm);
   font-weight: 500;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
@@ -813,7 +835,7 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--field-gap);
 }
 
 .form-label {
@@ -824,8 +846,14 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@container (max-width: 400px) {
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Assumptions Badge for Formula Items */

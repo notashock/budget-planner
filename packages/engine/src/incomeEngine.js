@@ -90,6 +90,17 @@ export function calculateIrregularMetrics({
     // Exclude zero-sum internal transfers across user accounts
     if (t.origin === 'transfer' || t.category === 'Transfer' || t.destinationAccountId || t.itemType === 'transfer' || t.isTransfer) continue;
 
+    // Held & Lent money changes cash on hand but is never income or spending
+    const passSign = (t.origin === 'held_in' || t.origin === 'lent_repaid') ? 1
+      : ((t.origin === 'held_return' || t.origin === 'lent_out') ? -1 : 0);
+    if (passSign !== 0) {
+      const openedOnPt = openingDateById.get(txAccountId(t) || '');
+      if (t.date <= asOfStr && !(openedOnPt && t.date < openedOnPt)) {
+        currentBalance += passSign * Math.abs(Number(t.amount) || 0);
+      }
+      continue;
+    }
+
     const tDate = t.date;
     const amount = Number(t.amount) || 0;
     const isIncome = Boolean(t.isIncome);

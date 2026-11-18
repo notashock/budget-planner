@@ -59,6 +59,10 @@ export const SalaryTemplateService = {
 
     // Validate account ownership
     await validateUserAccount(userId, receivingAccountId);
+    const receiving = await db.query.accounts.findFirst({ where: eq(s.accounts.id, receivingAccountId) });
+    if (receiving && receiving.type === 'credit_card') {
+      throw new ValidationError('Salary cannot be paid into a credit card');
+    }
 
     const validPeriodType = periodType === 'salary_cycle' ? 'salary_cycle' : 'calendar_month';
     const effDate = effectiveDate && typeof effectiveDate === 'string' ? effectiveDate : getTodayIso();
@@ -376,11 +380,13 @@ export const SalaryTemplateService = {
         : (acc.openingBalance || 0);
 
       const accTxs = txs.filter((t) => t.accountId === acc.id);
+      // Held & Lent money coming in (held_in, lent_repaid) is cash in, though never income
+      const isCashInPassThrough = (t) => t.origin === 'held_in' || t.origin === 'lent_repaid';
       const inflow = accTxs
-        .filter((t) => t.isIncome && !isTransferTx(t))
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
+        .filter((t) => (t.isIncome || isCashInPassThrough(t)) && !isTransferTx(t))
+        .reduce((sum, t) => sum + (isCashInPassThrough(t) ? Math.abs(t.amount || 0) : (t.amount || 0)), 0);
       const outflow = accTxs
-        .filter((t) => !t.isIncome && !isTransferTx(t))
+        .filter((t) => !t.isIncome && !isCashInPassThrough(t) && !isTransferTx(t))
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const inTransfers = transfers

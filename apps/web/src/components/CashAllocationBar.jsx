@@ -3,6 +3,8 @@ import { formatCurrencyWhole as formatCurrency, buildCashAllocation } from '@bud
 
 const SEGMENT_META = {
   committed: { label: 'Upcoming bills', className: 'alloc-committed' },
+  held: { label: 'Held for others', className: 'alloc-held' },
+  cards: { label: 'Owed on cards', className: 'alloc-cards' },
   floor: { label: 'Safety floor', className: 'alloc-floor' },
   goals: { label: 'Goal savings', className: 'alloc-goals' },
   free: { label: 'Free to spend', className: 'alloc-free' },
@@ -21,10 +23,12 @@ export function CashAllocationBar({
   committedUpcomingItems = 0,
   safetyFloor = 0,
   goalReserve = 0,
+  heldReserve = 0,
+  cardReserve = 0,
   freeSurplus,
   currencySymbol = '₹'
 }) {
-  const alloc = buildCashAllocation({ todayBalance, committedUpcomingItems, safetyFloor, goalReserve, freeSurplus });
+  const alloc = buildCashAllocation({ todayBalance, committedUpcomingItems, safetyFloor, goalReserve, heldReserve, cardReserve, freeSurplus });
 
   if (alloc.total <= 0) {
     return null;

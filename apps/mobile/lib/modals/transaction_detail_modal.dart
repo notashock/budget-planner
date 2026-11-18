@@ -5,7 +5,9 @@ import '../models/simulation.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../widgets/confirm_dialog.dart';
 import 'mark_paid_modal.dart';
+import 'unified_entry_modal.dart';
 
 class TransactionDetailModal extends StatelessWidget {
   final Map<String, dynamic>? transactionData;
@@ -293,6 +295,45 @@ class TransactionDetailModal extends StatelessWidget {
 
             const SizedBox(height: 22),
 
+            // Edit (spends, income and planned bills; transfers and held/lent money are
+            // deleted and logged again instead)
+            if (id != null &&
+                !isTransfer &&
+                raw['isScheduledSalary'] != true &&
+                !const ['held_in', 'held_return', 'lent_out', 'lent_repaid'].contains(raw['origin'])) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('edit-transaction'),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                  onPressed: () {
+                    final navigator = Navigator.of(context);
+                    final rootContext = navigator.context;
+                    navigator.pop();
+                    showModalBottomSheet(
+                      context: rootContext,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => UnifiedEntryModal(
+                        initialType: isPlanned ? EntryType.item : (isIncome ? EntryType.income : EntryType.transaction),
+                        // Timeline events can keep the id, amount and title outside `raw`
+                        initialItem: {
+                          ...raw,
+                          '_id': raw['_id'] ?? raw['id'] ?? id,
+                          if (raw['amount'] == null) 'amount': effectiveAmt.round(),
+                          if (raw['title'] == null && raw['name'] == null) 'title': title,
+                          if (raw['date'] == null && dateStr != null) 'date': dateStr,
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+
             // Actions (Mark Paid / Cancel / Delete)
             Row(
               children: [
@@ -344,6 +385,15 @@ class TransactionDetailModal extends StatelessWidget {
                       onPressed: () async {
                         final navigator = Navigator.of(context);
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        final confirmed = await confirmDestructive(
+                          context,
+                          title: isPlanned ? 'Cancel this commitment?' : (isTransfer ? 'Delete this transfer?' : 'Delete this transaction?'),
+                          message: isPlanned
+                              ? 'It will be removed from your plan.'
+                              : 'Account balances will be recalculated. This can\'t be undone.',
+                          confirmLabel: isPlanned ? 'Cancel commitment' : 'Delete',
+                        );
+                        if (!confirmed) return;
                         try {
                           if (isTransfer) {
                             await budget.deleteTransfer(id);

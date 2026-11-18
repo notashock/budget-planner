@@ -6,7 +6,7 @@ import { LedgerService } from './ledgerService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 
-const ACCOUNT_TYPES = ['bank', 'wallet', 'cash'];
+const ACCOUNT_TYPES = ['bank', 'wallet', 'cash', 'credit_card'];
 const BANK_SUBTYPES = ['checking', 'savings', 'salary', 'cash', 'other'];
 const WALLET_SUBTYPES = ['cash', 'digital', 'other'];
 
@@ -29,6 +29,7 @@ function resolveType({ type, accountType }, defaultType) {
 }
 
 function resolveSubtype(type, body) {
+  if (type === 'credit_card') return 'credit_card';
   if (type === 'wallet') {
     const wanted = body.walletType ?? body.subtype;
     return WALLET_SUBTYPES.includes(wanted) ? wanted : 'cash';
@@ -39,6 +40,7 @@ function resolveSubtype(type, body) {
 }
 
 function resolveUpdatedSubtype(type, body) {
+  if (type === 'credit_card') return undefined;
   if (type === 'wallet') {
     const wanted = body.walletType ?? body.subtype;
     return WALLET_SUBTYPES.includes(wanted) ? wanted : undefined;
@@ -56,6 +58,55 @@ async function findOwnedAccount(userId, accountId, expectedType, notFoundMessage
   const account = await db.query.accounts.findFirst({ where: and(...conditions) });
   if (!account) throw new NotFoundError(notFoundMessage);
   return account;
+}
+
+function todayIso() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function parseDay(val, label) {
+  if (val === undefined || val === null || val === '') return undefined;
+  const n = Number(val);
+  if (!Number.isInteger(n) || n < 1 || n > 31) {
+    throw new ValidationError(`${label} must be a day of the month between 1 and 31`);
+  }
+  return n;
+}
+
+/**
+ * Card settings from a request body (ADR 0070). The bill generation day and the
+ * due day are always the user's own; nothing is assumed.
+ */
+async function parseCardFields(userId, body, { requireDays }) {
+  const fields = {};
+  const statementDay = parseDay(body.statementDay, 'Bill generation day');
+  const dueDay = parseDay(body.dueDay, 'Due day');
+  if (requireDays && (statementDay === undefined || dueDay === undefined)) {
+    throw new ValidationError('A credit card needs a bill generation day and a due day');
+  }
+  if (statementDay !== undefined) fields.statementDay = statementDay;
+  if (dueDay !== undefined) fields.dueDay = dueDay;
+  const creditLimit = parseCurrencyInt(body.creditLimit);
+  if (creditLimit !== undefined) {
+    if (creditLimit < 0) throw new ValidationError('Credit limit cannot be negative');
+    fields.creditLimit = creditLimit;
+  }
+  if (body.payFromAccountId !== undefined) {
+    if (!body.payFromAccountId) {
+      fields.payFromAccountId = null;
+    } else {
+      const payer = await db.query.accounts.findFirst({
+        where: and(eq(s.accounts.id, body.payFromAccountId), eq(s.accounts.userId, userId))
+      });
+      if (!payer || payer.type === 'credit_card') {
+        throw new ValidationError('The bill must be paid from one of your bank accounts or wallets');
+      }
+      fields.payFromAccountId = payer.id;
+    }
+  }
+  return fields;
 }
 
 async function demotePrimary(userId, type) {
@@ -94,11 +145,16 @@ export const AccountService = {
     }
 
     const type = resolveType(body, defaultType);
-    const isPrimary = Boolean(body.isPrimary);
+    const isCard = type === 'credit_card';
+    // A card is never the primary (default payment) account
+    const isPrimary = isCard ? false : Boolean(body.isPrimary);
     if (isPrimary) await demotePrimary(userId, type);
 
-    const openingBalance = parseCurrencyInt(body.openingBalance) ?? 0;
-    const minimumBalance = parseCurrencyInt(body.minimumBalance) ?? 0;
+    // A card's opening balance is what is owed today, stored negative
+    const owedNow = isCard ? Math.abs(parseCurrencyInt(body.currentOutstanding ?? body.openingOutstanding ?? body.openingBalance) ?? 0) : 0;
+    const openingBalance = isCard ? -owedNow : (parseCurrencyInt(body.openingBalance) ?? 0);
+    const minimumBalance = isCard ? 0 : (parseCurrencyInt(body.minimumBalance) ?? 0);
+    const cardFields = isCard ? await parseCardFields(userId, body, { requireDays: true }) : {};
 
     const [created] = await db.insert(s.accounts).values({
       userId,
@@ -108,12 +164,15 @@ export const AccountService = {
       institution: typeof institution === 'string' ? institution.trim() : '',
       accountNumberMasked: typeof accountNumberMasked === 'string' ? accountNumberMasked.trim() : '',
       openingBalance,
-      openingBalanceDate: typeof openingBalanceDate === 'string' && openingBalanceDate.trim() ? openingBalanceDate.trim() : null,
+      openingBalanceDate: typeof openingBalanceDate === 'string' && openingBalanceDate.trim()
+        ? openingBalanceDate.trim()
+        : (isCard ? todayIso() : null),
       // Nothing has been posted to a new account, so its ledger balance is its opening balance
       currentBalance: openingBalance,
       minimumBalance,
       isPrimary,
-      color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b'
+      color: typeof color === 'string' && color.trim() ? color.trim() : '#09090b',
+      ...cardFields
     }).returning();
 
     if (type !== 'bank') return serialize(created);
@@ -164,9 +223,17 @@ export const AccountService = {
     const subtype = resolveUpdatedSubtype(account.type, body);
     if (subtype) updates.subtype = subtype;
 
-    const openingBalance = parseCurrencyInt(body.openingBalance);
-    if (openingBalance !== undefined) updates.openingBalance = openingBalance;
-    const minimumBalance = parseCurrencyInt(body.minimumBalance);
+    const isCard = account.type === 'credit_card';
+    if (isCard) {
+      // A card is never primary; its opening balance is what was owed when it was added
+      delete updates.isPrimary;
+      Object.assign(updates, await parseCardFields(userId, body, { requireDays: false }));
+      const owed = parseCurrencyInt(body.currentOutstanding ?? body.openingOutstanding);
+      if (owed !== undefined) updates.openingBalance = -Math.abs(owed);
+    }
+    const openingBalance = isCard ? updates.openingBalance : parseCurrencyInt(body.openingBalance);
+    if (!isCard && openingBalance !== undefined) updates.openingBalance = openingBalance;
+    const minimumBalance = isCard ? undefined : parseCurrencyInt(body.minimumBalance);
     if (minimumBalance !== undefined) updates.minimumBalance = minimumBalance;
 
     if (typeof isArchived === 'boolean') {
@@ -180,7 +247,11 @@ export const AccountService = {
       .where(eq(s.accounts.id, account.id))
       .returning();
 
-    if (openingBalance !== undefined) {
+    if (openingBalance !== undefined && isCard) {
+      // Cards are not part of a month's cash openings
+      await LedgerService.recomputeAccountBalance(account.id);
+      updated = await db.query.accounts.findFirst({ where: eq(s.accounts.id, account.id) });
+    } else if (openingBalance !== undefined) {
       const activeMonth = await db.query.months.findFirst({
         where: and(eq(s.months.userId, userId), eq(s.months.isClosed, false)),
         orderBy: [desc(s.months.year), desc(s.months.month)]

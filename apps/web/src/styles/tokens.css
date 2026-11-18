@@ -71,6 +71,28 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  /* Form controls (entry and edit forms). Phones override these in responsive-mobile.css */
+  --control-h: 40px;          /* inputs, selects, pickers */
+  --control-h-sm: 32px;       /* chips, quick amounts, segmented options */
+  --control-h-hero: 56px;     /* the hero amount field */
+  --field-radius: 8px;
+  --field-pad-x: 12px;
+  --field-gap: 6px;           /* label -> field */
+  --form-gap: var(--space-4); /* between field groups */
+  --sheet-pad-x: var(--space-6);
+  --focus-ring: 0 0 0 1px var(--text);
+
+  /* App-wide stacking order (root stacking context only). Values inside one
+     screen or one form compete only with their siblings and stay local. */
+  --z-nav: 100;            /* fixed bottom nav */
+  --z-header: 200;         /* sticky header */
+  --z-header-menu: 210;    /* header while one of its menus is open */
+  --z-modal: 1000;         /* modal overlay + sheet (rendered in a portal on <body>) */
+  --z-modal-popover: 1100; /* dropdowns, date pickers, info popovers inside a modal */
+  --z-modal-nested: 1200;  /* a confirmation dialog shown over a modal */
+  --z-toast: 1250;         /* "Saved … Undo" confirmation, above any modal */
+  --z-progress: 1300;      /* top loading bar */
+
   /* Status text: readable ink for status labels (the bright accents are for marks) */
   --good-ink: #047857;
   --warn-ink: #b45309;

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { formatCurrency } from '@budget/engine';
-import { BuildingLibraryIcon, WalletIcon, ChevronDownIcon } from './Icons.jsx';
+import { BuildingLibraryIcon, WalletIcon, ChevronDownIcon, CreditCardIcon } from './Icons.jsx';
 
 /**
  * Unified Grouped Account Selector.
@@ -13,6 +13,7 @@ export function AccountSelect({
   onChange,
   bankAccounts = [],
   wallets = [],
+  creditCards = [], // shown only where spending can go on a card
   currencySymbol = '₹',
   simulation = null,
   accountSimulations = {},
@@ -66,9 +67,13 @@ export function AccountSelect({
   }, [isOpen]);
 
   // Find active selected account
-  const selectedAccount = accountType === 'bank'
-    ? bankAccounts.find((b) => String(b._id || b.id) === String(accountId))
-    : wallets.find((w) => String(w._id || w.id) === String(accountId));
+  const selectedAccount = accountType === 'credit_card'
+    ? creditCards.find((c) => String(c._id || c.id) === String(accountId))
+    : (accountType === 'bank'
+      ? bankAccounts.find((b) => String(b._id || b.id) === String(accountId))
+      : wallets.find((w) => String(w._id || w.id) === String(accountId)));
+  // What is owed on a card (positive)
+  const cardOwed = (c) => (typeof c?.outstanding === 'number' ? c.outstanding : Math.max(0, -(c?.currentBalance || 0)));
 
   // Determine fallback if not found
   const activeAccount = selectedAccount || (
@@ -112,22 +117,15 @@ export function AccountSelect({
     return (
       <div
         className={`app-select-trigger disabled ${className}`}
-        style={{
-          opacity: 0.6,
-          cursor: 'not-allowed',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 12px',
-          ...style
-        }}
+        style={{ opacity: 0.6, cursor: 'not-allowed', ...style }}
       >
-        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>No Accounts Available</span>
+        <span className="app-select-placeholder">No Accounts Available</span>
       </div>
     );
   }
 
-  const activeBalance = getAccountBalance(activeAccount);
+  const isCardActive = activeType === 'credit_card';
+  const activeBalance = isCardActive ? cardOwed(activeAccount) : getAccountBalance(activeAccount);
   const activeMinBal = activeAccount?.minimumBalance || 0;
   const isFloorBreached = activeMinBal > 0 && activeBalance < activeMinBal;
 
@@ -151,22 +149,13 @@ export function AccountSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          opacity: disabled ? 0.6 : 1,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          padding: '9px 12px',
-          minHeight: '40px'
-        }}
+        style={disabled ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--text-secondary)' }}>
-            {activeType === 'bank' ? <BuildingLibraryIcon size={14} /> : <WalletIcon size={14} />}
+            {isCardActive ? <CreditCardIcon size={14} /> : (activeType === 'bank' ? <BuildingLibraryIcon size={14} /> : <WalletIcon size={14} />)}
           </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 'var(--fs-sm)' }}>
+          <span className="app-select-value">
             {activeAccount?.name || 'Select Account'}
             {activeAccount?.accountNumberMasked ? ` (••••${activeAccount.accountNumberMasked})` : ''}
           </span>
@@ -211,7 +200,7 @@ export function AccountSelect({
               color: isFloorBreached ? 'var(--rose)' : 'var(--text)'
             }}
           >
-            {formatCurrency(activeBalance, currencySymbol)}
+            {isCardActive ? `owes ${formatCurrency(activeBalance, currencySymbol)}` : formatCurrency(activeBalance, currencySymbol)}
           </span>
           <span
             style={{
@@ -402,6 +391,63 @@ export function AccountSelect({
                       }}
                     >
                       {formatCurrency(bal, currencySymbol)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Section: Credit cards (spending only; the bill is paid later from a bank) */}
+          {creditCards.length > 0 && (
+            <div style={{ marginTop: '4px' }}>
+              <div
+                style={{
+                  fontSize: 'var(--fs-2xs)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'var(--text-tertiary)',
+                  padding: '6px 10px 3px 10px'
+                }}
+              >
+                Credit Cards
+              </div>
+              {creditCards.map((c) => {
+                const cId = c._id || c.id;
+                const isSelected = activeType === 'credit_card' && String(activeAccount?._id || activeAccount?.id) === String(cId);
+                return (
+                  <button
+                    key={`card-${cId}`}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`app-dropdown-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => handleSelect('credit_card', cId)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      fontSize: 'var(--fs-sm)',
+                      width: '100%'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ display: 'inline-flex', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                        <CreditCardIcon size={14} />
+                      </span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
+                        {c.name}
+                      </span>
+                    </div>
+                    <span
+                      className="tabular-nums"
+                      style={{ fontSize: 'var(--fs-xs)', fontWeight: isSelected ? 600 : 500, color: 'var(--text-secondary)', flexShrink: 0 }}
+                    >
+                      owes {formatCurrency(cardOwed(c), currencySymbol)}
                     </span>
                   </button>
                 );

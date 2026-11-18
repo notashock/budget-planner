@@ -302,6 +302,12 @@ class ApiService {
     await _request('DELETE', '$_v1/goals/$id');
   }
 
+  /// Edit a goal: name, targetAmount, priority, fundingAccountId.
+  Future<Map<String, dynamic>> updateGoal(String id, Map<String, dynamic> updates) async {
+    final data = await _request('PATCH', '$_v1/goals/$id', body: updates);
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   // Bank Accounts (bank, wallet and cash share /api/v1/accounts; `type` narrows a list)
   Future<List<dynamic>> getBankAccounts([bool includeArchived = false]) async {
     final data = await _request('GET', _accountsPath('bank', includeArchived));
@@ -356,6 +362,53 @@ class ApiService {
 
   Future<void> deleteTransfer(String id) async {
     await _request('DELETE', '$_v1/transfers/$id');
+  }
+
+  // Credit cards (ADR 0070): created as accounts with type 'credit_card'
+  Future<List<dynamic>> getCards() async {
+    final data = await _request('GET', '$_v1/cards');
+    return data is List ? data : [];
+  }
+
+  Future<Map<String, dynamic>> createCard(Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/accounts', body: {...body, 'type': 'credit_card'});
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> confirmCardStatement(String statementId, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/cards/statements/$statementId/confirm', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> payCardStatement(String statementId, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/cards/statements/$statementId/pay', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  // Held & Lent money (ADR 0069): never income or expense
+  Future<Map<String, dynamic>> getPersonFunds() async {
+    final data = await _request('GET', '$_v1/person-funds');
+    return data is Map ? Map<String, dynamic>.from(data) : {'funds': [], 'totals': {'held': 0, 'lent': 0}};
+  }
+
+  Future<Map<String, dynamic>> getPersonFund(String id) async {
+    final data = await _request('GET', '$_v1/person-funds/$id');
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> createPersonFund(Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/person-funds', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> addPersonFundEntry(String id, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/person-funds/$id/entries', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> reclassifyTransaction(String id, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/transactions/$id/reclassify', body: body);
+    return Map<String, dynamic>.from(data);
   }
 
   // AI Assistant

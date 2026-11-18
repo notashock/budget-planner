@@ -177,6 +177,21 @@ class GoalsScreen extends StatelessWidget {
                             },
                           ),
                           IconButton(
+                            key: ValueKey('edit-goal-$id'),
+                            tooltip: 'Edit goal',
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            color: textMuted,
+                            onPressed: () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => UnifiedEntryModal(
+                                initialType: EntryType.goal,
+                                initialItem: Map<String, dynamic>.from(g as Map),
+                              ),
+                            ),
+                          ),
+                          IconButton(
                             icon: const Icon(Icons.delete_outline, size: 16),
                             color: textMuted,
                             onPressed: () => budget.deleteGoal(id),

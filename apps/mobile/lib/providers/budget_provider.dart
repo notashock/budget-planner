@@ -20,6 +20,7 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> _bankAccounts = [];
   List<dynamic> _wallets = [];
   List<dynamic> _transfers = [];
+  List<dynamic> _creditCards = [];
   Map<String, dynamic> _userSettings = {};
 
   SimulationResult? _simulation;
@@ -38,6 +39,8 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> get evaluatedGoals => _evaluatedGoals;
   List<dynamic> get bankAccounts => _bankAccounts;
   List<dynamic> get wallets => _wallets;
+  /// Credit cards with what is owed and the payability score (from the server simulation)
+  List<dynamic> get creditCards => _creditCards;
   List<dynamic> get transfers => _transfers;
   Map<String, dynamic> get userSettings => _userSettings;
   SimulationResult? get simulation => _simulation;
@@ -150,6 +153,12 @@ class BudgetProvider with ChangeNotifier {
       if (detail['bankAccounts'] is List) _bankAccounts = detail['bankAccounts'] as List;
       if (detail['wallets'] is List) _wallets = detail['wallets'] as List;
       if (detail['transfers'] is List) _transfers = detail['transfers'] as List;
+      final simCards = detail['simulation'] is Map ? (detail['simulation'] as Map)['cards'] : null;
+      if (simCards is List && simCards.isNotEmpty) {
+        _creditCards = simCards;
+      } else if (detail['creditCards'] is List) {
+        _creditCards = detail['creditCards'] as List;
+      }
 
       // Centralized Backend Simulation Deserialization (ADR 0052)
       if (detail['simulation'] is Map) {
@@ -281,6 +290,55 @@ class BudgetProvider with ChangeNotifier {
     await refresh();
   }
 
+  // Credit cards
+  Future<List<dynamic>> getCards() => _api.getCards();
+
+  Future<void> createCard(Map<String, dynamic> body) async {
+    await _api.createCard(body);
+    await refresh();
+  }
+
+  /// Cards are accounts of type credit_card: edits and removal go through /accounts.
+  Future<void> updateCard(String id, Map<String, dynamic> updates) async {
+    await _api.updateBankAccount(id, updates);
+    await refresh();
+  }
+
+  Future<void> archiveCard(String id) async {
+    await _api.deleteBankAccount(id);
+    await refresh();
+  }
+
+  Future<void> confirmCardStatement(String statementId, Map<String, dynamic> body) async {
+    await _api.confirmCardStatement(statementId, body);
+    await refresh();
+  }
+
+  Future<void> payCardStatement(String statementId, Map<String, dynamic> body) async {
+    await _api.payCardStatement(statementId, body);
+    await refresh();
+  }
+
+  // Held & Lent money: someone's money with you, or yours with them (never income or expense)
+  Future<Map<String, dynamic>> getPersonFunds() => _api.getPersonFunds();
+
+  Future<Map<String, dynamic>> getPersonFund(String id) => _api.getPersonFund(id);
+
+  Future<void> createPersonFund(Map<String, dynamic> body) async {
+    await _api.createPersonFund(body);
+    await refresh();
+  }
+
+  Future<void> addPersonFundEntry(String id, Map<String, dynamic> body) async {
+    await _api.addPersonFundEntry(id, body);
+    await refresh();
+  }
+
+  Future<void> reclassifyTransaction(String id, Map<String, dynamic> body) async {
+    await _api.reclassifyTransaction(id, body);
+    await refresh();
+  }
+
   // Legacy item aliases for backwards compatibility
   Future<void> addItem(Map<String, dynamic> item) => addTransaction({
     ...item,
@@ -319,6 +377,11 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> deleteGoal(String id) async {
     await _api.deleteGoal(id);
+    await refresh();
+  }
+
+  Future<void> updateGoal(String id, Map<String, dynamic> updates) async {
+    await _api.updateGoal(id, updates);
     await refresh();
   }
 

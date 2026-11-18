@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 
 class SalarySafelineModal extends StatefulWidget {
@@ -123,7 +124,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -203,7 +204,6 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Expected Monthly Salary (₹)',
-                  border: const OutlineInputBorder(),
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
@@ -216,7 +216,6 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                     : (banks.isNotEmpty ? (banks.first['_id'] ?? banks.first['id']) : null),
                 decoration: InputDecoration(
                   labelText: 'Salary Bank Account',
-                  border: const OutlineInputBorder(),
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
@@ -235,7 +234,6 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Safety Floor Threshold (₹)',
-                  border: const OutlineInputBorder(),
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),

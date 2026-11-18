@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './api.js';
-import { simulate } from '@budget/engine';
+import { simulate, formatCurrency } from '@budget/engine';
 import { Header } from './components/Header.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
@@ -9,6 +9,7 @@ import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AccountsScreen } from './screens/AccountsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
 import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
+import { AppToast } from './components/AppToast.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { SalarySafelineModal } from './components/SalarySafelineModal.jsx';
 import { TransferCalculationsModal } from './components/TransferCalculationsModal.jsx';
@@ -21,6 +22,35 @@ import { DashboardSkeleton } from './components/DashboardSkeleton.jsx';
 import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 import { EyeIcon, ZapIcon, BanknoteIcon } from './components/Icons.jsx';
 import { useThemeMode } from './hooks/useThemeMode.js';
+
+/**
+ * Planned-bill payload for the part of a bill still owed after a partial
+ * payment ("Still owed — keep the rest pending" in the Settle form).
+ */
+export function buildRemainderItem(remainder, { bankAccounts = [], wallets = [] } = {}) {
+  if (!remainder || !(remainder.amount > 0)) return null;
+  const isWallet = wallets.some((w) => String(w.id || w._id) === String(remainder.accountId));
+  const isBank = bankAccounts.some((b) => String(b.id || b._id) === String(remainder.accountId));
+  const accountType = isWallet ? 'wallet' : (isBank ? 'bank' : 'unassigned');
+  const day = Number(String(remainder.date || '').slice(8, 10)) || 1;
+  return {
+    type: 'one-time',
+    name: remainder.name,
+    title: remainder.name,
+    amount: Math.round(remainder.amount),
+    date: remainder.date,
+    day,
+    category: remainder.category || undefined,
+    tag: remainder.category || undefined,
+    priority: 1,
+    isFixed: false,
+    isPaid: false,
+    accountType,
+    accountId: isWallet || isBank ? remainder.accountId : undefined,
+    bankAccountId: isBank ? remainder.accountId : null,
+    walletId: isWallet ? remainder.accountId : null
+  };
+}
 
 export function resolveEntryModeFromItem(item) {
   if (!item) return 'log';
@@ -55,6 +85,8 @@ export default function App() {
   const [wallets, setWallets] = useState([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [transfers, setTransfers] = useState([]);
+  // Credit cards with what is owed and the payability score, from the server simulation
+  const [creditCards, setCreditCards] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
 
@@ -62,6 +94,10 @@ export default function App() {
   const [unifiedEntryOpen, setUnifiedEntryOpen] = useState(false);
   const [unifiedEntryMode, setUnifiedEntryMode] = useState('log'); // 'log' | 'plan'
   const [editingItem, setEditingItem] = useState(null);
+  // Where the entry sheet starts, e.g. { sourceAccountId } from an account's Transfer button
+  const [unifiedEntryPreset, setUnifiedEntryPreset] = useState(null);
+  // "Saved ... Undo" confirmation after an entry is saved
+  const [toast, setToast] = useState(null);
   const [autoOpenAddBank, setAutoOpenAddBank] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewAccountId, setReviewAccountId] = useState('all');
@@ -249,6 +285,7 @@ export default function App() {
       setItems(res.items);
       setTransactions(res.transactions || []);
       setTransfers(res.transfers || []);
+      setCreditCards(Array.isArray(res.simulation?.cards) && res.simulation.cards.length > 0 ? res.simulation.cards : (res.creditCards || []));
       setBankAccounts(res.bankAccounts || []);
       setWallets(res.wallets || []);
       setGoals(goalsList || []);
@@ -421,7 +458,38 @@ export default function App() {
 
 
   // Transaction entry actions
-  const handleLogTransaction = async (txData, underSpendAction = null) => {
+  // Reload what a saved (or undone) entry changes
+  const refreshAfterEntry = async () => {
+    if (currentMonth) {
+      await Promise.all([loadMonthDetails(currentMonth.year, currentMonth.month), loadAccounts()]);
+    } else {
+      const [globalTxs] = await Promise.all([api.getGlobalTransactions(), loadAccounts()]);
+      setTransactions(globalTxs || []);
+    }
+  };
+
+  const showSavedToast = (message, undo) => {
+    setToast({
+      id: Date.now(),
+      message,
+      onUndo: undo
+        ? async () => {
+            try {
+              await undo();
+              await refreshAfterEntry();
+            } catch (err) {
+              setToast({ id: Date.now(), message: err?.message || 'Could not undo.' });
+            }
+          }
+        : null
+    });
+  };
+
+  const entryMoney = (minor) => formatCurrency(Math.abs(Number(minor) || 0), currentMonth?.currencySymbol || settings?.currencySymbol || '₹');
+
+  // options.keepOpen: "Save & add another" keeps the entry sheet open
+  const handleLogTransaction = async (txData, options = {}) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let created;
       if (editingItem) {
@@ -437,62 +505,41 @@ export default function App() {
         setTransactions((prev) => [...prev, created]);
       }
 
-      if (underSpendAction && txData.plannedItemId && currentMonth) {
-        const targetItem = items.find((i) => i._id === txData.plannedItemId);
-        if (targetItem) {
-          if (underSpendAction.type === 'release') {
-            const updated = await api.updateItem(targetItem._id, {
-              amount: underSpendAction.spentAmt,
-              isPaid: true
-            });
-            setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
-          } else if (underSpendAction.type === 'keep_remainder') {
-            const updated = await api.updateItem(targetItem._id, {
-              amount: underSpendAction.spentAmt,
-              isPaid: true
-            });
-            const newItemData = {
-              type: targetItem.type,
-              name: `${targetItem.name} (Remainder)`,
-              amount: underSpendAction.remainderAmt,
-              priority: targetItem.priority,
-              isPaid: false,
-              accountType: targetItem.accountType,
-              bankAccountId: targetItem.bankAccountId?._id || targetItem.bankAccountId,
-              walletId: targetItem.walletId?._id || targetItem.walletId
-            };
-            if (targetItem.type === 'one-time') {
-              newItemData.day = targetItem.day;
-            } else if (targetItem.type === 'recurring') {
-              newItemData.dayOfMonth = targetItem.dayOfMonth;
-              newItemData.isFixed = targetItem.isFixed;
-            }
-            const remainderItem = await api.createItem(currentMonth.year, currentMonth.month, newItemData);
-            setItems((prev) => [...prev.map((i) => (i._id === updated._id ? updated : i)), remainderItem]);
-          }
-        }
-      } else if (txData.plannedItemId && currentMonth) {
+      if (txData.plannedItemId && currentMonth) {
         setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
       }
 
-      setUnifiedEntryOpen(false);
-      setEditingItem(null);
-      if (currentMonth) {
-        await Promise.all([
-          loadMonthDetails(currentMonth.year, currentMonth.month),
-          loadAccounts()
-        ]);
+      const replaced = !wasEditing && (await deleteReplacedEntry());
+      if (!options.keepOpen) {
+        setUnifiedEntryOpen(false);
+        setEditingItem(null);
+      }
+      await refreshAfterEntry();
+      const createdId = created?.id || created?._id;
+      if (replaced) {
+        showSavedToast(`Changed to ${txData.isIncome ? 'income' : 'spend'}`);
+      } else if (wasEditing) {
+        showSavedToast('Changes saved');
       } else {
-        const [globalTxs] = await Promise.all([
-          api.getGlobalTransactions(),
-          loadAccounts()
-        ]);
-        setTransactions(globalTxs || []);
+        const what = txData.isIncome ? 'Income' : (Number(txData.amount) < 0 ? 'Refund' : 'Spend');
+        showSavedToast(
+          `${what} saved: ${entryMoney(txData.amount)} · ${txData.title || txData.category || ''}`.trim(),
+          createdId ? () => api.deleteTransaction(createdId) : null
+        );
       }
       return created;
     } catch (err) {
-      alert(err.message || 'Failed to log transaction');
       throw err;
+    }
+  };
+
+  // Held & Lent money changed: balances and Safe-to-Spend come from the server simulation
+  const handleHeldLentChanged = async () => {
+    if (!currentMonth) return;
+    try {
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      console.error('Failed to refresh after held/lent change:', err);
     }
   };
 
@@ -525,7 +572,12 @@ export default function App() {
 
   const handlePayTransaction = async (txId, payData) => {
     try {
-      const res = await api.payTransaction(txId, payData);
+      const { remainder, ...payment } = payData || {};
+      const res = await api.payTransaction(txId, payment);
+      const remainderItem = buildRemainderItem(remainder, { bankAccounts, wallets });
+      if (remainderItem && currentMonth) {
+        await api.createItem(currentMonth.year, currentMonth.month, remainderItem);
+      }
       
       // Reload months to reflect any cycle advancement
       const list = await api.getMonths();
@@ -554,7 +606,6 @@ export default function App() {
         setTransactions(globalTxs || []);
       }
     } catch (err) {
-      alert(err.message || 'Failed to settle transaction');
       throw err;
     }
   };
@@ -582,7 +633,8 @@ export default function App() {
   };
 
   // Item actions
-  const handleSaveItem = async (itemData) => {
+  const handleSaveItem = async (itemData, options = {}) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let result;
       if (editingItem) {
@@ -609,15 +661,24 @@ export default function App() {
         const globalTxs = await api.getGlobalTransactions();
         setTransactions(globalTxs || []);
       }
-      setUnifiedEntryOpen(false);
-      setEditingItem(null);
-      setEditingItem(null);
+      if (!options.keepOpen) {
+        setUnifiedEntryOpen(false);
+        setEditingItem(null);
+      }
       if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
       }
+      const resultId = result?.id || result?._id;
+      if (wasEditing) {
+        showSavedToast('Changes saved');
+      } else {
+        showSavedToast(
+          `Planned: ${entryMoney(itemData.amount)} · ${itemData.name || itemData.title || ''}`.trim(),
+          resultId ? () => api.deleteItem(resultId) : null
+        );
+      }
       return result;
     } catch (err) {
-      alert(err.message || 'Failed to save item');
       throw err;
     }
   };
@@ -746,6 +807,13 @@ export default function App() {
     }
   };
 
+  // Edit a goal: name, price, priority, funding account. Throws so the form can show the error.
+  const handleUpdateGoal = async (goalId, updates) => {
+    await api.updateGoal(goalId, updates);
+    if (currentMonth) await loadGoals(currentMonth.year, currentMonth.month);
+    setToast({ id: Date.now(), message: 'Goal updated' });
+  };
+
   const handleDeleteGoal = async (goalId) => {
     try {
       await api.deleteGoal(goalId);
@@ -770,7 +838,6 @@ export default function App() {
       }
       return createdOrUpdated;
     } catch (err) {
-      alert(err.message || 'Failed to save bank account');
       throw err;
     }
   };
@@ -803,7 +870,6 @@ export default function App() {
       }
       return createdOrUpdated;
     } catch (err) {
-      alert(err.message || 'Failed to save wallet');
       throw err;
     }
   };
@@ -823,6 +889,7 @@ export default function App() {
 
   // Transfer handlers
   const handleCreateTransfer = async (transferData) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let res;
       if (editingItem) {
@@ -838,16 +905,77 @@ export default function App() {
           monthId: currentMonth?._id || currentMonth?.id
         });
       }
+      const replaced = !wasEditing && (await deleteReplacedEntry());
       setUnifiedEntryOpen(false);
       setEditingItem(null);
       await loadAccounts();
       if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
       }
+      const transferId = res?.transfer?.id || res?.transfer?._id || res?.id || res?._id;
+      if (replaced) {
+        showSavedToast('Changed to a transfer');
+      } else if (wasEditing) {
+        showSavedToast('Changes saved');
+      } else {
+        showSavedToast(
+          `Moved ${entryMoney(transferData.amount)}${transferData.note ? ` · ${transferData.note}` : ''}`,
+          transferId ? () => api.deleteTransfer(transferId) : null
+        );
+      }
       return res;
     } catch (err) {
       throw err;
     }
+  };
+
+  // Delete from inside the edit form (the form asks to confirm inline, so no window.confirm here)
+  // Change an entry's type (spend <-> income <-> move): reopen the sheet on the new
+  // tab with the same values; the original is deleted only after the new entry saves.
+  const handleConvertEntry = (item, targetMode, carry) => {
+    setEditingItem(null);
+    setUnifiedEntryPreset({ carry, replaces: item });
+    setUnifiedEntryMode(targetMode);
+  };
+
+  const deleteReplacedEntry = async () => {
+    const replaced = unifiedEntryPreset?.replaces;
+    if (!replaced) return false;
+    const isTransfer = replaced.origin === 'transfer' || Boolean(replaced.isTransfer);
+    const id = isTransfer ? (replaced.transferId || replaced.id || replaced._id) : (replaced.id || replaced._id);
+    if (isTransfer) await api.deleteTransfer(id);
+    else await api.deleteTransaction(id);
+    setUnifiedEntryPreset(null);
+    return true;
+  };
+
+  const handleDeleteFromEditor = async (item) => {
+    const isTransfer = item.origin === 'transfer' || Boolean(item.isTransfer);
+    const id = isTransfer ? (item.transferId || item.id || item._id) : (item.id || item._id);
+    if (isTransfer) await api.deleteTransfer(id);
+    else await api.deleteTransaction(id);
+    setUnifiedEntryOpen(false);
+    setEditingItem(null);
+    await refreshAfterEntry();
+    setToast({ id: Date.now(), message: `Deleted ${item.title || item.name || (isTransfer ? 'transfer' : 'entry')}` });
+  };
+
+  // Held & Lent entries can't be edited in place (ADR 0069): delete, then open the
+  // form with the same details so the corrected entry can be logged again.
+  const HELD_LENT_ACTION_BY_ORIGIN = { held_in: 'hold', held_return: 'return', lent_out: 'lend', lent_repaid: 'repaid' };
+  const handleRelogHeldLent = async (tx) => {
+    await api.deleteTransaction(tx.id || tx._id);
+    await refreshAfterEntry();
+    handleOpenUnifiedEntry('held', {
+      heldLent: {
+        action: HELD_LENT_ACTION_BY_ORIGIN[tx.origin] || 'hold',
+        fundId: tx.personFundId || '',
+        amount: Math.abs(Number(tx.amount) || 0),
+        date: tx.date,
+        note: tx.note || '',
+        accountId: tx.accountId || tx.bankAccountId || tx.walletId || ''
+      }
+    });
   };
 
   const handleDeleteTransfer = async (id) => {
@@ -861,16 +989,33 @@ export default function App() {
     }
   };
 
-  const handleOpenUnifiedEntry = (mode = 'log') => {
+  const handleOpenUnifiedEntry = (mode = 'log', preset = null) => {
     if (isReviewMode) return;
     setEditingItem(null);
+    setUnifiedEntryPreset(preset);
     setUnifiedEntryMode(mode);
     setUnifiedEntryOpen(true);
   };
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      if (unifiedEntryOpen || isReviewMode || !user) return;
+      e.preventDefault();
+      handleOpenUnifiedEntry('log');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const handleEditItem = (item) => {
     if (isReviewMode) return;
     setEditingItem(item);
+    setUnifiedEntryPreset(null);
     const targetMode = resolveEntryModeFromItem(item);
     setUnifiedEntryMode(targetMode);
     setUnifiedEntryOpen(true);
@@ -1121,6 +1266,10 @@ export default function App() {
               onPayTransaction={handlePayTransaction}
               onCancelTransaction={handleCancelTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              onHeldLentChanged={handleHeldLentChanged}
+              onRelogHeldLent={handleRelogHeldLent}
+              creditCards={creditCards}
+              simulation={activeSimulation}
             />
           )}
 
@@ -1140,6 +1289,7 @@ export default function App() {
               onDeferGoal={handleDeferGoal}
               onReactivateGoal={handleReactivateGoal}
               onDeleteGoal={handleDeleteGoal}
+              onUpdateGoal={handleUpdateGoal}
             />
           )}
 
@@ -1156,10 +1306,13 @@ export default function App() {
               onArchiveBankAccount={handleArchiveBankAccount}
               onArchiveWallet={handleArchiveWallet}
               onCreateTransfer={handleCreateTransfer}
+              onOpenUnifiedEntry={handleOpenUnifiedEntry}
               onDeleteTransfer={handleDeleteTransfer}
               month={currentMonth}
               initialOpenBankModal={autoOpenAddBank}
               onResetBankModalTrigger={() => setAutoOpenAddBank(false)}
+              onHeldLentChanged={handleHeldLentChanged}
+              creditCards={creditCards}
             />
           )}
 
@@ -1192,7 +1345,16 @@ export default function App() {
         isOpen={unifiedEntryOpen}
         initialMode={unifiedEntryMode}
         initialItem={editingItem}
+        initialPreset={unifiedEntryPreset}
+        onDeleteEntry={handleDeleteFromEditor}
+        onConvertEntry={handleConvertEntry}
+        onOpenSalarySchedule={() => {
+          setUnifiedEntryOpen(false);
+          setIsSalarySafelineOpen(true);
+        }}
+        onSettleTransaction={handlePayTransaction}
         plannedItems={items}
+        transactions={transactions}
         bankAccounts={bankAccounts}
         wallets={wallets}
         currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
@@ -1207,11 +1369,15 @@ export default function App() {
         onLogTransaction={handleLogTransaction}
         onSaveItem={handleSaveItem}
         onCreateTransfer={handleCreateTransfer}
+        onHeldLentSaved={handleHeldLentChanged}
+        creditCards={creditCards}
         onOpenAddBank={() => {
           setActiveTab('accounts');
           setAutoOpenAddBank(true);
         }}
       />
+
+      <AppToast toast={toast} onDismiss={() => setToast(null)} />
 
       {/* Month-End Review Modal */}
       <MonthEndReviewModal

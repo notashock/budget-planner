@@ -6,6 +6,11 @@
 @media (max-width: 767px) {
   :root {
     --radius: 6px;
+    /* 44px touch targets for form controls */
+    --control-h: 44px;
+    --control-h-sm: 36px;
+    --field-gap: 8px;
+    --sheet-pad-x: var(--space-4);
   }
 
   /* Compact Header */
@@ -182,17 +187,18 @@
     font-size: var(--fs-xs);
   }
 
+  /* 16px text stops iOS Safari zooming the page when a field gets focus */
   input, select, textarea {
-    padding: 6px 10px;
-    font-size: var(--fs-sm);
+    padding: 10px var(--field-pad-x);
+    font-size: var(--fs-input);
+  }
+
+  select {
+    padding-right: 36px;
   }
 
   .form-group {
-    gap: 4px;
-  }
-
-  .form-label {
-    font-size: var(--fs-2xs);
+    gap: var(--field-gap);
   }
 
   .form-row {
@@ -216,8 +222,8 @@
 
   /* Compact Bottom-Sheet Modal */
   .modal-content {
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
-    gap: 12px;
+    padding: var(--space-3) var(--sheet-pad-x) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    gap: var(--space-3);
   }
 
   .modal-drag-handle {

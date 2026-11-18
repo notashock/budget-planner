@@ -26,6 +26,8 @@ import { v1PeriodsRouter } from './routes/v1/periods.js';
 import { v1TransfersRouter } from './routes/v1/transfers.js';
 import { v1GoalsRouter } from './routes/v1/goals.js';
 import { v1ReportsRouter } from './routes/v1/reports.js';
+import { v1PersonFundsRouter } from './routes/v1/personFunds.js';
+import { v1CardsRouter } from './routes/v1/cards.js';
 import { ensureDatabaseInitialized, isDatabaseInitialized } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -92,6 +94,8 @@ export function createApp(options = {}) {
   app.use('/api/v1/transfers', v1TransfersRouter);
   app.use('/api/v1/goals', v1GoalsRouter);
   app.use('/api/v1/reports', v1ReportsRouter);
+  app.use('/api/v1/person-funds', v1PersonFundsRouter);
+  app.use('/api/v1/cards', v1CardsRouter);
 
   // Legacy routes that have a v1 equivalent log a one-line deprecation notice.
   // Test runs stay quiet unless a test passes its own logger.

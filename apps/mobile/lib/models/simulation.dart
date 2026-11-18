@@ -183,6 +183,12 @@ class SimulationResult {
   final List<FloorBreach> breaches;
   final SafeVelocity safeVelocity;
   final Map<String, int> accountBalances;
+  /// Money held for other people today: in the balance, but kept out of Safe-to-Spend
+  final int heldReserve;
+  /// Money other people owe you today
+  final int lentOutstanding;
+  /// Owed on credit cards today: set aside from Safe-to-Spend from the swipe day
+  final int cardReserve;
 
   SimulationResult({
     required this.openingBalance,
@@ -198,6 +204,9 @@ class SimulationResult {
     required this.breaches,
     required this.safeVelocity,
     required this.accountBalances,
+    this.heldReserve = 0,
+    this.lentOutstanding = 0,
+    this.cardReserve = 0,
   });
 
   factory SimulationResult.fromJson(Map<String, dynamic> json) {
@@ -243,6 +252,9 @@ class SimulationResult {
       breaches: rawBreaches.map((b) => FloorBreach.fromJson(Map<String, dynamic>.from(b as Map))).toList(),
       safeVelocity: SafeVelocity.fromJson(rawVelocity),
       accountBalances: parsedAccts,
+      heldReserve: (num.tryParse('${json['heldReserve'] ?? 0}') ?? 0).round(),
+      lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0).round(),
+      cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
     );
   }
 }

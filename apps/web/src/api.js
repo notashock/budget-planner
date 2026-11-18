@@ -243,6 +243,30 @@ export const api = {
   updateTransfer: (id, data) => request(`${V1}/transfers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTransfer: (id) => request(`${V1}/transfers/${id}`, { method: 'DELETE' }),
 
+  // Held & Lent money (ADR 0069): one record per person; entries never count as income or expense
+  getPersonFunds: (query = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set('status', query.status);
+    if (query.direction) params.set('direction', query.direction);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request(`${V1}/person-funds${qs}`);
+  },
+  getPersonFund: (id) => request(`${V1}/person-funds/${id}`),
+  createPersonFund: (data) => request(`${V1}/person-funds`, { method: 'POST', body: JSON.stringify(data) }),
+  updatePersonFund: (id, data) => request(`${V1}/person-funds/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePersonFund: (id) => request(`${V1}/person-funds/${id}`, { method: 'DELETE' }),
+  addPersonFundEntry: (id, data) => request(`${V1}/person-funds/${id}/entries`, { method: 'POST', body: JSON.stringify(data) }),
+  reclassifyTransaction: (id, data) => request(`${V1}/transactions/${id}/reclassify`, { method: 'POST', body: JSON.stringify(data) }),
+
+  // Credit cards (ADR 0070): created and edited as accounts with type 'credit_card'
+  getCards: () => request(`${V1}/cards`, { bypassCache: true }),
+  getCard: (id) => request(`${V1}/cards/${id}`, { bypassCache: true }),
+  createCard: (data) => request(`${V1}/accounts`, { method: 'POST', body: JSON.stringify({ ...data, type: 'credit_card' }) }),
+  updateCard: (id, data) => request(`${V1}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  archiveCard: (id) => request(`${V1}/accounts/${id}`, { method: 'DELETE' }),
+  confirmCardStatement: (statementId, data) => request(`${V1}/cards/statements/${statementId}/confirm`, { method: 'POST', body: JSON.stringify(data) }),
+  payCardStatement: (statementId, data) => request(`${V1}/cards/statements/${statementId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+
   // AI Assistant (Gated by settings toggle)
   parseText: (text) => request('/api/ai/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
   explainTimeline: (timelineSummary, safetyFloor) => request('/api/ai/explain-timeline', { method: 'POST', body: JSON.stringify({ timelineSummary, safetyFloor }) })

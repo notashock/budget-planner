@@ -10,19 +10,25 @@ import {
   XIcon,
   TargetIcon,
   SearchIcon,
-  SparklesIcon,
   EditIcon,
   PlusIcon,
   InboxIcon,
   SendIcon,
   ArrowRightLeftIcon,
-  EyeIcon
+  EyeIcon,
+  UserIcon,
+  CreditCardIcon
 } from '../components/Icons.jsx';
-import { DatePicker } from '../components/DatePicker.jsx';
-import { CustomSelect } from '../components/CustomSelect.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
+import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
+import { SettleForm } from '../components/SettleForm.jsx';
+
+// Held & Lent money (ADR 0069): moves cash, never income or spending
+const PASS_THROUGH_IN = ['held_in', 'lent_repaid'];
+const PASS_THROUGH_OUT = ['held_return', 'lent_out'];
+const PASS_THROUGH_TAG = { held_in: 'Held', held_return: 'Returned', lent_out: 'Lent', lent_repaid: 'Repaid' };
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -45,7 +51,12 @@ export function TransactionsScreen({
   onEditTransaction,
   onPayTransaction,
   onCancelTransaction,
-  onDeleteTransaction
+  onDeleteTransaction,
+  onHeldLentChanged,
+  // Held/lent rows: delete and open the form again with the same details
+  onRelogHeldLent,
+  creditCards = [],
+  simulation = null
 }) {
   // Main view segment: 'transactions' (successful) vs 'planned' (commitments)
   const [activeSegment, setActiveSegment] = useState('transactions'); // 'transactions' | 'planned'
@@ -53,15 +64,20 @@ export function TransactionsScreen({
   // Search & Filtering States
   const [searchQuery, setSearchQuery] = useState('');
   const [originFilter, setOriginFilter] = useState('all'); // 'all' | 'spot' | 'planned' | 'goal'
+  const [reclassifyTx, setReclassifyTx] = useState(null);
+  const [relogTx, setRelogTx] = useState(null);
+  const [relogging, setRelogging] = useState(false);
+  const [relogError, setRelogError] = useState('');
   const [plannedFilter, setPlannedFilter] = useState('all'); // 'all' | 'due' | 'overdue' | 'upcoming'
   const [selectedAccountFilter, setSelectedAccountFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest' | 'amount-desc' | 'amount-asc'
 
   // Modals for Actions
   const [payingTx, setPayingTx] = useState(null);
-  const [actualAmount, setActualAmount] = useState('');
-  const [actualDate, setActualDate] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [settleError, setSettleError] = useState('');
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  // Errors from one-tap actions (quick mark paid), shown above the list
+  const [actionError, setActionError] = useState('');
   const [cancellingGoalTx, setCancellingGoalTx] = useState(null);
 
   const now = new Date();
@@ -83,30 +99,11 @@ export function TransactionsScreen({
   const allAccounts = useMemo(() => {
     return [
       ...bankAccounts.map((b) => ({ ...b, accountType: 'bank' })),
-      ...wallets.map((w) => ({ ...w, accountType: 'wallet' }))
+      ...wallets.map((w) => ({ ...w, accountType: 'wallet' })),
+      ...creditCards.map((c) => ({ ...c, accountType: 'credit_card' }))
     ];
-  }, [bankAccounts, wallets]);
+  }, [bankAccounts, wallets, creditCards]);
 
-  // Payment account options for Settlement modal CustomSelect
-  const paymentAccountOptions = useMemo(() => {
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    const defaultAccId = primaryAcc ? (primaryAcc.id || primaryAcc._id) : '';
-    return [
-      { value: defaultAccId, label: primaryAcc ? `Default (${primaryAcc.name})` : 'Default Account' },
-      ...bankAccounts.map((b) => ({
-        value: b.id || b._id,
-        label: b.name,
-        icon: <BuildingLibraryIcon size={14} />,
-        badge: 'Bank'
-      })),
-      ...wallets.map((w) => ({
-        value: w.id || w._id,
-        label: w.name,
-        icon: <WalletIcon size={14} />,
-        badge: 'Wallet'
-      }))
-    ];
-  }, [allAccounts, bankAccounts, wallets]);
 
   // Partition transactions
   const successfulTransactions = useMemo(() => {
@@ -135,8 +132,9 @@ export function TransactionsScreen({
         date: todayStr,
         accountId: tx.accountId || primaryAcc?.id || primaryAcc?._id
       });
+      setActionError('');
     } catch (err) {
-      console.error('Quick pay failed:', err);
+      setActionError(err?.message || `Could not mark ${tx.name || 'this bill'} as paid.`);
     }
   };
 
@@ -270,33 +268,23 @@ export function TransactionsScreen({
 
   // Payment prompt opener
   const openPayPrompt = (tx) => {
+    setSettleError('');
     setPayingTx(tx);
-    const prefillAmount = tx.plannedAmount !== undefined && tx.plannedAmount !== null
-      ? tx.plannedAmount / 100
-      : (tx.amount ? Math.abs(tx.amount) / 100 : '');
-    setActualAmount(String(prefillAmount));
-    setActualDate(todayStr);
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    setSelectedAccountId(tx.accountId || primaryAcc?.id || primaryAcc?._id || '');
   };
 
-  // Payment confirmation
-  const handleConfirmPay = async (e) => {
-    e.preventDefault();
+  // Payment confirmation (from the Settle form)
+  const handleConfirmPay = async (payment) => {
     if (!payingTx) return;
-    const numAmount = Math.round(Number(actualAmount) * 100);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      alert('Please enter a valid actual amount');
-      return;
+    setSettleError('');
+    setSettleSubmitting(true);
+    try {
+      await onPayTransaction?.(payingTx.id || payingTx._id, payment);
+      setPayingTx(null);
+    } catch (err) {
+      setSettleError(err?.message || 'Could not mark this bill as paid.');
+    } finally {
+      setSettleSubmitting(false);
     }
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    const resolvedAccountId = selectedAccountId || payingTx.accountId || primaryAcc?.id || primaryAcc?._id;
-    await onPayTransaction?.(payingTx.id || payingTx._id, {
-      amount: numAmount,
-      date: actualDate || todayStr,
-      accountId: resolvedAccountId
-    });
-    setPayingTx(null);
   };
 
   // Cancellation prompt
@@ -316,17 +304,18 @@ export function TransactionsScreen({
     setCancellingGoalTx(null);
   };
 
-  // Settlement Live Variance calculation inside modal
-  const enteredAmountCents = Math.round(Number(actualAmount || 0) * 100);
-  const plannedAmountCents = payingTx
-    ? (payingTx.plannedAmount !== undefined && payingTx.plannedAmount !== null ? payingTx.plannedAmount : Math.abs(payingTx.amount || 0))
-    : 0;
-  const settlementVariance = plannedAmountCents - enteredAmountCents;
-
   const hasUrgentCommitments = overdueCount > 0 || dueCount > 0;
 
   return (
     <div className="transactions-screen" style={{ paddingBottom: '90px' }}>
+      {actionError && (
+        <div className="form-error tx-action-error" role="alert">
+          <span>{actionError}</span>
+          <button type="button" className="tx-btn-icon-subtle" onClick={() => setActionError('')} aria-label="Dismiss">
+            <XIcon size={12} />
+          </button>
+        </div>
+      )}
       {/* =========================================================================
           ROW 1: APPLE TITLE & EMBEDDED SEARCH-SORT CAPSULE
           ========================================================================= */}
@@ -536,9 +525,11 @@ export function TransactionsScreen({
                 const destAcc = allAccounts.find((a) => (a.id || a._id) === tx.destinationAccountId);
                 const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
 
+                const isPassThrough = PASS_THROUGH_IN.includes(tx.origin) || PASS_THROUGH_OUT.includes(tx.origin);
                 const isIncome = Boolean(tx.isIncome);
-                const isRefund = tx.amount < 0 && !isIncome;
-                const isCredit = isIncome || isRefund;
+                const isRefund = tx.amount < 0 && !isIncome && !isPassThrough;
+                const isCredit = isIncome || isRefund || PASS_THROUGH_IN.includes(tx.origin);
+                const canReclassify = !isPassThrough && !isTransfer && tx.origin !== 'goal' && tx.origin !== 'salary' && !tx.goalId;
 
                 // Sign formatting: +XXX for credit, -XXX for debit, XXXX for transfer/neutral
                 let formattedAmount = '';
@@ -599,20 +590,34 @@ export function TransactionsScreen({
                             Settled
                           </span>
                         )}
+                        {isPassThrough && (
+                          <span className="apple-tx-tag tag-held tx-tag" title="Not income or spending">
+                            <UserIcon size={10} />
+                            <span>{PASS_THROUGH_TAG[tx.origin]}</span>
+                          </span>
+                        )}
+                        {isRefund && tx.refundTargetTransactionId && (() => {
+                          const original = transactions.find((o) => String(o.id || o._id) === String(tx.refundTargetTransactionId));
+                          return (
+                            <span className="apple-tx-tag tx-tag" data-testid="refund-for-tag">
+                              Refund for {original ? (original.title || original.name || 'a spend') : 'an earlier spend'}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="tx-card-account">
                         {isTransfer ? (
                           <span className="tx-account-name">
-                            {sourceAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {sourceAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (sourceAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{sourceAcc?.name || 'Source'}</span>
                             <span className="tx-arrow">&rarr;</span>
-                            {destAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {destAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (destAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{destAcc?.name || 'Destination'}</span>
                           </span>
                         ) : account ? (
                           <span className="tx-account-name">
-                            {account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{account.name}</span>
                           </span>
                         ) : (
@@ -641,15 +646,42 @@ export function TransactionsScreen({
 
                       {!isReviewMode && (
                         <div className="tx-card-actions">
-                          <button
-                            type="button"
-                            className="apple-tx-btn-action tx-btn-action"
-                            onClick={() => onEditTransaction?.(tx)}
-                            title="Edit transaction"
-                            aria-label="Edit transaction"
-                          >
-                            <EditIcon size={13} />
-                          </button>
+                          {canReclassify && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => setReclassifyTx(tx)}
+                              title="Move to Held & Lent (not income or spending)"
+                              aria-label="Move to Held and Lent"
+                            >
+                              <UserIcon size={13} />
+                            </button>
+                          )}
+                          {!isPassThrough && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => onEditTransaction?.(tx)}
+                              title="Edit transaction"
+                              aria-label="Edit transaction"
+                            >
+                              <EditIcon size={13} />
+                            </button>
+                          )}
+                          {isPassThrough && onRelogHeldLent && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => {
+                                setRelogError('');
+                                setRelogTx(tx);
+                              }}
+                              title="Change (delete and log again)"
+                              aria-label="Change held or lent entry"
+                            >
+                              <EditIcon size={13} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="apple-tx-btn-action delete tx-btn-action"
@@ -746,7 +778,7 @@ export function TransactionsScreen({
                       <div className="tx-card-account">
                         {account ? (
                           <span className="tx-account-name">
-                            {account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{account.name}</span>
                           </span>
                         ) : (
@@ -803,139 +835,41 @@ export function TransactionsScreen({
         </div>
       )}
 
-      {/* Precision Settlement Popup (Unified Entry Modal Style with AnimatedModal) */}
+      {/* Settle (mark as paid): the shared Settle form */}
       <AnimatedModal
         isOpen={Boolean(payingTx)}
         onClose={() => setPayingTx(null)}
         maxWidth="440px"
       >
         {payingTx && (
-          <div style={{ padding: '6px 2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'var(--surface-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--text)'
-                  }}
-                >
-                  <CheckCircleIcon size={16} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>
-                    Confirm payment
-                  </h3>
-                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
-                    Enter what you actually paid and when
-                  </span>
-                </div>
+          <div className="settle-modal">
+            <div className="settle-modal-head">
+              <div>
+                <h3 className="settle-modal-title">Confirm payment</h3>
+                <span className="settle-modal-sub">Enter what you actually paid and when</span>
               </div>
-
               <button
                 type="button"
                 className="tx-btn-icon-subtle"
                 onClick={() => setPayingTx(null)}
                 title="Close"
+                aria-label="Close"
               >
                 <XIcon size={14} />
               </button>
             </div>
-
-            <p style={{ margin: '0 0 14px', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Confirm actual amount and date paid for <strong>{payingTx.name}</strong>.
-            </p>
-
-            {/* Plan vs Actual Comparison & Live Variance Card */}
-            <div className="tx-settle-comparison">
-              <div className="tx-settle-box">
-                <span className="tx-settle-box-label">Planned Commitment</span>
-                <span className="tx-settle-box-val">{formatCurrency(plannedAmountCents, currencySymbol)}</span>
-              </div>
-              <div className="tx-settle-box">
-                <span className="tx-settle-box-label">Actual Entered</span>
-                <span className="tx-settle-box-val">{formatCurrency(enteredAmountCents, currencySymbol)}</span>
-              </div>
-
-              {settlementVariance > 0 ? (
-                <div className="tx-variance-banner under">
-                  <SparklesIcon size={12} />
-                  <span>{formatCurrency(settlementVariance, currencySymbol)} under planned budget (saving cash)</span>
-                </div>
-              ) : settlementVariance < 0 ? (
-                <div className="tx-variance-banner over">
-                  <AlertTriangleIcon size={12} />
-                  <span>+{formatCurrency(Math.abs(settlementVariance), currencySymbol)} over planned budget</span>
-                </div>
-              ) : (
-                <div className="tx-variance-banner exact">
-                  <span>Matches planned budget exactly</span>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleConfirmPay} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Actual Amount ({currencySymbol})
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  autoFocus
-                  className="input"
-                  style={{ width: '100%', fontVariantNumeric: 'tabular-nums', fontSize: 'var(--fs-md)', fontWeight: 600 }}
-                  value={actualAmount}
-                  onChange={(e) => setActualAmount(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Actual Date Paid
-                </label>
-                <DatePicker
-                  value={actualDate}
-                  onChange={(d) => setActualDate(d)}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Payment Account
-                </label>
-                <CustomSelect
-                  value={selectedAccountId}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
-                  options={paymentAccountOptions}
-                  placeholder="Select payment account"
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-subtle"
-                  onClick={() => setPayingTx(null)}
-                  style={{ padding: '8px 16px', fontSize: 'var(--fs-sm)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ padding: '8px 18px', fontSize: 'var(--fs-sm)', fontWeight: 600 }}
-                >
-                  Confirm Paid
-                </button>
-              </div>
-            </form>
+            <SettleForm
+              bill={payingTx}
+              bankAccounts={bankAccounts}
+              wallets={wallets}
+              creditCards={creditCards}
+              currencySymbol={currencySymbol}
+              simulation={simulation}
+              onSubmit={handleConfirmPay}
+              onCancel={() => setPayingTx(null)}
+              submitting={settleSubmitting}
+              error={settleError}
+            />
           </div>
         )}
       </AnimatedModal>
@@ -987,6 +921,58 @@ export function TransactionsScreen({
           </div>
         )}
       </AnimatedModal>
+
+      {/* Held & Lent entries can't be edited in place: delete and log again */}
+      <AnimatedModal isOpen={Boolean(relogTx)} onClose={() => setRelogTx(null)} maxWidth="420px" dataTestId="relog-held-lent">
+        {relogTx && (
+          <div className="form-stack">
+            <div className="settle-modal-head">
+              <h3 className="settle-modal-title">Change this entry</h3>
+              <button type="button" className="tx-btn-icon-subtle" onClick={() => setRelogTx(null)} aria-label="Close">
+                <XIcon size={14} />
+              </button>
+            </div>
+            <p className="field-hint">
+              Held and lent entries can't be edited directly, so the right amount stays owed. This deletes{' '}
+              <strong>{relogTx.name || relogTx.title || 'this entry'}</strong> ({formatCurrency(Math.abs(relogTx.amount || 0), currencySymbol)})
+              and opens the form with the same details so you can log it again.
+            </p>
+            {relogError && <div className="form-error" role="alert">{relogError}</div>}
+            <div className="form-footer">
+              <button type="button" className="btn-subtle" onClick={() => setRelogTx(null)}>Cancel</button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={relogging}
+                onClick={async () => {
+                  setRelogging(true);
+                  setRelogError('');
+                  try {
+                    await onRelogHeldLent(relogTx);
+                    setRelogTx(null);
+                  } catch (err) {
+                    setRelogError(err?.message || 'Could not delete this entry.');
+                  } finally {
+                    setRelogging(false);
+                  }
+                }}
+              >
+                {relogging ? 'Deleting…' : 'Delete and log again'}
+              </button>
+            </div>
+          </div>
+        )}
+      </AnimatedModal>
+
+      <ReclassifyHeldLentModal
+        transaction={reclassifyTx}
+        currencySymbol={currencySymbol}
+        onClose={() => setReclassifyTx(null)}
+        onDone={() => {
+          setReclassifyTx(null);
+          onHeldLentChanged?.();
+        }}
+      />
     </div>
   );
 }

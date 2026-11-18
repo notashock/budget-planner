@@ -30,7 +30,7 @@ export const accounts = pgTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     name: text('name').notNull(),
-    type: text('type').notNull(), // 'bank' or 'wallet'
+    type: text('type').notNull(), // 'bank' | 'wallet' | 'cash' | 'credit_card'
     subtype: text('subtype').default('checking').notNull(), // checking, savings, salary, cash, prepaid, digital, other
     institution: text('institution').default('').notNull(),
     accountNumberMasked: text('account_number_masked').default('').notNull(),
@@ -41,6 +41,11 @@ export const accounts = pgTable(
     isPrimary: boolean('is_primary').default(false).notNull(),
     isArchived: boolean('is_archived').default(false).notNull(),
     color: text('color').default('#09090b').notNull(),
+    // Credit cards only (ADR 0070). A card's balance is negative: what you owe.
+    creditLimit: bigint('credit_limit', { mode: 'number' }),
+    statementDay: integer('statement_day'), // bill generation day, 1-31, set by the user
+    dueDay: integer('due_day'), // payment due day, 1-31, set by the user
+    payFromAccountId: uuid('pay_from_account_id'), // default account that pays the bill
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
@@ -205,6 +210,10 @@ export const transactions = pgTable(
     transferId: uuid('transfer_id').references(() => transfers.id, {
       onDelete: 'set null'
     }),
+    // Held & Lent (pass-through) money: origin held_in | held_return | lent_out | lent_repaid
+    personFundId: uuid('person_fund_id').references(() => personFunds.id, {
+      onDelete: 'set null'
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
@@ -216,7 +225,61 @@ export const transactions = pgTable(
     index('idx_transactions_user_status_date').on(table.userId, table.status, table.date),
     index('idx_transactions_dest_account').on(table.destinationAccountId),
     index('idx_transactions_goal').on(table.goalId),
-    index('idx_transactions_month_origin_status').on(table.monthId, table.origin, table.status)
+    index('idx_transactions_month_origin_status').on(table.monthId, table.origin, table.status),
+    index('idx_transactions_person_fund').on(table.personFundId)
+  ]
+);
+
+// 7b. Person Funds (Held & Lent money): someone else's money you hold, or your money someone holds.
+// The outstanding amount is derived from linked pass-through transactions, never stored.
+export const personFunds = pgTable(
+  'person_funds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    personName: text('person_name').notNull(),
+    direction: text('direction').notNull(), // 'held' (you owe it back) | 'lent' (they owe you)
+    note: text('note').default('').notNull(),
+    expectedSettleDate: text('expected_settle_date'), // 'YYYY-MM-DD'
+    status: text('status').default('open').notNull(), // 'open' | 'settled'
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    index('idx_person_funds_user').on(table.userId, table.status)
+  ]
+);
+
+// 7c. Card Statements (ADR 0070): one bill per card per billing cycle.
+// Generated as a draft on the statement day from the card's ledger, then confirmed
+// (or corrected) by the user. Payments are transfers into the card and are derived.
+export const cardStatements = pgTable(
+  'card_statements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    accountId: uuid('account_id')
+      .references(() => accounts.id, { onDelete: 'cascade' })
+      .notNull(),
+    cycleStart: text('cycle_start').notNull(), // 'YYYY-MM-DD'
+    cycleEnd: text('cycle_end').notNull(), // statement (bill generation) date
+    dueDate: text('due_date').notNull(),
+    newSpend: bigint('new_spend', { mode: 'number' }).default(0).notNull(), // net spend in this cycle
+    computedAmount: bigint('computed_amount', { mode: 'number' }).default(0).notNull(), // owed on the statement date
+    statementAmount: bigint('statement_amount', { mode: 'number' }), // confirmed by the user
+    minimumDue: bigint('minimum_due', { mode: 'number' }),
+    status: text('status').default('draft').notNull(), // 'draft' | 'open' | 'paid' | 'carried'
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    uniqueIndex('uq_card_statement_cycle').on(table.accountId, table.cycleEnd),
+    index('idx_card_statements_user').on(table.userId, table.accountId)
   ]
 );
 
@@ -304,6 +367,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   transfers: many(transfers),
   goals: many(goals),
   salaryTemplates: many(salaryTemplates),
+  personFunds: many(personFunds),
+  cardStatements: many(cardStatements),
   settings: one(settings)
 }));
 
@@ -353,7 +418,18 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   destinationAccount: one(accounts, { fields: [transactions.destinationAccountId], references: [accounts.id], relationName: 'destinationAccountTransactions' }),
   goal: one(goals, { fields: [transactions.goalId], references: [goals.id] }),
   plannedItem: one(items, { fields: [transactions.plannedItemId], references: [items.id] }),
-  transfer: one(transfers, { fields: [transactions.transferId], references: [transfers.id] })
+  transfer: one(transfers, { fields: [transactions.transferId], references: [transfers.id] }),
+  personFund: one(personFunds, { fields: [transactions.personFundId], references: [personFunds.id] })
+}));
+
+export const cardStatementsRelations = relations(cardStatements, ({ one }) => ({
+  user: one(users, { fields: [cardStatements.userId], references: [users.id] }),
+  account: one(accounts, { fields: [cardStatements.accountId], references: [accounts.id] })
+}));
+
+export const personFundsRelations = relations(personFunds, ({ one, many }) => ({
+  user: one(users, { fields: [personFunds.userId], references: [users.id] }),
+  transactions: many(transactions)
 }));
 
 export const goalsRelations = relations(goals, ({ one, many }) => ({

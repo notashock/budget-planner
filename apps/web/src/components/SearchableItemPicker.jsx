@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { formatCurrency } from '@budget/engine';
+import { formatCurrency, formatDisplayDate } from '@budget/engine';
 import { ChevronUpIcon, ChevronDownIcon } from './Icons.jsx';
 
 /**
@@ -12,7 +12,17 @@ export function SearchableItemPicker({
   selectedId = '',
   onSelect,
   currencySymbol = '₹',
-  placeholder = 'Unexpected spending (draws down unplanned allowance)'
+  placeholder = 'Unexpected spending (draws down unplanned allowance)',
+  // Wording for the "not linked" option, the search box and an empty search.
+  // Defaults suit planned bills; a refund passes its own (past spends).
+  noneLabel = 'Unexpected spending',
+  noneSub = 'Draws down unplanned allowance',
+  searchPlaceholder = 'Search planned transactions...',
+  emptyText = 'No planned items match',
+  // Show each item's date (past spends)
+  showDate = false,
+  // Optional accessible name prefix (the refund picker uses "Refund for"); by default the visible text names the button
+  ariaLabel = ''
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -47,7 +57,7 @@ export function SearchableItemPicker({
   const selectedItem = (items || []).find((it) => it._id === selectedId);
 
   const filteredItems = (items || []).filter((it) =>
-    it.name.toLowerCase().includes(search.toLowerCase())
+    String(it.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const handleChoose = (id) => {
@@ -73,6 +83,7 @@ export function SearchableItemPicker({
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label={ariaLabel ? (selectedItem ? `${ariaLabel}: ${selectedItem.name}` : `${ariaLabel}: ${placeholder}`) : undefined}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
           {selectedItem ? (
@@ -83,19 +94,26 @@ export function SearchableItemPicker({
               <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
                 ({formatCurrency(selectedItem.amount, currencySymbol)})
               </span>
-              <span
-                style={{
-                  fontSize: 'var(--fs-2xs)',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  background: 'var(--surface-subtle)',
-                  color: 'var(--text-secondary)',
-                  textTransform: 'capitalize',
-                  flexShrink: 0
-                }}
-              >
-                {selectedItem.type}
-              </span>
+              {selectedItem.type && (
+                <span
+                  style={{
+                    fontSize: 'var(--fs-2xs)',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: 'var(--surface-subtle)',
+                    color: 'var(--text-secondary)',
+                    textTransform: 'capitalize',
+                    flexShrink: 0
+                  }}
+                >
+                  {selectedItem.type}
+                </span>
+              )}
+              {showDate && selectedItem.date && (
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                  {formatDisplayDate(selectedItem.date, false)}
+                </span>
+              )}
               {selectedItem.isFixed && (
                 <span
                   style={{
@@ -150,7 +168,7 @@ export function SearchableItemPicker({
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search planned transactions..."
+                                placeholder={searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ padding: '6px 10px', fontSize: 'var(--fs-xs)' }}
@@ -168,9 +186,9 @@ export function SearchableItemPicker({
             aria-selected={!selectedId}
           >
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontWeight: 600 }}>Unexpected spending</span>
+              <span style={{ fontWeight: 600 }}>{noneLabel}</span>
               <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)' }}>
-                Draws down unplanned allowance
+                {noneSub}
               </span>
             </div>
             {!selectedId && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--accent)' }}>●</span>}
@@ -194,6 +212,11 @@ export function SearchableItemPicker({
                   <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
                     {formatCurrency(item.amount, currencySymbol)}
                   </span>
+                  {showDate && item.date && (
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                      · {formatDisplayDate(item.date, false)}
+                    </span>
+                  )}
                   {item.type === 'recurring' && (
                     <span
                       style={{
@@ -232,7 +255,7 @@ export function SearchableItemPicker({
 
           {filteredItems.length === 0 && search && (
             <div style={{ padding: '12px 8px', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', textAlign: 'center' }}>
-              No planned items match "{search}"
+              {emptyText} "{search}"
             </div>
           )}
         </div>

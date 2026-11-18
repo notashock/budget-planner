@@ -196,6 +196,97 @@ export async function syncTransferSchema() {
   }
 }
 
+/**
+ * Held & Lent money (ADR 0069): the person_funds table and the transactions.person_fund_id link.
+ * Idempotent, so it is safe on every boot.
+ */
+export async function syncPersonFundsSchema() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "person_funds" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "person_name" text NOT NULL,
+        "direction" text NOT NULL,
+        "note" text DEFAULT '' NOT NULL,
+        "expected_settle_date" text,
+        "status" text DEFAULT 'open' NOT NULL,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "idx_person_funds_user" ON "person_funds" ("user_id", "status");
+
+      ALTER TABLE "transactions"
+      ADD COLUMN IF NOT EXISTS "person_fund_id" uuid REFERENCES "person_funds"("id") ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS "idx_transactions_person_fund" ON "transactions" ("person_fund_id");
+    `);
+
+    const constraints = [
+      `ALTER TABLE "person_funds" ADD CONSTRAINT "chk_person_fund_direction" CHECK (direction IN ('held', 'lent'))`,
+      `ALTER TABLE "person_funds" ADD CONSTRAINT "chk_person_fund_status" CHECK (status IN ('open', 'settled'))`
+    ];
+    for (const sql of constraints) {
+      try {
+        await pool.query(sql);
+      } catch (e) {
+        if (e.code !== '42710') console.warn('Constraint check note:', e.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not run syncPersonFundsSchema:', err.message);
+  }
+}
+
+/**
+ * Credit cards (ADR 0070): card columns on accounts, the card_statements table,
+ * and 'credit_card' in the account type check. Idempotent, so it is safe on every boot.
+ */
+export async function syncCreditCardSchema() {
+  try {
+    await pool.query(`
+      ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "credit_limit" bigint;
+      ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "statement_day" integer;
+      ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "due_day" integer;
+      ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "pay_from_account_id" uuid;
+
+      CREATE TABLE IF NOT EXISTS "card_statements" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "account_id" uuid NOT NULL REFERENCES "accounts"("id") ON DELETE CASCADE,
+        "cycle_start" text NOT NULL,
+        "cycle_end" text NOT NULL,
+        "due_date" text NOT NULL,
+        "new_spend" bigint DEFAULT 0 NOT NULL,
+        "computed_amount" bigint DEFAULT 0 NOT NULL,
+        "statement_amount" bigint,
+        "minimum_due" bigint,
+        "status" text DEFAULT 'draft' NOT NULL,
+        "confirmed_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "uq_card_statement_cycle" ON "card_statements" ("account_id", "cycle_end");
+      CREATE INDEX IF NOT EXISTS "idx_card_statements_user" ON "card_statements" ("user_id", "account_id");
+
+      ALTER TABLE "accounts" DROP CONSTRAINT IF EXISTS "chk_account_type";
+      ALTER TABLE "accounts" ADD CONSTRAINT "chk_account_type" CHECK (type IN ('bank', 'wallet', 'cash', 'credit_card'));
+    `);
+    const constraints = [
+      `ALTER TABLE "accounts" ADD CONSTRAINT "chk_card_statement_day" CHECK (statement_day IS NULL OR statement_day BETWEEN 1 AND 31)`,
+      `ALTER TABLE "accounts" ADD CONSTRAINT "chk_card_due_day" CHECK (due_day IS NULL OR due_day BETWEEN 1 AND 31)`,
+      `ALTER TABLE "card_statements" ADD CONSTRAINT "chk_card_statement_status" CHECK (status IN ('draft', 'open', 'paid', 'carried'))`
+    ];
+    for (const sql of constraints) {
+      try {
+        await pool.query(sql);
+      } catch (e) {
+        if (e.code !== '42710') console.warn('Constraint check note:', e.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not run syncCreditCardSchema:', err.message);
+  }
+}
 
 export async function syncDatabaseNormalFormsAndConstraints() {
   try {
@@ -234,7 +325,7 @@ export async function syncDatabaseNormalFormsAndConstraints() {
       'ALTER TABLE "transfers" ADD CONSTRAINT "chk_transfer_amount_positive" CHECK (amount > 0)',
       'ALTER TABLE "months" ADD CONSTRAINT "chk_months_month_range" CHECK (month BETWEEN 1 AND 12)',
       'ALTER TABLE "salary_templates" ADD CONSTRAINT "chk_salary_credit_day_valid" CHECK (expected_credit_day BETWEEN 1 AND 31)',
-      'ALTER TABLE "accounts" ADD CONSTRAINT "chk_account_type" CHECK (type IN (\'bank\', \'wallet\', \'cash\'))'
+      'ALTER TABLE "accounts" ADD CONSTRAINT "chk_account_type" CHECK (type IN (\'bank\', \'wallet\', \'cash\', \'credit_card\'))'
     ];
 
     for (const sql of constraints) {
@@ -264,7 +355,9 @@ export const CORE_APP_TABLES = [
   'transactions',
   'goals',
   'salary_templates',
-  'settings'
+  'settings',
+  'person_funds',
+  'card_statements'
 ];
 
 export async function runMigrations() {
@@ -295,6 +388,8 @@ export async function runMigrations() {
 
     // 3. Synchronize cross-references and normal forms
     await syncTransferSchema();
+    await syncPersonFundsSchema();
+    await syncCreditCardSchema();
     await syncPlannedItemsToTransactions();
     await syncDatabaseNormalFormsAndConstraints();
     await migrateLedgerAndMaterializedBalances();
@@ -364,6 +459,29 @@ export async function ensureDatabaseInitialized() {
         console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping schema in production...');
         await runMigrations();
         console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
+      } else {
+        // Existing databases (e.g. serverless deploys that never run runMigrations):
+        // add the Held & Lent schema the ORM now selects, before any query uses it.
+        const ptRes = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'transactions' AND column_name = 'person_fund_id'
+          ) AS has_person_fund_column;
+        `);
+        if (!ptRes.rows[0]?.has_person_fund_column) {
+          console.log('[DevOps Auto-Init] Adding Held & Lent schema (person_funds)...');
+          await syncPersonFundsSchema();
+        }
+        const ccRes = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'accounts' AND column_name = 'statement_day'
+          ) AS has_card_columns;
+        `);
+        if (!ccRes.rows[0]?.has_card_columns) {
+          console.log('[DevOps Auto-Init] Adding credit card schema (card_statements)...');
+          await syncCreditCardSchema();
+        }
       }
 
       isInitialized = true;

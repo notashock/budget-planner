@@ -5,7 +5,7 @@ import '../engine/engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
-import '../modals/add_transaction_modal.dart';
+import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -139,7 +139,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AddTransactionModal(initialStatus: _activeTab),
+      // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
+      builder: (_) => UnifiedEntryModal(initialType: _activeTab == 'planned' ? EntryType.item : EntryType.transaction),
     );
   }
 
@@ -173,8 +174,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     // Apply secondary filters
     final displayedSuccessful = successfulList.where((t) {
-      if (_successfulFilter == 'expense') return t['isIncome'] != true && t['type'] != 'income';
-      if (_successfulFilter == 'income') return t['isIncome'] == true || t['type'] == 'income';
+      final isPassThrough = const ['held_in', 'held_return', 'lent_out', 'lent_repaid'].contains(t['origin']);
+      if (_successfulFilter == 'expense') return !isPassThrough && t['isIncome'] != true && t['type'] != 'income';
+      if (_successfulFilter == 'income') return !isPassThrough && (t['isIncome'] == true || t['type'] == 'income');
       return true;
     }).toList();
 
@@ -462,7 +464,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       itemBuilder: (context, idx) {
         final tx = items[idx];
         final name = tx['name']?.toString() ?? 'Transaction';
-        final isIncome = tx['isIncome'] == true || tx['type'] == 'income';
+        // Held & Lent money coming in shows as a credit, though it is never income
+        final isIncome = tx['isIncome'] == true || tx['type'] == 'income' || tx['origin'] == 'held_in' || tx['origin'] == 'lent_repaid';
         final num amount = tx['amount'] ?? 0;
         final date = tx['date']?.toString() ?? '';
         final category = _normalizeSpendingCategory(tx['category']?.toString());
