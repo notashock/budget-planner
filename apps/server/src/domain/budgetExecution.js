@@ -1220,11 +1220,19 @@ export const BudgetExecution = {
           gte(s.months.endDate, txDate)
         )
       });
-      if (coveringMonth) {
-        if (coveringMonth.isClosed) {
-          throw new ValidationError(`Cannot log transactions dated inside closed review period ${coveringMonth.year}-${coveringMonth.month} (${coveringMonth.startDate} to ${coveringMonth.endDate}). Review periods are strictly read-only.`);
+      // Calendar months created without explicit period dates: match on year and month
+      const [txYr, txMo] = String(txDate).split('-').map(Number);
+      const calendarMonth = !coveringMonth && txYr && txMo
+        ? await db.query.months.findFirst({
+            where: and(eq(s.months.userId, userId), eq(s.months.year, txYr), eq(s.months.month, txMo))
+          })
+        : null;
+      const linkedMonth = coveringMonth || calendarMonth;
+      if (linkedMonth) {
+        if (linkedMonth.isClosed) {
+          throw new ValidationError(`Cannot log transactions dated inside closed review period ${linkedMonth.year}-${linkedMonth.month} (${linkedMonth.startDate} to ${linkedMonth.endDate}). Review periods are strictly read-only.`);
         }
-        linkedMonthId = coveringMonth.id;
+        linkedMonthId = linkedMonth.id;
       }
     } else if (linkedMonthId) {
       const targetMonth = await db.query.months.findFirst({ where: eq(s.months.id, linkedMonthId) });

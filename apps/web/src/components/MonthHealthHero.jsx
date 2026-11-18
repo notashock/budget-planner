@@ -31,6 +31,7 @@ export function MonthHealthHero({
   const paceStatus = safeVelocity?.paceStatus || safeVelocity?.status || '';
   const goalReserve = safeVelocity?.goalReserve ?? 0;
   const heldReserve = safeVelocity?.heldReserve ?? 0;
+  const cardReserve = safeVelocity?.cardReserve ?? 0;
 
   const verdict = verdictProp || getMonthVerdict({ lowestBalance, safetyFloor, paceStatus, safeRate: rate });
   const VerdictIcon = VERDICT_ICON[verdict.key];
@@ -85,6 +86,7 @@ export function MonthHealthHero({
           {formatCurrency(safetyFloor, currencySymbol)} safety floor
           {goalReserve > 0 && <> and {formatCurrency(goalReserve, currencySymbol)} set aside for goals this month</>}
           {heldReserve > 0 && <>, keeping aside {formatCurrency(heldReserve, currencySymbol)} you hold for others</>}
+          {cardReserve > 0 && <>, setting aside {formatCurrency(cardReserve, currencySymbol)} owed on cards</>}
           , spread over {remainingDays} days.
           {burn > 0 && (
             <> You have averaged <span className="tabular-nums">{formatCurrency(burn, currencySymbol)}</span>/day so far.</>
@@ -100,6 +102,7 @@ export function MonthHealthHero({
         safetyFloor={safetyFloor}
         goalReserve={goalReserve}
         heldReserve={heldReserve}
+        cardReserve={cardReserve}
         freeSurplus={safeVelocity?.freeSurplus}
         currencySymbol={currencySymbol}
       />

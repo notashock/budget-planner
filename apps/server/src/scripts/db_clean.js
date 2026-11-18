@@ -25,6 +25,7 @@ const isRemoteDb = Boolean(
 const KNOWN_TABLES_ORDER = [
   'transactions',
   'person_funds',
+  'card_statements',
   'transfers',
   'items',
   'goals',

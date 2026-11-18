@@ -358,6 +358,27 @@ class ApiService {
     await _request('DELETE', '$_v1/transfers/$id');
   }
 
+  // Credit cards (ADR 0070): created as accounts with type 'credit_card'
+  Future<List<dynamic>> getCards() async {
+    final data = await _request('GET', '$_v1/cards');
+    return data is List ? data : [];
+  }
+
+  Future<Map<String, dynamic>> createCard(Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/accounts', body: {...body, 'type': 'credit_card'});
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> confirmCardStatement(String statementId, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/cards/statements/$statementId/confirm', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> payCardStatement(String statementId, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/cards/statements/$statementId/pay', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
   // Held & Lent money (ADR 0069): never income or expense
   Future<Map<String, dynamic>> getPersonFunds() async {
     final data = await _request('GET', '$_v1/person-funds');

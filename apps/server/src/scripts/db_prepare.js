@@ -9,6 +9,7 @@ import { config } from '../config.js';
 import {
   syncTransferSchema,
   syncPersonFundsSchema,
+  syncCreditCardSchema,
   syncDatabaseNormalFormsAndConstraints,
   healPrematurelyClosedMonths,
   pruneEmptyFutureMonths
@@ -45,7 +46,8 @@ const CORE_APP_TABLES = [
   'goals',
   'salary_templates',
   'settings',
-  'person_funds'
+  'person_funds',
+  'card_statements'
 ];
 
 async function runPrepare() {
@@ -136,6 +138,7 @@ async function runPrepare() {
     console.log('\nStep 2: Synchronizing transfers schema and cross-references...');
     await syncTransferSchema();
     await syncPersonFundsSchema();
+    await syncCreditCardSchema();
     console.log('  ✔ Transfer schema synchronized.');
 
     // 3. Normal Forms, BCNF & 2NF Constraints

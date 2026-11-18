@@ -200,6 +200,15 @@ export function WalletIcon({ size = 16, color = 'currentColor', strokeWidth = 2,
   );
 }
 
+export function CreditCardIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '', style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', ...style }}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20M6 15h4" />
+    </svg>
+  );
+}
+
 export function ArrowRightLeftIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '', style = {} }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', ...style }}>

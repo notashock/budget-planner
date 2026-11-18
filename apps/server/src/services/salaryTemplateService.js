@@ -59,6 +59,10 @@ export const SalaryTemplateService = {
 
     // Validate account ownership
     await validateUserAccount(userId, receivingAccountId);
+    const receiving = await db.query.accounts.findFirst({ where: eq(s.accounts.id, receivingAccountId) });
+    if (receiving && receiving.type === 'credit_card') {
+      throw new ValidationError('Salary cannot be paid into a credit card');
+    }
 
     const validPeriodType = periodType === 'salary_cycle' ? 'salary_cycle' : 'calendar_month';
     const effDate = effectiveDate && typeof effectiveDate === 'string' ? effectiveDate : getTodayIso();

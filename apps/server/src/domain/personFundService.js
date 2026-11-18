@@ -74,7 +74,7 @@ function summarize(fund, txs) {
   };
 }
 
-async function resolveCoveringMonth(userId, date) {
+export async function resolveCoveringMonth(userId, date) {
   let month = await db.query.months.findFirst({
     where: and(eq(s.months.userId, userId), lte(s.months.startDate, date), gte(s.months.endDate, date))
   });

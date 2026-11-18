@@ -21,6 +21,7 @@ import {
 import { Chip } from '../components/ui/Chip.jsx';
 import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
 import { PeoplePanel } from '../components/PeoplePanel.jsx';
+import { CardsPanel } from '../components/CardsPanel.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -45,7 +46,8 @@ export function AccountsScreen({
   onSaveMonthSettings,
   initialOpenBankModal = false,
   onResetBankModalTrigger,
-  onHeldLentChanged
+  onHeldLentChanged,
+  creditCards = []
 }) {
   const [activeSegment, setActiveSegment] = useState('banks'); // 'banks' | 'wallets' | 'transfers'
   const [bankModalOpen, setBankModalOpen] = useState(false);
@@ -841,6 +843,16 @@ export function AccountsScreen({
           )}
         </div>
       </div>
+
+      {/* Credit cards: what is owed, bills to confirm or pay, and the payability score */}
+      <CardsPanel
+        bankAccounts={bankAccounts}
+        wallets={wallets}
+        simulationCards={creditCards}
+        currencySymbol={currencySymbol}
+        isReviewMode={isReviewMode}
+        onChanged={onHeldLentChanged}
+      />
 
       {/* Held & Lent money: other people's money with you, and yours with them */}
       <PeoplePanel

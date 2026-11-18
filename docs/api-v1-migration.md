@@ -52,6 +52,7 @@ envelope. `request()` in `api.js` unwraps it.
 | `PUT /api/goals/:id` | `PATCH /api/v1/goals/:id` |
 | `POST /api/goals/:id/{schedule,defer,reactivate}`, `DELETE /api/goals/:id` | same under `/api/v1/goals/:id` |
 | `/api/transfers` | `/api/v1/transfers` (`PUT` becomes `PATCH`; `DELETE` returns the transfer) |
+| (new, v1 only) | `/api/v1/cards` (list, get) and `POST /api/v1/cards/statements/:id/{confirm,pay}`; cards are created through `/api/v1/accounts` with `type: 'credit_card'`, see ADR 0070 |
 | (new, v1 only) | `/api/v1/person-funds` (list, create, get, `PATCH`, `DELETE`, `POST /:id/entries`) and `POST /api/v1/transactions/:id/reclassify`, see ADR 0069 |
 
 ## Client calls not on v1 yet

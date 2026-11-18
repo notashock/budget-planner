@@ -58,7 +58,8 @@ export function UnifiedEntryModal({
   month,
   simulation = null,
   accountSimulations = {},
-  onHeldLentSaved
+  onHeldLentSaved,
+  creditCards = []
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1378,6 +1379,7 @@ export function UnifiedEntryModal({
                   }}
                   bankAccounts={bankAccounts}
                   wallets={wallets}
+                  creditCards={mode === 'log' || mode === 'plan' ? creditCards : []}
                   currencySymbol={currencySymbol}
                   simulation={simulation}
                   accountSimulations={accountSimulations}

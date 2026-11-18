@@ -38,6 +38,15 @@ async function resolveMonth(userId, body) {
       where: and(eq(s.months.userId, userId), lte(s.months.startDate, date), gte(s.months.endDate, date))
     });
   }
+  if (!month && date) {
+    // Calendar months created without explicit period dates
+    const [yr, mo] = String(date).split('-').map(Number);
+    if (yr && mo) {
+      month = await db.query.months.findFirst({
+        where: and(eq(s.months.userId, userId), eq(s.months.year, yr), eq(s.months.month, mo))
+      });
+    }
+  }
   if (!month && body.year && body.month) {
     month = await db.query.months.findFirst({
       where: and(eq(s.months.userId, userId), eq(s.months.year, Number(body.year)), eq(s.months.month, Number(body.month)))

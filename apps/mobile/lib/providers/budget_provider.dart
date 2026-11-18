@@ -20,6 +20,7 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> _bankAccounts = [];
   List<dynamic> _wallets = [];
   List<dynamic> _transfers = [];
+  List<dynamic> _creditCards = [];
   Map<String, dynamic> _userSettings = {};
 
   SimulationResult? _simulation;
@@ -38,6 +39,8 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> get evaluatedGoals => _evaluatedGoals;
   List<dynamic> get bankAccounts => _bankAccounts;
   List<dynamic> get wallets => _wallets;
+  /// Credit cards with what is owed and the payability score (from the server simulation)
+  List<dynamic> get creditCards => _creditCards;
   List<dynamic> get transfers => _transfers;
   Map<String, dynamic> get userSettings => _userSettings;
   SimulationResult? get simulation => _simulation;
@@ -150,6 +153,12 @@ class BudgetProvider with ChangeNotifier {
       if (detail['bankAccounts'] is List) _bankAccounts = detail['bankAccounts'] as List;
       if (detail['wallets'] is List) _wallets = detail['wallets'] as List;
       if (detail['transfers'] is List) _transfers = detail['transfers'] as List;
+      final simCards = detail['simulation'] is Map ? (detail['simulation'] as Map)['cards'] : null;
+      if (simCards is List && simCards.isNotEmpty) {
+        _creditCards = simCards;
+      } else if (detail['creditCards'] is List) {
+        _creditCards = detail['creditCards'] as List;
+      }
 
       // Centralized Backend Simulation Deserialization (ADR 0052)
       if (detail['simulation'] is Map) {
@@ -278,6 +287,24 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> deleteTransaction(String id) async {
     await _api.deleteTransaction(id);
+    await refresh();
+  }
+
+  // Credit cards
+  Future<List<dynamic>> getCards() => _api.getCards();
+
+  Future<void> createCard(Map<String, dynamic> body) async {
+    await _api.createCard(body);
+    await refresh();
+  }
+
+  Future<void> confirmCardStatement(String statementId, Map<String, dynamic> body) async {
+    await _api.confirmCardStatement(statementId, body);
+    await refresh();
+  }
+
+  Future<void> payCardStatement(String statementId, Map<String, dynamic> body) async {
+    await _api.payCardStatement(statementId, body);
     await refresh();
   }
 

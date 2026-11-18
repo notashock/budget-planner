@@ -187,6 +187,8 @@ class SimulationResult {
   final int heldReserve;
   /// Money other people owe you today
   final int lentOutstanding;
+  /// Owed on credit cards today: set aside from Safe-to-Spend from the swipe day
+  final int cardReserve;
 
   SimulationResult({
     required this.openingBalance,
@@ -204,6 +206,7 @@ class SimulationResult {
     required this.accountBalances,
     this.heldReserve = 0,
     this.lentOutstanding = 0,
+    this.cardReserve = 0,
   });
 
   factory SimulationResult.fromJson(Map<String, dynamic> json) {
@@ -251,6 +254,7 @@ class SimulationResult {
       accountBalances: parsedAccts,
       heldReserve: (num.tryParse('${json['heldReserve'] ?? 0}') ?? 0).round(),
       lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0).round(),
+      cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
     );
   }
 }

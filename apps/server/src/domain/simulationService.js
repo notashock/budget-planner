@@ -41,8 +41,10 @@ export const SimulationService = {
     transfers = [],
     goals = [],
     currentDay = null,
-    heldContext = null
+    heldContext = null,
+    cardContext = null
   }) {
+    const cards = cardContext || {};
     const held = heldContext || {};
     const personNames = held.personNames || {};
     // Label held/lent rows with the person's name
@@ -72,7 +74,10 @@ export const SimulationService = {
         transfers: serialize(transfers),
         heldOpeningBalance: held.heldOpeningBalance || 0,
         heldOpeningByAccount: held.heldOpeningByAccount || {},
-        lentOpeningBalance: held.lentOpeningBalance || 0
+        lentOpeningBalance: held.lentOpeningBalance || 0,
+        creditCards: cards.creditCards || [],
+        nextIncome: cards.nextIncome || null,
+        currencySymbol: month.currencySymbol || '₹'
       },
       serialize(items),
       { year: month.year, month: month.month },

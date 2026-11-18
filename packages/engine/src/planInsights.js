@@ -20,8 +20,11 @@ const PASS_THROUGH = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
 const isPassThroughEvent = (evt) =>
   evt?.itemType === 'pass-through' || PASS_THROUGH.includes(evt?.passThroughKind) || PASS_THROUGH.includes(evt?.origin);
 
+// A card bill payment is cash moving to the card; the swipes were the spending
+const isCardBillEvent = (evt) => evt?.itemType === 'card-bill';
+
 /** Moves money without spending it: own-account transfers and held/lent money. */
-const isMoneyMovement = (evt) => isTransferEvent(evt) || isPassThroughEvent(evt);
+const isMoneyMovement = (evt) => isTransferEvent(evt) || isPassThroughEvent(evt) || isCardBillEvent(evt);
 
 /**
  * Splits today's balance into what it is already promised to.
@@ -41,12 +44,15 @@ export function buildCashAllocation({
   safetyFloor = 0,
   goalReserve = 0,
   heldReserve = 0,
+  cardReserve = 0,
   freeSurplus
 } = {}) {
   const balance = Math.max(0, toInt(todayBalance));
   const committedNeed = Math.max(0, toInt(committedUpcomingItems));
   // Money held for other people is owed back, so it is set aside like a bill
   const heldNeed = Math.max(0, toInt(heldReserve));
+  // What you owe on cards is set aside like a bill
+  const cardNeed = Math.max(0, toInt(cardReserve));
   const floorNeed = Math.max(0, toInt(safetyFloor));
   const goalNeed = Math.max(0, toInt(goalReserve));
 
@@ -55,19 +61,21 @@ export function buildCashAllocation({
   // engine's freeSurplus = today - bills - floor - goal reserve.
   const committed = Math.min(balance, committedNeed);
   const held = Math.min(balance - committed, heldNeed);
-  const floorReserve = Math.min(balance - committed - held, floorNeed);
-  const goalSavings = Math.min(balance - committed - held - floorReserve, goalNeed);
-  const computedFree = Math.max(0, balance - committed - held - floorReserve - goalSavings);
+  const cards = Math.min(balance - committed - held, cardNeed);
+  const floorReserve = Math.min(balance - committed - held - cards, floorNeed);
+  const goalSavings = Math.min(balance - committed - held - cards - floorReserve, goalNeed);
+  const computedFree = Math.max(0, balance - committed - held - cards - floorReserve - goalSavings);
   // Never let the engine's figure exceed what is actually left over.
   const free = freeSurplus === undefined || freeSurplus === null
     ? computedFree
     : Math.min(computedFree, Math.max(0, toInt(freeSurplus)));
   // Goals are a target, not an obligation, so they never create a shortfall.
-  const shortfall = Math.max(0, committedNeed + heldNeed + floorNeed - balance);
+  const shortfall = Math.max(0, committedNeed + heldNeed + cardNeed + floorNeed - balance);
 
   const segments = [
     { key: 'committed', amount: committed },
     { key: 'held', amount: held },
+    { key: 'cards', amount: cards },
     { key: 'floor', amount: floorReserve },
     { key: 'goals', amount: goalSavings },
     { key: 'free', amount: free },
@@ -78,6 +86,7 @@ export function buildCashAllocation({
     total: balance + shortfall,
     committed,
     held,
+    cards,
     floorReserve,
     goalSavings,
     free,

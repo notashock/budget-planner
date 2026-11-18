@@ -55,6 +55,8 @@ export default function App() {
   const [wallets, setWallets] = useState([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [transfers, setTransfers] = useState([]);
+  // Credit cards with what is owed and the payability score, from the server simulation
+  const [creditCards, setCreditCards] = useState([]);
   const [activeTab, setActiveTab] = useState('plan');
 
 
@@ -249,6 +251,7 @@ export default function App() {
       setItems(res.items);
       setTransactions(res.transactions || []);
       setTransfers(res.transfers || []);
+      setCreditCards(Array.isArray(res.simulation?.cards) && res.simulation.cards.length > 0 ? res.simulation.cards : (res.creditCards || []));
       setBankAccounts(res.bankAccounts || []);
       setWallets(res.wallets || []);
       setGoals(goalsList || []);
@@ -1132,6 +1135,7 @@ export default function App() {
               onCancelTransaction={handleCancelTransaction}
               onDeleteTransaction={handleDeleteTransaction}
               onHeldLentChanged={handleHeldLentChanged}
+              creditCards={creditCards}
             />
           )}
 
@@ -1172,6 +1176,7 @@ export default function App() {
               initialOpenBankModal={autoOpenAddBank}
               onResetBankModalTrigger={() => setAutoOpenAddBank(false)}
               onHeldLentChanged={handleHeldLentChanged}
+              creditCards={creditCards}
             />
           )}
 
@@ -1220,6 +1225,7 @@ export default function App() {
         onSaveItem={handleSaveItem}
         onCreateTransfer={handleCreateTransfer}
         onHeldLentSaved={handleHeldLentChanged}
+        creditCards={creditCards}
         onOpenAddBank={() => {
           setActiveTab('accounts');
           setAutoOpenAddBank(true);

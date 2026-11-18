@@ -44,6 +44,30 @@ _Avoid_: Temporary income, refundable expense, fake transfer.
 The money held for other people as of today. It stays in the account balance but is ring-fenced out of Safe-to-Spend, and floor checks use the balance minus the Held Reserve so held cash never hides a breach.
 _Avoid_: Escrow, blocked funds, custody balance.
 
+**Credit Card Account**:
+An account of type `credit_card` whose balance is negative: what is owed. It is never liquid cash, never the primary or salary account, and has a user-set bill generation day, due day, credit limit and pay-from account.
+_Avoid_: Card wallet, negative bank account, loan account.
+
+**Card Swipe**:
+Spending on a credit card. It counts as an expense on the swipe day and raises what is owed, but moves no cash until the bill is paid.
+_Avoid_: Card expense deferral, pending card debit.
+
+**Card Liability**:
+What is owed on all credit cards today. It is set aside from Safe-to-Spend from the swipe day, so paying the bill later leaves Safe-to-Spend unchanged.
+_Avoid_: Card balance reserve, credit hold.
+
+**Card Statement (Bill)**:
+A bill generated on the card's bill generation day from the card's own entries, as a draft the user confirms or corrects to match the bank. A higher bank amount can be logged as card charges, a lower one as a card credit. Due on the user's due day after the bill date.
+_Avoid_: Auto bill, invoice, card EMI.
+
+**Card Bill Payment**:
+A transfer from a bank account or wallet into a card. It moves cash once and is never counted as spending.
+_Avoid_: Card expense, bill expense.
+
+**Card Payability Score**:
+An in-app 0-100 score (not a bureau credit score) of whether the next card bill can be paid in full when due, from this cycle's pace, the last bills and the cash available on the due date, with a plain statement and a safe card spend per day.
+_Avoid_: Credit score, CIBIL score, credit rating.
+
 **Spot Transaction**:
 A transaction logged on the spot that bypasses planning and is created directly in `successful` status (`origin = spot`).
 _Avoid_: Quick expense, ad-hoc item, out-of-pocket item.

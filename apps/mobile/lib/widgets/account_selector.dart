@@ -11,6 +11,8 @@ class AccountSelector extends StatelessWidget {
   final List<dynamic> wallets;
   final void Function(String newType, String? newAccountId) onChanged;
   final bool isRequired;
+  /// Credit cards, offered only where spending can go on a card (ADR 0070)
+  final List<dynamic> creditCards;
 
   const AccountSelector({
     super.key,
@@ -21,16 +23,19 @@ class AccountSelector extends StatelessWidget {
     required this.wallets,
     required this.onChanged,
     this.isRequired = false,
+    this.creditCards = const [],
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCard = accountType == 'credit_card';
     final isBank = accountType == 'bank';
+    final isWallet = !isBank && !isCard;
     final hasBanks = bankAccounts.isNotEmpty;
     final hasWallets = wallets.isNotEmpty;
 
-    final currentAccounts = isBank ? bankAccounts : wallets;
+    final currentAccounts = isCard ? creditCards : (isBank ? bankAccounts : wallets);
     final validAccountId = currentAccounts.any((a) => (a['_id'] ?? a['id'])?.toString() == selectedAccountId)
         ? selectedAccountId
         : (currentAccounts.isNotEmpty ? (currentAccounts.first['_id'] ?? currentAccounts.first['id'])?.toString() : null);
@@ -76,15 +81,29 @@ class AccountSelector extends StatelessWidget {
                   _buildTypeTab(
                     title: 'Wallet',
                     icon: Icons.account_balance_wallet_outlined,
-                    isSelected: !isBank,
+                    isSelected: isWallet,
                     isDark: isDark,
                     onTap: () {
-                      if (isBank) {
+                      if (!isWallet) {
                         final defaultId = hasWallets ? (wallets.first['_id'] ?? wallets.first['id'])?.toString() : null;
                         onChanged('wallet', defaultId);
                       }
                     },
                   ),
+                  if (creditCards.isNotEmpty) ...[
+                    const SizedBox(width: 2),
+                    _buildTypeTab(
+                      title: 'Card',
+                      icon: Icons.credit_card,
+                      isSelected: isCard,
+                      isDark: isDark,
+                      onTap: () {
+                        if (!isCard) {
+                          onChanged('credit_card', (creditCards.first['_id'] ?? creditCards.first['id'])?.toString());
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -114,7 +133,7 @@ class AccountSelector extends StatelessWidget {
               ],
             ),
           )
-        else if (!isBank && !hasWallets)
+        else if (isWallet && !hasWallets)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -142,7 +161,7 @@ class AccountSelector extends StatelessWidget {
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               prefixIcon: Icon(
-                isBank ? Icons.account_balance_outlined : Icons.account_balance_wallet_outlined,
+                isCard ? Icons.credit_card : (isBank ? Icons.account_balance_outlined : Icons.account_balance_wallet_outlined),
                 size: 16,
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
@@ -152,7 +171,9 @@ class AccountSelector extends StatelessWidget {
             items: currentAccounts.map<DropdownMenuItem<String>>((a) {
               final id = (a['_id'] ?? a['id']).toString();
               final name = a['name']?.toString() ?? 'Account';
-              final bal = formatCurrency(a['openingBalance'] ?? a['balance'] ?? 0);
+              final bal = isCard
+                  ? 'owes ${formatCurrency(a['outstanding'] ?? 0)}'
+                  : formatCurrency(a['openingBalance'] ?? a['balance'] ?? 0);
               final subtitle = isBank
                   ? (a['accountNumberMasked'] != null ? '••${a['accountNumberMasked']}' : '')
                   : (a['walletType'] != null ? '${a['walletType']}' : '');

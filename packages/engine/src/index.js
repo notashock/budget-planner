@@ -1,5 +1,6 @@
 export { simulate, deriveTransactionState, summarizeLowPoints, isDiscretionarySpend } from './simulator.js';
 export { PASS_THROUGH_ORIGINS, isPassThrough, passThroughCashSign, passThroughDeltas } from './simulatorParts.js';
+export { scoreCardPayability, projectCycleSpend, coverageScore, bandFor, daysBetween, PAYABILITY_BANDS } from './cardPayability.js';
 export { calculateFuelEfficiency } from './fuelLog.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';

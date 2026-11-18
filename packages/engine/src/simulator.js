@@ -19,6 +19,7 @@ import {
   passThroughCashSign,
   passThroughDeltas
 } from './simulatorParts.js';
+import { projectCycleSpend, scoreCardPayability, daysBetween } from './cardPayability.js';
 
 // Re-exported so existing imports from './simulator.js' keep working
 export { deriveTransactionState, isDiscretionarySpend, summarizeLowPoints };
@@ -93,6 +94,15 @@ export function simulate(
     ? settings.heldOpeningByAccount
     : {};
 
+  // Credit cards (ADR 0070): never liquid cash. A swipe is spending on the swipe
+  // day but moves no cash; paying the bill moves cash from a bank to the card.
+  const creditCards = (Array.isArray(settings.creditCards) ? settings.creditCards : [])
+    .map((c) => ({ ...c, id: normalizeId(c.id || c._id) }))
+    .filter((c) => c.id);
+  const cardIdSet = new Set(creditCards.map((c) => c.id));
+  const isCardId = (id) => Boolean(id) && cardIdSet.has(String(id));
+  const nextIncome = settings.nextIncome && Number(settings.nextIncome.amount) > 0 ? settings.nextIncome : null;
+
   // Transfers normalization
   const transfersInput = Array.isArray(transfers) && transfers.length > 0
     ? transfers
@@ -119,6 +129,9 @@ export function simulate(
       ...rawWallets.map((w) => ({ ...w, type: 'wallet' }))
     ];
   }
+
+  // Cards are tracked separately, never as cash accounts
+  rawAccounts = rawAccounts.filter((a) => a && a.type !== 'credit_card' && !isCardId(normalizeId(a._id) || normalizeId(a.id)));
 
   const accountOpeningMap = {};
   const acctOpenings = Array.isArray(settings.accountOpeningBalances)
@@ -353,10 +366,11 @@ export function simulate(
     const priority = typeof item.priority === 'number' ? item.priority : 0;
     const rawBankId = normalizeId(item.bankAccountId || item.accountId);
     const rawWallId = normalizeId(item.walletId);
+    const plannedCardId = isCardId(rawBankId) ? rawBankId : null;
     const isKnownBank = rawBankId && normalizedAccounts.some((a) => a.id === rawBankId || a.altId === rawBankId);
     const isKnownWall = rawWallId && normalizedAccounts.some((a) => a.id === rawWallId || a.altId === rawWallId);
-    const bankId = isKnownBank ? rawBankId : (!isKnownWall ? (primaryBankId || designatedSalaryBankId) : null);
-    const wallId = isKnownWall ? rawWallId : null;
+    const bankId = plannedCardId ? null : (isKnownBank ? rawBankId : (!isKnownWall ? (primaryBankId || designatedSalaryBankId) : null));
+    const wallId = plannedCardId ? null : (isKnownWall ? rawWallId : null);
     const acctType = item.accountType || (bankId ? 'bank' : (wallId ? 'wallet' : null));
 
     if (item.type === 'one-time' || item.status === 'planned') {
@@ -417,6 +431,8 @@ export function simulate(
         sourceIndex: index,
         itemType: passThroughKind ? 'pass-through' : (isPlannedTx ? 'planned-transaction' : 'one-time'),
         isPlannedTransaction: isPlannedTx,
+        isCardSpend: Boolean(plannedCardId),
+        cardAccountId: plannedCardId,
         passThroughKind,
         personFundId: item.personFundId || null,
         origin: item.origin || null,
@@ -463,6 +479,8 @@ export function simulate(
         priority,
         sourceIndex: index,
         itemType: 'recurring',
+        isCardSpend: Boolean(plannedCardId),
+        cardAccountId: plannedCardId,
         isFixed: Boolean(item.isFixed),
         isPaid: Boolean(item.isPaid),
         isPending: Boolean(isPastDueUnpaid),
@@ -539,6 +557,13 @@ export function simulate(
         if (isDst) eventAmount = txAmount;
         else if (isSrc) eventAmount = -txAmount;
       }
+      // Paying a card bill moves cash out of the bank; a cash advance moves cash in
+      const srcIsCard = isCardId(sAccId);
+      const dstIsCard = isCardId(dAccId);
+      if (!isSingleAccount) {
+        if (dstIsCard && !srcIsCard) eventAmount = -txAmount;
+        else if (srcIsCard && !dstIsCard) eventAmount = txAmount;
+      }
 
       rawEvents.push({
         day: txDay,
@@ -556,6 +581,10 @@ export function simulate(
         transactionId: tx.id || tx._id || null,
         transferId: tx.transferId ? String(tx.transferId) : (tx.id || tx._id ? String(tx.id || tx._id) : null),
         transferAmount: txAmount,
+        sourceIsCard: srcIsCard,
+        destinationIsCard: dstIsCard,
+        cardSourceId: srcIsCard ? sAccId : null,
+        cardDestinationId: dstIsCard ? dAccId : null,
         sourceBankAccountId: sAccId,
         sourceAccountId: sAccId,
         destinationBankAccountId: dAccId,
@@ -648,10 +677,11 @@ export function simulate(
 
     const rawTxBankId = normalizeId(tx.bankAccountId || tx.accountId);
     const rawTxWallId = normalizeId(tx.walletId);
+    const txCardId = isCardId(rawTxBankId) ? rawTxBankId : null;
     const isKnownTxBank = rawTxBankId && normalizedAccounts.some((a) => a.id === rawTxBankId || a.altId === rawTxBankId);
     const isKnownTxWall = rawTxWallId && normalizedAccounts.some((a) => a.id === rawTxWallId || a.altId === rawTxWallId);
-    const bankId = isKnownTxBank ? rawTxBankId : (!isKnownTxWall ? (primaryBankId || designatedSalaryBankId) : null);
-    const wallId = isKnownTxWall ? rawTxWallId : null;
+    const bankId = txCardId ? null : (isKnownTxBank ? rawTxBankId : (!isKnownTxWall ? (primaryBankId || designatedSalaryBankId) : null));
+    const wallId = txCardId ? null : (isKnownTxWall ? rawTxWallId : null);
     const acctType = tx.accountType || (bankId ? 'bank' : (wallId ? 'wallet' : null));
 
     rawEvents.push({
@@ -669,7 +699,10 @@ export function simulate(
       isActual: true,
       transactionId: tx.id || tx._id || null,
       plannedItemId: tx.plannedItemId || null,
-      accountType: acctType,
+      // A card swipe is spending today, paid from cash only when the bill is paid
+      isCardSpend: Boolean(txCardId),
+      cardAccountId: txCardId,
+      accountType: txCardId ? 'credit_card' : acctType,
       bankAccountId: bankId,
       walletId: wallId,
       isIncome: isIncomeTx,
@@ -730,6 +763,14 @@ export function simulate(
       if (isDst) eventAmount = trAmount;
       else if (isSrc) eventAmount = -trAmount;
     }
+    const trSrcId = sAccId || sBankId || sWalletId;
+    const trDstId = dAccId || dBankId || dWalletId;
+    const trSrcIsCard = isCardId(trSrcId);
+    const trDstIsCard = isCardId(trDstId);
+    if (!isSingleAccount) {
+      if (trDstIsCard && !trSrcIsCard) eventAmount = -trAmount;
+      else if (trSrcIsCard && !trDstIsCard) eventAmount = trAmount;
+    }
 
     rawEvents.push({
       day: trDay,
@@ -742,12 +783,55 @@ export function simulate(
       isActual: true,
       transferId: tr.id || tr._id || null,
       transferAmount: trAmount,
+      sourceIsCard: trSrcIsCard,
+      destinationIsCard: trDstIsCard,
+      cardSourceId: trSrcIsCard ? trSrcId : null,
+      cardDestinationId: trDstIsCard ? trDstId : null,
       sourceType: tr.sourceType,
       sourceBankAccountId: sBankId,
       sourceWalletId: sWalletId,
       destinationType: tr.destinationType,
       destinationBankAccountId: dBankId,
       destinationWalletId: dWalletId
+    });
+  });
+
+  // 5b. Confirmed card bills not yet paid: a projected cash outflow on the due date
+  creditCards.forEach((card, cardIndex) => {
+    const bill = card.openBill;
+    const remaining = Math.max(0, Math.round(Number(bill?.remaining) || 0));
+    if (!bill || remaining <= 0 || !bill.dueDate) return;
+    if (bill.dueDate > formatDate(year, monthNum, daysInMonth)) return; // due in a later month
+    let billDay = getRelativeDay(bill.dueDate, year, monthNum);
+    const isOverdue = typeof currentDay === 'number' && currentDay >= 1 && billDay < currentDay;
+    if (billDay < 1 || isOverdue) {
+      if (!(typeof currentDay === 'number' && currentDay >= 1)) return;
+      billDay = currentDay;
+    }
+    const payFrom = normalizeId(card.payFromAccountId);
+    const payFromKnown = payFrom && normalizedAccounts.some((a) => a.id === payFrom || a.altId === payFrom);
+    const payFromAcc = payFromKnown ? normalizedAccounts.find((a) => a.id === payFrom || a.altId === payFrom) : null;
+    const isWalletPayer = payFromAcc && payFromAcc.type === 'wallet';
+    rawEvents.push({
+      day: billDay,
+      date: formatDate(year, monthNum, billDay),
+      originalDate: bill.dueDate,
+      label: `${card.name || 'Card'} bill`,
+      name: `${card.name || 'Card'} bill`,
+      category: 'Card bill',
+      tag: 'Card bill',
+      description: isOverdue ? `${card.name || 'Card'} bill (overdue)` : `${card.name || 'Card'} bill`,
+      amount: -remaining,
+      priority: 0,
+      sourceIndex: 3000 + cardIndex,
+      itemType: 'card-bill',
+      isActual: false,
+      isPending: isOverdue,
+      cardPaymentFor: card.id,
+      statementId: bill.statementId || null,
+      accountType: isWalletPayer ? 'wallet' : 'bank',
+      bankAccountId: isWalletPayer ? null : (payFromKnown ? payFrom : (primaryBankId || designatedSalaryBankId)),
+      walletId: isWalletPayer ? payFrom : null
     });
   });
 
@@ -808,11 +892,28 @@ export function simulate(
     accountLowestBalances[acc.id] = acc.openingBalance - (accountHeldOpening[acc.id] || 0);
   });
 
+  // What you owe on each card, as events happen
+  const cardRunning = {};
+  creditCards.forEach((c) => {
+    cardRunning[c.id] = Math.round(Number(c.openingOutstanding) || 0);
+  });
+  const totalCardLiability = () => Object.values(cardRunning).reduce((sum, v) => sum + Math.max(0, v), 0);
+
   const events = rawEvents.map((evt) => {
-    currentBalance += evt.amount;
+    currentBalance += evt.isCardSpend ? 0 : evt.amount;
     const balanceAfter = currentBalance;
     if (evt.heldDelta) heldRunning = Math.max(0, heldRunning + evt.heldDelta);
     if (evt.lentDelta) lentRunning = Math.max(0, lentRunning + evt.lentDelta);
+    if (evt.isCardSpend && evt.cardAccountId && cardRunning[evt.cardAccountId] !== undefined) {
+      cardRunning[evt.cardAccountId] -= evt.amount; // spend is negative, a card refund positive
+    }
+    if (evt.itemType === 'transfer') {
+      if (evt.cardDestinationId && cardRunning[evt.cardDestinationId] !== undefined) cardRunning[evt.cardDestinationId] -= evt.transferAmount;
+      if (evt.cardSourceId && cardRunning[evt.cardSourceId] !== undefined) cardRunning[evt.cardSourceId] += evt.transferAmount;
+    }
+    if (evt.cardPaymentFor && cardRunning[evt.cardPaymentFor] !== undefined) {
+      cardRunning[evt.cardPaymentFor] -= Math.abs(evt.amount);
+    }
 
     // Floor checks use your own money: the balance minus what you hold for others
     if (balanceAfter - heldRunning < lowestBalance) {
@@ -839,7 +940,7 @@ export function simulate(
       } else if (sWall && accountRunningBalances[sWall] !== undefined) {
         accountRunningBalances[sWall] -= trAmt;
         sourceAccountBalanceAfter = accountRunningBalances[sWall];
-      } else {
+      } else if (!evt.sourceIsCard) {
         unassignedRunningBalance -= trAmt;
         sourceAccountBalanceAfter = unassignedRunningBalance;
       }
@@ -851,10 +952,12 @@ export function simulate(
       } else if (dWall && accountRunningBalances[dWall] !== undefined) {
         accountRunningBalances[dWall] += trAmt;
         destinationAccountBalanceAfter = accountRunningBalances[dWall];
-      } else {
+      } else if (!evt.destinationIsCard) {
         unassignedRunningBalance += trAmt;
         destinationAccountBalanceAfter = unassignedRunningBalance;
       }
+    } else if (evt.isCardSpend) {
+      // Card swipe: owed on the card, no cash account moves yet
     } else {
       const bId = getCanonicalAccId(evt.bankAccountId);
       const wId = getCanonicalAccId(evt.walletId);
@@ -938,6 +1041,16 @@ export function simulate(
       personFundId: evt.personFundId || null,
       heldAfter: heldRunning,
       lentAfter: lentRunning,
+      isCardSpend: Boolean(evt.isCardSpend),
+      cardAccountId: evt.cardAccountId || null,
+      cardPaymentFor: evt.cardPaymentFor || null,
+      sourceIsCard: Boolean(evt.sourceIsCard),
+      destinationIsCard: Boolean(evt.destinationIsCard),
+      cardSourceId: evt.cardSourceId || null,
+      cardDestinationId: evt.cardDestinationId || null,
+      statementId: evt.statementId || null,
+      cardLiabilityAfter: totalCardLiability(),
+      cardBalances: { ...cardRunning },
       accountHeld: { ...accountHeldRunning },
       accountBalances: { ...accountRunningBalances }
     };
@@ -979,6 +1092,12 @@ export function simulate(
   });
   let dayHeld = heldOpeningBalance;
   let dayAccHeld = { ...accountHeldOpening };
+  const cardOpeningBalances = {};
+  creditCards.forEach((c) => {
+    cardOpeningBalances[c.id] = Math.round(Number(c.openingOutstanding) || 0);
+  });
+  const cardBalancesByDay = {};
+  let dayCardBalances = { ...cardOpeningBalances };
 
   let eventIdx = 0;
   for (let d = minNegativeDay; d <= daysInMonth; d++) {
@@ -997,6 +1116,7 @@ export function simulate(
       dayBalance = e.balanceAfter;
       dayHeld = e.heldAfter;
       dayAccHeld = e.accountHeld;
+      dayCardBalances = e.cardBalances;
       dayEventsList.push(e);
 
       if (e.itemType === 'transfer') {
@@ -1026,7 +1146,7 @@ export function simulate(
               accountBalanceAfter: currentDayAccBalances[sWall]
             });
           }
-        } else {
+        } else if (!e.sourceIsCard) {
           currentUnassignedDayBalance -= trAmt;
           dayAccountEvents['unassigned'].push({
             ...e,
@@ -1056,7 +1176,7 @@ export function simulate(
               accountBalanceAfter: currentDayAccBalances[dWall]
             });
           }
-        } else {
+        } else if (!e.destinationIsCard) {
           currentUnassignedDayBalance += trAmt;
           dayAccountEvents['unassigned'].push({
             ...e,
@@ -1065,6 +1185,8 @@ export function simulate(
             accountBalanceAfter: currentUnassignedDayBalance
           });
         }
+      } else if (e.isCardSpend) {
+        // Card swipe: no cash account moves
       } else {
         const bId = getCanonicalAccId(e.bankAccountId);
         const wId = getCanonicalAccId(e.walletId);
@@ -1106,6 +1228,7 @@ export function simulate(
     }
 
     heldByDay[d] = dayHeld;
+    cardBalancesByDay[d] = dayCardBalances;
     normalizedAccounts.forEach((acc) => {
       accountHeldByDay[acc.id][d] = dayAccHeld[acc.id] || 0;
     });
@@ -1163,6 +1286,15 @@ export function simulate(
   const heldEnding = events.length > 0 ? events[events.length - 1].heldAfter : heldOpeningBalance;
   const lentEnding = events.length > 0 ? events[events.length - 1].lentAfter : lentOpeningBalance;
   const heldReserve = heldAtDay(heldByDay, heldOpeningBalance, heldEnding);
+
+  // What you owe on cards today: ring-fenced out of Safe-to-Spend from the swipe day
+  const cardEndingBalances = events.length > 0 ? events[events.length - 1].cardBalances : cardOpeningBalances;
+  const cardBalancesToday = (() => {
+    if (currentDay === 0) return cardOpeningBalances;
+    if (currentDay === null) return cardEndingBalances;
+    return cardBalancesByDay[currentDay] || cardEndingBalances;
+  })();
+  const cardReserve = Object.values(cardBalancesToday || {}).reduce((sum, v) => sum + Math.max(0, v), 0);
   const lentToday = (() => {
     if (currentDay === 0) return lentOpeningBalance;
     let lent = lentOpeningBalance;
@@ -1196,7 +1328,7 @@ export function simulate(
   let committedUpcomingItems = 0;
   events.forEach((evt) => {
     // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
-    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0 && evt.passThroughKind !== 'held_return') {
+    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0 && evt.passThroughKind !== 'held_return' && evt.itemType !== 'card-bill') {
       committedUpcomingItems += Math.abs(evt.amount);
     }
   });
@@ -1206,7 +1338,7 @@ export function simulate(
   const activeGoalsCost = goalReserveInfo.total;
 
   const { freeSurplus, rate: safeVelocityPerDay } = dailyLimit({
-    balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft
+    balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, cardReserve, daysLeft
   });
 
   let totalAllSpentToDate = 0;
@@ -1288,12 +1420,14 @@ export function simulate(
       const isSrc = isDirectMatch || isTransferSrc || isUnassignedExpense;
       const isDst = isTransferDst || isSalaryTarget || (evt.amount > 0 && isDirectMatch);
 
+      if (evt.isCardSpend) return;
       const isPt = evt.itemType === 'pass-through';
-      if (evt.amount > 0 && isDst && !isPt) {
+      const isCardMove = evt.itemType === 'card-bill' || evt.sourceIsCard || evt.destinationIsCard;
+      if (evt.amount > 0 && isDst && !isPt && !isCardMove) {
         accIncome += evt.amount;
       }
       if (evt.amount < 0 && isSrc) {
-        if (!isPt) accExpenses += Math.abs(evt.amount);
+        if (!isPt && !isCardMove) accExpenses += Math.abs(evt.amount);
         // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
         if (evt.day > effectiveDay && !evt.isActual && evt.passThroughKind !== 'held_return') {
           accCommitted += Math.abs(evt.amount);
@@ -1309,6 +1443,10 @@ export function simulate(
       }
       // Only discretionary spending counts toward the pace (no bills, goals, transfers)
       if (!isDiscretionarySpend(tx)) {
+        return;
+      }
+      // Card swipes belong to the card, not to a cash account
+      if (isCardId(normalizeId(tx.accountId || tx.bankAccountId))) {
         return;
       }
 
@@ -1428,7 +1566,7 @@ export function simulate(
   const totalSimIncome = effectiveSalaryAmount + totalLoggedIncome;
 
   const totalSimExpenses = events
-    .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through')
+    .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through' && e.itemType !== 'card-bill')
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
   const ownDailyBalances = toOwnPoints(dailyBalances, heldByDay);
@@ -1446,6 +1584,114 @@ export function simulate(
   const aggFloorBreached = accountSummaries.length > 0
     ? (aggLowestBalance < safetyFloor)
     : floorBreached;
+
+  // 11b. Credit cards: what you owe, this cycle, and whether the next bill is payable
+  const todayIso = typeof currentDay === 'number' && currentDay >= 1 ? formatDate(year, monthNum, currentDay) : null;
+  const ownByDay = {};
+  ownDailyBalances.forEach((pt) => {
+    ownByDay[pt.day] = pt.balance;
+  });
+  const ownEnding = ownDailyBalances.length > 0 ? ownDailyBalances[ownDailyBalances.length - 1].balance : (endingBalance - heldEnding);
+  const cardBillsUpTo = (day) => events
+    .filter((e) => e.itemType === 'card-bill' && (day === null || e.day <= day))
+    .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  // Cash you could put toward card bills on a date, before paying any of them
+  const capacityAt = (dueDate) => {
+    if (!dueDate || !todayIso) return 0;
+    let base;
+    if (dueDate > formatDate(year, monthNum, daysInMonth)) {
+      const incomeBefore = nextIncome && (!nextIncome.date || nextIncome.date <= dueDate) ? Math.round(Number(nextIncome.amount) || 0) : 0;
+      base = ownEnding + cardBillsUpTo(null) + incomeBefore;
+    } else {
+      const day = Math.max(getRelativeDay(dueDate, year, monthNum), currentDay);
+      base = (ownByDay[day] !== undefined ? ownByDay[day] : ownEnding) + cardBillsUpTo(day);
+    }
+    return base - safetyFloor - activeGoalsCost;
+  };
+
+  const cardDrafts = creditCards.map((card) => {
+    const outstanding = Math.max(0, Math.round(Number((cardBalancesToday || {})[card.id]) || 0));
+    const limit = Math.max(0, Math.round(Number(card.creditLimit) || 0));
+    const unbilledSoFar = Math.max(0, Math.round(Number(card.unbilledSoFar) || 0));
+    const billedUnpaid = Math.max(0, Math.round(Number(card.openBill?.remaining) || 0));
+    const history = Array.isArray(card.history) ? card.history : [];
+    let projection = null;
+    if (todayIso && card.cycleStart && card.cycleEnd) {
+      const daysElapsed = Math.max(1, daysBetween(card.cycleStart, todayIso) + 1);
+      const daysRemaining = Math.max(0, daysBetween(todayIso, card.cycleEnd));
+      const plannedOnCard = events
+        .filter((e) => e.isCardSpend && e.cardAccountId === card.id && !e.isActual && e.amount < 0 && e.date > todayIso && e.date <= card.cycleEnd)
+        .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+      const spend = projectCycleSpend({ unbilledSoFar, daysElapsed, daysRemaining, history, plannedOnCard });
+      projection = { ...spend, daysRemaining, plannedOnCard, projectedBill: billedUnpaid + spend.projected };
+    }
+    return { card, outstanding, limit, unbilledSoFar, billedUnpaid, history, projection };
+  });
+  const totalProjected = cardDrafts.reduce((sum, d) => sum + (d.projection ? d.projection.projectedBill : 0), 0);
+
+  const cardSummaries = cardDrafts.map((d) => {
+    const { card, outstanding, limit, unbilledSoFar, billedUnpaid, history, projection } = d;
+    let payability = null;
+    if (projection) {
+      // Other cards' bills come out of the same cash
+      const othersProjected = totalProjected - projection.projectedBill;
+      const dueDate = card.cycleDueDate || card.openBill?.dueDate || null;
+      payability = scoreCardPayability({
+        billedUnpaid,
+        unbilledSoFar,
+        projectedCycleSpend: projection.projected,
+        capacity: capacityAt(dueDate) - othersProjected,
+        daysRemaining: projection.daysRemaining,
+        plannedOnCard: projection.plannedOnCard,
+        creditLimit: limit,
+        outstanding,
+        history,
+        dueDate,
+        currencySymbol: settings.currencySymbol || '₹'
+      });
+      payability.rate = projection.rate;
+      payability.currentRate = projection.currentRate;
+      payability.historicalRate = projection.historicalRate;
+    }
+    return {
+      id: card.id,
+      name: card.name || 'Card',
+      creditLimit: limit,
+      outstanding,
+      openingOutstanding: Math.round(Number(card.openingOutstanding) || 0),
+      endingOutstanding: Math.max(0, Math.round(Number((cardEndingBalances || {})[card.id]) || 0)),
+      unbilledSoFar,
+      billedUnpaid,
+      utilization: limit > 0 ? Math.round((outstanding / limit) * 1000) / 1000 : null,
+      availableCredit: limit > 0 ? Math.max(0, limit - outstanding) : null,
+      cycleStart: card.cycleStart || null,
+      nextStatementDate: card.cycleEnd || null,
+      nextDueDate: card.cycleDueDate || null,
+      openBill: card.openBill || null,
+      payFromAccountId: card.payFromAccountId || null,
+      payability
+    };
+  });
+
+  const cardPayability = (() => {
+    const scored = cardSummaries.filter((c) => c.payability);
+    if (scored.length === 0) return null;
+    const dueDates = scored.map((c) => c.nextDueDate || c.openBill?.dueDate).filter(Boolean).sort();
+    const totalLimit = cardSummaries.reduce((sum, c) => sum + c.creditLimit, 0);
+    return scoreCardPayability({
+      billedUnpaid: cardDrafts.reduce((sum, dd) => sum + dd.billedUnpaid, 0),
+      unbilledSoFar: cardDrafts.reduce((sum, dd) => sum + dd.unbilledSoFar, 0),
+      projectedCycleSpend: cardDrafts.reduce((sum, dd) => sum + (dd.projection ? dd.projection.projected : 0), 0),
+      capacity: capacityAt(dueDates[0] || null),
+      daysRemaining: Math.min(...cardDrafts.filter((dd) => dd.projection).map((dd) => dd.projection.daysRemaining)),
+      plannedOnCard: cardDrafts.reduce((sum, dd) => sum + (dd.projection ? dd.projection.plannedOnCard : 0), 0),
+      creditLimit: totalLimit,
+      outstanding: cardReserve,
+      history: [],
+      dueDate: dueDates[0] || null,
+      currencySymbol: settings.currencySymbol || '₹'
+    });
+  })();
 
   // 12. One row per day for the chart and the timeline
   const days = buildDayRows(dailyBalances, events, effectiveOpeningBalance, safetyFloor, heldByDay);
@@ -1476,7 +1722,7 @@ export function simulate(
     totalPlannedExpenses: totalSimExpenses,
     // Spending that has actually happened (paid/logged), excluding transfers
     totalActualExpenses: events
-      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through' && (e.isActual || e.isPaid))
+      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through' && e.itemType !== 'card-bill' && (e.isActual || e.isPaid))
       .reduce((sum, e) => sum + Math.abs(e.amount), 0),
     totalExpenses: totalSimExpenses,
     isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
@@ -1493,13 +1739,13 @@ export function simulate(
     // let an account in deficit vanish (each was floored at 0) and ignored the
     // month's own safety floor, which only applies to the total.
     safeToSpendPerDay: accountSummaries.length > 0
-      ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft }).rate
+      ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, cardReserve, daysLeft }).rate
       : safeToSpendPerDay,
     safeVelocity: (() => {
       // With accounts, the limit and pace come from unified figures, so an account
       // in deficit lowers the total instead of vanishing at 0.
       const { freeSurplus: free, rate } = accountSummaries.length > 0
-        ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft })
+        ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, cardReserve, daysLeft })
         : { freeSurplus, rate: safeVelocityPerDay };
       const pace = accountSummaries.length > 0 ? classifyPace(rate, burnRatePerDay) : paceStatus;
       return {
@@ -1513,12 +1759,18 @@ export function simulate(
         activeGoalsCost,
         goalReserve: activeGoalsCost,
         heldReserve,
+        cardReserve,
         daysLeft,
         daysElapsed,
         paceStatus: pace,
         status: pace
       };
     })(),
+    // Credit cards (ADR 0070)
+    cardReserve,
+    cardLiability: cardReserve,
+    cards: cardSummaries,
+    cardPayability,
     // Held & Lent money (pass-through): never income or expense
     heldReserve,
     heldForOthers: heldReserve,

@@ -17,7 +17,8 @@ import {
   SendIcon,
   ArrowRightLeftIcon,
   EyeIcon,
-  UserIcon
+  UserIcon,
+  CreditCardIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
@@ -53,7 +54,8 @@ export function TransactionsScreen({
   onPayTransaction,
   onCancelTransaction,
   onDeleteTransaction,
-  onHeldLentChanged
+  onHeldLentChanged,
+  creditCards = []
 }) {
   // Main view segment: 'transactions' (successful) vs 'planned' (commitments)
   const [activeSegment, setActiveSegment] = useState('transactions'); // 'transactions' | 'planned'
@@ -92,9 +94,10 @@ export function TransactionsScreen({
   const allAccounts = useMemo(() => {
     return [
       ...bankAccounts.map((b) => ({ ...b, accountType: 'bank' })),
-      ...wallets.map((w) => ({ ...w, accountType: 'wallet' }))
+      ...wallets.map((w) => ({ ...w, accountType: 'wallet' })),
+      ...creditCards.map((c) => ({ ...c, accountType: 'credit_card' }))
     ];
-  }, [bankAccounts, wallets]);
+  }, [bankAccounts, wallets, creditCards]);
 
   // Payment account options for Settlement modal CustomSelect
   const paymentAccountOptions = useMemo(() => {
@@ -621,15 +624,15 @@ export function TransactionsScreen({
                       <div className="tx-card-account">
                         {isTransfer ? (
                           <span className="tx-account-name">
-                            {sourceAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {sourceAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (sourceAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{sourceAcc?.name || 'Source'}</span>
                             <span className="tx-arrow">&rarr;</span>
-                            {destAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {destAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (destAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{destAcc?.name || 'Destination'}</span>
                           </span>
                         ) : account ? (
                           <span className="tx-account-name">
-                            {account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{account.name}</span>
                           </span>
                         ) : (
@@ -776,7 +779,7 @@ export function TransactionsScreen({
                       <div className="tx-card-account">
                         {account ? (
                           <span className="tx-account-name">
-                            {account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />}
+                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
                             <span>{account.name}</span>
                           </span>
                         ) : (

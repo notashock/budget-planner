@@ -67,10 +67,22 @@ export const ReportsExecution = {
     const passThrough = { heldIn: 0, heldReturned: 0, lentOut: 0, lentRepaid: 0 };
     const passThroughKey = { held_in: 'heldIn', held_return: 'heldReturned', lent_out: 'lentOut', lent_repaid: 'lentRepaid' };
 
+    // Card swipes are spending; paying a card bill is a transfer and never counted again
+    const cardAccounts = await db.query.accounts.findMany({
+      where: and(eq(s.accounts.userId, userId), eq(s.accounts.type, 'credit_card'))
+    });
+    const cardNames = new Map(cardAccounts.map((c) => [c.id, c.name]));
+    const cardSpendMap = new Map();
+
     transactions.forEach((tx) => {
       if (passThroughKey[tx.origin]) {
         if (tx.status === 'successful') passThrough[passThroughKey[tx.origin]] += Math.abs(tx.amount);
         return;
+      }
+      // Transfers move money between your own accounts (including card bill payments)
+      if (tx.origin === 'transfer') return;
+      if (!tx.isIncome && cardNames.has(tx.accountId) && tx.status === 'successful') {
+        cardSpendMap.set(tx.accountId, (cardSpendMap.get(tx.accountId) || 0) + tx.amount);
       }
       if (tx.isIncome) {
         directIncome += tx.amount;
@@ -137,6 +149,7 @@ export const ReportsExecution = {
       variance: (month.unplannedAllowance || 0) - totalUnplannedActual,
       tagBreakdown,
       passThrough,
+      cardSpend: [...cardSpendMap.entries()].map(([accountId, total]) => ({ accountId, name: cardNames.get(accountId), total })),
       suggestedNextMonthAllowance: suggestedAllowance,
       aiExplanation: null
     };

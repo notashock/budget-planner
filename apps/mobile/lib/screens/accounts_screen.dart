@@ -8,6 +8,7 @@ import '../modals/transfer_modal.dart';
 import '../modals/edit_account_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../widgets/held_lent_section.dart';
+import '../widgets/cards_section.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -136,6 +137,9 @@ class AccountsScreen extends StatelessWidget {
               _buildEmptyState('No transfers logged this month.', isDark)
             else
               ...transfers.map((t) => _buildTransferTile(context, t, isDark: isDark)),
+
+            const SizedBox(height: 22),
+            const CardsSection(),
 
             const SizedBox(height: 22),
             const HeldLentSection(),

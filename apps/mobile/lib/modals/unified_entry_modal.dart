@@ -565,6 +565,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   selectedAccountId: _selectedAccountId,
                   bankAccounts: budget.bankAccounts,
                   wallets: budget.wallets,
+                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.creditCards : const [],
                   isRequired: _activeType == EntryType.income,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -820,8 +821,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'category': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
           'tag': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
           if (_selectedAccountId != null) ...{
-            'accountType': isWallet ? 'wallet' : 'bank',
-            if (!isWallet) 'bankAccountId': _selectedAccountId,
+            'accountId': _selectedAccountId,
+            'accountType': _accountType == 'credit_card' ? 'credit_card' : (isWallet ? 'wallet' : 'bank'),
+            if (!isWallet && _accountType != 'credit_card') 'bankAccountId': _selectedAccountId,
             if (isWallet) 'walletId': _selectedAccountId,
           },
         });

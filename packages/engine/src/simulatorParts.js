@@ -125,9 +125,10 @@ export function isSameTransaction(tx, other) {
  * safety floor and this month's goal reserve, spread over the days left.
  * Rounded down so it never overstates what can be spent.
  */
-export function dailyLimit({ balance, committed = 0, floor = 0, goalReserve = 0, heldReserve = 0, daysLeft = 1 }) {
+export function dailyLimit({ balance, committed = 0, floor = 0, goalReserve = 0, heldReserve = 0, cardReserve = 0, daysLeft = 1 }) {
   // heldReserve: money held for other people is in the balance but is not yours to spend
-  const freeSurplus = Math.max(0, balance - committed - floor - goalReserve - Math.max(0, heldReserve));
+  // cardReserve: what you owe on credit cards today, set aside from the swipe day
+  const freeSurplus = Math.max(0, balance - committed - floor - goalReserve - Math.max(0, heldReserve) - Math.max(0, cardReserve));
   const rate = Math.max(0, Math.floor(freeSurplus / Math.max(1, daysLeft)));
   return { freeSurplus, rate };
 }
@@ -156,6 +157,7 @@ export function buildDayRows(dailyBalances, events, openingBalance, safetyFloor,
     let dayInflow = 0;
     let dayOutflow = 0;
     dayEvts.forEach((e) => {
+      if (e.isCardSpend) return; // a card swipe moves no cash that day
       if (e.amount > 0) dayInflow += e.amount;
       if (e.amount < 0) dayOutflow += Math.abs(e.amount);
     });
