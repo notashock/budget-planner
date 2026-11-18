@@ -20,6 +20,7 @@ const VERB = {
  */
 export function PeoplePanel({
   bankAccounts = [],
+  transactions = [],
   wallets = [],
   currencySymbol = '₹',
   month = null,
@@ -198,6 +199,7 @@ export function PeoplePanel({
             currencySymbol={currencySymbol}
             month={month}
             simulation={simulation}
+            transactions={transactions}
             onSaved={handleSaved}
             onCancel={() => setForm(null)}
           />

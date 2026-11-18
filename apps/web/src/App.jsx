@@ -1296,6 +1296,7 @@ export default function App() {
           {activeTab === 'accounts' && (
             <AccountsScreen
               bankAccounts={bankAccounts}
+              transactions={transactions}
               wallets={wallets}
               transfers={transfers}
               simulation={activeSimulation}

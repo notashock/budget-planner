@@ -95,3 +95,34 @@ export function detectPersonHint({ description = '', flow = 'in', funds = [] } =
   const named = /\b(?:from|to|for)\s+([A-Z][a-z]+)/.exec(text);
   return { action, fund, personName: fund?.personName || named?.[1] || '' };
 }
+
+const PASS_THROUGH = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+
+/**
+ * An income or spend already logged for the same money a held/lent entry is about
+ * to record, or null. Logging both moves the cash twice: a rent paid with a
+ * flatmate's money was saved as a spend and then again as "Returned to".
+ * Matches the same amount, the same cash direction ('in' = money arrived) and a
+ * date within `windowDays`; the same account and the closest date win.
+ */
+export function findAlreadyLogged(transactions, { flow = 'in', amount = 0, date, accountId, windowDays = 3 } = {}) {
+  const want = Math.round(Math.abs(Number(amount) || 0));
+  const day = toDay(date);
+  if (!want || day === null) return null;
+  let best = null;
+  for (const tx of transactions || []) {
+    if (!tx || tx.status !== 'successful') continue;
+    if (PASS_THROUGH.includes(tx.origin) || tx.personFundId) continue;
+    if (['transfer', 'salary', 'goal'].includes(tx.origin) || tx.goalId || tx.transferId) continue;
+    const amt = Number(tx.amount) || 0;
+    if (Math.round(Math.abs(amt)) !== want) continue;
+    const cashIn = Boolean(tx.isIncome) || amt < 0;
+    if (cashIn !== (flow === 'in')) continue;
+    const txDay = toDay(tx.date);
+    if (txDay === null || Math.abs(txDay - day) > windowDays) continue;
+    const sameAccount = accountId && String(tx.accountId || tx.bankAccountId || tx.walletId || '') === String(accountId);
+    const score = (sameAccount ? 0 : 100) + Math.abs(txDay - day);
+    if (!best || score < best.score) best = { tx, score };
+  }
+  return best ? best.tx : null;
+}
