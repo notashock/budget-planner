@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../engine/category_suggest.dart';
+import '../services/entry_memory.dart';
+import '../widgets/confirm_dialog.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import 'held_lent_modal.dart';
@@ -71,9 +74,22 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   late DateTime _selectedDate;
 
   // Category Selection
-  final List<String> _quickCategories = const ['Food', 'Travel', 'Health', 'Other'];
+  final List<String> _quickCategories = const ['Food', 'Travel', 'Utilities', 'Health', 'Other'];
+
+  /// Quick amounts (major units). Tapping one sets the amount.
+  static const List<int> quickAmounts = [100, 500, 1000, 2000];
   String _selectedCategory = 'Food';
   bool _isCustomCategory = false;
+
+  // Category suggestion stops once the user picks a category
+  bool _categoryTouched = false;
+  bool _tagSuggested = false;
+  EntryMemory? _memory;
+
+  // "Save & add another": entries saved since the sheet opened
+  int _sessionCount = 0;
+  int _sessionTotal = 0;
+  final FocusNode _amountFocus = FocusNode();
 
   @override
   void initState() {
@@ -106,6 +122,44 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     if (_activeType == EntryType.goal) {
       _fetchGoalRecommendation();
+    }
+
+    // Remembered: the account used last time for this kind of entry
+    EntryMemory.load().then((memory) {
+      if (!mounted) return;
+      _memory = memory;
+      final remembered = memory.accountFor(_activeType.name);
+      if (remembered == null) return;
+      final type = remembered['accountType']!;
+      final id = remembered['accountId']!;
+      final pool = type == 'wallet' ? budget.wallets : (type == 'credit_card' ? budget.creditCards : budget.bankAccounts);
+      final cardsAllowed = _activeType == EntryType.transaction || _activeType == EntryType.item;
+      if ((type == 'credit_card' && !cardsAllowed) || !pool.any((a) => (a['_id'] ?? a['id'])?.toString() == id)) return;
+      setState(() {
+        if (_activeType == EntryType.transfer) {
+          if (type == 'credit_card') return;
+          _sourceAccountType = type;
+          _sourceAccountId = id;
+        } else {
+          _accountType = type;
+          _selectedAccountId = id;
+        }
+      });
+    });
+  }
+
+  bool get _isDirty => _amountCtrl.text.trim().isNotEmpty || _nameCtrl.text.trim().isNotEmpty;
+
+  void _onDescriptionChanged(String value) {
+    if (_categoryTouched) return;
+    if (_activeType != EntryType.transaction && _activeType != EntryType.item) return;
+    final suggested = suggestCategory(value, allowed: _quickCategories, remembered: _memory?.categoryFor);
+    if (suggested != null && (suggested != _selectedCategory || _isCustomCategory)) {
+      setState(() {
+        _selectedCategory = suggested;
+        _isCustomCategory = false;
+        _tagSuggested = true;
+      });
     }
   }
 
@@ -145,6 +199,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     _amountCtrl.dispose();
     _dayCtrl.dispose();
     _customCategoryCtrl.dispose();
+    _amountFocus.dispose();
     super.dispose();
   }
 
@@ -181,7 +236,32 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
 
-    return Padding(
+    // Ask before throwing away a half-filled entry (back button, close icon)
+    // canPop stays false and the check happens when the pop is attempted: typing
+    // doesn't rebuild the sheet, so a build-time "is it dirty" would be stale.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        if (!_isDirty || _submitting) {
+          navigator.pop();
+          return;
+        }
+        final discard = await confirmDestructive(
+          context,
+          title: 'Discard this entry?',
+          message: 'What you typed will be lost.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+        );
+        if (discard && mounted) {
+          _amountCtrl.clear();
+          _nameCtrl.clear();
+          navigator.pop();
+        }
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         padding: AppForm.sheetPadding,
@@ -208,7 +288,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.pop(context),
+                    // maybePop goes through the discard guard
+                    onPressed: () => Navigator.maybePop(context),
                   ),
                 ],
               ),
@@ -258,6 +339,16 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 ),
               ],
               const SizedBox(height: 16),
+
+              if (_sessionCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '$_sessionCount added · ${formatCurrency(_sessionTotal)}',
+                    key: const ValueKey('entry-session'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.green),
+                  ),
+                ),
 
               if (_isPersonMove)
                 HeldLentForm(
@@ -467,6 +558,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               // Name / Description field
               TextField(
                 controller: _nameCtrl,
+                onChanged: _onDescriptionChanged,
                 decoration: InputDecoration(
                   labelText: _activeType == EntryType.goal
                       ? 'Goal Name (e.g. New Headphones)'
@@ -480,11 +572,24 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               // Amount Field
               TextField(
                 controller: _amountCtrl,
-                keyboardType: TextInputType.number,
+                focusNode: _amountFocus,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: _activeType == EntryType.income ? 'Income (₹) *' : 'Amount (₹) *',
                 ),
               ),
+              if (_activeType != EntryType.goal) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: quickAmounts.map((v) => ActionChip(
+                        label: Text(v >= 1000 ? '${v ~/ 1000}k' : '$v'),
+                        onPressed: () => setState(() => _amountCtrl.text = '$v'),
+                      )).toList(),
+                ),
+              ],
               const SizedBox(height: 12),
 
               // Date Picker or Recurring Day
@@ -721,7 +826,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               if (_activeType == EntryType.item || (_activeType == EntryType.transaction && _txType != 'income')) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'Category',
+                  _tagSuggested ? 'Category · suggested' : 'Category',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -741,6 +846,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                         onSelected: (_) => setState(() {
                           _selectedCategory = cat;
                           _isCustomCategory = false;
+                          _categoryTouched = true;
+                          _tagSuggested = false;
                         }),
                       );
                     }),
@@ -749,6 +856,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       selected: _isCustomCategory,
                       onSelected: (_) => setState(() {
                         _isCustomCategory = true;
+                        _categoryTouched = true;
+                        _tagSuggested = false;
                       }),
                     ),
                   ],
@@ -768,8 +877,25 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 FloorBreachNotice(
                   amountController: _amountCtrl,
                   accountId: _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId,
+                  showWhenSafe: true,
                 ),
               const SizedBox(height: 20),
+
+              if (_canAddAnother) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    key: const ValueKey('save-add-another'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(AppForm.controlHeight),
+                      shape: RoundedRectangleBorder(borderRadius: AppForm.radius),
+                    ),
+                    onPressed: _submitting ? null : () => _handleSubmit(again: true),
+                    child: const Text('Save & add another'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // Submit Button
               SizedBox(
@@ -785,7 +911,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: _submitting ? null : _handleSubmit,
+                  onPressed: _submitting ? null : () => _handleSubmit(),
                   child: _submitting
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : Text(
@@ -803,8 +929,12 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           ),
         ),
       ),
+    ),
     );
   }
+
+  bool get _canAddAnother =>
+      _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item;
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
 
@@ -868,7 +998,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     }
   }
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({bool again = false}) async {
     final budget = context.read<BudgetProvider>();
     final amt = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
@@ -984,7 +1114,35 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       }
 
 
-      if (mounted) Navigator.pop(context);
+      // Remember the account (and the category for this description) for next time
+      final memory = _memory ?? await EntryMemory.load();
+      if (_activeType == EntryType.transfer) {
+        await memory.rememberAccount('transfer', _sourceAccountType, _sourceAccountId);
+      } else {
+        await memory.rememberAccount(_activeType.name, _accountType, _selectedAccountId);
+      }
+      if ((_activeType == EntryType.transaction || _activeType == EntryType.item) && _nameCtrl.text.trim().isNotEmpty && cat.isNotEmpty) {
+        await memory.rememberCategory(_nameCtrl.text, cat);
+      }
+
+      if (!mounted) return;
+      if (again && _canAddAnother) {
+        // Keep the tab, date and account; clear what changes per entry
+        setState(() {
+          _sessionCount += 1;
+          _sessionTotal += amt;
+          _amountCtrl.clear();
+          _nameCtrl.clear();
+          _customCategoryCtrl.clear();
+          _isCustomCategory = false;
+          _categoryTouched = false;
+          _tagSuggested = false;
+          _selectedCategory = 'Food';
+        });
+        _amountFocus.requestFocus();
+      } else {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {

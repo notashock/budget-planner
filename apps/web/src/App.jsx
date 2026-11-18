@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './api.js';
-import { simulate } from '@budget/engine';
+import { simulate, formatCurrency } from '@budget/engine';
 import { Header } from './components/Header.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
@@ -9,6 +9,7 @@ import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { AccountsScreen } from './screens/AccountsScreen.jsx';
 import { AssistantScreen } from './screens/AssistantScreen.jsx';
 import { UnifiedEntryModal } from './components/UnifiedEntryModal.jsx';
+import { AppToast } from './components/AppToast.jsx';
 import { MonthEndReviewModal } from './components/MonthEndReviewModal.jsx';
 import { SalarySafelineModal } from './components/SalarySafelineModal.jsx';
 import { TransferCalculationsModal } from './components/TransferCalculationsModal.jsx';
@@ -95,6 +96,8 @@ export default function App() {
   const [editingItem, setEditingItem] = useState(null);
   // Where the entry sheet starts, e.g. { sourceAccountId } from an account's Transfer button
   const [unifiedEntryPreset, setUnifiedEntryPreset] = useState(null);
+  // "Saved ... Undo" confirmation after an entry is saved
+  const [toast, setToast] = useState(null);
   const [autoOpenAddBank, setAutoOpenAddBank] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewAccountId, setReviewAccountId] = useState('all');
@@ -455,7 +458,38 @@ export default function App() {
 
 
   // Transaction entry actions
-  const handleLogTransaction = async (txData) => {
+  // Reload what a saved (or undone) entry changes
+  const refreshAfterEntry = async () => {
+    if (currentMonth) {
+      await Promise.all([loadMonthDetails(currentMonth.year, currentMonth.month), loadAccounts()]);
+    } else {
+      const [globalTxs] = await Promise.all([api.getGlobalTransactions(), loadAccounts()]);
+      setTransactions(globalTxs || []);
+    }
+  };
+
+  const showSavedToast = (message, undo) => {
+    setToast({
+      id: Date.now(),
+      message,
+      onUndo: undo
+        ? async () => {
+            try {
+              await undo();
+              await refreshAfterEntry();
+            } catch (err) {
+              setToast({ id: Date.now(), message: err?.message || 'Could not undo.' });
+            }
+          }
+        : null
+    });
+  };
+
+  const entryMoney = (minor) => formatCurrency(Math.abs(Number(minor) || 0), currentMonth?.currencySymbol || settings?.currencySymbol || '₹');
+
+  // options.keepOpen: "Save & add another" keeps the entry sheet open
+  const handleLogTransaction = async (txData, options = {}) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let created;
       if (editingItem) {
@@ -475,19 +509,20 @@ export default function App() {
         setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
       }
 
-      setUnifiedEntryOpen(false);
-      setEditingItem(null);
-      if (currentMonth) {
-        await Promise.all([
-          loadMonthDetails(currentMonth.year, currentMonth.month),
-          loadAccounts()
-        ]);
+      if (!options.keepOpen) {
+        setUnifiedEntryOpen(false);
+        setEditingItem(null);
+      }
+      await refreshAfterEntry();
+      const createdId = created?.id || created?._id;
+      if (wasEditing) {
+        showSavedToast('Changes saved');
       } else {
-        const [globalTxs] = await Promise.all([
-          api.getGlobalTransactions(),
-          loadAccounts()
-        ]);
-        setTransactions(globalTxs || []);
+        const what = txData.isIncome ? 'Income' : (Number(txData.amount) < 0 ? 'Refund' : 'Spend');
+        showSavedToast(
+          `${what} saved: ${entryMoney(txData.amount)} · ${txData.title || txData.category || ''}`.trim(),
+          createdId ? () => api.deleteTransaction(createdId) : null
+        );
       }
       return created;
     } catch (err) {
@@ -595,7 +630,8 @@ export default function App() {
   };
 
   // Item actions
-  const handleSaveItem = async (itemData) => {
+  const handleSaveItem = async (itemData, options = {}) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let result;
       if (editingItem) {
@@ -622,11 +658,21 @@ export default function App() {
         const globalTxs = await api.getGlobalTransactions();
         setTransactions(globalTxs || []);
       }
-      setUnifiedEntryOpen(false);
-      setEditingItem(null);
-      setEditingItem(null);
+      if (!options.keepOpen) {
+        setUnifiedEntryOpen(false);
+        setEditingItem(null);
+      }
       if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
+      const resultId = result?.id || result?._id;
+      if (wasEditing) {
+        showSavedToast('Changes saved');
+      } else {
+        showSavedToast(
+          `Planned: ${entryMoney(itemData.amount)} · ${itemData.name || itemData.title || ''}`.trim(),
+          resultId ? () => api.deleteItem(resultId) : null
+        );
       }
       return result;
     } catch (err) {
@@ -833,6 +879,7 @@ export default function App() {
 
   // Transfer handlers
   const handleCreateTransfer = async (transferData) => {
+    const wasEditing = Boolean(editingItem);
     try {
       let res;
       if (editingItem) {
@@ -853,6 +900,15 @@ export default function App() {
       await loadAccounts();
       if (currentMonth) {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
+      }
+      const transferId = res?.transfer?.id || res?.transfer?._id || res?.id || res?._id;
+      if (wasEditing) {
+        showSavedToast('Changes saved');
+      } else {
+        showSavedToast(
+          `Moved ${entryMoney(transferData.amount)}${transferData.note ? ` · ${transferData.note}` : ''}`,
+          transferId ? () => api.deleteTransfer(transferId) : null
+        );
       }
       return res;
     } catch (err) {
@@ -878,6 +934,21 @@ export default function App() {
     setUnifiedEntryMode(mode);
     setUnifiedEntryOpen(true);
   };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      if (unifiedEntryOpen || isReviewMode || !user) return;
+      e.preventDefault();
+      handleOpenUnifiedEntry('log');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const handleEditItem = (item) => {
     if (isReviewMode) return;
@@ -1234,6 +1305,8 @@ export default function App() {
           setAutoOpenAddBank(true);
         }}
       />
+
+      <AppToast toast={toast} onDismiss={() => setToast(null)} />
 
       {/* Month-End Review Modal */}
       <MonthEndReviewModal

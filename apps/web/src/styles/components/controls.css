@@ -656,3 +656,137 @@ select.input-field {
   font-size: var(--fs-xs);
   color: var(--text-secondary);
 }
+
+/* Live "After this: …" line above an entry form's footer */
+.consequence-line {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.consequence-line strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.consequence-line.tone-warn {
+  background: var(--amber-subtle, rgba(245, 158, 11, 0.1));
+  color: var(--warn-ink);
+}
+
+.consequence-line.tone-bad {
+  background: var(--danger-subtle);
+  color: var(--bad-ink);
+}
+
+.consequence-line.tone-bad strong {
+  color: var(--bad-ink);
+}
+
+/* Inline confirmations inside the entry sheet (no dialog on top of the sheet) */
+.floor-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+}
+
+.floor-confirm .entry-text-5 {
+  margin: 0;
+}
+
+.discard-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.discard-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.entry-session {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--good-ink);
+}
+
+.field-suggested {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* "Saved … Undo" toast */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bottom-nav-height) + var(--space-4) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(480px, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+}
+
+.app-toast-message {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-toast-action,
+.app-toast-close {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-toast-action:hover,
+.app-toast-close:hover {
+  background: rgba(127, 127, 127, 0.25);
+}
+
+.app-toast-close {
+  padding: 0 var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .app-toast {
+    left: auto;
+    right: var(--space-6);
+    bottom: var(--space-6);
+    transform: none;
+  }
+}

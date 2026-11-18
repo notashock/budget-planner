@@ -90,6 +90,7 @@
   --z-modal: 1000;         /* modal overlay + sheet (rendered in a portal on <body>) */
   --z-modal-popover: 1100; /* dropdowns, date pickers, info popovers inside a modal */
   --z-modal-nested: 1200;  /* a confirmation dialog shown over a modal */
+  --z-toast: 1250;         /* "Saved … Undo" confirmation, above any modal */
   --z-progress: 1300;      /* top loading bar */
 
   /* Status text: readable ink for status labels (the bright accents are for marks) */

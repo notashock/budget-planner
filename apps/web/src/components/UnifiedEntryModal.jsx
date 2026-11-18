@@ -26,12 +26,24 @@ import {
 import { DatePicker } from './DatePicker.jsx';
 import { HeldLentForm } from './HeldLentForm.jsx';
 import { SettleForm } from './SettleForm.jsx';
+import { ConsequenceLine } from './ConsequenceLine.jsx';
+import { suggestCategory } from '../utils/categorySuggest.js';
+import {
+  lastAccountFor,
+  rememberAccount,
+  lastTransferPair,
+  rememberTransferPair,
+  rememberCategory
+} from '../utils/entryMemory.js';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { AccountSelect } from './AccountSelect.jsx';
 import { api } from '../api.js';
 
+/** Spend and plan categories (the pills; also what suggestions may pick). */
+export const SPEND_CATEGORIES = ['Food', 'Travel', 'Utilities', 'Health', 'Other'];
+
 /**
- * Quick increment preset configuration per mode.
+ * Quick amounts per mode. Tapping one sets the amount (it no longer adds to it).
  */
 const QUICK_INCREMENTS = {
   log: [100, 500, 1000, 2000],
@@ -125,6 +137,15 @@ export function UnifiedEntryModal({
   const [cascadeScope, setCascadeScope] = useState('single'); // 'single' | 'all_future'
   const [updateSalaryTemplate, setUpdateSalaryTemplate] = useState(false);
   const [showVariableInfo, setShowVariableInfo] = useState(false);
+  // Category suggestion: stops once the user picks a category themselves
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [tagSuggested, setTagSuggested] = useState(false);
+  // "Discard this entry?" before closing a half-filled form
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Entries saved with "Save & add another" since the sheet opened
+  const [session, setSession] = useState({ count: 0, total: 0 });
+  const againRef = useRef(false);
+  const amountInputRef = useRef(null);
 
   // UI status states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -190,6 +211,10 @@ export function UnifiedEntryModal({
       isSubmittingRef.current = false;
       setIsSubmitting(false);
       setFormError('');
+      setConfirmDiscard(false);
+      setSession({ count: 0, total: 0 });
+      setCategoryTouched(Boolean(initialItem));
+      setTagSuggested(false);
       setSettleItem(null);
       setSettleError('');
       setMoveTarget('account');
@@ -311,6 +336,31 @@ export function UnifiedEntryModal({
         } else {
           setDestAccountType('wallet');
           setDestAccountId(wallets[0]?._id || wallets[0]?.id || '');
+        }
+
+        // Remembered accounts: the last one used for this kind of entry
+        const startMode = initialMode === 'held' ? 'transfer' : (initialMode || 'log');
+        const usable = (entry, allowCards) => {
+          if (!entry) return false;
+          const pool = entry.accountType === 'wallet' ? wallets
+            : (entry.accountType === 'credit_card' ? (allowCards ? creditCards : []) : bankAccounts);
+          return (pool || []).some((a) => String(a._id || a.id) === String(entry.accountId));
+        };
+        if (startMode === 'transfer') {
+          const pair = lastTransferPair();
+          if (pair && usable(pair.source, false) && usable(pair.destination, false)
+            && String(pair.source.accountId) !== String(pair.destination.accountId)) {
+            setAccountType(pair.source.accountType);
+            setAccountId(pair.source.accountId);
+            setDestAccountType(pair.destination.accountType);
+            setDestAccountId(pair.destination.accountId);
+          }
+        } else {
+          const remembered = lastAccountFor(startMode);
+          if (usable(remembered, startMode === 'log' || startMode === 'plan')) {
+            setAccountType(remembered.accountType);
+            setAccountId(remembered.accountId);
+          }
         }
 
         // Preset source (an account's own "Transfer" button)
@@ -541,7 +591,14 @@ export function UnifiedEntryModal({
         }
       } else {
         if (deltaY > 80 || (velocity > 0.45 && deltaY > 25)) {
-          triggerExit();
+          if (isDirty) {
+            // Snap back and ask instead of throwing the entry away
+            gsap.to(contentRef.current, { y: 0, duration: 0.18, ease: 'power2.out' });
+            if (overlayRef.current) gsap.to(overlayRef.current, { opacity: 1, duration: 0.18, ease: 'power2.out' });
+            setConfirmDiscard(true);
+          } else {
+            triggerExit();
+          }
         } else {
           gsap.to(contentRef.current, { y: 0, duration: 0.18, ease: 'power2.out' });
           if (overlayRef.current) {
@@ -552,18 +609,33 @@ export function UnifiedEntryModal({
     }
   };
 
+  // User-initiated close (backdrop, Esc, X, Cancel, swipe): ask first if a new entry has content
+  const isDirty = !initialItem && !settleItem && (String(amount || '').trim() !== '' || description.trim() !== '');
+  const requestClose = () => {
+    if (isDirty && !confirmDiscard) {
+      setConfirmDiscard(true);
+      return;
+    }
+    setConfirmDiscard(false);
+    triggerExit();
+  };
+
   // Keyboard Escape listener
   useEffect(() => {
     if (!shouldRender) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        triggerExit();
+        if (confirmDiscard) {
+          setConfirmDiscard(false);
+          return;
+        }
+        requestClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shouldRender, triggerExit]);
+  });
 
   // Clean up GSAP tweens on unmount
   useEffect(() => {
@@ -590,12 +662,77 @@ export function UnifiedEntryModal({
     setMode(newMode);
     setTransferError('');
     setFormError('');
+    // A card can pay for spending and planned bills only; elsewhere fall back
+    if (accountType === 'credit_card' && newMode !== 'log' && newMode !== 'plan') {
+      const fallback = lastAccountFor(newMode);
+      const pool = fallback?.accountType === 'wallet' ? wallets : bankAccounts;
+      if (fallback && fallback.accountType !== 'credit_card' && pool.some((a) => String(a._id || a.id) === String(fallback.accountId))) {
+        setAccountType(fallback.accountType);
+        setAccountId(fallback.accountId);
+      } else if (primaryBank) {
+        setAccountType('bank');
+        setAccountId(primaryBank._id || primaryBank.id || '');
+      } else if (primaryWallet) {
+        setAccountType('wallet');
+        setAccountId(primaryWallet._id || primaryWallet.id || '');
+      }
+    }
   });
 
   // Quick Amount Presets
-  const handleQuickIncrement = (inc) => {
-    const cur = parseFloat(amount) || 0;
-    setAmount(String(cur + inc));
+  const handleQuickIncrement = (value) => {
+    setAmount(String(value));
+    amountInputRef.current?.focus?.();
+  };
+
+  // Description typed: suggest a category until the user picks one
+  const handleDescriptionChange = (value) => {
+    setDescription(value);
+    if ((mode === 'log' || mode === 'plan') && !categoryTouched) {
+      const suggested = suggestCategory(value, { allowed: SPEND_CATEGORIES });
+      if (suggested) {
+        setTag(suggested);
+        setTagSuggested(true);
+      }
+    }
+  };
+
+  // After a successful save: remember choices for next time
+  const rememberEntry = (entryMode) => {
+    if (entryMode === 'transfer') {
+      if (moveTarget === 'account') {
+        rememberTransferPair({ accountType, accountId }, { accountType: destAccountType, accountId: destAccountId });
+      }
+      return;
+    }
+    rememberAccount(entryMode, accountType, accountId);
+    if ((entryMode === 'log' || entryMode === 'plan') && description.trim()) {
+      rememberCategory(description, tag);
+    }
+  };
+
+  // "Save & add another": keep the mode, date and account; clear the rest
+  const resetForNextEntry = (savedMinor) => {
+    setSession((prev) => ({ count: prev.count + 1, total: prev.total + Math.abs(savedMinor || 0) }));
+    setAmount('');
+    setDescription('');
+    setMatchedItemId('');
+    setIsRefund(false);
+    setCategoryTouched(false);
+    setTagSuggested(false);
+    setTag('Food');
+    setFormError('');
+    setFloorBreachData(null);
+    requestAnimationFrame?.(() => amountInputRef.current?.focus?.());
+  };
+
+  const canAddAnother = !initialItem && (mode === 'log' || mode === 'income' || mode === 'plan');
+
+  const submitAndAddAnother = () => {
+    if (!canAddAnother || !formRef.current) return;
+    againRef.current = true;
+    if (typeof formRef.current.requestSubmit === 'function') formRef.current.requestSubmit();
+    else formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
   };
 
   const handleQuickClear = () => {
@@ -717,7 +854,7 @@ export function UnifiedEntryModal({
   }, [accountSimulations, simulation]);
 
   // Mode 1: Log Spending Submission
-  const handleTransactionSubmit = async (e, bypassFloorCheck = false) => {
+  const handleTransactionSubmit = async (e, bypassFloorCheck = false, again = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!amount || isNaN(Number(amount))) return;
@@ -747,7 +884,8 @@ export function UnifiedEntryModal({
             type: 'spending',
             accountName: selectedAccount.name,
             minimumBalance: minBal,
-            projectedBalance: accBal - netDebitChange
+            projectedBalance: accBal - netDebitChange,
+            again
           });
           return;
         }
@@ -772,7 +910,11 @@ export function UnifiedEntryModal({
         walletId: accountType === 'wallet' ? accountId : null,
         cascadeScope
       };
-      await onLogTransaction(txPayload);
+      // Only "Save & add another" passes options, so normal saves call the handler as before
+      if (again) await onLogTransaction(txPayload, { keepOpen: true });
+      else await onLogTransaction(txPayload);
+      rememberEntry('log');
+      if (again) resetForNextEntry(finalAmount);
     } catch (err) {
       setFormError(err?.message || 'Could not save this spend. Please try again.');
     } finally {
@@ -782,7 +924,7 @@ export function UnifiedEntryModal({
   };
 
   // Mode 2: Log Direct Income Submission
-  const handleIncomeSubmit = async (e) => {
+  const handleIncomeSubmit = async (e, again = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     setFormError('');
@@ -801,7 +943,7 @@ export function UnifiedEntryModal({
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onLogTransaction({
+      const incomePayload = {
         amount: baseAmount,
         isIncome: true,
         tag: incomeTag,
@@ -816,8 +958,12 @@ export function UnifiedEntryModal({
         bankAccountId: accountType === 'bank' ? accountId : null,
         walletId: accountType === 'wallet' ? accountId : null,
         updateSalaryTemplate
-      });
-      triggerExit();
+      };
+      if (again) await onLogTransaction(incomePayload, { keepOpen: true });
+      else await onLogTransaction(incomePayload);
+      rememberEntry('income');
+      if (again) resetForNextEntry(baseAmount);
+      else triggerExit();
     } catch (err) {
       setFormError(err?.message || 'Could not save this income. Please try again.');
     } finally {
@@ -827,7 +973,7 @@ export function UnifiedEntryModal({
   };
 
   // Mode 3: Plan Item Submission
-  const handlePlanSubmit = async (e) => {
+  const handlePlanSubmit = async (e, again = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!description.trim()) return;
@@ -892,7 +1038,10 @@ export function UnifiedEntryModal({
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onSaveItem(payload);
+      if (again) await onSaveItem(payload, { keepOpen: true });
+      else await onSaveItem(payload);
+      rememberEntry('plan');
+      if (again) resetForNextEntry(payload.amount);
     } catch (err) {
       setFormError(err?.message || 'Could not save this bill. Please try again.');
     } finally {
@@ -980,6 +1129,7 @@ export function UnifiedEntryModal({
       if (onCreateTransfer) {
         await onCreateTransfer(payload);
       }
+      rememberEntry('transfer');
       triggerExit();
     } catch (err) {
       setTransferError(err.message || 'Failed to record transfer.');
@@ -995,9 +1145,11 @@ export function UnifiedEntryModal({
 
   // Active form submit router
   const handleSubmitRouter = (e) => {
-    if (mode === 'log') handleTransactionSubmit(e);
-    else if (mode === 'income') handleIncomeSubmit(e);
-    else if (mode === 'plan') handlePlanSubmit(e);
+    const again = againRef.current && canAddAnother;
+    againRef.current = false;
+    if (mode === 'log') handleTransactionSubmit(e, false, again);
+    else if (mode === 'income') handleIncomeSubmit(e, again);
+    else if (mode === 'plan') handlePlanSubmit(e, again);
     else if (mode === 'transfer') handleTransferSubmit(e);
   };
 
@@ -1008,7 +1160,7 @@ export function UnifiedEntryModal({
       <div
         ref={overlayRef}
         className="modal-overlay"
-        onClick={() => triggerExit()}
+        onClick={() => requestClose()}
       >
         <div
           ref={contentRef}
@@ -1110,13 +1262,29 @@ export function UnifiedEntryModal({
             <button
               type="button"
               className="btn-icon modal-close-btn entry-btn-2"
-              onClick={() => triggerExit()}
+              onClick={() => requestClose()}
               title="Close modal"
               aria-label="Close"
             >
               <XIcon size={16} />
             </button>
           </div>
+
+          {confirmDiscard && (
+            <div className="discard-confirm" role="alertdialog" aria-label="Discard this entry?" data-testid="discard-confirm">
+              <span>Discard this entry?</span>
+              <div className="discard-confirm-actions">
+                <button type="button" className="btn-subtle" onClick={() => setConfirmDiscard(false)} autoFocus>Keep editing</button>
+                <button type="button" className="btn-primary discard-confirm-discard" onClick={() => { setConfirmDiscard(false); triggerExit(); }}>Discard</button>
+              </div>
+            </div>
+          )}
+
+          {session.count > 0 && (
+            <p className="entry-session" data-testid="entry-session">
+              {session.count} added · {formatCurrency(session.total, currencySymbol)}
+            </p>
+          )}
 
           {/* Move: where the money goes */}
           {mode === 'transfer' && !initialItem && !settleItem && (
@@ -1198,6 +1366,12 @@ export function UnifiedEntryModal({
           <form className="entry-stack"
             ref={formRef}
             onSubmit={handleSubmitRouter}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && canAddAnother) {
+                e.preventDefault();
+                submitAndAddAnother();
+              }
+            }}
           >
             <div className="modal-form-scroll-body">
               {/* ---------------------------------------------------------------------
@@ -1280,6 +1454,7 @@ export function UnifiedEntryModal({
                       min={mode === 'transfer' ? '0.01' : undefined}
                       required
                       autoFocus
+                      ref={amountInputRef}
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
@@ -1338,7 +1513,7 @@ export function UnifiedEntryModal({
                         className="quick-amt-chip"
                         onClick={() => handleQuickIncrement(inc)}
                       >
-                        +{inc >= 1000 ? `${inc / 1000}k` : inc}
+                        {inc >= 1000 ? `${inc / 1000}k` : inc}
                       </button>
                     ))}
                   </div>
@@ -1479,6 +1654,7 @@ export function UnifiedEntryModal({
                 <>
                   <label className="form-label">
                     {mode === 'log' && 'Category tag'}
+                    {(mode === 'log' || mode === 'plan') && tagSuggested && <span className="field-suggested"> · suggested</span>}
                     {mode === 'income' && 'Income Category / Source'}
                     {mode === 'plan' && 'Category & Classification'}
                   </label>
@@ -1495,13 +1671,13 @@ export function UnifiedEntryModal({
                             {t}
                           </button>
                         ))
-                      : ['Food', 'Travel', 'Utilities', 'Health', 'Other'].map((t) => (
+                      : SPEND_CATEGORIES.map((t) => (
                           <button
                             key={t}
                             type="button"
                             className={`category-pill-btn ${tag === t ? 'btn-primary' : 'btn-subtle'}`}
                             aria-pressed={tag === t}
-                            onClick={(e) => handleMicroPress(e, () => setTag(t))}
+                            onClick={(e) => handleMicroPress(e, () => { setTag(t); setCategoryTouched(true); setTagSuggested(false); })}
                           >
                             {t}
                           </button>
@@ -1616,7 +1792,7 @@ export function UnifiedEntryModal({
                     : 'e.g. ATM withdrawal, emergency savings, envelope funding'
                 }
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
               />
 
               {/* Mode-Specific Contextual Details below Description */}
@@ -1783,6 +1959,81 @@ export function UnifiedEntryModal({
               )}
             </div>
 
+            {(() => {
+              // Live "After this: ..." line for the account the entry touches
+              if (mode === 'plan') return null;
+              const isTransfer = mode === 'transfer';
+              const pools = { bank: bankAccounts, wallet: wallets, credit_card: creditCards };
+              const acc = (pools[accountType] || []).find((a) => String(a._id || a.id) === String(accountId));
+              const flow = mode === 'income' || (mode === 'log' && isRefund) ? 'in' : 'out';
+              if (isTransfer && accountType === 'credit_card') return null;
+              return (
+                <ConsequenceLine
+                  account={acc}
+                  accountType={accountType}
+                  amount={Math.round(Math.abs(Number(amount) || 0) * 100)}
+                  flow={flow}
+                  simulation={simulation}
+                  accountSimulations={accountSimulations}
+                  currencySymbol={currencySymbol}
+                />
+              );
+            })()}
+
+            {/* Safety floor: confirm inline before saving (PreFlightSafetyFloor.test.jsx) */}
+            {floorBreachData && (
+              <div className="floor-confirm"
+                data-testid="floor-breach-modal"
+                role="alertdialog"
+                aria-label="Safety floor warning"
+              >
+                <div className="floor-confirm-body">
+                  <div className="entry-row-15">
+                    <AlertTriangleIcon size={20} color="var(--rose)" />
+                    <h3 className="entry-heading">
+                      Safety Floor Warning
+                    </h3>
+                  </div>
+                  <p className="entry-text-5">
+                    This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
+                    <strong className="entry-text-4">{floorBreachData.accountName}</strong> below your safety floor of{' '}
+                    <strong className="entry-text-6">
+                      {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
+                    </strong>.
+                    <br />
+                    Projected balance:{' '}
+                    <strong className="entry-text-6">
+                      {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
+                    </strong>.
+                  </p>
+                  <div className="entry-row-16">
+                    <button
+                      type="button"
+                      className="btn-subtle entry-btn-9"
+                      onClick={() => setFloorBreachData(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary entry-btn-10"
+                      onClick={() => {
+                        const data = floorBreachData;
+                        setFloorBreachData(null);
+                        if (data.type === 'transfer') {
+                          handleTransferSubmit(null, true);
+                        } else {
+                          handleTransactionSubmit(null, true, data.again);
+                        }
+                      }}
+                    >
+                      Confirm Anyway
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {(formError || (mode === 'transfer' && transferError)) && (
               <div className="form-error" role="alert">{formError || transferError}</div>
             )}
@@ -1819,9 +2070,21 @@ export function UnifiedEntryModal({
 
               {/* Right corner: Symmetrical Cancel & Submit Actions */}
               <div className="entry-row-13">
-                <button type="button" className="btn-subtle" onClick={() => triggerExit()}>
+                <button type="button" className="btn-subtle" onClick={() => requestClose()}>
                   Cancel
                 </button>
+
+                {canAddAnother && (
+                  <button
+                    type="button"
+                    className="btn-subtle entry-add-another"
+                    onClick={submitAndAddAnother}
+                    disabled={hasZeroAccounts || isSubmitting}
+                    title="Ctrl + Enter (⌘ + Enter on Mac)"
+                  >
+                    Save &amp; add another
+                  </button>
+                )}
 
                 {mode === 'log' && (
                   <button
@@ -1885,60 +2148,6 @@ export function UnifiedEntryModal({
               SECONDARY DECISION OVERLAYS & INTERCEPTIONS
              ========================================================================= */}
 
-          {/* Safety Floor Breach Warning Card (Satisfies PreFlightSafetyFloor.test.jsx) */}
-          {floorBreachData && (
-            <div className="entry-row-14"
-              data-testid="floor-breach-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="modal-content entry-box-9"
-              >
-                <div className="entry-row-15">
-                  <AlertTriangleIcon size={20} color="var(--rose)" />
-                  <h3 className="entry-heading">
-                    Safety Floor Warning
-                  </h3>
-                </div>
-                <p className="entry-text-5">
-                  This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
-                  <strong className="entry-text-4">{floorBreachData.accountName}</strong> below your safety floor of{' '}
-                  <strong className="entry-text-6">
-                    {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
-                  </strong>.
-                  <br />
-                  Projected balance:{' '}
-                  <strong className="entry-text-6">
-                    {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
-                  </strong>.
-                </p>
-                <div className="entry-row-16">
-                  <button
-                    type="button"
-                    className="btn-subtle entry-btn-9"
-                    onClick={() => setFloorBreachData(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary entry-btn-10"
-                    onClick={() => {
-                      const data = floorBreachData;
-                      setFloorBreachData(null);
-                      if (data.type === 'transfer') {
-                        handleTransferSubmit(null, true);
-                      } else {
-                        handleTransactionSubmit(null, true);
-                      }
-                    }}
-                  >
-                    Confirm Anyway
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

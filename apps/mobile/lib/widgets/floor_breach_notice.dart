@@ -41,7 +41,16 @@ class FloorBreachNotice extends StatelessWidget {
   /// Amount to check when it isn't the controller's value (e.g. a preset choice).
   final int? fixedAmount;
 
-  const FloorBreachNotice({super.key, required this.amountController, required this.accountId, this.fixedAmount});
+  /// Also show a neutral "After this: …" line when the floor is not breached.
+  final bool showWhenSafe;
+
+  const FloorBreachNotice({
+    super.key,
+    required this.amountController,
+    required this.accountId,
+    this.fixedAmount,
+    this.showWhenSafe = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +68,29 @@ class FloorBreachNotice extends StatelessWidget {
         final amount = fixedAmount ?? toMinorUnits(num.tryParse(value.text) ?? 0);
         final sim = accountId == null ? null : budget.getAccountSimulation(accountId!);
         final check = checkFloor(account, amount, simulatedBalance: sim?.todaysBalance);
-        if (check == null || !check.breaches) return const SizedBox.shrink();
+        if (check == null || !check.breaches) {
+          if (!showWhenSafe || account == null || amount <= 0) return const SizedBox.shrink();
+          final balance = sim?.todaysBalance ??
+              _minor(account['currentBalance'] ?? account['balance'] ?? account['openingBalance']);
+          final after = balance - amount;
+          final margin = check != null ? check.balanceAfter - check.minimumBalance : null;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            key: const ValueKey('consequence-line'),
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'After this: ${account['name'] ?? 'Account'} ${formatCurrency(after)}'
+              '${margin != null ? ' · ${formatCurrency(margin)} above floor' : ''}',
+              style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+            ),
+          );
+        }
         return Container(
           key: const ValueKey('floor-breach-notice'),
           margin: const EdgeInsets.only(top: 12),
