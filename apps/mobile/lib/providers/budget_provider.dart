@@ -281,6 +281,26 @@ class BudgetProvider with ChangeNotifier {
     await refresh();
   }
 
+  // Held & Lent money: someone's money with you, or yours with them (never income or expense)
+  Future<Map<String, dynamic>> getPersonFunds() => _api.getPersonFunds();
+
+  Future<Map<String, dynamic>> getPersonFund(String id) => _api.getPersonFund(id);
+
+  Future<void> createPersonFund(Map<String, dynamic> body) async {
+    await _api.createPersonFund(body);
+    await refresh();
+  }
+
+  Future<void> addPersonFundEntry(String id, Map<String, dynamic> body) async {
+    await _api.addPersonFundEntry(id, body);
+    await refresh();
+  }
+
+  Future<void> reclassifyTransaction(String id, Map<String, dynamic> body) async {
+    await _api.reclassifyTransaction(id, body);
+    await refresh();
+  }
+
   // Legacy item aliases for backwards compatibility
   Future<void> addItem(Map<String, dynamic> item) => addTransaction({
     ...item,

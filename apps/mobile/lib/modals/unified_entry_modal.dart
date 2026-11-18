@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import 'held_lent_modal.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
@@ -212,6 +213,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     _buildTab(EntryType.goal, 'Purchase Goal', isDark),
                     const SizedBox(width: 6),
                     _buildTab(EntryType.transfer, 'Transfer', isDark),
+                    const SizedBox(width: 6),
+                    _buildHeldLentTab(isDark),
                   ],
                 ),
               ),
@@ -678,6 +681,39 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Held & Lent has its own sheet: someone's money with you, or yours with them.
+  Widget _buildHeldLentTab(bool isDark) {
+    return InkWell(
+      onTap: () {
+        final navigator = Navigator.of(context);
+        final rootContext = navigator.context;
+        navigator.pop();
+        showModalBottomSheet(
+          context: rootContext,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const HeldLentModal(),
+        );
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          'Held / Lent',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           ),
         ),
       ),

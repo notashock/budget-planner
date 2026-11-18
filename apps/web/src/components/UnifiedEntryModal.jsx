@@ -19,9 +19,11 @@ import {
   WalletIcon,
   AlertTriangleIcon,
   CalendarIcon,
-  LockIcon
+  LockIcon,
+  UserIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
+import { HeldLentForm } from './HeldLentForm.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { AccountSelect } from './AccountSelect.jsx';
 import { api } from '../api.js';
@@ -55,7 +57,8 @@ export function UnifiedEntryModal({
   currencySymbol = '₹',
   month,
   simulation = null,
-  accountSimulations = {}
+  accountSimulations = {},
+  onHeldLentSaved
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -139,6 +142,7 @@ export function UnifiedEntryModal({
   const incomeBtnRef = useRef(null);
   const planBtnRef = useRef(null);
   const transferBtnRef = useRef(null);
+  const heldBtnRef = useRef(null);
 
   // Touch gesture tracking for mobile bottom-sheet
   const touchStartY = useRef(0);
@@ -302,6 +306,7 @@ export function UnifiedEntryModal({
     if (targetMode === 'income') targetEl = incomeBtnRef.current;
     else if (targetMode === 'plan') targetEl = planBtnRef.current;
     else if (targetMode === 'transfer') targetEl = transferBtnRef.current;
+    else if (targetMode === 'held') targetEl = heldBtnRef.current;
     if (!targetEl) return;
 
     const { offsetLeft, offsetWidth } = targetEl;
@@ -1028,6 +1033,18 @@ export function UnifiedEntryModal({
                   <ArrowRightLeftIcon size={14} />
                   <span>Transfer</span>
                 </button>
+                <button
+                  ref={heldBtnRef}
+                  type="button"
+                  className={`modal-tab-btn timeline-filter-btn ${mode === 'held' ? 'active' : ''} entry-btn`}
+                  data-active={mode === 'held' ? 'true' : 'false'}
+                  onClick={() => handleSwitchMode('held')}
+                  aria-label="Held or Lent"
+                  title="Money held for someone, or lent out (not income or spending)"
+                >
+                  <UserIcon size={14} />
+                  <span>Held/Lent</span>
+                </button>
               </div>
             )}
 
@@ -1054,6 +1071,22 @@ export function UnifiedEntryModal({
               THE UNIVERSAL 6-SLOT FORM VIEW
               Identical spatial sequence across all 4 modes.
              ========================================================================= */}
+          {mode === 'held' ? (
+            <div className="modal-form-scroll-body hl-modal-body">
+              <HeldLentForm
+                bankAccounts={bankAccounts}
+                wallets={wallets}
+                currencySymbol={currencySymbol}
+                month={month}
+                simulation={simulation}
+                accountSimulations={accountSimulations}
+                onSaved={(saved) => {
+                  onHeldLentSaved?.(saved);
+                  triggerExit();
+                }}
+              />
+            </div>
+          ) : (
           <form className="entry-stack"
             ref={formRef}
             onSubmit={handleSubmitRouter}
@@ -1750,6 +1783,7 @@ export function UnifiedEntryModal({
               </div>
             </div>
           </form>
+          )}
 
           {/* =========================================================================
               SECONDARY DECISION OVERLAYS & INTERCEPTIONS

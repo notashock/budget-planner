@@ -1,5 +1,9 @@
 import { pool } from '../db/index.js';
 
+// Held & Lent (pass-through) origins: they move cash but are never income or expense
+const CASH_IN_PASS_THROUGH = ['held_in', 'lent_repaid'];
+const CASH_OUT_PASS_THROUGH = ['held_return', 'lent_out'];
+
 /**
  * LedgerService: Core Domain Service for Account Balances and Immutable Ledger Operations.
  * Manages atomic balance materialization across transactions and transfers.
@@ -37,6 +41,16 @@ export const LedgerService = {
       }
       if (tx.destinationAccountId) {
         await this.adjustAccountBalance(tx.destinationAccountId, 1 * multiplier * amount, client);
+      }
+    } else if (CASH_IN_PASS_THROUGH.includes(tx.origin)) {
+      // Held & Lent money coming in (held_in, lent_repaid): credit account, never income
+      if (tx.accountId) {
+        await this.adjustAccountBalance(tx.accountId, 1 * multiplier * Math.abs(amount), client);
+      }
+    } else if (CASH_OUT_PASS_THROUGH.includes(tx.origin)) {
+      // Held & Lent money going out (held_return, lent_out): debit account, never expense
+      if (tx.accountId) {
+        await this.adjustAccountBalance(tx.accountId, -1 * multiplier * Math.abs(amount), client);
       }
     } else if (tx.isIncome) {
       // Income: credit account
@@ -78,6 +92,8 @@ export const LedgerService = {
        SET "current_balance" = a."opening_balance" + COALESCE((
          SELECT SUM(
            CASE 
+             WHEN t."origin" IN ('held_in', 'lent_repaid') THEN ABS(t."amount")
+             WHEN t."origin" IN ('held_return', 'lent_out') THEN -ABS(t."amount")
              WHEN t."is_income" = true THEN t."amount"
              WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
              WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"
@@ -103,7 +119,9 @@ export const LedgerService = {
          SET "current_balance" = a."opening_balance" + COALESCE((
            SELECT SUM(
              CASE 
-               WHEN t."is_income" = true THEN t."amount"
+               WHEN t."origin" IN ('held_in', 'lent_repaid') THEN ABS(t."amount")
+             WHEN t."origin" IN ('held_return', 'lent_out') THEN -ABS(t."amount")
+             WHEN t."is_income" = true THEN t."amount"
                WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
                WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"
                ELSE -t."amount"
@@ -119,7 +137,9 @@ export const LedgerService = {
          SET "current_balance" = a."opening_balance" + COALESCE((
            SELECT SUM(
              CASE 
-               WHEN t."is_income" = true THEN t."amount"
+               WHEN t."origin" IN ('held_in', 'lent_repaid') THEN ABS(t."amount")
+             WHEN t."origin" IN ('held_return', 'lent_out') THEN -ABS(t."amount")
+             WHEN t."is_income" = true THEN t."amount"
                WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
                WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"
                ELSE -t."amount"

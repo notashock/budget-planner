@@ -38,6 +38,40 @@ export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
 }
 
 /**
+ * Held & Lent money (pass-through). Cash moves, but it is never income or expense.
+ * - held_in:     someone's money arrives for you to keep     (+cash, +held)
+ * - held_return: you give their money back                  (-cash, -held)
+ * - lent_out:    you lend your money                        (-cash, +lent)
+ * - lent_repaid: the lent money comes back                  (+cash, -lent)
+ * Amounts are stored positive; the origin carries the direction.
+ */
+export const PASS_THROUGH_ORIGINS = Object.freeze(['held_in', 'held_return', 'lent_out', 'lent_repaid']);
+
+export function isPassThrough(txOrOrigin) {
+  const origin = typeof txOrOrigin === 'string' ? txOrOrigin : txOrOrigin?.origin;
+  return PASS_THROUGH_ORIGINS.includes(origin);
+}
+
+/** +1 when cash comes in, -1 when it goes out, 0 for anything else. */
+export function passThroughCashSign(origin) {
+  if (origin === 'held_in' || origin === 'lent_repaid') return 1;
+  if (origin === 'held_return' || origin === 'lent_out') return -1;
+  return 0;
+}
+
+/** Change in what you hold for others (held) and what others owe you (lent). */
+export function passThroughDeltas(origin, amount) {
+  const amt = Math.abs(Math.round(Number(amount) || 0));
+  switch (origin) {
+    case 'held_in': return { held: amt, lent: 0 };
+    case 'held_return': return { held: -amt, lent: 0 };
+    case 'lent_out': return { held: 0, lent: amt };
+    case 'lent_repaid': return { held: 0, lent: -amt };
+    default: return { held: 0, lent: 0 };
+  }
+}
+
+/**
  * Whether a transaction counts toward the day-to-day spending pace.
  * Pace compares against the discretionary daily limit, so it must only count
  * discretionary spending that actually happened: not planned bills or rent
@@ -46,6 +80,7 @@ export function deriveTransactionState(tx, todayStr, dueWindowDays = 3) {
  */
 export function isDiscretionarySpend(tx) {
   if (!tx || tx.isIncome) return false;
+  if (isPassThrough(tx)) return false;
   const status = tx.status || 'successful';
   if (status !== 'successful') return false;
   if (tx.origin === 'transfer' || tx.category === 'Transfer' || tx.destinationAccountId || tx.itemType === 'transfer' || tx.isTransfer) return false;
@@ -90,8 +125,9 @@ export function isSameTransaction(tx, other) {
  * safety floor and this month's goal reserve, spread over the days left.
  * Rounded down so it never overstates what can be spent.
  */
-export function dailyLimit({ balance, committed = 0, floor = 0, goalReserve = 0, daysLeft = 1 }) {
-  const freeSurplus = Math.max(0, balance - committed - floor - goalReserve);
+export function dailyLimit({ balance, committed = 0, floor = 0, goalReserve = 0, heldReserve = 0, daysLeft = 1 }) {
+  // heldReserve: money held for other people is in the balance but is not yours to spend
+  const freeSurplus = Math.max(0, balance - committed - floor - goalReserve - Math.max(0, heldReserve));
   const rate = Math.max(0, Math.floor(freeSurplus / Math.max(1, daysLeft)));
   return { freeSurplus, rate };
 }
@@ -112,9 +148,10 @@ export function classifyPace(rate, burnRatePerDay) {
  * One row per day for the chart and timeline: opening/closing balance, money
  * in and out, that day's events, and whether it sits below the safety floor.
  */
-export function buildDayRows(dailyBalances, events, openingBalance, safetyFloor) {
+export function buildDayRows(dailyBalances, events, openingBalance, safetyFloor, heldByDay = null) {
   let prevBal = openingBalance;
   return dailyBalances.map((pt) => {
+    const held = heldByDay ? Math.max(0, heldByDay[pt.day] || 0) : 0;
     const dayEvts = events.filter((e) => e.day === pt.day);
     let dayInflow = 0;
     let dayOutflow = 0;
@@ -131,7 +168,9 @@ export function buildDayRows(dailyBalances, events, openingBalance, safetyFloor)
       totalInflow: dayInflow,
       totalOutflow: dayOutflow,
       events: dayEvts,
-      hasBreach: pt.balance < safetyFloor
+      heldForOthers: held,
+      // Money held for others does not protect the floor
+      hasBreach: pt.balance - held < safetyFloor
     };
     prevBal = pt.balance;
     return row;

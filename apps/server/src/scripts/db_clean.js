@@ -24,6 +24,7 @@ const isRemoteDb = Boolean(
 // Known core tables in safe drop order (child -> parent)
 const KNOWN_TABLES_ORDER = [
   'transactions',
+  'person_funds',
   'transfers',
   'items',
   'goals',

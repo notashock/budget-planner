@@ -205,6 +205,10 @@ export const transactions = pgTable(
     transferId: uuid('transfer_id').references(() => transfers.id, {
       onDelete: 'set null'
     }),
+    // Held & Lent (pass-through) money: origin held_in | held_return | lent_out | lent_repaid
+    personFundId: uuid('person_fund_id').references(() => personFunds.id, {
+      onDelete: 'set null'
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
@@ -216,7 +220,30 @@ export const transactions = pgTable(
     index('idx_transactions_user_status_date').on(table.userId, table.status, table.date),
     index('idx_transactions_dest_account').on(table.destinationAccountId),
     index('idx_transactions_goal').on(table.goalId),
-    index('idx_transactions_month_origin_status').on(table.monthId, table.origin, table.status)
+    index('idx_transactions_month_origin_status').on(table.monthId, table.origin, table.status),
+    index('idx_transactions_person_fund').on(table.personFundId)
+  ]
+);
+
+// 7b. Person Funds (Held & Lent money): someone else's money you hold, or your money someone holds.
+// The outstanding amount is derived from linked pass-through transactions, never stored.
+export const personFunds = pgTable(
+  'person_funds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    personName: text('person_name').notNull(),
+    direction: text('direction').notNull(), // 'held' (you owe it back) | 'lent' (they owe you)
+    note: text('note').default('').notNull(),
+    expectedSettleDate: text('expected_settle_date'), // 'YYYY-MM-DD'
+    status: text('status').default('open').notNull(), // 'open' | 'settled'
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    index('idx_person_funds_user').on(table.userId, table.status)
   ]
 );
 
@@ -304,6 +331,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   transfers: many(transfers),
   goals: many(goals),
   salaryTemplates: many(salaryTemplates),
+  personFunds: many(personFunds),
   settings: one(settings)
 }));
 
@@ -353,7 +381,13 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   destinationAccount: one(accounts, { fields: [transactions.destinationAccountId], references: [accounts.id], relationName: 'destinationAccountTransactions' }),
   goal: one(goals, { fields: [transactions.goalId], references: [goals.id] }),
   plannedItem: one(items, { fields: [transactions.plannedItemId], references: [items.id] }),
-  transfer: one(transfers, { fields: [transactions.transferId], references: [transfers.id] })
+  transfer: one(transfers, { fields: [transactions.transferId], references: [transfers.id] }),
+  personFund: one(personFunds, { fields: [transactions.personFundId], references: [personFunds.id] })
+}));
+
+export const personFundsRelations = relations(personFunds, ({ one, many }) => ({
+  user: one(users, { fields: [personFunds.userId], references: [users.id] }),
+  transactions: many(transactions)
 }));
 
 export const goalsRelations = relations(goals, ({ one, many }) => ({

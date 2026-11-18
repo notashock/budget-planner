@@ -32,7 +32,7 @@
 
 .entry-box-2 {
   flex: 1;
-  max-width: 440px;
+  max-width: 520px;
 }
 
 .entry-btn {
@@ -491,4 +491,17 @@
   font-size: var(--fs-xs);
   padding: 6px 12px;
   margin-top: 4px;
+}
+
+/* Five entry tabs on a phone: drop the icons so every label fits on one row.
+   Unlayered, like the rest of this file, so it outranks the icon sizing rules. */
+@media (max-width: 480px) {
+  .entry-box-2 .modal-tab-btn {
+    padding: 6px 2px;
+    gap: 0;
+    min-width: 0;
+  }
+  .entry-box-2 .modal-tab-btn svg {
+    display: none !important;
+  }
 }

@@ -14,7 +14,10 @@ import {
   dailyLimit,
   classifyPace,
   buildDayRows,
-  indexAccountSummaries
+  indexAccountSummaries,
+  isPassThrough,
+  passThroughCashSign,
+  passThroughDeltas
 } from './simulatorParts.js';
 
 // Re-exported so existing imports from './simulator.js' keep working
@@ -82,6 +85,13 @@ export function simulate(
   const salaryBankAccountId = normalizeId(settings.salaryBankAccountId);
   const rawSafetyFloor = Math.round(settings.safetyFloor ?? 0);
   const unplannedAllowance = Math.round(settings.unplannedAllowance ?? 0);
+
+  // Held & Lent money carried in from before this month (server-derived, minor units)
+  const heldOpeningBalance = Math.max(0, Math.round(Number(settings.heldOpeningBalance) || 0));
+  const lentOpeningBalance = Math.max(0, Math.round(Number(settings.lentOpeningBalance) || 0));
+  const heldOpeningByAccountInput = settings.heldOpeningByAccount && typeof settings.heldOpeningByAccount === 'object'
+    ? settings.heldOpeningByAccount
+    : {};
 
   // Transfers normalization
   const transfersInput = Array.isArray(transfers) && transfers.length > 0
@@ -314,7 +324,7 @@ export function simulate(
     } else if (it.type === 'recurring' || it.dayOfMonth) td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
     else if (it.type === 'one-time' || it.day) td = clampDayToMonth(it.day ?? 1, daysInMonth);
     if (td >= rollStartDay) {
-      if (!it.isIncome && it.origin !== 'salary') {
+      if (!it.isIncome && it.origin !== 'salary' && passThroughCashSign(it.origin) <= 0) {
         forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.plannedAmount ?? it.amount ?? 0));
       }
     }
@@ -371,7 +381,8 @@ export function simulate(
         targetDate = formatDate(year, monthNum, 1);
       }
 
-      const isIncomePlanned = Boolean(item.isIncome || item.origin === 'salary');
+      const passThroughKind = isPassThrough(item) ? item.origin : null;
+      const isIncomePlanned = Boolean(item.isIncome || item.origin === 'salary' || passThroughCashSign(item.origin) > 0);
       const rawAmount = isPlannedTx && item.plannedAmount !== undefined && item.plannedAmount !== null
         ? item.plannedAmount
         : (item.amount ?? 0);
@@ -404,8 +415,13 @@ export function simulate(
         amount: isIncomePlanned ? amount : -Math.abs(amount),
         priority,
         sourceIndex: index,
-        itemType: isPlannedTx ? 'planned-transaction' : 'one-time',
+        itemType: passThroughKind ? 'pass-through' : (isPlannedTx ? 'planned-transaction' : 'one-time'),
         isPlannedTransaction: isPlannedTx,
+        passThroughKind,
+        personFundId: item.personFundId || null,
+        origin: item.origin || null,
+        heldDelta: passThroughKind ? passThroughDeltas(passThroughKind, amount).held : 0,
+        lentDelta: passThroughKind ? passThroughDeltas(passThroughKind, amount).lent : 0,
         isPaid: Boolean(item.isPaid),
         isPending: Boolean(isPastDueUnpaid),
         isActual: false,
@@ -555,6 +571,52 @@ export function simulate(
       txDay = getRelativeDay(tx.date, year, monthNum);
       if (txDay > 0) txDay = clampDayToMonth(txDay, daysInMonth);
       txDate = tx.date;
+    }
+
+    if (isPassThrough(tx)) {
+      // Held & Lent: real cash movement on the account, never income or expense
+      const ptAmount = Math.abs(Math.round(Number(tx.amount) || 0));
+      if (ptAmount <= 0) return;
+      const sign = passThroughCashSign(tx.origin);
+      const deltas = passThroughDeltas(tx.origin, ptAmount);
+      const ptBankRaw = normalizeId(tx.bankAccountId || tx.accountId);
+      const ptWallRaw = normalizeId(tx.walletId);
+      const ptKnownBank = ptBankRaw && normalizedAccounts.some((a) => a.id === ptBankRaw || a.altId === ptBankRaw);
+      const ptKnownWall = ptWallRaw && normalizedAccounts.some((a) => a.id === ptWallRaw || a.altId === ptWallRaw);
+      const ptBankId = ptKnownBank ? ptBankRaw : (!ptKnownWall ? (primaryBankId || designatedSalaryBankId) : null);
+      const ptWallId = ptKnownWall ? ptWallRaw : null;
+      const ptVerbs = {
+        held_in: 'Holding for',
+        held_return: 'Returned to',
+        lent_out: 'Lent to',
+        lent_repaid: 'Repaid by'
+      };
+      const who = tx.personName || '';
+      const ptLabel = who ? `${ptVerbs[tx.origin]} ${who}` : (tx.name || ptVerbs[tx.origin]);
+      rawEvents.push({
+        day: txDay,
+        date: txDate,
+        label: ptLabel,
+        name: tx.name || ptLabel,
+        category: 'Held & Lent',
+        tag: 'Held & Lent',
+        description: tx.note || ptLabel,
+        amount: sign * ptAmount,
+        priority: sign > 0 ? -Infinity : 0,
+        sourceIndex: 1000 + txIndex,
+        itemType: 'pass-through',
+        passThroughKind: tx.origin,
+        personFundId: tx.personFundId || null,
+        heldDelta: deltas.held,
+        lentDelta: deltas.lent,
+        isActual: true,
+        transactionId: tx.id || tx._id || null,
+        accountType: ptBankId ? 'bank' : (ptWallId ? 'wallet' : null),
+        bankAccountId: ptBankId,
+        walletId: ptWallId,
+        origin: tx.origin
+      });
+      return;
     }
 
     const txAmount = Math.round(Number(tx.amount) || 0);
@@ -731,12 +793,30 @@ export function simulate(
   let unassignedRunningBalance = unassignedOpening;
   let unassignedLowestBalance = unassignedOpening;
 
+  // Held & Lent running totals (aggregate and per account)
+  const accountHeldOpening = {};
+  normalizedAccounts.forEach((acc) => {
+    const raw = heldOpeningByAccountInput[acc.id] ?? (acc.altId ? heldOpeningByAccountInput[acc.altId] : undefined);
+    accountHeldOpening[acc.id] = Math.max(0, Math.round(Number(raw) || 0));
+  });
+  let heldRunning = heldOpeningBalance;
+  let lentRunning = lentOpeningBalance;
+  const accountHeldRunning = { ...accountHeldOpening };
+  // Opening low points measure your own money too
+
+  normalizedAccounts.forEach((acc) => {
+    accountLowestBalances[acc.id] = acc.openingBalance - (accountHeldOpening[acc.id] || 0);
+  });
+
   const events = rawEvents.map((evt) => {
     currentBalance += evt.amount;
     const balanceAfter = currentBalance;
+    if (evt.heldDelta) heldRunning = Math.max(0, heldRunning + evt.heldDelta);
+    if (evt.lentDelta) lentRunning = Math.max(0, lentRunning + evt.lentDelta);
 
-    if (balanceAfter < lowestBalance) {
-      lowestBalance = balanceAfter;
+    // Floor checks use your own money: the balance minus what you hold for others
+    if (balanceAfter - heldRunning < lowestBalance) {
+      lowestBalance = balanceAfter - heldRunning;
       lowestDate = evt.date;
     }
 
@@ -787,9 +867,11 @@ export function simulate(
       if (targetBankId && accountRunningBalances[targetBankId] !== undefined) {
         accountRunningBalances[targetBankId] += evt.amount;
         accountBalanceAfter = accountRunningBalances[targetBankId];
+        if (evt.heldDelta) accountHeldRunning[targetBankId] = Math.max(0, (accountHeldRunning[targetBankId] || 0) + evt.heldDelta);
       } else if (wId && accountRunningBalances[wId] !== undefined) {
         accountRunningBalances[wId] += evt.amount;
         accountBalanceAfter = accountRunningBalances[wId];
+        if (evt.heldDelta) accountHeldRunning[wId] = Math.max(0, (accountHeldRunning[wId] || 0) + evt.heldDelta);
       } else {
         unassignedRunningBalance += evt.amount;
         accountBalanceAfter = unassignedRunningBalance;
@@ -799,8 +881,9 @@ export function simulate(
     // Update lowest balances and dates per account
     normalizedAccounts.forEach((acc) => {
       const accId = acc.id;
-      if (accountRunningBalances[accId] < accountLowestBalances[accId]) {
-        accountLowestBalances[accId] = accountRunningBalances[accId];
+      const accOwn = accountRunningBalances[accId] - (accountHeldRunning[accId] || 0);
+      if (accOwn < accountLowestBalances[accId]) {
+        accountLowestBalances[accId] = accOwn;
         accountLowestDates[accId] = evt.date;
       }
     });
@@ -851,6 +934,11 @@ export function simulate(
       destinationBankAccountId: evt.destinationBankAccountId || null,
       destinationWalletId: evt.destinationWalletId || null,
       origin: evt.origin || null,
+      passThroughKind: evt.passThroughKind || null,
+      personFundId: evt.personFundId || null,
+      heldAfter: heldRunning,
+      lentAfter: lentRunning,
+      accountHeld: { ...accountHeldRunning },
       accountBalances: { ...accountRunningBalances }
     };
   });
@@ -858,7 +946,7 @@ export function simulate(
   const endingBalance = currentBalance;
 
   if (events.length === 0) {
-    lowestBalance = endingBalance;
+    lowestBalance = endingBalance - heldOpeningBalance;
     lowestDate = formatDate(year, monthNum, daysInMonth);
   }
 
@@ -883,6 +971,15 @@ export function simulate(
   });
   let currentUnassignedDayBalance = unassignedOpening;
 
+  // Held-for-others amount at the close of each day (aggregate and per account)
+  const heldByDay = {};
+  const accountHeldByDay = {};
+  normalizedAccounts.forEach((acc) => {
+    accountHeldByDay[acc.id] = {};
+  });
+  let dayHeld = heldOpeningBalance;
+  let dayAccHeld = { ...accountHeldOpening };
+
   let eventIdx = 0;
   for (let d = minNegativeDay; d <= daysInMonth; d++) {
     if (d === 0) continue; // Calendar skips Day 0 between Day -1 and Day 1
@@ -898,6 +995,8 @@ export function simulate(
     while (eventIdx < events.length && events[eventIdx].day === d) {
       const e = events[eventIdx];
       dayBalance = e.balanceAfter;
+      dayHeld = e.heldAfter;
+      dayAccHeld = e.accountHeld;
       dayEventsList.push(e);
 
       if (e.itemType === 'transfer') {
@@ -1006,10 +1105,16 @@ export function simulate(
       eventIdx++;
     }
 
+    heldByDay[d] = dayHeld;
+    normalizedAccounts.forEach((acc) => {
+      accountHeldByDay[acc.id][d] = dayAccHeld[acc.id] || 0;
+    });
+
     dailyBalances.push({
       day: d,
       date: dateStr,
       balance: dayBalance,
+      heldForOthers: dayHeld,
       intradayEvents: dayEventsList
     });
 
@@ -1018,6 +1123,7 @@ export function simulate(
         day: d,
         date: dateStr,
         balance: currentDayAccBalances[acc.id],
+        heldForOthers: dayAccHeld[acc.id] || 0,
         intradayEvents: dayAccountEvents[acc.id] || []
       });
     });
@@ -1040,6 +1146,31 @@ export function simulate(
     const todayPoint = dailyBalances.find((p) => p.day === currentDay);
     todayBalance = todayPoint ? todayPoint.balance : endingBalance;
   }
+
+  // Your own money on each day: the balance minus what you hold for others
+  const toOwnPoints = (points, byDay) => (points || []).map((p) => ({
+    day: p.day,
+    date: p.date,
+    balance: p.balance - Math.max(0, (byDay && byDay[p.day]) || 0)
+  }));
+
+  // Money held for others as of today: ring-fenced out of Safe-to-Spend
+  const heldAtDay = (byDay, opening, ending) => {
+    if (currentDay === 0) return opening;
+    if (currentDay === null) return ending;
+    return byDay[currentDay] !== undefined ? byDay[currentDay] : ending;
+  };
+  const heldEnding = events.length > 0 ? events[events.length - 1].heldAfter : heldOpeningBalance;
+  const lentEnding = events.length > 0 ? events[events.length - 1].lentAfter : lentOpeningBalance;
+  const heldReserve = heldAtDay(heldByDay, heldOpeningBalance, heldEnding);
+  const lentToday = (() => {
+    if (currentDay === 0) return lentOpeningBalance;
+    let lent = lentOpeningBalance;
+    events.forEach((e) => {
+      if (currentDay === null || e.day <= currentDay) lent = e.lentAfter;
+    });
+    return lent;
+  })();
 
   // 10. Net item summaries for items with refunds
   const itemNetMap = {};
@@ -1065,7 +1196,7 @@ export function simulate(
   let committedUpcomingItems = 0;
   events.forEach((evt) => {
     // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
-    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0) {
+    if (evt.day > effectiveDay && !evt.isActual && evt.amount < 0 && evt.passThroughKind !== 'held_return') {
       committedUpcomingItems += Math.abs(evt.amount);
     }
   });
@@ -1075,7 +1206,7 @@ export function simulate(
   const activeGoalsCost = goalReserveInfo.total;
 
   const { freeSurplus, rate: safeVelocityPerDay } = dailyLimit({
-    balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft
+    balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft
   });
 
   let totalAllSpentToDate = 0;
@@ -1157,13 +1288,14 @@ export function simulate(
       const isSrc = isDirectMatch || isTransferSrc || isUnassignedExpense;
       const isDst = isTransferDst || isSalaryTarget || (evt.amount > 0 && isDirectMatch);
 
-      if (evt.amount > 0 && isDst) {
+      const isPt = evt.itemType === 'pass-through';
+      if (evt.amount > 0 && isDst && !isPt) {
         accIncome += evt.amount;
       }
       if (evt.amount < 0 && isSrc) {
-        accExpenses += Math.abs(evt.amount);
+        if (!isPt) accExpenses += Math.abs(evt.amount);
         // Consider all upcoming planned expenses as committed bills; strictly future events (day > effectiveDay)
-        if (evt.day > effectiveDay && !evt.isActual) {
+        if (evt.day > effectiveDay && !evt.isActual && evt.passThroughKind !== 'held_return') {
           accCommitted += Math.abs(evt.amount);
         }
       }
@@ -1215,17 +1347,22 @@ export function simulate(
       .filter((it) => it.fundingIds.some((fid) => matchesThisAcc(fid)))
       .reduce((sum, it) => sum + it.reserve, 0);
 
+    const accHeldEnding = events.length > 0
+      ? ((events[events.length - 1].accountHeld || {})[accId] || 0)
+      : (accountHeldOpening[accId] || 0);
+    const accHeld = heldAtDay(accountHeldByDay[accId] || {}, accountHeldOpening[accId] || 0, accHeldEnding);
+
     const { freeSurplus: accFreeSurplus, rate: accSafeVelocity } = dailyLimit({
-      balance: accToday, committed: accCommitted, floor: minBal, goalReserve: accGoals, daysLeft
+      balance: accToday, committed: accCommitted, floor: minBal, goalReserve: accGoals, heldReserve: accHeld, daysLeft
     });
     const accBurnRate = accSpentToDate > 0 ? Math.round(accSpentToDate / daysElapsed) : 0;
     const accPaceStatus = classifyPace(accSafeVelocity, accBurnRate);
 
-    const accLows = summarizeLowPoints(accountDailyBalances[accId] || [], {
+    const accLows = summarizeLowPoints(toOwnPoints(accountDailyBalances[accId] || [], accountHeldByDay[accId]), {
       currentDay,
       floor: minBal,
       fallbackDate: formatDate(year, monthNum, 1),
-      fallbackBalance: accountInitialBalances[accId] || 0
+      fallbackBalance: (accountInitialBalances[accId] || 0) - (accountHeldOpening[accId] || 0)
     });
     const lowestBal = accLows.lowest.balance;
     const lowestDt = accLows.lowest.date;
@@ -1250,6 +1387,7 @@ export function simulate(
       pastBreach: accLows.pastBreach,
       minimumBalance: minBal,
       floorBreached,
+      heldForOthers: accHeld,
       incomeAmount: accIncome,
       totalExpenses: accExpenses,
       isPrimary: Boolean(acc.isPrimary),
@@ -1269,6 +1407,7 @@ export function simulate(
         totalAllowance: accFreeSurplus + accSpentToDate,
         allowanceLeft: accFreeSurplus,
         activeGoalsCost: accGoals,
+        heldReserve: accHeld,
         daysLeft,
         daysElapsed
       }
@@ -1289,14 +1428,15 @@ export function simulate(
   const totalSimIncome = effectiveSalaryAmount + totalLoggedIncome;
 
   const totalSimExpenses = events
-    .filter((e) => e.amount < 0 && e.itemType !== 'transfer')
+    .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through')
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
-  const aggLowestBalance = (dailyBalances && dailyBalances.length > 0)
-    ? Math.min(...dailyBalances.map((d) => (d.balance !== undefined ? d.balance : (d.closingBalance !== undefined ? d.closingBalance : lowestBalance))))
+  const ownDailyBalances = toOwnPoints(dailyBalances, heldByDay);
+  const aggLowestBalance = ownDailyBalances.length > 0
+    ? Math.min(...ownDailyBalances.map((d) => d.balance))
     : lowestBalance;
 
-  const unifiedLows = summarizeLowPoints(dailyBalances, {
+  const unifiedLows = summarizeLowPoints(ownDailyBalances, {
     currentDay,
     floor: safetyFloor,
     fallbackDate: lowestDate,
@@ -1308,7 +1448,7 @@ export function simulate(
     : floorBreached;
 
   // 12. One row per day for the chart and the timeline
-  const days = buildDayRows(dailyBalances, events, effectiveOpeningBalance, safetyFloor);
+  const days = buildDayRows(dailyBalances, events, effectiveOpeningBalance, safetyFloor, heldByDay);
 
   return {
     events,
@@ -1336,7 +1476,7 @@ export function simulate(
     totalPlannedExpenses: totalSimExpenses,
     // Spending that has actually happened (paid/logged), excluding transfers
     totalActualExpenses: events
-      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && (e.isActual || e.isPaid))
+      .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through' && (e.isActual || e.isPaid))
       .reduce((sum, e) => sum + Math.abs(e.amount), 0),
     totalExpenses: totalSimExpenses,
     isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
@@ -1353,13 +1493,13 @@ export function simulate(
     // let an account in deficit vanish (each was floored at 0) and ignored the
     // month's own safety floor, which only applies to the total.
     safeToSpendPerDay: accountSummaries.length > 0
-      ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft }).rate
+      ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft }).rate
       : safeToSpendPerDay,
     safeVelocity: (() => {
       // With accounts, the limit and pace come from unified figures, so an account
       // in deficit lowers the total instead of vanishing at 0.
       const { freeSurplus: free, rate } = accountSummaries.length > 0
-        ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, daysLeft })
+        ? dailyLimit({ balance: todayBalance, committed: committedUpcomingItems, floor: safetyFloor, goalReserve: activeGoalsCost, heldReserve, daysLeft })
         : { freeSurplus, rate: safeVelocityPerDay };
       const pace = accountSummaries.length > 0 ? classifyPace(rate, burnRatePerDay) : paceStatus;
       return {
@@ -1372,10 +1512,34 @@ export function simulate(
         committedBills: committedUpcomingItems,
         activeGoalsCost,
         goalReserve: activeGoalsCost,
+        heldReserve,
         daysLeft,
         daysElapsed,
         paceStatus: pace,
         status: pace
+      };
+    })(),
+    // Held & Lent money (pass-through): never income or expense
+    heldReserve,
+    heldForOthers: heldReserve,
+    lentOutstanding: lentToday,
+    heldByDay,
+    passThrough: (() => {
+      const sums = { heldIn: 0, heldReturned: 0, lentOut: 0, lentRepaid: 0 };
+      events.forEach((e) => {
+        if (e.itemType !== 'pass-through' || !(e.isActual || e.isPaid)) return;
+        const amt = Math.abs(e.amount);
+        if (e.passThroughKind === 'held_in') sums.heldIn += amt;
+        else if (e.passThroughKind === 'held_return') sums.heldReturned += amt;
+        else if (e.passThroughKind === 'lent_out') sums.lentOut += amt;
+        else if (e.passThroughKind === 'lent_repaid') sums.lentRepaid += amt;
+      });
+      return {
+        ...sums,
+        heldOpening: heldOpeningBalance,
+        lentOpening: lentOpeningBalance,
+        heldEnding,
+        lentEnding
       };
     })(),
     accounts: accountsMap,

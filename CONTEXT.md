@@ -32,6 +32,18 @@ _Avoid_: Item, planned item, one-time item, recurring item, bill entry, expense 
 A single bidirectional transaction entity representing the actual movement of funds between a source account and a destination account (`origin = transfer`). Transfers are strictly spot transactions created in `status = successful`; they cannot be created as planned commitments. In aggregate unified views it evaluates to a net zero change; when filtered by a specific account, it evaluates dynamically as a withdrawal for the source account or a deposit for the destination account.
 _Avoid_: Paired transfer, double-entry transfer, split transfer, transfer legs, planned transfer.
 
+**Person Fund (Held & Lent)**:
+A running record of money between the user and one named person. Direction `held` means the person's money is with the user and must be given back; direction `lent` means the user's money is with the person and is owed back. The outstanding amount is derived from its pass-through transactions; the record is `open` until it nets to zero, then `settled`.
+_Avoid_: Loan account, IOU, debt item, borrowed income.
+
+**Pass-Through Transaction**:
+A cash movement linked to a Person Fund (`origin` = `held_in`, `held_return`, `lent_out` or `lent_repaid`). It changes account balances but is never income or expense, so it is excluded from spending totals, categories, burn rate and the month-end review.
+_Avoid_: Temporary income, refundable expense, fake transfer.
+
+**Held Reserve**:
+The money held for other people as of today. It stays in the account balance but is ring-fenced out of Safe-to-Spend, and floor checks use the balance minus the Held Reserve so held cash never hides a breach.
+_Avoid_: Escrow, blocked funds, custody balance.
+
 **Spot Transaction**:
 A transaction logged on the spot that bypasses planning and is created directly in `successful` status (`origin = spot`).
 _Avoid_: Quick expense, ad-hoc item, out-of-pocket item.

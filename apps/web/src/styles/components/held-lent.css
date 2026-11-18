@@ -1,0 +1,348 @@
+/* Held & Lent money (ADR 0069): the entry form and the People panel on Accounts */
+
+.hl-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hl-modal-body {
+  padding: var(--space-4);
+}
+
+.hl-modal-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hl-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.hl-action {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.hl-action:hover {
+  color: var(--text);
+}
+
+.hl-action.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.hl-action:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.hl-hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.hl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.hl-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.hl-form select.input-field,
+.hl-form input.input-field {
+  width: 100%;
+}
+
+.hl-new-person {
+  margin-top: var(--space-2);
+}
+
+.hl-fill {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.hl-error {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-subtle);
+  color: var(--bad-ink);
+  font-size: var(--fs-xs);
+}
+
+.hl-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+/* People panel */
+.hl-panel {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.hl-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.hl-panel-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hl-panel-sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+.hl-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.hl-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.hl-total-label {
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hl-total-value {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hl-total-note {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.hl-empty {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.hl-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hl-person {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hl-person.settled .hl-person-name,
+.hl-person.settled .hl-person-amount {
+  color: var(--text-muted);
+}
+
+.hl-person-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hl-person-row:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.hl-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.hl-person-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.hl-person-name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-person-meta {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.hl-person-amount {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hl-person-amount.held {
+  color: var(--indigo);
+}
+
+.hl-person-body {
+  padding: 0 0 var(--space-3) calc(28px + var(--space-3));
+}
+
+.hl-person-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.hl-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hl-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.hl-entry-date {
+  color: var(--text-muted);
+}
+
+.hl-entry-loading {
+  grid-template-columns: 1fr;
+  color: var(--text-muted);
+}
+
+.hl-toggle-settled {
+  margin-top: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .hl-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hl-row,
+  .hl-totals {
+    grid-template-columns: 1fr;
+  }
+  .hl-panel {
+    padding: var(--space-3);
+  }
+  .hl-form select.input-field,
+  .hl-form input.input-field {
+    font-size: var(--fs-input);
+  }
+}
+
+.hl-actions.hl-actions-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hl-actions.hl-actions-2 .hl-action {
+  min-height: 44px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+/* Transactions list tag for held & lent rows */
+.apple-tx-tag.tag-held {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--indigo);
+  background: var(--indigo-subtle);
+  border: 1px solid var(--indigo-border);
+}

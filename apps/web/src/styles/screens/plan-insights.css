@@ -156,6 +156,12 @@
 .alloc-committed { background: var(--indigo); }
 .alloc-free { background: var(--positive); }
 .alloc-goals { background: var(--goal); }
+/* Held for others: not yours to spend; indigo with a dotted pattern so it never reads as free cash */
+.alloc-held {
+  background-color: var(--indigo);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1.2px);
+  background-size: 4px 4px;
+}
 .alloc-shortfall { background: var(--rose); }
 
 /* Floor reserve is a neutral "held back" amount: grey + 45° hatch as the

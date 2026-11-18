@@ -496,6 +496,16 @@ export default function App() {
     }
   };
 
+  // Held & Lent money changed: balances and Safe-to-Spend come from the server simulation
+  const handleHeldLentChanged = async () => {
+    if (!currentMonth) return;
+    try {
+      await loadMonthDetails(currentMonth.year, currentMonth.month);
+    } catch (err) {
+      console.error('Failed to refresh after held/lent change:', err);
+    }
+  };
+
   const handleDeleteTransaction = async (id) => {
     if (!window.confirm('Delete this transaction?')) return;
     try {
@@ -1121,6 +1131,7 @@ export default function App() {
               onPayTransaction={handlePayTransaction}
               onCancelTransaction={handleCancelTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              onHeldLentChanged={handleHeldLentChanged}
             />
           )}
 
@@ -1160,6 +1171,7 @@ export default function App() {
               month={currentMonth}
               initialOpenBankModal={autoOpenAddBank}
               onResetBankModalTrigger={() => setAutoOpenAddBank(false)}
+              onHeldLentChanged={handleHeldLentChanged}
             />
           )}
 
@@ -1207,6 +1219,7 @@ export default function App() {
         onLogTransaction={handleLogTransaction}
         onSaveItem={handleSaveItem}
         onCreateTransfer={handleCreateTransfer}
+        onHeldLentSaved={handleHeldLentChanged}
         onOpenAddBank={() => {
           setActiveTab('accounts');
           setAutoOpenAddBank(true);

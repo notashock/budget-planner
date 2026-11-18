@@ -7,6 +7,7 @@ import '../theme/app_typography.dart';
 import '../modals/transfer_modal.dart';
 import '../modals/edit_account_modal.dart';
 import '../modals/transaction_detail_modal.dart';
+import '../widgets/held_lent_section.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -50,6 +51,13 @@ class AccountsScreen extends StatelessWidget {
                     formatCurrency(budget.simulation?.todaysBalance ?? budget.totalAccountsBalance),
                     style: AppTypography.hero(color: text),
                   ),
+                  if ((budget.simulation?.heldReserve ?? 0) > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Includes ${formatCurrency(budget.simulation!.heldReserve)} you hold for others',
+                      style: TextStyle(fontSize: 12, color: textMuted),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -128,6 +136,9 @@ class AccountsScreen extends StatelessWidget {
               _buildEmptyState('No transfers logged this month.', isDark)
             else
               ...transfers.map((t) => _buildTransferTile(context, t, isDark: isDark)),
+
+            const SizedBox(height: 22),
+            const HeldLentSection(),
 
             const SizedBox(height: 40),
           ],

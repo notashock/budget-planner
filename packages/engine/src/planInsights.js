@@ -15,6 +15,14 @@ const toInt = (v) => {
 const isTransferEvent = (evt) =>
   evt?.itemType === 'transfer' || evt?.origin === 'transfer' || Boolean(evt?.transferId);
 
+// Held & Lent money moves cash but is never spending or saving
+const PASS_THROUGH = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+const isPassThroughEvent = (evt) =>
+  evt?.itemType === 'pass-through' || PASS_THROUGH.includes(evt?.passThroughKind) || PASS_THROUGH.includes(evt?.origin);
+
+/** Moves money without spending it: own-account transfers and held/lent money. */
+const isMoneyMovement = (evt) => isTransferEvent(evt) || isPassThroughEvent(evt);
+
 /**
  * Splits today's balance into what it is already promised to.
  *
@@ -32,10 +40,13 @@ export function buildCashAllocation({
   committedUpcomingItems = 0,
   safetyFloor = 0,
   goalReserve = 0,
+  heldReserve = 0,
   freeSurplus
 } = {}) {
   const balance = Math.max(0, toInt(todayBalance));
   const committedNeed = Math.max(0, toInt(committedUpcomingItems));
+  // Money held for other people is owed back, so it is set aside like a bill
+  const heldNeed = Math.max(0, toInt(heldReserve));
   const floorNeed = Math.max(0, toInt(safetyFloor));
   const goalNeed = Math.max(0, toInt(goalReserve));
 
@@ -43,18 +54,20 @@ export function buildCashAllocation({
   // savings are set aside, and the rest is free. This is the same order as the
   // engine's freeSurplus = today - bills - floor - goal reserve.
   const committed = Math.min(balance, committedNeed);
-  const floorReserve = Math.min(balance - committed, floorNeed);
-  const goalSavings = Math.min(balance - committed - floorReserve, goalNeed);
-  const computedFree = Math.max(0, balance - committed - floorReserve - goalSavings);
+  const held = Math.min(balance - committed, heldNeed);
+  const floorReserve = Math.min(balance - committed - held, floorNeed);
+  const goalSavings = Math.min(balance - committed - held - floorReserve, goalNeed);
+  const computedFree = Math.max(0, balance - committed - held - floorReserve - goalSavings);
   // Never let the engine's figure exceed what is actually left over.
   const free = freeSurplus === undefined || freeSurplus === null
     ? computedFree
     : Math.min(computedFree, Math.max(0, toInt(freeSurplus)));
   // Goals are a target, not an obligation, so they never create a shortfall.
-  const shortfall = Math.max(0, committedNeed + floorNeed - balance);
+  const shortfall = Math.max(0, committedNeed + heldNeed + floorNeed - balance);
 
   const segments = [
     { key: 'committed', amount: committed },
+    { key: 'held', amount: held },
     { key: 'floor', amount: floorReserve },
     { key: 'goals', amount: goalSavings },
     { key: 'free', amount: free },
@@ -64,6 +77,7 @@ export function buildCashAllocation({
   return {
     total: balance + shortfall,
     committed,
+    held,
     floorReserve,
     goalSavings,
     free,
@@ -80,7 +94,7 @@ const INVESTMENT_PATTERN = /invest|saving|\bsip\b|mutual fund|\bmf\b|fixed depos
  * and goal contributions. Transfers between own accounts are neither.
  */
 export function isInvestment(evt) {
-  if (!evt || isTransferEvent(evt)) return false;
+  if (!evt || isMoneyMovement(evt)) return false;
   if (evt.origin === 'goal' || evt.goalId) return true;
   const text = `${evt.category || ''} ${evt.tag || ''}`;
   return INVESTMENT_PATTERN.test(text);
@@ -93,7 +107,7 @@ export function splitInvestments(events = []) {
   let invested = 0;
   let spending = 0;
   (events || []).forEach((evt) => {
-    if (!evt || isTransferEvent(evt)) return;
+    if (!evt || isMoneyMovement(evt)) return;
     const amt = toInt(evt.amount);
     if (amt >= 0) return;
     if (isInvestment(evt)) invested += Math.abs(amt);
@@ -129,7 +143,7 @@ export function splitPaidAndPlanned(events = []) {
   let paid = 0;
   let planned = 0;
   (events || []).forEach((evt) => {
-    if (!evt || isTransferEvent(evt)) return;
+    if (!evt || isMoneyMovement(evt)) return;
     const amt = toInt(evt.amount);
     if (amt >= 0) return;
     if (evt.isActual || evt.isPaid) paid += Math.abs(amt);
@@ -251,7 +265,7 @@ export function groupSpendByCategory(events = [], { topN = 5 } = {}) {
   const map = new Map();
 
   (events || []).forEach((evt) => {
-    if (!evt || isTransferEvent(evt)) return;
+    if (!evt || isMoneyMovement(evt)) return;
     const amt = toInt(evt.amount);
     if (amt >= 0) return;
 

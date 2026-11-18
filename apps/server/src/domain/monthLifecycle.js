@@ -6,6 +6,7 @@ import { backfillUnassignedTransactions } from '../services/accountMigration.js'
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { SimulationService, loadGoalsForUser } from './simulationService.js';
+import { PersonFundService } from './personFundService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
@@ -220,7 +221,10 @@ export const MonthLifecycle = {
       currentDay = 0;
     }
 
-    const goals = await loadGoalsForUser(userId);
+    const [goals, heldContext] = await Promise.all([
+      loadGoalsForUser(userId),
+      PersonFundService.getSimulationContext(userId, month)
+    ]);
     const { simulation, accountSimulations } = SimulationService.computeSimulation({
       month,
       bankAccounts,
@@ -230,7 +234,8 @@ export const MonthLifecycle = {
       transactions,
       transfers,
       goals,
-      currentDay
+      currentDay,
+      heldContext
     });
 
     return {

@@ -20,6 +20,7 @@ import {
 } from '../components/Icons.jsx';
 import { Chip } from '../components/ui/Chip.jsx';
 import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
+import { PeoplePanel } from '../components/PeoplePanel.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -43,7 +44,8 @@ export function AccountsScreen({
   isReviewMode = false,
   onSaveMonthSettings,
   initialOpenBankModal = false,
-  onResetBankModalTrigger
+  onResetBankModalTrigger,
+  onHeldLentChanged
 }) {
   const [activeSegment, setActiveSegment] = useState('banks'); // 'banks' | 'wallets' | 'transfers'
   const [bankModalOpen, setBankModalOpen] = useState(false);
@@ -839,6 +841,17 @@ export function AccountsScreen({
           )}
         </div>
       </div>
+
+      {/* Held & Lent money: other people's money with you, and yours with them */}
+      <PeoplePanel
+        bankAccounts={bankAccounts}
+        wallets={wallets}
+        currencySymbol={currencySymbol}
+        month={month}
+        simulation={simulation}
+        isReviewMode={isReviewMode}
+        onChanged={onHeldLentChanged}
+      />
 
       {/* Modal: Add/Edit Bank Account */}
       <AnimatedModal

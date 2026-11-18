@@ -358,6 +358,32 @@ class ApiService {
     await _request('DELETE', '$_v1/transfers/$id');
   }
 
+  // Held & Lent money (ADR 0069): never income or expense
+  Future<Map<String, dynamic>> getPersonFunds() async {
+    final data = await _request('GET', '$_v1/person-funds');
+    return data is Map ? Map<String, dynamic>.from(data) : {'funds': [], 'totals': {'held': 0, 'lent': 0}};
+  }
+
+  Future<Map<String, dynamic>> getPersonFund(String id) async {
+    final data = await _request('GET', '$_v1/person-funds/$id');
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> createPersonFund(Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/person-funds', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> addPersonFundEntry(String id, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/person-funds/$id/entries', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> reclassifyTransaction(String id, Map<String, dynamic> body) async {
+    final data = await _request('POST', '$_v1/transactions/$id/reclassify', body: body);
+    return Map<String, dynamic>.from(data);
+  }
+
   // AI Assistant
   Future<Map<String, dynamic>> parseTextAi(String text) async {
     final data = await _request('POST', '/api/ai/parse-text', body: {'text': text});

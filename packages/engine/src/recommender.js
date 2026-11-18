@@ -98,6 +98,7 @@ export function recommendPurchaseDate(
   const unexpectedSpend = (transactions || [])
     .filter((tx) => {
       if (tx.isIncome) return false;
+      if (['held_in', 'held_return', 'lent_out', 'lent_repaid'].includes(tx.origin)) return false;
       if (Number(tx.amount) <= 0) return false;
       if (tx.status && tx.status !== 'successful') return false;
       if (tx.origin === 'spot') return true;

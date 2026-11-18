@@ -33,6 +33,8 @@ export async function migrateLedgerAndMaterializedBalances() {
       SET "current_balance" = a."opening_balance" + COALESCE((
         SELECT SUM(
           CASE 
+            WHEN t."origin" IN ('held_in', 'lent_repaid') THEN ABS(t."amount")
+            WHEN t."origin" IN ('held_return', 'lent_out') THEN -ABS(t."amount")
             WHEN t."is_income" = true THEN t."amount"
             WHEN t."origin" = 'transfer' AND t."destination_account_id" = a."id" THEN t."amount"
             WHEN t."origin" = 'transfer' AND t."account_id" = a."id" THEN -t."amount"

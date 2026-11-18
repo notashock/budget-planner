@@ -196,6 +196,46 @@ export async function syncTransferSchema() {
   }
 }
 
+/**
+ * Held & Lent money (ADR 0069): the person_funds table and the transactions.person_fund_id link.
+ * Idempotent, so it is safe on every boot.
+ */
+export async function syncPersonFundsSchema() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "person_funds" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "person_name" text NOT NULL,
+        "direction" text NOT NULL,
+        "note" text DEFAULT '' NOT NULL,
+        "expected_settle_date" text,
+        "status" text DEFAULT 'open' NOT NULL,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "idx_person_funds_user" ON "person_funds" ("user_id", "status");
+
+      ALTER TABLE "transactions"
+      ADD COLUMN IF NOT EXISTS "person_fund_id" uuid REFERENCES "person_funds"("id") ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS "idx_transactions_person_fund" ON "transactions" ("person_fund_id");
+    `);
+
+    const constraints = [
+      `ALTER TABLE "person_funds" ADD CONSTRAINT "chk_person_fund_direction" CHECK (direction IN ('held', 'lent'))`,
+      `ALTER TABLE "person_funds" ADD CONSTRAINT "chk_person_fund_status" CHECK (status IN ('open', 'settled'))`
+    ];
+    for (const sql of constraints) {
+      try {
+        await pool.query(sql);
+      } catch (e) {
+        if (e.code !== '42710') console.warn('Constraint check note:', e.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not run syncPersonFundsSchema:', err.message);
+  }
+}
 
 export async function syncDatabaseNormalFormsAndConstraints() {
   try {
@@ -264,7 +304,8 @@ export const CORE_APP_TABLES = [
   'transactions',
   'goals',
   'salary_templates',
-  'settings'
+  'settings',
+  'person_funds'
 ];
 
 export async function runMigrations() {
@@ -295,6 +336,7 @@ export async function runMigrations() {
 
     // 3. Synchronize cross-references and normal forms
     await syncTransferSchema();
+    await syncPersonFundsSchema();
     await syncPlannedItemsToTransactions();
     await syncDatabaseNormalFormsAndConstraints();
     await migrateLedgerAndMaterializedBalances();
@@ -364,6 +406,19 @@ export async function ensureDatabaseInitialized() {
         console.log('[DevOps Auto-Init] Core tables not found in public schema. Auto-bootstrapping schema in production...');
         await runMigrations();
         console.log('[DevOps Auto-Init] Database schema bootstrap completed successfully.');
+      } else {
+        // Existing databases (e.g. serverless deploys that never run runMigrations):
+        // add the Held & Lent schema the ORM now selects, before any query uses it.
+        const ptRes = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'transactions' AND column_name = 'person_fund_id'
+          ) AS has_person_fund_column;
+        `);
+        if (!ptRes.rows[0]?.has_person_fund_column) {
+          console.log('[DevOps Auto-Init] Adding Held & Lent schema (person_funds)...');
+          await syncPersonFundsSchema();
+        }
       }
 
       isInitialized = true;

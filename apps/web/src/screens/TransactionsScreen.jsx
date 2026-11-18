@@ -16,13 +16,20 @@ import {
   InboxIcon,
   SendIcon,
   ArrowRightLeftIcon,
-  EyeIcon
+  EyeIcon,
+  UserIcon
 } from '../components/Icons.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
+import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
+
+// Held & Lent money (ADR 0069): moves cash, never income or spending
+const PASS_THROUGH_IN = ['held_in', 'lent_repaid'];
+const PASS_THROUGH_OUT = ['held_return', 'lent_out'];
+const PASS_THROUGH_TAG = { held_in: 'Held', held_return: 'Returned', lent_out: 'Lent', lent_repaid: 'Repaid' };
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -45,7 +52,8 @@ export function TransactionsScreen({
   onEditTransaction,
   onPayTransaction,
   onCancelTransaction,
-  onDeleteTransaction
+  onDeleteTransaction,
+  onHeldLentChanged
 }) {
   // Main view segment: 'transactions' (successful) vs 'planned' (commitments)
   const [activeSegment, setActiveSegment] = useState('transactions'); // 'transactions' | 'planned'
@@ -53,6 +61,7 @@ export function TransactionsScreen({
   // Search & Filtering States
   const [searchQuery, setSearchQuery] = useState('');
   const [originFilter, setOriginFilter] = useState('all'); // 'all' | 'spot' | 'planned' | 'goal'
+  const [reclassifyTx, setReclassifyTx] = useState(null);
   const [plannedFilter, setPlannedFilter] = useState('all'); // 'all' | 'due' | 'overdue' | 'upcoming'
   const [selectedAccountFilter, setSelectedAccountFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest' | 'amount-desc' | 'amount-asc'
@@ -536,9 +545,11 @@ export function TransactionsScreen({
                 const destAcc = allAccounts.find((a) => (a.id || a._id) === tx.destinationAccountId);
                 const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
 
+                const isPassThrough = PASS_THROUGH_IN.includes(tx.origin) || PASS_THROUGH_OUT.includes(tx.origin);
                 const isIncome = Boolean(tx.isIncome);
-                const isRefund = tx.amount < 0 && !isIncome;
-                const isCredit = isIncome || isRefund;
+                const isRefund = tx.amount < 0 && !isIncome && !isPassThrough;
+                const isCredit = isIncome || isRefund || PASS_THROUGH_IN.includes(tx.origin);
+                const canReclassify = !isPassThrough && !isTransfer && tx.origin !== 'goal' && tx.origin !== 'salary' && !tx.goalId;
 
                 // Sign formatting: +XXX for credit, -XXX for debit, XXXX for transfer/neutral
                 let formattedAmount = '';
@@ -599,6 +610,12 @@ export function TransactionsScreen({
                             Settled
                           </span>
                         )}
+                        {isPassThrough && (
+                          <span className="apple-tx-tag tag-held tx-tag" title="Not income or spending">
+                            <UserIcon size={10} />
+                            <span>{PASS_THROUGH_TAG[tx.origin]}</span>
+                          </span>
+                        )}
                       </div>
 
                       <div className="tx-card-account">
@@ -641,15 +658,28 @@ export function TransactionsScreen({
 
                       {!isReviewMode && (
                         <div className="tx-card-actions">
-                          <button
-                            type="button"
-                            className="apple-tx-btn-action tx-btn-action"
-                            onClick={() => onEditTransaction?.(tx)}
-                            title="Edit transaction"
-                            aria-label="Edit transaction"
-                          >
-                            <EditIcon size={13} />
-                          </button>
+                          {canReclassify && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => setReclassifyTx(tx)}
+                              title="Move to Held & Lent (not income or spending)"
+                              aria-label="Move to Held and Lent"
+                            >
+                              <UserIcon size={13} />
+                            </button>
+                          )}
+                          {!isPassThrough && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => onEditTransaction?.(tx)}
+                              title="Edit transaction"
+                              aria-label="Edit transaction"
+                            >
+                              <EditIcon size={13} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="apple-tx-btn-action delete tx-btn-action"
@@ -987,6 +1017,16 @@ export function TransactionsScreen({
           </div>
         )}
       </AnimatedModal>
+
+      <ReclassifyHeldLentModal
+        transaction={reclassifyTx}
+        currencySymbol={currencySymbol}
+        onClose={() => setReclassifyTx(null)}
+        onDone={() => {
+          setReclassifyTx(null);
+          onHeldLentChanged?.();
+        }}
+      />
     </div>
   );
 }

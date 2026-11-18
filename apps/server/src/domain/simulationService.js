@@ -40,8 +40,15 @@ export const SimulationService = {
     transactions = [],
     transfers = [],
     goals = [],
-    currentDay = null
+    currentDay = null,
+    heldContext = null
   }) {
+    const held = heldContext || {};
+    const personNames = held.personNames || {};
+    // Label held/lent rows with the person's name
+    const txsForSim = serialize(transactions).map((t) => (
+      t && t.personFundId && personNames[t.personFundId] ? { ...t, personName: personNames[t.personFundId] } : t
+    ));
     const allAccounts = [
       ...bankAccounts.map((b) => ({ ...b, type: 'bank' })),
       ...wallets.map((w) => ({ ...w, type: 'wallet' }))
@@ -62,11 +69,14 @@ export const SimulationService = {
         scale: 100,
         accounts: { bankAccounts: serialize(bankAccounts), wallets: serialize(wallets) },
         accountOpeningBalances: accountOpenings || [],
-        transfers: serialize(transfers)
+        transfers: serialize(transfers),
+        heldOpeningBalance: held.heldOpeningBalance || 0,
+        heldOpeningByAccount: held.heldOpeningByAccount || {},
+        lentOpeningBalance: held.lentOpeningBalance || 0
       },
       serialize(items),
       { year: month.year, month: month.month },
-      serialize(transactions),
+      txsForSim,
       goals || [],
       serialize(transfers),
       allAccounts

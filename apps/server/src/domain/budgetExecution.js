@@ -1,7 +1,7 @@
 import { eq, and, or, asc, inArray, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
-import { recommendPurchaseDate, deriveTransactionState } from '@budget/engine';
+import { recommendPurchaseDate, deriveTransactionState, isPassThrough } from '@budget/engine';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
@@ -11,6 +11,24 @@ import { LedgerService } from './ledgerService.js';
 import { isValidUuid } from '../middleware/auth.js';
 import { GoalExecution } from './goalExecution.js';
 import { ReportsExecution } from './reportsExecution.js';
+import { PersonFundService } from './personFundService.js';
+
+/** Held & Lent rows always belong to a person; route them through PersonFundService. */
+function recordPassThrough(userId, payload) {
+  if (!payload.personFundId) {
+    throw new ValidationError('Held or lent money needs a person (personFundId)');
+  }
+  return PersonFundService.addEntry(userId, payload.personFundId, {
+    origin: payload.origin,
+    amount: payload.amount,
+    date: payload.date || payload.plannedDate,
+    accountId: payload.accountId,
+    note: payload.note,
+    name: payload.name,
+    status: payload.status,
+    allowExceed: payload.allowExceed
+  });
+}
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -107,6 +125,7 @@ export const BudgetExecution = {
    */
   async recordTransaction(userId, year, monthNum, payload) {
     const { amount, tag, note, date, plannedDate, origin, status, plannedItemId, refundTargetTransactionId } = payload;
+    if (isPassThrough(origin)) return recordPassThrough(userId, payload);
 
     if (amount === undefined || amount === null || typeof Number(amount) !== 'number') {
       throw new ValidationError('Valid amount is required');
@@ -1022,6 +1041,11 @@ export const BudgetExecution = {
       // Also delete any item that shares the exact same id
       await db.delete(s.items).where(and(eq(s.items.id, txId), eq(s.items.userId, userId)));
 
+      // A held/lent entry changes what is outstanding with that person
+      if (existing.personFundId) {
+        await PersonFundService.refreshStatus(existing.personFundId);
+      }
+
       if (existing.monthId && !existing.isIncome && existing.amount > 0) {
         const month = await db.query.months.findFirst({ where: eq(s.months.id, existing.monthId) });
         if (month) {
@@ -1167,6 +1191,7 @@ export const BudgetExecution = {
    */
   async recordGlobalTransaction(userId, payload) {
     const { amount, name, note, date, plannedDate, origin, status, accountId, category, isIncome } = payload;
+    if (isPassThrough(origin)) return recordPassThrough(userId, payload);
 
     if (amount === undefined || amount === null || isNaN(Number(amount))) {
       throw new ValidationError('Valid amount is required');
