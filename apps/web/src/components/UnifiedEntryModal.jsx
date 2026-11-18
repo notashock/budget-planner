@@ -77,6 +77,8 @@ export function UnifiedEntryModal({
   initialItem = null,
   initialMode = 'log', // 'log' | 'income' | 'plan' | 'transfer'
   plannedItems = [],
+  // Recorded transactions: a refund can be linked to the spend it reverses (ADR 0062)
+  transactions = [],
   bankAccounts = [],
   wallets = [],
   currencySymbol = '₹',
@@ -142,6 +144,8 @@ export function UnifiedEntryModal({
   const [isFixed, setIsFixed] = useState(true);
   const [isPaid, setIsPaid] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState('');
+  // Refund: the spent transaction it gives money back for
+  const [refundTargetId, setRefundTargetId] = useState('');
   const [cascadeScope, setCascadeScope] = useState('single'); // 'single' | 'all_future'
   const [updateSalaryTemplate, setUpdateSalaryTemplate] = useState(false);
   const [showVariableInfo, setShowVariableInfo] = useState(false);
@@ -186,6 +190,38 @@ export function UnifiedEntryModal({
     : `${todayStr.slice(0, 7)}-01`;
 
   const selectedCard = (creditCards || []).find((c) => String(c.id || c._id) === String(cardId)) || null;
+
+  // Refund targets: recorded spends (not income, transfers, held/lent or other refunds), newest first
+  const PASS_THROUGH_ORIGINS = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+  const refundTargets = useMemo(() => {
+    const editingId = initialItem ? String(initialItem.id || initialItem._id) : null;
+    return (transactions || [])
+      .filter((t) => {
+        if (!t) return false;
+        const id = String(t.id || t._id || '');
+        if (!id || id === editingId) return false;
+        const isSpent = t.status === 'successful' || (!t.status && t.origin === 'spot');
+        return isSpent
+          && Number(t.amount) > 0
+          && !t.isIncome
+          && t.direction !== 'income'
+          && t.origin !== 'transfer'
+          && !t.isTransfer
+          && t.origin !== 'salary'
+          && !PASS_THROUGH_ORIGINS.includes(t.origin);
+      })
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .slice(0, 100)
+      .map((t) => ({
+        _id: String(t.id || t._id),
+        name: t.title || t.name || t.description || t.category || 'Spend',
+        amount: Math.abs(Number(t.amount) || 0),
+        date: t.date,
+        category: t.category || t.tag,
+        accountId: t.accountId || t.bankAccountId?._id || t.bankAccountId || t.walletId?._id || t.walletId || ''
+      }));
+  }, [transactions, initialItem]); // eslint-disable-line react-hooks/exhaustive-deps
+  const refundTarget = refundTargets.find((t) => t._id === String(refundTargetId)) || null;
 
   // Eligible planned items for matching
   const eligiblePlannedItems = useMemo(
@@ -307,7 +343,8 @@ export function UnifiedEntryModal({
           setTag(initialItem.category || initialItem.tag || 'Food');
           setDate(initialItem.date || todayStr);
           setIsRefund(Number(initialItem.amount) < 0);
-          setMatchedItemId(initialItem.plannedItemId || initialItem.legacyItemId || '');
+          setMatchedItemId(Number(initialItem.amount) < 0 ? '' : (initialItem.plannedItemId || initialItem.legacyItemId || ''));
+          setRefundTargetId(initialItem.refundTargetTransactionId || '');
         } else {
           // Plan mode
           setItemType(initialItem.type === 'recurring' ? 'recurring' : 'one-time');
@@ -344,6 +381,7 @@ export function UnifiedEntryModal({
         setIncomeTag(DEFAULT_INCOME_TAG);
         setDescription('');
         setMatchedItemId('');
+        setRefundTargetId('');
         setDate(todayStr);
 
         // Account attribution defaults
@@ -1001,13 +1039,15 @@ export function UnifiedEntryModal({
         title: description.trim() || tag || 'Expense',
         name: description.trim() || tag || 'Expense',
         date,
-        plannedItemId: matchedItemId || null,
+        plannedItemId: isRefund ? null : (matchedItemId || null),
         accountType,
         accountId,
         bankAccountId: accountType === 'bank' ? accountId : null,
         walletId: accountType === 'wallet' ? accountId : null,
         cascadeScope
       };
+      // A new refund can say which spend it gives money back for (the server only sets this on create)
+      if (isRefund && refundTargetId && !initialItem) txPayload.refundTargetTransactionId = refundTargetId;
       // Only "Save & add another" passes options, so normal saves call the handler as before
       if (again) await onLogTransaction(txPayload, { keepOpen: true });
       else await onLogTransaction(txPayload);
@@ -1508,7 +1548,12 @@ export function UnifiedEntryModal({
                       type="button"
                       className={`entry-toggle ${isRefund ? 'is-on credit-active-btn' : ''}`}
                       aria-pressed={isRefund}
-                      onClick={(e) => handleMicroPress(e, () => setIsRefund((prev) => !prev))}
+                      onClick={(e) => handleMicroPress(e, () => {
+                        setIsRefund((prev) => !prev);
+                        // Refunds link to a past spend, spends to a planned bill: switching clears the other link
+                        setMatchedItemId('');
+                        setRefundTargetId('');
+                      })}
                     >
                       {isRefund ? (
                         <>
@@ -1901,21 +1946,62 @@ export function UnifiedEntryModal({
               {/* SPENDING: Candidate match banner & Planned Item Matcher */}
               {mode === 'log' && (
                 <div className="entry-box-6">
-                  <SearchableItemPicker
-                    items={eligiblePlannedItems}
-                    selectedId={matchedItemId}
-                    onSelect={handleSelectMatchedItem}
-                    currencySymbol={currencySymbol}
-                  />
+                  {isRefund && initialItem ? (
+                    // The link is set when the refund is created; it can't be changed afterwards
+                    <p className="field-hint" data-testid="refund-link-readonly">
+                      {refundTarget
+                        ? <>Refund for <strong>{refundTarget.name}</strong> ({formatCurrency(refundTarget.amount, currencySymbol)}{refundTarget.date ? `, ${formatDisplayDate(refundTarget.date, false)}` : ''}).</>
+                        : (initialItem.refundTargetTransactionId ? 'Linked to an earlier spend.' : 'Not linked to a spend.')}
+                    </p>
+                  ) : isRefund ? (
+                    <SearchableItemPicker
+                      items={refundTargets}
+                      selectedId={refundTargetId}
+                      onSelect={(id) => {
+                        setRefundTargetId(id);
+                        const target = refundTargets.find((t) => t._id === id);
+                        if (!target) return;
+                        // Same category and account as the spend being refunded, unless already chosen
+                        if (!categoryTouched && SPEND_CATEGORIES.includes(target.category)) {
+                          setTag(target.category);
+                          setTagSuggested(false);
+                        }
+                        const pools = { bank: bankAccounts, wallet: wallets, credit_card: creditCards };
+                        const found = Object.entries(pools).find(([, list]) => (list || []).some((a) => String(a._id || a.id) === String(target.accountId)));
+                        if (found) {
+                          setAccountType(found[0]);
+                          setAccountId(target.accountId);
+                        }
+                        if (!description.trim()) setDescription(`Refund: ${target.name}`);
+                      }}
+                      currencySymbol={currencySymbol}
+                      placeholder="Not linked to a spend"
+                      noneLabel="Not linked"
+                      noneSub="A credit not tied to one spend"
+                      searchPlaceholder="Search your spends..."
+                      emptyText="No spends match"
+                      showDate
+                      ariaLabel="Refund for"
+                    />
+                  ) : (
+                    <SearchableItemPicker
+                      items={eligiblePlannedItems}
+                      selectedId={matchedItemId}
+                      onSelect={handleSelectMatchedItem}
+                      currencySymbol={currencySymbol}
+                    />
+                  )}
 
-                  <span className={`field-hint ${isRefund ? 'is-positive' : ''}`}>
-                    {matchedItemId
-                      ? isRefund
-                        ? 'Applies this refund as a credit to the item, reducing its net cost.'
-                        : 'Fulfills and replaces the planned item to prevent double-counting.'
-                      : isRefund
-                      ? 'Adds this credit/refund directly into your monthly cash reserve.'
-                      : 'Logs as unexpected spending, reducing your safe-to-spend allowance.'}
+                  <span className={`field-hint ${isRefund ? 'is-positive' : ''}`} data-testid="link-hint">
+                    {isRefund
+                      ? (refundTarget
+                          ? (Math.round(Math.abs(Number(amount) || 0) * 100) > refundTarget.amount
+                              ? `More than the ${formatCurrency(refundTarget.amount, currencySymbol)} you paid for ${refundTarget.name}.`
+                              : `Gives back money for ${refundTarget.name}: its net cost becomes ${formatCurrency(Math.max(0, refundTarget.amount - Math.round(Math.abs(Number(amount) || 0) * 100)), currencySymbol)}.`)
+                          : 'Adds this credit back to your spending money. Link the spend it refunds to keep its category right.')
+                      : (matchedItemId
+                          ? 'Fulfills and replaces the planned item to prevent double-counting.'
+                          : 'Logs as unexpected spending, reducing your safe-to-spend allowance.')}
                   </span>
                 </div>
               )}

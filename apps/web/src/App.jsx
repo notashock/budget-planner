@@ -1354,6 +1354,7 @@ export default function App() {
         }}
         onSettleTransaction={handlePayTransaction}
         plannedItems={items}
+        transactions={transactions}
         bankAccounts={bankAccounts}
         wallets={wallets}
         currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}

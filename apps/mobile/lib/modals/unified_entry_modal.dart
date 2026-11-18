@@ -70,6 +70,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   // Move tab: 'account' (between my accounts), 'card' (pay a card bill), 'person' (held / lent)
   String _moveTarget = 'account';
+
+  // Refund: the recorded spend it gives money back for (ADR 0062)
+  String? _refundTargetId;
   String? _cardId;
 
   // Server-authoritative goal recommendation state
@@ -175,6 +178,90 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   }
 
   bool get _isEditing => widget.initialItem != null;
+
+  /// Recorded spends a refund can be linked to, newest first.
+  List<Map<String, dynamic>> _refundTargets(BudgetProvider budget) {
+    const passThrough = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+    final editingId = _isEditing ? _editId : null;
+    final list = budget.transactions
+        .whereType<Map>()
+        .map((t) => Map<String, dynamic>.from(t))
+        .where((t) {
+          final id = (t['_id'] ?? t['id'])?.toString();
+          final amount = num.tryParse('${t['amount'] ?? 0}') ?? 0;
+          return id != null &&
+              id != editingId &&
+              t['status'] == 'successful' &&
+              amount > 0 &&
+              t['isIncome'] != true &&
+              t['origin'] != 'transfer' &&
+              t['origin'] != 'salary' &&
+              !passThrough.contains(t['origin']);
+        })
+        .toList()
+      ..sort((a, b) => '${b['date'] ?? ''}'.compareTo('${a['date'] ?? ''}'));
+    return list.take(100).toList();
+  }
+
+  String _txLabel(Map<String, dynamic> t) {
+    final name = (t['title'] ?? t['name'] ?? t['description'] ?? t['category'] ?? 'Spend').toString();
+    final date = t['date']?.toString();
+    return '$name · ${formatCurrency(_minorOf(t['amount']))}${date != null && date.length >= 10 ? ' · ${date.substring(0, 10)}' : ''}';
+  }
+
+  /// "Refund for": pick the spend this refund gives money back for. Set when the
+  /// refund is created; shown read-only when editing (the server doesn't change it).
+  Widget _buildRefundLink(BudgetProvider budget) {
+    final targets = _refundTargets(budget);
+    if (_isEditing) {
+      final linkedId = widget.initialItem?['refundTargetTransactionId']?.toString();
+      Map<String, dynamic>? linked;
+      for (final t in budget.transactions.whereType<Map>()) {
+        if ((t['_id'] ?? t['id'])?.toString() == linkedId) linked = Map<String, dynamic>.from(t);
+      }
+      return Text(
+        linked != null ? 'Refund for ${_txLabel(linked)}' : (linkedId != null ? 'Linked to an earlier spend.' : 'Not linked to a spend.'),
+        key: const ValueKey('refund-link-readonly'),
+        style: const TextStyle(fontSize: 12),
+      );
+    }
+    final valid = targets.any((t) => (t['_id'] ?? t['id']).toString() == _refundTargetId);
+    return DropdownButtonFormField<String?>(
+      key: const ValueKey('refund-for'),
+      initialValue: valid ? _refundTargetId : null,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Refund for'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('Not linked to a spend')),
+        ...targets.map((t) => DropdownMenuItem<String?>(
+              value: (t['_id'] ?? t['id']).toString(),
+              child: Text(_txLabel(t), overflow: TextOverflow.ellipsis),
+            )),
+      ],
+      onChanged: (id) => setState(() {
+        _refundTargetId = id;
+        if (id == null) return;
+        final target = targets.firstWhere((t) => (t['_id'] ?? t['id']).toString() == id);
+        // Same category and account as the spend being refunded, unless already chosen
+        final cat = (target['category'] ?? '').toString();
+        if (!_categoryTouched && _quickCategories.contains(cat)) {
+          _selectedCategory = cat;
+          _isCustomCategory = false;
+        }
+        final acc = _plainId(target['accountId']) ?? _plainId(target['bankAccountId']) ?? _plainId(target['walletId']);
+        if (acc != null) {
+          bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == acc);
+          if (inList(budget.bankAccounts) || inList(budget.wallets) || inList(budget.creditCards)) {
+            _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
+            _selectedAccountId = acc;
+          }
+        }
+        if (_nameCtrl.text.trim().isEmpty) {
+          _nameCtrl.text = 'Refund: ${(target['title'] ?? target['name'] ?? 'spend')}';
+        }
+      }),
+    );
+  }
 
   String? _plainId(dynamic v) => v is Map ? (v['_id'] ?? v['id'])?.toString() : v?.toString();
 
@@ -535,7 +622,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       child: ChoiceChip(
                         label: const Center(child: Text('Expense')),
                         selected: _txType == 'expense',
-                        onSelected: (_) => setState(() => _txType = 'expense'),
+                        onSelected: (_) => setState(() {
+                          _txType = 'expense';
+                          _refundTargetId = null;
+                        }),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -549,6 +639,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                if (_txType == 'income') ...[
+                  _buildRefundLink(budget),
+                  const SizedBox(height: 12),
+                ],
               ] else if (_activeType == EntryType.income) ...[
                 // Income Source Pills
                 Text(
@@ -930,7 +1024,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
 
               // Selectable Categories matching Web
-              if (_activeType == EntryType.item || (_activeType == EntryType.transaction && _txType != 'income')) ...[
+              if (_activeType == EntryType.item || _activeType == EntryType.transaction) ...[
                 const SizedBox(height: 14),
                 Text(
                   _tagSuggested ? 'Category · suggested' : 'Category',
@@ -1267,16 +1361,20 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           if (isWallet) 'walletId': _selectedAccountId,
         });
       } else if (_activeType == EntryType.transaction) {
-        final isTxIncome = _txType == 'income';
+        // "Credit / Refund" is a refund: a negative spend (as on web and per the server),
+        // not income, so it reduces spending in its category instead of inflating income
+        final isRefund = _txType == 'income';
         await _saveTx(budget, {
           'description': name,
-          'amount': amt,
+          'amount': isRefund ? -amt : amt,
           'day': day,
           'date': dateStr,
-          'type': _txType,
-          'isIncome': isTxIncome,
-          'category': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
-          'tag': isTxIncome ? 'Credit' : (cat.isNotEmpty ? cat : 'Other'),
+          'type': 'expense',
+          'isIncome': false,
+          if (isRefund) 'isRefund': true,
+          if (isRefund && _refundTargetId != null && !_isEditing) 'refundTargetTransactionId': _refundTargetId,
+          'category': cat.isNotEmpty ? cat : 'Other',
+          'tag': cat.isNotEmpty ? cat : 'Other',
           if (_selectedAccountId != null) ...{
             'accountId': _selectedAccountId,
             'accountType': _accountType == 'credit_card' ? 'credit_card' : (isWallet ? 'wallet' : 'bank'),

@@ -28,6 +28,11 @@ const plannedItems = [
   { _id: 'p2', id: 'p2', type: 'recurring', name: 'Internet', amount: 99900, dayOfMonth: 12, isPaid: false }
 ];
 
+const pastSpends = [
+  { _id: 't1', id: 't1', title: 'Running shoes', amount: 450000, date: '2026-11-12', status: 'successful', origin: 'spot', category: 'Health', accountId: 'w1' },
+  { _id: 't2', id: 't2', title: 'Groceries', amount: 186000, date: '2026-11-15', status: 'successful', origin: 'spot', category: 'Food', accountId: 'b1' }
+];
+
 const creditCards = [
   { id: 'c1', name: 'HDFC Millennia', outstanding: 1845000, openBill: { statementId: 's1', remaining: 1210000, minimumDue: 60500, dueDate: '2026-12-05' } },
   { id: 'c2', name: 'Amazon Pay ICICI', outstanding: 230000, openBill: null }
@@ -81,6 +86,7 @@ function Fixture() {
           initialItem={form.edit ? EDIT_ITEMS[name] : null}
           initialPreset={form.preset || null}
           creditCards={creditCards}
+          transactions={pastSpends}
           onSettleTransaction={noop}
           onDeleteEntry={noop}
           onLogTransaction={noop}

@@ -596,6 +596,14 @@ export function TransactionsScreen({
                             <span>{PASS_THROUGH_TAG[tx.origin]}</span>
                           </span>
                         )}
+                        {isRefund && tx.refundTargetTransactionId && (() => {
+                          const original = transactions.find((o) => String(o.id || o._id) === String(tx.refundTargetTransactionId));
+                          return (
+                            <span className="apple-tx-tag tx-tag" data-testid="refund-for-tag">
+                              Refund for {original ? (original.title || original.name || 'a spend') : 'an earlier spend'}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="tx-card-account">
