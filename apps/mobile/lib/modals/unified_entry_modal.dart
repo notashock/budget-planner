@@ -694,12 +694,22 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       onTap: () {
         final navigator = Navigator.of(context);
         final rootContext = navigator.context;
+        // Carry over what was already typed so switching to Held/Lent loses nothing
+        final amountText = _amountCtrl.text.trim();
+        final noteText = _nameCtrl.text.trim();
+        final date = _selectedDate;
+        final accountId = _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId;
         navigator.pop();
         showModalBottomSheet(
           context: rootContext,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (_) => const HeldLentModal(),
+          builder: (_) => HeldLentModal(
+            initialAmount: amountText,
+            initialNote: noteText,
+            initialDate: date,
+            initialAccountId: accountId,
+          ),
         );
       },
       borderRadius: BorderRadius.circular(6),

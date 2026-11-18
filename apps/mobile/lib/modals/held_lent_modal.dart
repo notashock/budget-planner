@@ -30,7 +30,22 @@ const _newPerson = '__new__';
 class HeldLentModal extends StatefulWidget {
   final String initialAction;
   final String? initialFundId;
-  const HeldLentModal({super.key, this.initialAction = 'hold', this.initialFundId});
+
+  /// Values carried over from the entry sheet, so switching to Held/Lent keeps what was typed.
+  final String initialAmount;
+  final String initialNote;
+  final DateTime? initialDate;
+  final String? initialAccountId;
+
+  const HeldLentModal({
+    super.key,
+    this.initialAction = 'hold',
+    this.initialFundId,
+    this.initialAmount = '',
+    this.initialNote = '',
+    this.initialDate,
+    this.initialAccountId,
+  });
 
   @override
   State<HeldLentModal> createState() => _HeldLentModalState();
@@ -56,8 +71,19 @@ class _HeldLentModalState extends State<HeldLentModal> {
     super.initState();
     _action = widget.initialAction;
     _fundId = widget.initialFundId;
+    _amountCtrl.text = widget.initialAmount;
+    _noteCtrl.text = widget.initialNote;
+    if (widget.initialDate != null) _date = widget.initialDate!;
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    if (budget.bankAccounts.isNotEmpty) {
+    String? idOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
+    // Held and lent money moves through a bank account or wallet, never a card
+    final carried = widget.initialAccountId;
+    if (carried != null && budget.bankAccounts.any((b) => idOf(b) == carried)) {
+      _accountId = carried;
+    } else if (carried != null && budget.wallets.any((w) => idOf(w) == carried)) {
+      _accountType = 'wallet';
+      _accountId = carried;
+    } else if (budget.bankAccounts.isNotEmpty) {
       final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
       _accountId = (primary['_id'] ?? primary['id'])?.toString();
     } else if (budget.wallets.isNotEmpty) {

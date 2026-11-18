@@ -37,21 +37,44 @@ export function HeldLentForm({
   accountSimulations = {},
   initialAction = 'hold',
   initialFundId = '',
+  // Values carried over from another form (the entry modal's shared state), so
+  // switching to Held/Lent keeps what the user already typed.
+  initialValues = null,
+  onValuesChange,
   onSaved,
   onCancel
 }) {
   const primary = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0] || wallets[0] || null;
+  // Held and lent money moves through a bank account or wallet, never a card
+  const carriedAccount = useMemo(() => {
+    const id = initialValues?.accountId;
+    if (!id) return null;
+    const bank = bankAccounts.find((b) => String(b.id || b._id) === String(id));
+    if (bank) return { accountType: 'bank', accountId: bank.id || bank._id };
+    const wallet = wallets.find((w) => String(w.id || w._id) === String(id));
+    if (wallet) return { accountType: 'wallet', accountId: wallet.id || wallet._id };
+    return null;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [action, setAction] = useState(initialAction);
   const [funds, setFunds] = useState([]);
   const [fundId, setFundId] = useState(initialFundId || '');
   const [personName, setPersonName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayIso());
-  const [note, setNote] = useState('');
-  const [accountType, setAccountType] = useState(primary && wallets.includes(primary) ? 'wallet' : 'bank');
-  const [accountId, setAccountId] = useState(primary ? (primary.id || primary._id) : '');
+  const [amount, setAmount] = useState(initialValues?.amount ?? '');
+  const [date, setDate] = useState(initialValues?.date || todayIso());
+  const [note, setNote] = useState(initialValues?.note ?? '');
+  const [accountType, setAccountType] = useState(
+    carriedAccount ? carriedAccount.accountType : (primary && wallets.includes(primary) ? 'wallet' : 'bank')
+  );
+  const [accountId, setAccountId] = useState(
+    carriedAccount ? carriedAccount.accountId : (primary ? (primary.id || primary._id) : '')
+  );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Report edits back so the values survive switching to another tab
+  useEffect(() => {
+    onValuesChange?.({ amount, date, note, accountType, accountId });
+  }, [amount, date, note, accountType, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = HELD_LENT_ACTIONS.find((a) => a.key === action) || HELD_LENT_ACTIONS[0];
   const startsNew = current.key === 'hold' || current.key === 'lend';

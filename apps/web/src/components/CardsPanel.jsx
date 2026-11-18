@@ -18,6 +18,17 @@ const money = (minor, symbol) => formatCurrency(minor || 0, symbol, 100, { decim
 const toMajorInput = (minor) => (minor ? String(Math.round(minor) / 100) : '');
 const dayLabel = (iso) => (iso ? formatDisplayDate(iso, false) : '—');
 
+/**
+ * The account type ('bank' | 'wallet') of the account a card's bill is paid from.
+ * AccountSelect lists one type at a time, so opening a form with the wrong type
+ * shows the wrong list and can switch the pay-from account on save.
+ */
+export function resolvePayFromType(accountId, bankAccounts = [], wallets = []) {
+  if (accountId && wallets.some((w) => String(w.id || w._id) === String(accountId))) return 'wallet';
+  if (!accountId && bankAccounts.length === 0 && wallets.length > 0) return 'wallet';
+  return 'bank';
+}
+
 /** Small ring for the 0-100 Card Payability Score. */
 function ScoreRing({ score, band, label }) {
   const r = 22;
@@ -48,8 +59,9 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
   const [owed, setOwed] = useState(isEdit ? toMajorInput(Math.max(0, -(card?.openingBalance || 0))) : '');
   const [statementDay, setStatementDay] = useState(card?.statementDay ? String(card.statementDay) : '');
   const [dueDay, setDueDay] = useState(card?.dueDay ? String(card.dueDay) : '');
-  const [payType, setPayType] = useState('bank');
-  const [payFrom, setPayFrom] = useState(card?.payFromAccountId || (firstPayer ? (firstPayer.id || firstPayer._id) : ''));
+  const initialPayFrom = card?.payFromAccountId || (firstPayer ? (firstPayer.id || firstPayer._id) : '');
+  const [payType, setPayType] = useState(() => resolvePayFromType(initialPayFrom, bankAccounts, wallets));
+  const [payFrom, setPayFrom] = useState(initialPayFrom);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -205,9 +217,10 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
 function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, onSaved, onCancel }) {
   const [choice, setChoice] = useState('full');
   const [custom, setCustom] = useState('');
-  const [payType, setPayType] = useState('bank');
   const fallbackPayer = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0] || wallets[0] || null;
-  const [payFrom, setPayFrom] = useState(card.payFromAccountId || (fallbackPayer ? (fallbackPayer.id || fallbackPayer._id) : ''));
+  const initialPayFrom = card.payFromAccountId || (fallbackPayer ? (fallbackPayer.id || fallbackPayer._id) : '');
+  const [payType, setPayType] = useState(() => resolvePayFromType(initialPayFrom, bankAccounts, wallets));
+  const [payFrom, setPayFrom] = useState(initialPayFrom);
   const today = new Date();
   const p = (n) => String(n).padStart(2, '0');
   const [date, setDate] = useState(`${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`);

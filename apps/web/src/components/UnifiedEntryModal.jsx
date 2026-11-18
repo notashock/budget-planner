@@ -1081,6 +1081,14 @@ export function UnifiedEntryModal({
                 month={month}
                 simulation={simulation}
                 accountSimulations={accountSimulations}
+                initialValues={{ amount, date, note: description, accountId }}
+                onValuesChange={(values) => {
+                  setAmount(values.amount);
+                  setDate(values.date);
+                  setDescription(values.note);
+                  setAccountType(values.accountType);
+                  setAccountId(values.accountId);
+                }}
                 onSaved={(saved) => {
                   onHeldLentSaved?.(saved);
                   triggerExit();

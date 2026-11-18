@@ -160,6 +160,56 @@
   background: var(--surface-subtle);
 }
 
+/*
+ * Form field (.input-field): text inputs and native selects in the account,
+ * card, held/lent and setup forms. Matches .app-select-trigger and
+ * .datepicker-trigger so fields in one form look like the same kind of thing.
+ * background-color (not background) keeps the select chevron from base.css.
+ */
+.input-field {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+select.input-field {
+  padding-right: 36px;
+}
+
+.input-field:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+.input-field[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.input-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Phones: 44px touch target, and 16px text so iOS Safari doesn't zoom on focus */
+@media (max-width: 767px) {
+  .input-field {
+    min-height: 44px;
+    font-size: var(--fs-input);
+  }
+}
+
 /* Unified Select Trigger */
 .app-select-trigger {
   width: 100%;

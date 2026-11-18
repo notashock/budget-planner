@@ -321,10 +321,6 @@
   .hl-panel {
     padding: var(--space-3);
   }
-  .hl-form select.input-field,
-  .hl-form input.input-field {
-    font-size: var(--fs-input);
-  }
 }
 
 .hl-actions.hl-actions-2 {

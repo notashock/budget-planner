@@ -13,6 +13,27 @@ String _ymd(DateTime d) {
   return '${d.year}-${pad(d.month)}-${pad(d.day)}';
 }
 
+String? _accountIdOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
+
+/// The account type ('bank' | 'wallet') a card bill is paid from. The account
+/// selector lists one type at a time, so the sheet must open on the right one.
+String payFromAccountType(String? accountId, List<dynamic> bankAccounts, List<dynamic> wallets) {
+  if (accountId != null && wallets.any((w) => _accountIdOf(w) == accountId)) return 'wallet';
+  if (accountId == null && bankAccounts.isEmpty && wallets.isNotEmpty) return 'wallet';
+  return 'bank';
+}
+
+/// Default pay-from account: the primary bank, else the first bank, else the first wallet.
+String? defaultPayFromAccountId(List<dynamic> bankAccounts, List<dynamic> wallets) {
+  if (bankAccounts.isNotEmpty) {
+    for (final b in bankAccounts) {
+      if (b is Map && b['isPrimary'] == true) return _accountIdOf(b);
+    }
+    return _accountIdOf(bankAccounts.first);
+  }
+  return wallets.isNotEmpty ? _accountIdOf(wallets.first) : null;
+}
+
 /// Shared bottom-sheet frame for the card sheets.
 class _Sheet extends StatelessWidget {
   final String title;
@@ -92,9 +113,8 @@ class _AddCardModalState extends State<AddCardModal> {
   void initState() {
     super.initState();
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    if (budget.bankAccounts.isNotEmpty) {
-      _payFrom = (budget.bankAccounts.first['_id'] ?? budget.bankAccounts.first['id'])?.toString();
-    }
+    _payFrom = defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+    _payType = payFromAccountType(_payFrom, budget.bankAccounts, budget.wallets);
   }
 
   @override
@@ -286,7 +306,8 @@ class _PayBillModalState extends State<PayBillModal> {
     super.initState();
     final budget = Provider.of<BudgetProvider>(context, listen: false);
     _payFrom = widget.card['payFromAccountId']?.toString() ??
-        (budget.bankAccounts.isNotEmpty ? (budget.bankAccounts.first['_id'] ?? budget.bankAccounts.first['id'])?.toString() : null);
+        defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+    _payType = payFromAccountType(_payFrom, budget.bankAccounts, budget.wallets);
   }
 
   @override
