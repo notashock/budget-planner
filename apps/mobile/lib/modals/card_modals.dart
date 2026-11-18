@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/account_selector.dart';
@@ -47,7 +48,7 @@ class _Sheet extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -158,18 +159,18 @@ class _AddCardModalState extends State<AddCardModal> {
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
     return _Sheet(title: 'Add a credit card', children: [
-      TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *', border: OutlineInputBorder())),
+      TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *')),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: TextField(controller: _limit, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Credit limit (₹)', border: OutlineInputBorder()))),
+        Expanded(child: TextField(controller: _limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Credit limit (₹)'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _owed, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Owed now (₹)', border: OutlineInputBorder()))),
+        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Owed now (₹)'))),
       ]),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: TextField(controller: _billDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bill day (1-31) *', border: OutlineInputBorder()))),
+        Expanded(child: TextField(controller: _billDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bill day (1-31) *'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _dueDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Due day (1-31) *', border: OutlineInputBorder()))),
+        Expanded(child: TextField(controller: _dueDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Due day (1-31) *'))),
       ]),
       const SizedBox(height: 10),
       AccountSelector(
@@ -258,13 +259,13 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
         controller: _amount,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(labelText: 'Bill amount (₹)', border: OutlineInputBorder()),
+        decoration: const InputDecoration(labelText: 'Bill amount (₹)'),
       ),
       const SizedBox(height: 10),
       TextField(
         controller: _minimum,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(labelText: 'Minimum due (optional)', border: OutlineInputBorder()),
+        decoration: const InputDecoration(labelText: 'Minimum due (optional)'),
       ),
       if (diff != 0)
         CheckboxListTile(
@@ -365,7 +366,7 @@ class _PayBillModalState extends State<PayBillModal> {
           controller: _custom,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Amount (₹)', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Amount (₹)'),
         ),
       ],
       const SizedBox(height: 12),

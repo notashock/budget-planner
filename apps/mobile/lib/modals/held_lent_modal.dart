@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
@@ -196,7 +197,7 @@ class _HeldLentModalState extends State<HeldLentModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -235,7 +236,6 @@ class _HeldLentModalState extends State<HeldLentModal> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: _current.direction == 'held' ? 'Whose money' : 'Who',
-                  border: const OutlineInputBorder(),
                 ),
                 items: [
                   ..._matching.map((f) {
@@ -252,14 +252,14 @@ class _HeldLentModalState extends State<HeldLentModal> {
                 TextField(
                   controller: _nameCtrl,
                   maxLength: 80,
-                  decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(), counterText: ''),
+                  decoration: const InputDecoration(labelText: 'Name', counterText: ''),
                 ),
               ],
               const SizedBox(height: 12),
               TextField(
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amount (₹) *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Amount (₹) *'),
               ),
               if (!_current.startsNew && selected != null)
                 Align(
@@ -291,7 +291,7 @@ class _HeldLentModalState extends State<HeldLentModal> {
               const SizedBox(height: 12),
               TextField(
                 controller: _noteCtrl,
-                decoration: const InputDecoration(labelText: 'Note (optional)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Note (optional)'),
               ),
               // Lending spends your own money; returning held money doesn't (it was never yours)
               if (_current.key == 'lend')

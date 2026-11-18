@@ -71,6 +71,17 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  /* Form controls (entry and edit forms). Phones override these in responsive-mobile.css */
+  --control-h: 40px;          /* inputs, selects, pickers */
+  --control-h-sm: 32px;       /* chips, quick amounts, segmented options */
+  --control-h-hero: 56px;     /* the hero amount field */
+  --field-radius: 8px;
+  --field-pad-x: 12px;
+  --field-gap: 6px;           /* label -> field */
+  --form-gap: var(--space-4); /* between field groups */
+  --sheet-pad-x: var(--space-6);
+  --focus-ring: 0 0 0 1px var(--text);
+
   /* Status text: readable ink for status labels (the bright accents are for marks) */
   --good-ink: #047857;
   --warn-ink: #b45309;

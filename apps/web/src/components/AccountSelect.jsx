@@ -117,17 +117,9 @@ export function AccountSelect({
     return (
       <div
         className={`app-select-trigger disabled ${className}`}
-        style={{
-          opacity: 0.6,
-          cursor: 'not-allowed',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 12px',
-          ...style
-        }}
+        style={{ opacity: 0.6, cursor: 'not-allowed', ...style }}
       >
-        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>No Accounts Available</span>
+        <span className="app-select-placeholder">No Accounts Available</span>
       </div>
     );
   }
@@ -157,22 +149,13 @@ export function AccountSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          opacity: disabled ? 0.6 : 1,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          padding: '9px 12px',
-          minHeight: '40px'
-        }}
+        style={disabled ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--text-secondary)' }}>
             {isCardActive ? <CreditCardIcon size={14} /> : (activeType === 'bank' ? <BuildingLibraryIcon size={14} /> : <WalletIcon size={14} />)}
           </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 'var(--fs-sm)' }}>
+          <span className="app-select-value">
             {activeAccount?.name || 'Select Account'}
             {activeAccount?.accountNumberMasked ? ` (••••${activeAccount.accountNumberMasked})` : ''}
           </span>

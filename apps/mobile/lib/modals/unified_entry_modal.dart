@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import 'held_lent_modal.dart';
 import '../widgets/floor_breach_notice.dart';
@@ -179,7 +180,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -433,7 +434,6 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       : (_activeType == EntryType.income
                           ? 'Note / Payer Reference (optional)'
                           : (_activeType == EntryType.item ? 'Item Name (e.g. Internet Bill)' : 'Description')),
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -444,7 +444,6 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: _activeType == EntryType.income ? 'Income (₹) *' : 'Amount (₹) *',
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -454,7 +453,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 TextField(
                   controller: _dayCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Day of Month (1-31)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Day of Month (1-31)'),
                 )
               else
                 AppDatePickerField(
@@ -659,7 +658,6 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     controller: _customCategoryCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Custom Category (e.g. Rent, Utilities)',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],

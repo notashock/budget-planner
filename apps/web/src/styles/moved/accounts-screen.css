@@ -246,8 +246,14 @@
 
 .accounts-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@container (max-width: 400px) {
+  .accounts-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .accounts-row-11 {

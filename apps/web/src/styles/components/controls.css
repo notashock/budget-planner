@@ -168,11 +168,11 @@
  */
 .input-field {
   width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: var(--control-h);
+  padding: 8px var(--field-pad-x);
   background-color: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--field-radius);
   color: var(--text);
   font-size: var(--fs-base);
   line-height: 1.4;
@@ -190,7 +190,7 @@ select.input-field {
 .input-field:focus {
   outline: none;
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
 }
 
 .input-field[aria-invalid="true"] {
@@ -202,10 +202,11 @@ select.input-field {
   cursor: not-allowed;
 }
 
-/* Phones: 44px touch target, and 16px text so iOS Safari doesn't zoom on focus */
+/* Phones: --control-h is 44px there; 16px text so iOS Safari doesn't zoom on focus */
 @media (max-width: 767px) {
-  .input-field {
-    min-height: 44px;
+  .input-field,
+  .app-select-trigger,
+  .datepicker-trigger {
     font-size: var(--fs-input);
   }
 }
@@ -230,17 +231,19 @@ select.input-field {
   color: var(--danger);
 }
 
-/* Unified Select Trigger */
+/* Unified Select Trigger (CustomSelect, AccountSelect) */
 .app-select-trigger {
   width: 100%;
+  min-height: var(--control-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: 8px var(--field-pad-x);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
+  border-radius: var(--field-radius);
+  font-size: var(--fs-base);
   color: var(--text);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
@@ -258,7 +261,18 @@ select.input-field {
   outline: none;
   background: var(--surface-subtle);
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+.app-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.app-select-placeholder {
+  color: var(--text-secondary);
 }
 
 /* Stacking Context Elevation for Dropdowns & Form Popovers */
@@ -404,5 +418,144 @@ select.input-field {
   .app-header-right {
     gap: 6px;
     flex-shrink: 0;
+  }
+}
+
+/* ==========================================================================
+   Shared form building blocks (entry and edit forms)
+   ========================================================================== */
+
+/* Helper text under a field */
+.field-hint {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.field-hint.is-positive {
+  color: var(--good-ink);
+}
+
+/* On/off pill (e.g. Spend <-> Refund) */
+.entry-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.entry-toggle.is-on {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+/* Two or three mutually exclusive short options */
+.entry-segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+}
+
+.entry-segment-btn {
+  min-height: calc(var(--control-h-sm) - 6px);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entry-segment-btn.active {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Option with a title and a sub-line (scope, settlement choices) */
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.choice-card.is-static {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+.choice-card.active {
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
+}
+
+.choice-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.choice-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.recurring-toggle-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.recurring-toggle-label.is-on {
+  color: var(--text);
+}
+
+/* Vertical form layout and its action row (modals without the entry sheet's sticky footer) */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--form-gap);
+}
+
+.form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.settle-amount-input {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .settle-amount-input {
+    font-size: var(--fs-input);
   }
 }

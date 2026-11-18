@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'app_form.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
@@ -41,6 +42,8 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
+      inputDecorationTheme: AppForm.inputTheme(isDark: false),
+      chipTheme: AppForm.chipTheme(isDark: false),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
     );
   }
@@ -82,6 +85,8 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
+      inputDecorationTheme: AppForm.inputTheme(isDark: true),
+      chipTheme: AppForm.chipTheme(isDark: true),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
     );
   }

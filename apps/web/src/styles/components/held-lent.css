@@ -3,11 +3,12 @@
 .hl-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--form-gap);
 }
 
 .hl-modal-body {
-  padding: var(--space-4);
+  /* The sheet (.modal-content) owns the side padding */
+  padding: var(--space-3) 2px var(--space-2);
 }
 
 .hl-modal-title {
@@ -69,10 +70,16 @@
   gap: var(--space-3);
 }
 
+@container (max-width: 400px) {
+  .hl-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .hl-form .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--field-gap);
   min-width: 0;
 }
 

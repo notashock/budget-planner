@@ -919,37 +919,35 @@ export function TransactionsScreen({
               )}
             </div>
 
-            <form onSubmit={handleConfirmPay} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
+            <form onSubmit={handleConfirmPay} className="form-stack">
+              <div className="form-group">
+                <label className="form-label" htmlFor="settle-amount">
                   Actual Amount ({currencySymbol})
                 </label>
                 <input
+                  id="settle-amount"
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
                   required
                   autoFocus
-                  className="input"
-                  style={{ width: '100%', fontVariantNumeric: 'tabular-nums', fontSize: 'var(--fs-md)', fontWeight: 600 }}
+                  className="input-field tabular-nums settle-amount-input"
                   value={actualAmount}
                   onChange={(e) => setActualAmount(e.target.value)}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Actual Date Paid
-                </label>
+              <div className="form-group">
+                <label className="form-label">Actual Date Paid</label>
                 <DatePicker
                   value={actualDate}
                   onChange={(d) => setActualDate(d)}
+                  maxDate={todayStr}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Payment Account
-                </label>
+              <div className="form-group">
+                <label className="form-label">Payment Account</label>
                 <CustomSelect
                   value={selectedAccountId}
                   onChange={(e) => setSelectedAccountId(e.target.value)}
@@ -959,20 +957,15 @@ export function TransactionsScreen({
               </div>
 
               <FloorBreachNotice check={settleFloorCheck} currencySymbol={currencySymbol} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <div className="form-footer">
                 <button
                   type="button"
                   className="btn-subtle"
                   onClick={() => setPayingTx(null)}
-                  style={{ padding: '8px 16px', fontSize: 'var(--fs-sm)' }}
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ padding: '8px 18px', fontSize: 'var(--fs-sm)', fontWeight: 600 }}
-                >
+                <button type="submit" className="btn-primary">
                   {settleFloorCheck?.breaches ? 'Confirm paid anyway' : 'Confirm Paid'}
                 </button>
               </div>

@@ -169,14 +169,20 @@ button:disabled {
 }
 
 input, textarea {
-  background: var(--surface);
+  background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 12px;
+  border-radius: var(--field-radius);
+  padding: 8px var(--field-pad-x);
   width: 100%;
   color: var(--text);
-  font-size: var(--fs-sm);
-  transition: border-color 0.15s ease;
+  font-size: var(--fs-base);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Every text-like field in a form is one control height (zero specificity, so any
+   component class can still size its own field, e.g. the hero amount) */
+:where(.form-group, .hl-form, .modal-content) :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select) {
+  min-height: var(--control-h);
 }
 
 select {
@@ -185,10 +191,10 @@ select {
   -moz-appearance: none;
   background-color: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 36px 8px 12px;
+  border-radius: var(--field-radius);
+  padding: 8px 36px 8px var(--field-pad-x);
   width: 100%;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
   color: var(--text);
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(150,150,150,0.85)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -204,13 +210,14 @@ select:hover {
 
 input:focus, textarea:focus {
   outline: none;
-  border-color: var(--border-focus);
+  border-color: var(--text);
+  box-shadow: var(--focus-ring);
 }
 
 select:focus {
   outline: none;
   border-color: var(--text);
-  box-shadow: 0 0 0 1px var(--text);
+  box-shadow: var(--focus-ring);
 }
 
 select option {

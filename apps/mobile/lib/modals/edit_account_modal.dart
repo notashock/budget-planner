@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 
 class EditAccountModal extends StatefulWidget {
@@ -93,7 +94,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -127,7 +128,6 @@ class _EditAccountModalState extends State<EditAccountModal> {
                 controller: _nameCtrl,
                 decoration: InputDecoration(
                   labelText: '${widget.isBank ? 'Bank' : 'Wallet'} Name',
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -137,7 +137,6 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   controller: _institutionCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Institution (e.g. HDFC, SBI, ICICI)',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -145,7 +144,6 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   controller: _maskCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Account Number Mask (Last 4 digits)',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -156,7 +154,6 @@ class _EditAccountModalState extends State<EditAccountModal> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Minimum Safety Floor / Balance (₹)',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),

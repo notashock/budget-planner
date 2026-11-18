@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 
 class CreateMonthModal extends StatefulWidget {
@@ -27,7 +28,7 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -61,7 +62,7 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
                   child: TextField(
                     controller: _yearCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Year', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Year'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -69,7 +70,7 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
                   child: TextField(
                     controller: _monthCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Month (1-12)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Month (1-12)'),
                   ),
                 ),
               ],
@@ -78,19 +79,19 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
             TextField(
               controller: _openingCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Opening Balance (₹)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Opening Balance (₹)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _incomeCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Salary / Income (₹)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Monthly Salary / Income (₹)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _floorCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Safety Floor Threshold (₹)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Safety Floor Threshold (₹)'),
             ),
             const SizedBox(height: 8),
             CheckboxListTile(
@@ -160,7 +161,7 @@ class _RolloverModalState extends State<RolloverModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: AppForm.sheetPadding,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),

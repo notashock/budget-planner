@@ -418,6 +418,19 @@ export function UnifiedEntryModal({
     });
   }, { dependencies: [shouldRender], scope: containerRef });
 
+  // Re-measure the tab indicator when the tab strip changes size (web font
+  // loading, container-query layout, rotation); measuring once on open can leave
+  // it half a tab off.
+  useEffect(() => {
+    if (!shouldRender || typeof ResizeObserver === 'undefined') return undefined;
+    const track = indicatorRef.current?.parentElement;
+    if (!track) return undefined;
+    const observer = new ResizeObserver(() => updateTabIndicator(mode, true));
+    observer.observe(track);
+    track.querySelectorAll('.modal-tab-btn').forEach((btn) => observer.observe(btn));
+    return () => observer.disconnect();
+  }, [shouldRender, mode, updateTabIndicator]);
+
   // Mode change animation & indicator sync
   useGSAP(() => {
     if (!shouldRender) return;
@@ -961,27 +974,7 @@ export function UnifiedEntryModal({
                   role="button"
                   aria-label={mode === 'income' ? 'Income' : (mode === 'log' ? 'Spending' : (mode === 'transfer' ? 'Transfer' : 'Plan Transaction'))}
                   data-active="true"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: 'var(--fs-sm)',
-                    fontWeight: 600,
-                    letterSpacing: '-0.01em',
-                    background: mode === 'income'
-                      ? 'rgba(34, 197, 94, 0.12)'
-                      : (mode === 'transfer'
-                        ? 'rgba(59, 130, 246, 0.12)'
-                        : 'var(--surface-subtle, rgba(255, 255, 255, 0.05))'),
-                    color: mode === 'income'
-                      ? 'var(--success)'
-                      : (mode === 'transfer'
-                        ? 'var(--accent)'
-                        : 'var(--text)'),
-                    border: '1px solid var(--border)'
-                  }}
+                  className={`entry-edit-type is-${mode}`}
                 >
                   {mode === 'log' && <ZapIcon size={14} />}
                   {mode === 'income' && <TrendingUpIcon size={14} />}
@@ -1149,19 +1142,8 @@ export function UnifiedEntryModal({
                   {mode === 'log' && (
                     <button
                       type="button"
-                      className={`btn-subtle ${isRefund ? 'credit-active-btn' : ''}`}
-                      style={{
-                        padding: '3px 10px',
-                        fontSize: 'var(--fs-2xs)',
-                        fontWeight: 600,
-                        border: isRefund ? '1px solid var(--text)' : '1px solid var(--border)',
-                        background: isRefund ? 'var(--text)' : 'var(--surface)',
-                        color: isRefund ? 'var(--bg)' : 'var(--text-secondary)',
-                        transition: 'all 0.15s ease',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
+                      className={`entry-toggle ${isRefund ? 'is-on credit-active-btn' : ''}`}
+                      aria-pressed={isRefund}
                       onClick={(e) => handleMicroPress(e, () => setIsRefund((prev) => !prev))}
                     >
                       {isRefund ? (
@@ -1175,42 +1157,27 @@ export function UnifiedEntryModal({
                     </button>
                   )}
 
-                  {mode === 'income' && (
-                    <span className="entry-row-5"
-                    >
-                      <TrendingUpIcon size={12} />
-                      <span>Direct Inflow</span>
-                    </span>
-                  )}
-
                   {mode === 'plan' && (
-                    <div className="entry-row-6">
+                    <div className="entry-segment" role="group" aria-label="Repeat">
                       <button
                         type="button"
-                        className={itemType === 'one-time' ? 'btn-primary' : 'btn-subtle'}
+                        className={`entry-segment-btn ${itemType === 'one-time' ? 'active' : ''}`}
+                        aria-pressed={itemType === 'one-time'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('one-time'))}
-                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         One-Time
                       </button>
                       <button
                         type="button"
-                        className={itemType === 'recurring' ? 'btn-primary' : 'btn-subtle'}
+                        className={`entry-segment-btn ${itemType === 'recurring' ? 'active' : ''}`}
+                        aria-pressed={itemType === 'recurring'}
                         onClick={(e) => handleMicroPress(e, () => setItemType('recurring'))}
-                        style={{ padding: '3px 8px', fontSize: 'var(--fs-2xs)', borderRadius: 0 }}
                       >
                         Recurring
                       </button>
                     </div>
                   )}
 
-                  {mode === 'transfer' && (
-                    <span className="entry-row-7"
-                    >
-                      <ArrowRightLeftIcon size={12} />
-                      <span>Zero-Sum</span>
-                    </span>
-                  )}
                 </div>
 
                 {/* Hero Amount & Date Side-by-Side Grid */}
@@ -1433,11 +1400,8 @@ export function UnifiedEntryModal({
                             key={t}
                             type="button"
                             className={`category-pill-btn ${incomeTag === t ? 'btn-primary' : 'btn-subtle'}`}
+                            aria-pressed={incomeTag === t}
                             onClick={(e) => handleMicroPress(e, () => setIncomeTag(t))}
-                            style={{
-                              fontWeight: incomeTag === t ? 600 : 400,
-                              border: incomeTag === t ? undefined : '1px solid var(--border)'
-                            }}
                           >
                             {t}
                           </button>
@@ -1447,11 +1411,8 @@ export function UnifiedEntryModal({
                             key={t}
                             type="button"
                             className={`category-pill-btn ${tag === t ? 'btn-primary' : 'btn-subtle'}`}
+                            aria-pressed={tag === t}
                             onClick={(e) => handleMicroPress(e, () => setTag(t))}
-                            style={{
-                              fontWeight: tag === t ? 600 : 400,
-                              border: tag === t ? undefined : '1px solid var(--border)'
-                            }}
                           >
                             {t}
                           </button>
@@ -1554,15 +1515,7 @@ export function UnifiedEntryModal({
                     currencySymbol={currencySymbol}
                   />
 
-                  <span
-                    style={{
-                      fontSize: 'var(--fs-2xs)',
-                      marginTop: '4px',
-                      display: 'block',
-                      color: isRefund ? 'var(--success)' : 'var(--text-muted, var(--text-secondary))',
-                      fontWeight: isRefund ? 500 : 400
-                    }}
-                  >
+                  <span className={`field-hint ${isRefund ? 'is-positive' : ''}`}>
                     {matchedItemId
                       ? isRefund
                         ? 'Applies this refund as a credit to the item, reducing its net cost.'
@@ -1653,35 +1606,21 @@ export function UnifiedEntryModal({
                   <div className="entry-grid">
                     <button
                       type="button"
-                      className={`btn-subtle ${cascadeScope === 'single' ? 'active-scope' : ''}`}
+                      className={`choice-card ${cascadeScope === 'single' ? 'active active-scope' : ''}`}
+                      aria-pressed={cascadeScope === 'single'}
                       onClick={() => setCascadeScope('single')}
-                      style={{
-                        padding: '8px 12px',
-                        textAlign: 'left',
-                        borderRadius: '8px',
-                        border: cascadeScope === 'single' ? '1.5px solid var(--text)' : '1px solid var(--border)',
-                        background: cascadeScope === 'single' ? 'var(--surface-active, rgba(255, 255, 255, 0.08))' : 'var(--surface-subtle)',
-                        cursor: 'pointer'
-                      }}
                     >
-                      <div className="entry-note-8">This month only</div>
-                      <div className="entry-note-9">One-time override</div>
+                      <span className="choice-card-title">This month only</span>
+                      <span className="choice-card-sub">One-time override</span>
                     </button>
                     <button
                       type="button"
-                      className={`btn-subtle ${cascadeScope === 'all_future' ? 'active-scope' : ''}`}
+                      className={`choice-card ${cascadeScope === 'all_future' ? 'active active-scope' : ''}`}
+                      aria-pressed={cascadeScope === 'all_future'}
                       onClick={() => setCascadeScope('all_future')}
-                      style={{
-                        padding: '8px 12px',
-                        textAlign: 'left',
-                        borderRadius: '8px',
-                        border: cascadeScope === 'all_future' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-                        background: cascadeScope === 'all_future' ? 'rgba(59, 130, 246, 0.12)' : 'var(--surface-subtle)',
-                        cursor: 'pointer'
-                      }}
                     >
-                      <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: cascadeScope === 'all_future' ? 'var(--primary)' : 'var(--text)' }}>This & all future</div>
-                      <div className="entry-note-9">Update baseline</div>
+                      <span className="choice-card-title">This & all future</span>
+                      <span className="choice-card-sub">Update baseline</span>
                     </button>
                   </div>
                 </div>
@@ -1689,19 +1628,10 @@ export function UnifiedEntryModal({
 
               {/* Salary Template Sync for Salary Income Edit */}
               {initialItem && mode === 'income' && (initialItem.origin === 'salary' || incomeTag === 'Salary') && (
-                <div
-                  style={{
-                    marginTop: '10px',
-                    padding: '8px 12px',
-                    background: updateSalaryTemplate ? 'rgba(34, 197, 94, 0.08)' : 'var(--surface-subtle)',
-                    borderRadius: '8px',
-                    border: updateSalaryTemplate ? '1px solid var(--success)' : '1px solid var(--border)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
+                <div className={`choice-card is-static ${updateSalaryTemplate ? 'active' : ''}`}>
                   <label className="entry-label-3">
                     <div>
-                      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: updateSalaryTemplate ? 'var(--success)' : 'var(--text)' }}>
+                      <div className="choice-card-title">
                         Update monthly salary template
                       </div>
                       <div className="entry-note-10">
@@ -1740,7 +1670,7 @@ export function UnifiedEntryModal({
                   <div className={`recurring-toggle-track ${isPaid ? 'active' : ''}`}>
                     <div className="recurring-toggle-thumb" />
                   </div>
-                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: isPaid ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  <span className={`recurring-toggle-label ${isPaid ? 'is-on' : ''}`}>
                     {isPaid ? 'Payment done' : 'Payment pending'}
                   </span>
                 </div>
@@ -1757,13 +1687,8 @@ export function UnifiedEntryModal({
                 {mode === 'log' && (
                   <button
                     type="submit"
-                    className="btn-primary"
+                    className={`btn-primary entry-submit ${isRefund ? 'is-positive' : ''}`}
                     disabled={hasZeroAccounts || isSubmitting}
-                    style={{
-                      padding: '10px 20px',
-                      background: isRefund ? 'var(--success)' : undefined,
-                      borderColor: isRefund ? 'var(--success)' : undefined
-                    }}
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Logging...')

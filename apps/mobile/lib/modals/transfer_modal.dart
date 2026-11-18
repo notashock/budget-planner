@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
@@ -65,7 +66,7 @@ class _TransferModalState extends State<TransferModal> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -130,7 +131,7 @@ class _TransferModalState extends State<TransferModal> {
               TextField(
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Transfer Amount (₹) *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Transfer Amount (₹) *'),
               ),
               const SizedBox(height: 12),
 
@@ -147,7 +148,7 @@ class _TransferModalState extends State<TransferModal> {
 
               TextField(
                 controller: _noteCtrl,
-                decoration: const InputDecoration(labelText: 'Note / Description (Optional)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Note / Description (Optional)'),
               ),
               FloorBreachNotice(amountController: _amountCtrl, accountId: _sourceAccountId),
               const SizedBox(height: 20),
