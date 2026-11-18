@@ -1489,6 +1489,7 @@ export function UnifiedEntryModal({
                 month={month}
                 simulation={simulation}
                 accountSimulations={accountSimulations}
+                transactions={transactions}
                 initialValues={{ amount, date, note: description, accountId }}
                 onValuesChange={(values) => {
                   setAmount(values.amount);

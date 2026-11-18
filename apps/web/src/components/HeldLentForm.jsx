@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { formatCurrency, toMinorUnits } from '@budget/engine';
 import { api } from '../api.js';
 import { AccountSelect } from './AccountSelect.jsx';
@@ -6,6 +6,7 @@ import { DatePicker } from './DatePicker.jsx';
 import { Button } from './ui/Button.jsx';
 import { FloorBreachNotice, anywayLabel } from './FloorBreachNotice.jsx';
 import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
+import { findAlreadyLogged } from '../utils/entryAssists.js';
 
 /**
  * Held & Lent money entry (ADR 0069).
@@ -37,6 +38,8 @@ export function HeldLentForm({
   month = null,
   simulation = null,
   accountSimulations = {},
+  // Recorded entries, to spot money that is already logged as income or spending
+  transactions = [],
   initialAction = 'hold',
   initialFundId = '',
   // Values carried over from another form (the entry modal's shared state), so
@@ -76,6 +79,10 @@ export function HeldLentForm({
   );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // A second tap while the first save is in flight must not save it twice
+  const savingRef = useRef(false);
+  // The user said the matching logged entry is a different payment
+  const [twinDismissedId, setTwinDismissedId] = useState(null);
 
   // Report edits back so the values survive switching to another tab
   useEffect(() => {
@@ -121,8 +128,60 @@ export function HeldLentForm({
   const selectedFund = funds.find((f) => String(f.id) === String(fundId)) || null;
   const outstanding = selectedFund ? selectedFund.outstanding : 0;
 
+  // A return (or repayment) goes back through the account the money sits in, so
+  // default to it. Taking it from another account lowers that account instead.
+  const findAccount = (id) => {
+    if (!id) return null;
+    const bank = bankAccounts.find((b) => String(b.id || b._id) === String(id));
+    if (bank) return { accountType: 'bank', accountId: bank.id || bank._id, name: bank.name };
+    const wallet = wallets.find((w) => String(w.id || w._id) === String(id));
+    if (wallet) return { accountType: 'wallet', accountId: wallet.id || wallet._id, name: wallet.name };
+    return null;
+  };
+  const settleAccount = !startsNew && selectedFund ? findAccount(selectedFund.settleAccountId) : null;
+  useEffect(() => {
+    if (!settleAccount) return;
+    setAccountType(settleAccount.accountType);
+    setAccountId(settleAccount.accountId);
+  }, [settleAccount?.accountId, action]); // eslint-disable-line react-hooks/exhaustive-deps
+  const accountMismatch = settleAccount && String(settleAccount.accountId) !== String(accountId)
+    ? { held: settleAccount.name, picked: findAccount(accountId)?.name || 'this account' }
+    : null;
+
+  // Same money already logged as income or spending? Logging it here too moves the cash twice.
+  const twinCandidate = findAlreadyLogged(transactions, {
+    flow: current.flow, amount: toMinorUnits(amount || 0, 100), date, accountId
+  });
+  const twin = twinCandidate && String(twinCandidate.id || twinCandidate._id) !== String(twinDismissedId) ? twinCandidate : null;
+  const monthRef = month && month.year && month.month ? { year: month.year, month: month.month } : {};
+
+  const useLoggedEntry = async () => {
+    if (!twin || savingRef.current) return;
+    if (!startsNew && !selectedFund) return;
+    if (fundId === NEW_PERSON && !personName.trim()) {
+      setError('Enter the person’s name.');
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      const body = fundId === NEW_PERSON
+        ? { personName: personName.trim(), direction: current.direction }
+        : { personFundId: fundId };
+      const saved = await api.reclassifyTransaction(twin.id || twin._id, body);
+      onSaved?.(saved);
+    } catch (err) {
+      setError(err?.message || 'Could not move that entry. Please try again.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
+    if (savingRef.current) return;
     setError('');
     const minor = toMinorUnits(amount, 100);
     if (!minor || minor <= 0) {
@@ -141,6 +200,11 @@ export function HeldLentForm({
       setError('Enter the person’s name.');
       return;
     }
+    if (twin) {
+      setError(`Is this the ${formatCurrency(Math.abs(twin.amount), currencySymbol)} “${twin.name || twin.title || 'entry'}” you already logged? Use that entry, or say it’s a different payment.`);
+      return;
+    }
+    savingRef.current = true;
     setSaving(true);
     try {
       let saved;
@@ -152,6 +216,7 @@ export function HeldLentForm({
           date,
           accountId: accountId || undefined,
           entryNote: note,
+          ...monthRef,
           expectedSettleDate: startsNew && expectedDate ? expectedDate : undefined
         });
       } else {
@@ -160,7 +225,8 @@ export function HeldLentForm({
           amount: minor,
           date,
           accountId: accountId || undefined,
-          note
+          note,
+          ...monthRef
         });
         // Lending more / holding more can set or move the expected date
         if (startsNew && expectedDate && typeof api.updatePersonFund === 'function') {
@@ -171,6 +237,7 @@ export function HeldLentForm({
     } catch (err) {
       setError(err?.message || 'Could not save. Please try again.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -276,6 +343,13 @@ export function HeldLentForm({
             accountSimulations={accountSimulations}
           />
         )}
+        {accountMismatch && (
+          <p className="hl-hint hl-hint-warn" data-testid="hl-account-mismatch">
+            {current.key === 'return'
+              ? `${selectedFund.personName}'s money went into ${accountMismatch.held}. Returning it from ${accountMismatch.picked} lowers ${accountMismatch.picked}.`
+              : `The money lent to ${selectedFund.personName} left ${accountMismatch.held}. This puts it into ${accountMismatch.picked}.`}
+          </p>
+        )}
       </div>
 
       {startsNew && (
@@ -291,6 +365,23 @@ export function HeldLentForm({
         <label className="form-label" htmlFor="hl-note">Note (optional)</label>
         <input id="hl-note" className="input-field" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
       </div>
+
+      {twin && (
+        <div className="hl-twin" role="status" data-testid="hl-already-logged">
+          <p className="hl-twin-text">
+            <strong>Already logged?</strong>{' '}
+            “{twin.name || twin.title || 'An entry'}” ({formatCurrency(Math.abs(twin.amount), currencySymbol)}
+            {twin.date ? `, ${String(twin.date).slice(0, 10)}` : ''}) already {current.flow === 'in' ? 'added this money' : 'took this money out'}.
+            Logging it here too counts it twice.
+          </p>
+          <div className="hl-twin-actions">
+            <Button variant="primary" size="sm" onClick={useLoggedEntry} disabled={saving}>Use that entry</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setTwinDismissedId(twin.id || twin._id); setError(''); }}>
+              It’s a different payment
+            </Button>
+          </div>
+        </div>
+      )}
 
       <FloorBreachNotice check={floorCheck} currencySymbol={currencySymbol} />
 

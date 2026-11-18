@@ -204,4 +204,61 @@ describe('Held & Lent money API', () => {
     const del = await request(app).delete(`/api/v1/person-funds/${empty.body.data.id}`).set(auth);
     expect(del.status).toBe(200);
   });
+
+  // Incident 2026-11-18: a double tap saved the same held money twice, a person moved
+  // twice, and a 31 Oct entry was filed under October while its siblings sat in November.
+  it('rejects the same entry sent twice in a row, unless asked', async () => {
+    const body = { flow: 'in', amount: 10000, date: day1, accountId };
+    const first = await request(app).post(`/api/v1/person-funds/${heldId}/entries`).set(auth).send(body);
+    expect(first.status).toBe(201);
+    const startBal = await balance();
+    const again = await request(app).post(`/api/v1/person-funds/${heldId}/entries`).set(auth).send(body);
+    expect(again.status).toBe(400);
+    expect(await balance()).toBe(startBal);
+    const meant = await request(app).post(`/api/v1/person-funds/${heldId}/entries`).set(auth).send({ ...body, allowDuplicate: true });
+    expect(meant.status).toBe(201);
+  });
+
+  it('adding a person who already exists reuses them', async () => {
+    const res = await request(app)
+      .post('/api/v1/person-funds')
+      .set(auth)
+      .send({ personName: ' ravi ', direction: 'held' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.id).toBe(heldId);
+  });
+
+  it('moving the same entry to a person twice only moves it once', async () => {
+    const income = await request(app)
+      .post(`/api/months/${year}/${month}/transactions`)
+      .set(auth)
+      .send({ name: 'Cash from Kiran', amount: 30990, isIncome: true, origin: 'spot', date: day1, accountId });
+    expect(income.status).toBe(201);
+    const startBal = await balance();
+    const [a, b] = await Promise.all([
+      request(app).post(`/api/v1/transactions/${income.body.data.id}/reclassify`).set(auth).send({ personName: 'Kiran', direction: 'held' }),
+      request(app).post(`/api/v1/transactions/${income.body.data.id}/reclassify`).set(auth).send({ personName: 'Kiran', direction: 'held' })
+    ]);
+    expect([a.status, b.status].sort()).toEqual([200, 400]);
+    expect(await balance()).toBe(startBal);
+    const funds = await request(app).get('/api/v1/person-funds').set(auth);
+    const kirans = funds.body.data.funds.filter((f) => f.personName === 'Kiran');
+    expect(kirans).toHaveLength(1);
+    expect(kirans[0].outstanding).toBe(30990);
+    const live = await balance();
+    await LedgerService.recomputeAccountBalance(accountId);
+    expect(await balance()).toBe(live);
+  });
+
+  it('files an entry under the month being viewed, like other entries', async () => {
+    const prev = new Date(year, month - 1, 0);
+    const lastOfPrev = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+    const res = await request(app)
+      .post(`/api/v1/person-funds/${heldId}/entries`)
+      .set(auth)
+      .send({ flow: 'in', amount: 12345, date: lastOfPrev, accountId, year, month });
+    expect(res.status).toBe(201);
+    const current = await db.query.months.findFirst({ where: eq(s.months.userId, userId) });
+    expect(res.body.data.monthId).toBe(current.id);
+  });
 });

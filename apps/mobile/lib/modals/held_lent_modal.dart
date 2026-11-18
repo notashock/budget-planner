@@ -150,6 +150,8 @@ class _HeldLentFormState extends State<HeldLentForm> {
   }
 
   Future<void> _submit() async {
+    // A second tap before the button redraws must not save it twice
+    if (_submitting) return;
     final budget = Provider.of<BudgetProvider>(context, listen: false);
     final amt = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
     setState(() => _error = null);
@@ -170,7 +172,10 @@ class _HeldLentFormState extends State<HeldLentForm> {
       setState(() => _error = "Enter the person's name.");
       return;
     }
-    setState(() => _submitting = true);
+    _submitting = true;
+    setState(() {});
+    // Filed under the month being viewed, like other entries
+    final monthRef = {'year': budget.currentYear, 'month': budget.currentMonth};
     try {
       if (_fundId == _newPerson) {
         await budget.createPersonFund({
@@ -181,6 +186,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
           'accountId': _accountId,
           'entryNote': _noteCtrl.text.trim(),
           if (_expectedDate != null) 'expectedSettleDate': _ymd(_expectedDate!),
+          ...monthRef,
         });
       } else {
         await budget.addPersonFundEntry(_fundId!, {
@@ -189,13 +195,15 @@ class _HeldLentFormState extends State<HeldLentForm> {
           'date': _ymd(_date),
           'accountId': _accountId,
           'note': _noteCtrl.text.trim(),
+          ...monthRef,
         });
       }
       widget.onSaved?.call();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      _submitting = false;
+      if (mounted) setState(() {});
     }
   }
 

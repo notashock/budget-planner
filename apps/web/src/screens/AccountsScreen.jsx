@@ -28,6 +28,7 @@ gsap.registerPlugin(useGSAP);
 
 export function AccountsScreen({
   bankAccounts = [],
+  transactions = [],
   wallets = [],
   transfers = [],
   simulation = null,
@@ -802,6 +803,7 @@ export function AccountsScreen({
       {/* Held & Lent money: other people's money with you, and yours with them */}
       <PeoplePanel
         bankAccounts={bankAccounts}
+        transactions={transactions}
         wallets={wallets}
         currencySymbol={currencySymbol}
         month={month}

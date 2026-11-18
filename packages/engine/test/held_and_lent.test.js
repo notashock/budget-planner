@@ -174,3 +174,21 @@ describe('insights and reports skip held & lent money', () => {
     expect(m.currentBalance).toBe(1500000);
   });
 });
+
+describe('returning held money from a different account', () => {
+  it('releases what the other account held, so held per account adds up', () => {
+    const wallet = { id: 'w1', type: 'wallet', name: 'Cash', openingBalance: 500000 };
+    const r = simulate({
+      openingBalance: 10500000, incomeAmount: 0, incomeCreditDay: 1, safetyFloor: 0, currentDay: 10, scale: 100,
+      accountOpeningBalances: [{ accountId: 'a1', amount: 10000000 }, { accountId: 'w1', amount: 500000 }]
+    }, [], MONTH, [
+      tx('h1', 'held_in', 300000, '2026-11-03', { accountId: 'w1' }),
+      tx('h2', 'held_return', 300000, '2026-11-08', { accountId: 'a1' })
+    ], [], [], [acc, wallet]);
+    expect(r.heldForOthers).toBe(0);
+    expect(r.accounts.w1.heldForOthers).toBe(0);
+    expect(r.accounts.a1.heldForOthers).toBe(0);
+    expect(r.accounts.a1.todayBalance).toBe(9700000);
+    expect(r.accounts.w1.todayBalance).toBe(800000);
+  });
+});

@@ -50,21 +50,29 @@ function summarize(fund, txs) {
   let plannedIn = 0;
   let plannedOut = 0;
   let lastActivityDate = null;
+  // Where the outstanding money sits, so a return or repayment defaults to that account
+  const byAccount = {};
   txs.forEach((t) => {
     const amt = Math.abs(Number(t.amount) || 0);
     const flow = flowOf(t.origin);
     if (t.status === 'successful') {
       const d = passThroughDeltas(t.origin, amt);
-      outstanding += fund.direction === 'held' ? d.held : d.lent;
+      const delta = fund.direction === 'held' ? d.held : d.lent;
+      outstanding += delta;
+      if (t.accountId) byAccount[t.accountId] = (byAccount[t.accountId] || 0) + delta;
       if (flow === 'in') totalIn += amt; else totalOut += amt;
       if (!lastActivityDate || t.date > lastActivityDate) lastActivityDate = t.date;
     } else if (t.status === 'planned') {
       if (flow === 'in') plannedIn += amt; else plannedOut += amt;
     }
   });
+  const settleAccountId = Object.keys(byAccount)
+    .filter((id) => byAccount[id] > 0)
+    .sort((a, b) => byAccount[b] - byAccount[a])[0] || null;
   return {
     ...fund,
     outstanding,
+    settleAccountId,
     totalIn,
     totalOut,
     plannedIn,
@@ -92,6 +100,27 @@ export async function resolveCoveringMonth(userId, date) {
   }
   return month || null;
 }
+
+/**
+ * The month an entry is filed under. Like other entries, it goes into the month the
+ * user is looking at (body.year/body.month) when that month is open; otherwise the
+ * month that covers its date. Filing a 31 Oct entry under October while its
+ * siblings sit in November left the cash out of November's balance.
+ */
+async function resolveEntryMonth(userId, body, date) {
+  const year = Number(body.year);
+  const monthNum = Number(body.month);
+  if (Number.isInteger(year) && Number.isInteger(monthNum) && monthNum >= 1 && monthNum <= 12) {
+    const viewed = await db.query.months.findFirst({
+      where: and(eq(s.months.userId, userId), eq(s.months.year, year), eq(s.months.month, monthNum))
+    });
+    if (viewed && !viewed.isClosed) return viewed;
+  }
+  return resolveCoveringMonth(userId, date);
+}
+
+// The same entry sent twice within this window is a double submit, not a second payment
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 
 async function loadOwnedFund(userId, fundId) {
   if (!fundId || !isValidUuid(String(fundId))) {
@@ -172,7 +201,11 @@ export const PersonFundService = {
     if (!DIRECTIONS.includes(direction)) {
       throw new ValidationError("direction must be 'held' or 'lent'");
     }
-    const [fund] = await db.insert(s.personFunds).values({
+    // A second tap (or a second device) must not create the same person twice
+    const existing = (await db.query.personFunds.findMany({
+      where: and(eq(s.personFunds.userId, userId), eq(s.personFunds.direction, direction))
+    })).find((f) => f.personName.trim().toLowerCase() === personName.toLowerCase());
+    const [fund] = existing ? [existing] : await db.insert(s.personFunds).values({
       userId,
       personName,
       direction,
@@ -188,7 +221,10 @@ export const PersonFundService = {
         amount: body.amount,
         date: body.date,
         accountId: body.accountId,
-        note: body.entryNote
+        note: body.entryNote,
+        year: body.year,
+        month: body.month,
+        allowDuplicate: body.allowDuplicate
       });
     }
     const full = await this.getFund(userId, fund.id);
@@ -262,7 +298,19 @@ export const PersonFundService = {
       if (!valid) throw new ValidationError('Linked Account is invalid or not owned by user');
     }
 
-    const month = await resolveCoveringMonth(userId, date);
+    // Double submit: the same entry on this person a moment ago
+    if (!body.allowDuplicate) {
+      const since = new Date(Date.now() - DUPLICATE_WINDOW_MS);
+      const twin = (await fundTransactions(fund.id)).find((t) => (
+        t.origin === origin && t.status === status && Number(t.amount) === amount && t.date === date
+        && String(t.accountId || '') === String(accountId || '') && t.createdAt && new Date(t.createdAt) >= since
+      ));
+      if (twin) {
+        throw new ValidationError('This was just saved. Check the list before adding it again.', { duplicateOf: twin.id });
+      }
+    }
+
+    const month = await resolveEntryMonth(userId, body, date);
     const verbs = { held_in: 'Holding for', held_return: 'Returned to', lent_out: 'Lent to', lent_repaid: 'Repaid by' };
     const [tx] = await db.insert(s.transactions).values({
       userId,
@@ -329,18 +377,20 @@ export const PersonFundService = {
     }
 
     let fund;
+    let createdFundId = null;
     if (body.personFundId) {
       fund = await loadOwnedFund(userId, body.personFundId);
     } else {
+      const startedAt = Date.now();
       const created = await this.createFund(userId, { personName: body.personName, direction: body.direction });
       fund = await loadOwnedFund(userId, created.id);
+      if (new Date(fund.createdAt).getTime() >= startedAt - 1000) createdFundId = fund.id;
     }
 
     // Cash direction stays exactly as it was; only its meaning changes
     const cashIn = Boolean(tx.isIncome) || Number(tx.amount) < 0;
     const origin = originFor(fund.direction, cashIn ? 'in' : 'out');
 
-    if (tx.status === 'successful') await LedgerService.applyTransactionBalance(tx, -1);
     const [updated] = await db.update(s.transactions).set({
       origin,
       isIncome: false,
@@ -351,8 +401,24 @@ export const PersonFundService = {
       plannedItemId: null,
       refundTargetTransactionId: null,
       updatedAt: new Date()
-    }).where(eq(s.transactions.id, tx.id)).returning();
-    if (updated.status === 'successful') await LedgerService.applyTransactionBalance(updated, 1);
+    }).where(and(
+      eq(s.transactions.id, tx.id),
+      // Only if nobody moved it in the meantime (a double tap sends two requests)
+      eq(s.transactions.origin, tx.origin),
+      isNull(s.transactions.personFundId)
+    )).returning();
+    if (!updated) {
+      // Lost the race: drop the person this request just added if nothing is logged on them
+      if (createdFundId) {
+        const left = await fundTransactions(createdFundId);
+        if (left.length === 0) await db.delete(s.personFunds).where(eq(s.personFunds.id, createdFundId));
+      }
+      throw new ValidationError('This entry is already held or lent money');
+    }
+    if (tx.status === 'successful') {
+      await LedgerService.applyTransactionBalance(tx, -1);
+      await LedgerService.applyTransactionBalance(updated, 1);
+    }
 
     await this.refreshStatus(fund.id);
     return serialize({ transaction: updated, fund: await this.getFund(userId, fund.id) });

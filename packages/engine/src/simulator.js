@@ -886,6 +886,29 @@ export function simulate(
   let heldRunning = heldOpeningBalance;
   let lentRunning = lentOpeningBalance;
   const accountHeldRunning = { ...accountHeldOpening };
+  // Held money released from one account (a return) first clears what that account holds.
+  // If the return was paid from a different account than the one the money came into,
+  // the rest is released from the accounts still holding it, so per-account held always
+  // adds up to the total and the account that first took the money in isn't left ring-fenced.
+  const applyAccountHeldDelta = (accId, delta) => {
+    if (delta >= 0) {
+      accountHeldRunning[accId] = (accountHeldRunning[accId] || 0) + delta;
+      return;
+    }
+    let remaining = -delta;
+    const fromHere = Math.min(remaining, Math.max(0, accountHeldRunning[accId] || 0));
+    accountHeldRunning[accId] = Math.max(0, (accountHeldRunning[accId] || 0) - fromHere);
+    remaining -= fromHere;
+    for (const id of Object.keys(accountHeldRunning)) {
+      if (remaining <= 0) break;
+      if (id === accId) continue;
+      const take = Math.min(remaining, Math.max(0, accountHeldRunning[id] || 0));
+      if (take > 0) {
+        accountHeldRunning[id] -= take;
+        remaining -= take;
+      }
+    }
+  };
   // Opening low points measure your own money too
 
   normalizedAccounts.forEach((acc) => {
@@ -970,11 +993,11 @@ export function simulate(
       if (targetBankId && accountRunningBalances[targetBankId] !== undefined) {
         accountRunningBalances[targetBankId] += evt.amount;
         accountBalanceAfter = accountRunningBalances[targetBankId];
-        if (evt.heldDelta) accountHeldRunning[targetBankId] = Math.max(0, (accountHeldRunning[targetBankId] || 0) + evt.heldDelta);
+        if (evt.heldDelta) applyAccountHeldDelta(targetBankId, evt.heldDelta);
       } else if (wId && accountRunningBalances[wId] !== undefined) {
         accountRunningBalances[wId] += evt.amount;
         accountBalanceAfter = accountRunningBalances[wId];
-        if (evt.heldDelta) accountHeldRunning[wId] = Math.max(0, (accountHeldRunning[wId] || 0) + evt.heldDelta);
+        if (evt.heldDelta) applyAccountHeldDelta(wId, evt.heldDelta);
       } else {
         unassignedRunningBalance += evt.amount;
         accountBalanceAfter = unassignedRunningBalance;
