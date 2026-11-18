@@ -22,6 +22,12 @@ import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 import { EyeIcon, ZapIcon, BanknoteIcon } from './components/Icons.jsx';
 import { useThemeMode } from './hooks/useThemeMode.js';
 
+/** What to do with an under-spent planned item: 'release' | 'keep_remainder' | null.
+ * The entry modal sends { action }; older callers sent { type }. */
+export function underSpendActionKind(underSpendAction) {
+  return underSpendAction?.action || underSpendAction?.type || null;
+}
+
 export function resolveEntryModeFromItem(item) {
   if (!item) return 'log';
   if (item.type === 'income' || item.direction === 'income' || Boolean(item.isIncome)) {
@@ -441,16 +447,18 @@ export default function App() {
       }
 
       if (underSpendAction && txData.plannedItemId && currentMonth) {
-        const targetItem = items.find((i) => i._id === txData.plannedItemId);
+        const settleAction = underSpendActionKind(underSpendAction);
+        const targetItem = items.find((i) => String(i._id || i.id) === String(txData.plannedItemId));
         if (targetItem) {
-          if (underSpendAction.type === 'release') {
-            const updated = await api.updateItem(targetItem._id, {
+          const targetId = targetItem._id || targetItem.id;
+          if (settleAction === 'release') {
+            const updated = await api.updateItem(targetId, {
               amount: underSpendAction.spentAmt,
               isPaid: true
             });
-            setItems((prev) => prev.map((i) => (i._id === updated._id ? updated : i)));
-          } else if (underSpendAction.type === 'keep_remainder') {
-            const updated = await api.updateItem(targetItem._id, {
+            setItems((prev) => prev.map((i) => (String(i._id || i.id) === String(targetId) ? { ...i, ...updated } : i)));
+          } else if (settleAction === 'keep_remainder') {
+            const updated = await api.updateItem(targetId, {
               amount: underSpendAction.spentAmt,
               isPaid: true
             });
@@ -471,7 +479,7 @@ export default function App() {
               newItemData.isFixed = targetItem.isFixed;
             }
             const remainderItem = await api.createItem(currentMonth.year, currentMonth.month, newItemData);
-            setItems((prev) => [...prev.map((i) => (i._id === updated._id ? updated : i)), remainderItem]);
+            setItems((prev) => [...prev.map((i) => (String(i._id || i.id) === String(targetId) ? { ...i, ...updated } : i)), remainderItem]);
           }
         }
       } else if (txData.plannedItemId && currentMonth) {
@@ -1136,6 +1144,7 @@ export default function App() {
               onDeleteTransaction={handleDeleteTransaction}
               onHeldLentChanged={handleHeldLentChanged}
               creditCards={creditCards}
+              simulation={activeSimulation}
             />
           )}
 

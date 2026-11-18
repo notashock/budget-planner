@@ -5,6 +5,7 @@ import '../models/simulation.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../widgets/confirm_dialog.dart';
 import 'mark_paid_modal.dart';
 
 class TransactionDetailModal extends StatelessWidget {
@@ -344,6 +345,15 @@ class TransactionDetailModal extends StatelessWidget {
                       onPressed: () async {
                         final navigator = Navigator.of(context);
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        final confirmed = await confirmDestructive(
+                          context,
+                          title: isPlanned ? 'Cancel this commitment?' : (isTransfer ? 'Delete this transfer?' : 'Delete this transaction?'),
+                          message: isPlanned
+                              ? 'It will be removed from your plan.'
+                              : 'Account balances will be recalculated. This can\'t be undone.',
+                          confirmLabel: isPlanned ? 'Cancel commitment' : 'Delete',
+                        );
+                        if (!confirmed) return;
                         try {
                           if (isTransfer) {
                             await budget.deleteTransfer(id);

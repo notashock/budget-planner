@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
@@ -292,6 +293,9 @@ class _HeldLentModalState extends State<HeldLentModal> {
                 controller: _noteCtrl,
                 decoration: const InputDecoration(labelText: 'Note (optional)', border: OutlineInputBorder()),
               ),
+              // Lending spends your own money; returning held money doesn't (it was never yours)
+              if (_current.key == 'lend')
+                FloorBreachNotice(amountController: _amountCtrl, accountId: _accountId),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),

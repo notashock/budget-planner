@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/account_selector.dart';
 import '../widgets/app_date_picker.dart';
 
@@ -382,6 +383,7 @@ class _PayBillModalState extends State<PayBillModal> {
       ),
       const SizedBox(height: 12),
       AppDatePickerField(label: 'Date', selectedDate: _date, onDateSelected: (d) => setState(() => _date = d)),
+      FloorBreachNotice(amountController: _custom, accountId: _payFrom, fixedAmount: _amount),
       if (_error != null) ...[
         const SizedBox(height: 10),
         Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),

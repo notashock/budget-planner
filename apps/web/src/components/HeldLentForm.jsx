@@ -4,6 +4,8 @@ import { api } from '../api.js';
 import { AccountSelect } from './AccountSelect.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { Button } from './ui/Button.jsx';
+import { FloorBreachNotice, anywayLabel } from './FloorBreachNotice.jsx';
+import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 
 /**
  * Held & Lent money entry (ADR 0069).
@@ -166,6 +168,12 @@ export function HeldLentForm({
 
   const noAccounts = bankAccounts.length === 0 && wallets.length === 0;
 
+  // Lending spends your own money, so it is checked against the safety floor.
+  // Returning held money is not: it was never yours, so your own money is unchanged.
+  const floorCheck = current.key === 'lend'
+    ? checkFloor(findCashAccount(accountId, bankAccounts, wallets), toMinorUnits(amount || 0, 100), { simulation, accountSimulations })
+    : null;
+
   return (
     <form className="hl-form" onSubmit={handleSubmit} data-testid="held-lent-form">
       <div className="hl-actions" role="radiogroup" aria-label="What happened">
@@ -266,12 +274,14 @@ export function HeldLentForm({
         <input id="hl-note" className="input-field" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
       </div>
 
+      <FloorBreachNotice check={floorCheck} currencySymbol={currencySymbol} />
+
       {error && <div className="hl-error" role="alert">{error}</div>}
 
       <div className="hl-footer">
         {onCancel && <Button variant="ghost" onClick={onCancel}>Cancel</Button>}
         <Button variant="primary" type="submit" disabled={saving || noAccounts}>
-          {saving ? 'Saving…' : current.label}
+          {saving ? 'Saving…' : anywayLabel(current.label, floorCheck)}
         </Button>
       </div>
     </form>

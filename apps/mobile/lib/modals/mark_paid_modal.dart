@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
@@ -255,6 +256,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
                   });
                 },
               ),
+              FloorBreachNotice(amountController: _amountCtrl, accountId: _selectedAccountId),
               const SizedBox(height: 24),
 
               // Confirm Button

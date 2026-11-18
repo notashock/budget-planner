@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
@@ -148,6 +149,7 @@ class _TransferModalState extends State<TransferModal> {
                 controller: _noteCtrl,
                 decoration: const InputDecoration(labelText: 'Note / Description (Optional)', border: OutlineInputBorder()),
               ),
+              FloorBreachNotice(amountController: _amountCtrl, accountId: _sourceAccountId),
               const SizedBox(height: 20),
 
               SizedBox(

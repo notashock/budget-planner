@@ -210,6 +210,26 @@ select.input-field {
   }
 }
 
+/* Inline safety-floor warning above a form's footer (FloorBreachNotice) */
+.floor-breach-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-subtle);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.floor-breach-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
 /* Unified Select Trigger */
 .app-select-trigger {
   width: 100%;

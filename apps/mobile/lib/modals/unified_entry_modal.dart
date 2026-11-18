@@ -5,10 +5,20 @@ import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
 import 'held_lent_modal.dart';
+import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
 enum EntryType { transaction, income, item, goal, transfer }
+
+/// Name saved for an entry: what the user typed, else the category (as on web),
+/// else the entry type's title. Never a generic "Entry".
+String resolveEntryName(String typed, String category, String typeTitle) {
+  final t = typed.trim();
+  if (t.isNotEmpty) return t;
+  final c = category.trim();
+  return c.isNotEmpty ? c : typeTitle;
+}
 
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
@@ -654,6 +664,12 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   ),
                 ],
               ],
+              // Safety floor: spending from, or moving money out of, a bank account or wallet
+              if ((_activeType == EntryType.transaction && _txType == 'expense') || _activeType == EntryType.transfer)
+                FloorBreachNotice(
+                  amountController: _amountCtrl,
+                  accountId: _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId,
+                ),
               const SizedBox(height: 20),
 
               // Submit Button
@@ -784,7 +800,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
     final day = isRecurring ? (int.tryParse(_dayCtrl.text) ?? 1) : _selectedDate.day;
     final dateStr = _formatDateYmd(_selectedDate);
-    final name = _nameCtrl.text.trim().isEmpty ? 'Entry' : _nameCtrl.text.trim();
+    final typedCategory = _isCustomCategory ? _customCategoryCtrl.text.trim() : _selectedCategory;
+    final name = resolveEntryName(_nameCtrl.text, typedCategory, _titleForType(_activeType));
 
     if (amt <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));

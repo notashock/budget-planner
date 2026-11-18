@@ -79,7 +79,7 @@
 |----|---------|----------|--------------------|
 | B1 | Under-spend choices are ignored: the modal sends `{ action }`, App reads `underSpendAction.type`. | `UnifiedEntryModal.jsx:1844-1868` vs `App.jsx:443,449` | "Release remainder" / "Keep remainder scheduled" do nothing. |
 | B2 | Editing a planned item resets its category (plan-mode init never calls `setTag`). | `UnifiedEntryModal.jsx:211-233`, payload `:794` | Rent becomes "Food" after editing the amount. |
-| B3 | Income opens with no category selected (default `Salary`, pills lack Salary). | `UnifiedEntryModal.jsx:239, 1368` | The form looks unfilled. |
+| B3 | Income opens with no category selected (default `Salary`, pills lack Salary). Salary is left out of the pills on purpose — the salary schedule is its only source — so the fix is a default that is on screen (`Other`), not a Salary pill. | `UnifiedEntryModal.jsx:239, 1368`; `SalarySafelineAndIncome.test.jsx` | The form looks unfilled. |
 | B4 | A failed plan save shows two alerts, the second "Failed to archive wallet". | `App.jsx:617-618` | Wrong error message. |
 | B5 | Mobile delete has no confirmation and no undo. | `transaction_detail_modal.dart:344-358` | One mis-tap deletes a transaction. |
 | B6 | Spending date has no upper bound. | `UnifiedEntryModal.jsx:1201-1209` | Future-dated actuals distort today's balance. |
@@ -262,7 +262,7 @@ After this: ₹27,350 · ₹2,350 above floor
 
 ### 5.5 S4 Money in
 
-- Pills `Salary · Bonus · Freelance · Refund · Investment · Other`; Salary default only near the credit date when this month's salary isn't recorded (B3).
+- Pills stay `Bonus · Freelance · Investment · Other`, default `Other` (B3). Salary is not offered here: the salary schedule is its only source, and the salary card plus the duplicate-salary guard below point people there.
 - Duplicate-salary guard inline. Account default = salary account / last income account. Remove "Direct Inflow".
 - **Person hint (HL):** if the description matches someone in People, or reads like "from Rahul", show "Is this Rahul's money to keep? [Track as held]", which switches to Move → Rahul with the amount kept.
 

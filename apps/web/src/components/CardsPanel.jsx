@@ -5,6 +5,8 @@ import { AnimatedModal } from './AnimatedModal.jsx';
 import { AccountSelect } from './AccountSelect.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { Button } from './ui/Button.jsx';
+import { FloorBreachNotice, anywayLabel } from './FloorBreachNotice.jsx';
+import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 import { PlusIcon, CreditCardIcon, EditIcon, AlertTriangleIcon } from './Icons.jsx';
 
 const BAND_TONE = {
@@ -214,7 +216,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
 }
 
 /** Pay a bill in full, the minimum, or a custom amount, from a bank account or wallet. */
-function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, onSaved, onCancel }) {
+function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, simulation = null, onSaved, onCancel }) {
   const [choice, setChoice] = useState('full');
   const [custom, setCustom] = useState('');
   const fallbackPayer = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0] || wallets[0] || null;
@@ -228,6 +230,8 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, onSave
   const [saving, setSaving] = useState(false);
 
   const amount = choice === 'full' ? bill.remaining : (choice === 'minimum' ? Math.min(bill.remaining, bill.minimumDue || 0) : toMinorUnits(custom || 0, 100));
+
+  const floorCheck = checkFloor(findCashAccount(payFrom, bankAccounts, wallets), amount, { simulation });
 
   const submit = async (e) => {
     e?.preventDefault?.();
@@ -286,10 +290,11 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, onSave
         <label className="form-label">Date</label>
         <DatePicker compact value={date} onChange={setDate} required />
       </div>
+      <FloorBreachNotice check={floorCheck} currencySymbol={currencySymbol} />
       {error && <div className="hl-error" role="alert">{error}</div>}
       <div className="hl-footer">
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : `Pay ${money(amount, currencySymbol)}`}</Button>
+        <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : anywayLabel(`Pay ${money(amount, currencySymbol)}`, floorCheck)}</Button>
       </div>
     </form>
   );
@@ -303,6 +308,7 @@ export function CardsPanel({
   bankAccounts = [],
   wallets = [],
   simulationCards = [],
+  simulation = null,
   currencySymbol = '₹',
   isReviewMode = false,
   onChanged
@@ -443,7 +449,7 @@ export function CardsPanel({
           <ConfirmBillForm card={modal.card} statement={modal.statement} currencySymbol={currencySymbol} onSaved={done} onCancel={() => setModal(null)} />
         )}
         {modal?.kind === 'pay' && (
-          <PayBillForm card={modal.card} bill={modal.bill} bankAccounts={bankAccounts} wallets={wallets} currencySymbol={currencySymbol} onSaved={done} onCancel={() => setModal(null)} />
+          <PayBillForm card={modal.card} bill={modal.bill} bankAccounts={bankAccounts} wallets={wallets} currencySymbol={currencySymbol} simulation={simulation} onSaved={done} onCancel={() => setModal(null)} />
         )}
       </AnimatedModal>
     </section>

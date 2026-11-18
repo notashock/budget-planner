@@ -26,6 +26,8 @@ import { SortMenu } from '../components/SortMenu.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
+import { FloorBreachNotice } from '../components/FloorBreachNotice.jsx';
+import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 
 // Held & Lent money (ADR 0069): moves cash, never income or spending
 const PASS_THROUGH_IN = ['held_in', 'lent_repaid'];
@@ -55,7 +57,8 @@ export function TransactionsScreen({
   onCancelTransaction,
   onDeleteTransaction,
   onHeldLentChanged,
-  creditCards = []
+  creditCards = [],
+  simulation = null
 }) {
   // Main view segment: 'transactions' (successful) vs 'planned' (commitments)
   const [activeSegment, setActiveSegment] = useState('transactions'); // 'transactions' | 'planned'
@@ -334,6 +337,10 @@ export function TransactionsScreen({
     ? (payingTx.plannedAmount !== undefined && payingTx.plannedAmount !== null ? payingTx.plannedAmount : Math.abs(payingTx.amount || 0))
     : 0;
   const settlementVariance = plannedAmountCents - enteredAmountCents;
+  // Paying from a bank or wallet is checked against its safety floor (a card moves no cash)
+  const settleFloorCheck = payingTx
+    ? checkFloor(findCashAccount(selectedAccountId, bankAccounts, wallets), enteredAmountCents, { simulation })
+    : null;
 
   const hasUrgentCommitments = overdueCount > 0 || dueCount > 0;
 
@@ -951,6 +958,7 @@ export function TransactionsScreen({
                 />
               </div>
 
+              <FloorBreachNotice check={settleFloorCheck} currencySymbol={currencySymbol} />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
                 <button
                   type="button"
@@ -965,7 +973,7 @@ export function TransactionsScreen({
                   className="btn-primary"
                   style={{ padding: '8px 18px', fontSize: 'var(--fs-sm)', fontWeight: 600 }}
                 >
-                  Confirm Paid
+                  {settleFloorCheck?.breaches ? 'Confirm paid anyway' : 'Confirm Paid'}
                 </button>
               </div>
             </form>

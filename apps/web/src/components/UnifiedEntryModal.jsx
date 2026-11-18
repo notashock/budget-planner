@@ -39,6 +39,16 @@ const QUICK_INCREMENTS = {
 };
 
 /**
+ * Ad-hoc income sources offered as pills. Salary is deliberately not one of them:
+ * the salary schedule is the only source of salary, so logging it here would
+ * count it twice.
+ */
+export const INCOME_CATEGORIES = ['Bonus', 'Freelance', 'Investment', 'Other'];
+
+/** Income source selected when the Income form opens: always one of the pills. */
+export const DEFAULT_INCOME_TAG = 'Other';
+
+/**
  * Unified Entry Modal with Universal 6-Slot Form Geometry
  * and Zero-Loss Shared State Continuity.
  */
@@ -98,7 +108,7 @@ export function UnifiedEntryModal({
   // Contextual Modifiers & Classifications
   const [isRefund, setIsRefund] = useState(false);
   const [tag, setTag] = useState('Food');
-  const [incomeTag, setIncomeTag] = useState('Bonus');
+  const [incomeTag, setIncomeTag] = useState(DEFAULT_INCOME_TAG);
   const [itemType, setItemType] = useState('one-time'); // 'one-time' | 'recurring'
   const [dayOfMonth, setDayOfMonth] = useState(now.getDate() || 1);
   const [priority, setPriority] = useState(0);
@@ -115,6 +125,11 @@ export function UnifiedEntryModal({
   const [transferError, setTransferError] = useState('');
   const [underSpendData, setUnderSpendData] = useState(null);
   const [floorBreachData, setFloorBreachData] = useState(null);
+
+  // Earliest date a planned item may use: the first day of the month being planned
+  const planMinDate = month?.year && month?.month
+    ? `${month.year}-${String(month.month).padStart(2, '0')}-01`
+    : `${todayStr.slice(0, 7)}-01`;
 
   // Eligible planned items for matching
   const eligiblePlannedItems = useMemo(
@@ -217,6 +232,8 @@ export function UnifiedEntryModal({
           // Plan mode
           setItemType(initialItem.type === 'recurring' ? 'recurring' : 'one-time');
           setDescription(initialItem.name || initialItem.title || '');
+          // Load the stored category; otherwise saving an edit overwrites it with stale state
+          setTag(initialItem.category || initialItem.tag || 'Other');
           setPriority(initialItem.priority ?? 0);
           setIsFixed(Boolean(initialItem.isFixed));
           setIsPaid(Boolean(initialItem.isPaid));
@@ -241,7 +258,7 @@ export function UnifiedEntryModal({
         setAmount('');
         setIsRefund(false);
         setTag('Food');
-        setIncomeTag('Salary');
+        setIncomeTag(DEFAULT_INCOME_TAG);
         setDescription('');
         setMatchedItemId('');
         setDate(todayStr);
@@ -1247,7 +1264,10 @@ export function UnifiedEntryModal({
                       placeholder="Date"
                       month={month}
                       required={mode !== 'plan'}
-                      minDate={mode === 'plan' ? todayStr : null}
+                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
+                      // anything already paid or received can't be in the future.
+                      minDate={mode === 'plan' ? planMinDate : null}
+                      maxDate={mode === 'plan' ? null : todayStr}
                     />
                   )}
                 </div>
@@ -1408,7 +1428,7 @@ export function UnifiedEntryModal({
                   </label>
                   <div className="category-pill-grid">
                     {mode === 'income'
-                      ? ['Bonus', 'Freelance', 'Investment', 'Other'].map((t) => (
+                      ? INCOME_CATEGORIES.map((t) => (
                           <button
                             key={t}
                             type="button"
@@ -1621,7 +1641,7 @@ export function UnifiedEntryModal({
               {/* TRANSFER: Zero-sum informational note */}
               {mode === 'transfer' && (
                 <div className="entry-note-7">
-                  * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
+                  Moving money between your own accounts doesn't change your total cash.
                 </div>
               )}
             </div>

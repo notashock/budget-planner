@@ -22,6 +22,8 @@ import { Chip } from '../components/ui/Chip.jsx';
 import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
 import { PeoplePanel } from '../components/PeoplePanel.jsx';
 import { CardsPanel } from '../components/CardsPanel.jsx';
+import { FloorBreachNotice } from '../components/FloorBreachNotice.jsx';
+import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 
 gsap.registerPlugin(useGSAP);
 
@@ -273,6 +275,14 @@ export function AccountsScreen({
 
     setTransferModalOpen(true);
   };
+
+  const transferFloorCheck = transferModalOpen
+    ? checkFloor(
+      findCashAccount(transferSourceId, bankAccounts, wallets),
+      Math.round(Number(transferAmount || 0) * 100),
+      { simulation }
+    )
+    : null;
 
   const handleSaveTransfer = async (e, requestClose) => {
     e.preventDefault();
@@ -849,6 +859,7 @@ export function AccountsScreen({
         bankAccounts={bankAccounts}
         wallets={wallets}
         simulationCards={creditCards}
+        simulation={simulation}
         currencySymbol={currencySymbol}
         isReviewMode={isReviewMode}
         onChanged={onHeldLentChanged}
@@ -1240,15 +1251,16 @@ export function AccountsScreen({
               </div>
 
               <div className="accounts-note-6">
-                * Paired transfers are zero-sum on your monthly budget curve ($0 net change to total liquid cash).
+                Moving money between your own accounts doesn't change your total cash.
               </div>
+              <FloorBreachNotice check={transferFloorCheck} currencySymbol={currencySymbol} />
 
               <div className="accounts-row-14">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={isSubmittingTransfer}>
-                  {isSubmittingTransfer ? 'Recording...' : 'Record Transfer'}
+                  {isSubmittingTransfer ? 'Recording...' : (transferFloorCheck?.breaches ? 'Record transfer anyway' : 'Record Transfer')}
                 </button>
               </div>
             </form>
