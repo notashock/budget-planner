@@ -592,3 +592,21 @@
 .entry-row-13 {
   margin-left: auto;
 }
+
+/* Move tab: "My accounts / Pay a card / A person" under the tabs */
+.move-target-row {
+  margin-top: var(--space-3);
+}
+
+.move-target {
+  display: flex;
+  width: 100%;
+}
+
+.move-target .entry-segment-btn {
+  flex: 1;
+}
+
+.settle-intro {
+  margin: 0 0 var(--space-1);
+}

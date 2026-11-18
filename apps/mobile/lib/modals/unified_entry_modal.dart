@@ -58,6 +58,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   bool _submitting = false;
 
+  // Move tab: 'account' (between my accounts), 'card' (pay a card bill), 'person' (held / lent)
+  String _moveTarget = 'account';
+  String? _cardId;
+
   // Server-authoritative goal recommendation state
   Timer? _debounceTimer;
   RecommendationResult? _serverGoalRec;
@@ -195,7 +199,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Quick Log & Schedule',
+                    widget.initialType == EntryType.goal ? 'New purchase goal' : 'New entry',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -210,27 +214,62 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               ),
               const SizedBox(height: 12),
 
-              // Segmented Tabs
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+              // Segmented tabs: four equal segments, no horizontal scrolling
+              if (widget.initialType != EntryType.goal)
+                Row(
                   children: [
-                    _buildTab(EntryType.transaction, 'Actual Spend', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.income, 'Log Income', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.item, 'Planned Expense', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.goal, 'Purchase Goal', isDark),
-                    const SizedBox(width: 6),
-                    _buildTab(EntryType.transfer, 'Transfer', isDark),
-                    const SizedBox(width: 6),
-                    _buildHeldLentTab(isDark),
+                    _buildTab(EntryType.transaction, 'Spend', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.income, 'Income', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.item, 'Plan', isDark),
+                    const SizedBox(width: 4),
+                    _buildTab(EntryType.transfer, 'Move', isDark),
                   ],
                 ),
-              ),
+
+              // Move: where the money goes
+              if (_activeType == EntryType.transfer) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('My accounts'),
+                      selected: _moveTarget == 'account',
+                      onSelected: (_) => setState(() => _moveTarget = 'account'),
+                    ),
+                    if (budget.creditCards.isNotEmpty)
+                      ChoiceChip(
+                        label: const Text('Pay a card'),
+                        selected: _moveTarget == 'card',
+                        onSelected: (_) => setState(() {
+                          _moveTarget = 'card';
+                          _cardId ??= _idOf(budget.creditCards.first);
+                        }),
+                      ),
+                    ChoiceChip(
+                      label: const Text('A person'),
+                      selected: _moveTarget == 'person',
+                      onSelected: (_) => setState(() => _moveTarget = 'person'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
 
+              if (_isPersonMove)
+                HeldLentForm(
+                  initialAction: 'lend',
+                  initialAmount: _amountCtrl.text.trim(),
+                  initialNote: _nameCtrl.text.trim(),
+                  initialDate: _selectedDate,
+                  initialAccountId: _sourceAccountId,
+                  onSaved: () => Navigator.pop(context),
+                ),
+
+              if (!_isPersonMove) ...[
               // Scheduled Monthly Salary Info Card for Income Mode (matching web)
               if (_activeType == EntryType.income && salaryAmt > 0) ...[
                 Container(
@@ -585,7 +624,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 ),
               ] else if (_activeType == EntryType.transfer) ...[
                 AccountSelector(
-                  label: 'Source Account (From)',
+                  label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
                   selectedAccountId: _sourceAccountId,
                   bankAccounts: budget.bankAccounts,
@@ -599,6 +638,68 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   },
                 ),
                 const SizedBox(height: 12),
+                if (_moveTarget == 'card') ...[
+                  Text('Card to pay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  const SizedBox(height: AppForm.fieldGap),
+                  ...budget.creditCards.map((c) {
+                    final card = Map<String, dynamic>.from(c as Map);
+                    final id = _idOf(card);
+                    final bill = card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
+                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
+                    final owed = (num.tryParse('${card['outstanding'] ?? 0}') ?? 0).round();
+                    final selected = id == _cardId;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        borderRadius: AppForm.radius,
+                        onTap: () => setState(() => _cardId = id),
+                        child: Container(
+                          width: double.infinity,
+                          constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+                          padding: AppForm.fieldPadding,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+                            borderRadius: AppForm.radius,
+                            border: Border.all(
+                              color: selected ? (isDark ? AppColors.darkText : AppColors.lightText) : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                              width: selected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(card['name']?.toString() ?? 'Card', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                'Owes ${formatCurrency(owed)}${remaining > 0 ? ' · bill ${formatCurrency(remaining)}' : ''}',
+                                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  Builder(builder: (_) {
+                    final card = _selectedCard(budget);
+                    final bill = card != null && card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
+                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
+                    final minimum = (num.tryParse('${bill?['minimumDue'] ?? 0}') ?? 0).round();
+                    final owed = (num.tryParse('${card?['outstanding'] ?? 0}') ?? 0).round();
+                    String major(int minor) => (minor / 100).toStringAsFixed(2);
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (remaining > 0)
+                          ActionChip(label: Text('Bill ${formatCurrency(remaining)}'), onPressed: () => setState(() => _amountCtrl.text = major(remaining))),
+                        if (minimum > 0)
+                          ActionChip(label: Text('Minimum ${formatCurrency(minimum < remaining || remaining == 0 ? minimum : remaining)}'), onPressed: () => setState(() => _amountCtrl.text = major(minimum < remaining || remaining == 0 ? minimum : remaining))),
+                        if (owed > 0)
+                          ActionChip(label: Text('All owed ${formatCurrency(owed)}'), onPressed: () => setState(() => _amountCtrl.text = major(owed))),
+                      ],
+                    );
+                  }),
+                ] else
                 AccountSelector(
                   label: 'Destination Account (To)',
                   accountType: _destAccountType,
@@ -690,11 +791,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       : Text(
                           _activeType == EntryType.income
                               ? 'Log Income Inflow'
-                              : 'Add ${_titleForType(_activeType)}',
+                              : (_activeType == EntryType.transfer
+                                  ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?['name'] ?? 'card'}' : 'Record transfer')
+                                  : 'Add ${_titleForType(_activeType)}'),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
+              ],
             ],
           ),
         ),
@@ -702,52 +806,20 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     );
   }
 
-  /// Held & Lent has its own sheet: someone's money with you, or yours with them.
-  Widget _buildHeldLentTab(bool isDark) {
-    return InkWell(
-      onTap: () {
-        final navigator = Navigator.of(context);
-        final rootContext = navigator.context;
-        // Carry over what was already typed so switching to Held/Lent loses nothing
-        final amountText = _amountCtrl.text.trim();
-        final noteText = _nameCtrl.text.trim();
-        final date = _selectedDate;
-        final accountId = _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId;
-        navigator.pop();
-        showModalBottomSheet(
-          context: rootContext,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => HeldLentModal(
-            initialAmount: amountText,
-            initialNote: noteText,
-            initialDate: date,
-            initialAccountId: accountId,
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          'Held / Lent',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-          ),
-        ),
-      ),
-    );
+  bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
+
+  String? _idOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
+
+  Map<String, dynamic>? _selectedCard(BudgetProvider budget) {
+    for (final c in budget.creditCards) {
+      if (_idOf(c) == _cardId) return Map<String, dynamic>.from(c as Map);
+    }
+    return null;
   }
 
   Widget _buildTab(EntryType type, String title, bool isDark) {
     final isSelected = _activeType == type;
-    return InkWell(
+    return Expanded(child: InkWell(
       onTap: () {
         setState(() => _activeType = type);
         if (type == EntryType.goal) {
@@ -756,7 +828,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       },
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? (type == EntryType.income ? AppColors.green : (isDark ? Colors.white : Colors.black))
@@ -765,30 +839,32 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         ),
         child: Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
-                ? Colors.white
+                ? (type == EntryType.income ? Colors.white : (isDark ? Colors.black : Colors.white))
                 : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
           ),
         ),
       ),
-    );
+    ));
   }
 
   String _titleForType(EntryType type) {
     switch (type) {
       case EntryType.transaction:
-        return 'Actual Spend';
+        return 'Spend';
       case EntryType.income:
         return 'Income';
       case EntryType.item:
-        return 'Planned Commitment';
+        return 'Planned Bill';
       case EntryType.goal:
         return 'Purchase Goal';
       case EntryType.transfer:
-        return 'Transfer';
+        return 'Move';
     }
   }
 
@@ -877,12 +953,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'targetDate': dateStr,
         });
       } else if (_activeType == EntryType.transfer) {
+        final toCard = _moveTarget == 'card';
         final srcId = _sourceAccountId;
-        final dstId = _destAccountId;
+        final dstId = toCard ? _cardId : _destAccountId;
         final isSrcWallet = _sourceAccountType == 'wallet';
-        final isDstWallet = _destAccountType == 'wallet';
+        final isDstWallet = !toCard && _destAccountType == 'wallet';
 
-        if (srcId == null || dstId == null || (srcId == dstId && _sourceAccountType == _destAccountType)) {
+        if (srcId == null || dstId == null || (!toCard && srcId == dstId && _sourceAccountType == _destAccountType)) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select distinct source and destination accounts')));
           setState(() => _submitting = false);
           return;
@@ -892,12 +969,17 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'sourceType': isSrcWallet ? 'wallet' : 'bank',
           'sourceBankAccountId': isSrcWallet ? null : srcId,
           'sourceWalletId': isSrcWallet ? srcId : null,
-          'destinationType': isDstWallet ? 'wallet' : 'bank',
-          'destinationBankAccountId': isDstWallet ? null : dstId,
+          'sourceAccountId': srcId,
+          // Paying a card is a transfer into the card (ADR 0070)
+          'destinationType': toCard ? 'credit_card' : (isDstWallet ? 'wallet' : 'bank'),
+          'destinationAccountId': dstId,
+          'destinationBankAccountId': toCard || isDstWallet ? null : dstId,
           'destinationWalletId': isDstWallet ? dstId : null,
           'amount': amt,
           'date': dateStr,
-          'note': name,
+          'note': _nameCtrl.text.trim().isNotEmpty
+              ? _nameCtrl.text.trim()
+              : (toCard ? '${_selectedCard(budget)?['name'] ?? 'Card'} bill' : name),
         });
       }
 

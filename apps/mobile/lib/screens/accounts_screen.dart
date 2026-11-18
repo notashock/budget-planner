@@ -4,7 +4,7 @@ import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
-import '../modals/transfer_modal.dart';
+import '../modals/unified_entry_modal.dart';
 import '../modals/edit_account_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../widgets/held_lent_section.dart';
@@ -126,7 +126,8 @@ class AccountsScreen extends StatelessWidget {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (_) => const TransferModal(),
+                      // Transfers use the entry sheet's Move tab (one transfer form)
+                      builder: (_) => const UnifiedEntryModal(initialType: EntryType.transfer),
                     );
                   },
                 ),

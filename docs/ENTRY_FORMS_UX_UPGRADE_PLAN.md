@@ -499,6 +499,16 @@ Validation rules (amount > 0, accounts differ, date bounds, name fallback, retur
 
 ## 9. Roadmap
 
+### Progress (branch `feat/entry-forms-upgrade`)
+
+| Phase | State | Notes |
+|-------|-------|-------|
+| 0 | Done | B1–B8 (B3 keeps Salary out of the income pills by design; B5 has a confirm, no 5-second Undo yet) |
+| 1 | Done | Tokens, field/trigger sizes, 16px phone inputs, container-query layouts, Flutter `AppForm` theme, modal portal + z-index scale (V13) |
+| 2 | Done | Settle form (web: entry sheet + Transactions; mobile keeps Mark Paid without the remainder choice), Move tab with My accounts / Pay a card / A person on both platforms, W7 + M2 + M4 removed, card "Pay bill" opens Move in the app, no `alert()` in entry, settle, bank or wallet forms |
+| 3–5 | Not started | |
+
+
 | Phase | Contents | Size | Done when |
 |-------|----------|------|-----------|
 | **0 — Fix trust bugs** | B1–B11 (B9–B11 on the HL branch before it merges) | S (2–3 days) | Each bug has a regression test (Vitest / Dart widget test) |

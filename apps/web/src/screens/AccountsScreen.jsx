@@ -22,8 +22,6 @@ import { Chip } from '../components/ui/Chip.jsx';
 import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
 import { PeoplePanel } from '../components/PeoplePanel.jsx';
 import { CardsPanel } from '../components/CardsPanel.jsx';
-import { FloorBreachNotice } from '../components/FloorBreachNotice.jsx';
-import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 
 gsap.registerPlugin(useGSAP);
 
@@ -39,6 +37,8 @@ export function AccountsScreen({
   onArchiveBankAccount,
   onArchiveWallet,
   onCreateTransfer,
+  // Opens the entry sheet: ('transfer', { sourceAccountId }) for the Move tab
+  onOpenUnifiedEntry,
   onDeleteTransfer,
   isMigrationEligible = false,
   migrationStats = null,
@@ -56,7 +56,6 @@ export function AccountsScreen({
   const [editingBank, setEditingBank] = useState(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState(null);
-  const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [preselectedSource, setPreselectedSource] = useState(null);
 
   const switcherRef = useRef(null);
@@ -101,23 +100,13 @@ export function AccountsScreen({
   const [walletIsPrimary, setWalletIsPrimary] = useState(false);
 
   // Form states for Transfer Modal
-  const [transferDate, setTransferDate] = useState(() => {
-    const now = new Date();
-    return now.toISOString().split('T')[0];
-  });
-  const [transferAmount, setTransferAmount] = useState('');
-  const [transferSourceType, setTransferSourceType] = useState('bank');
-  const [transferSourceId, setTransferSourceId] = useState('');
-  const [transferDestType, setTransferDestType] = useState('wallet');
-  const [transferDestId, setTransferDestId] = useState('');
-  const [transferNote, setTransferNote] = useState('');
-  const [transferError, setTransferError] = useState('');
   const [isSubmittingBank, setIsSubmittingBank] = useState(false);
+  // Save errors shown inside the bank / wallet forms (instead of alert())
+  const [bankError, setBankError] = useState('');
+  const [walletError, setWalletError] = useState('');
   const isSubmittingBankRef = useRef(false);
   const [isSubmittingWallet, setIsSubmittingWallet] = useState(false);
   const isSubmittingWalletRef = useRef(false);
-  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
-  const isSubmittingTransferRef = useRef(false);
 
   // Month baseline settings state
   // Lookup maps from simulation
@@ -139,6 +128,7 @@ export function AccountsScreen({
   const totalPortfolioBalance = totalBankBalance + totalWalletBalance;
 
   const handleOpenAddBank = () => {
+    setBankError('');
     setEditingBank(null);
     setBankName('');
     setBankInstitution('');
@@ -151,6 +141,7 @@ export function AccountsScreen({
   };
 
   const handleOpenEditBank = (bank) => {
+    setBankError('');
     setEditingBank(bank);
     setBankName(bank.name || '');
     setBankInstitution(bank.institution || '');
@@ -190,7 +181,7 @@ export function AccountsScreen({
         setBankModalOpen(false);
       }
     } catch (err) {
-      // Handled
+      setBankError(err?.message || 'Could not save this account. Please try again.');
     } finally {
       isSubmittingBankRef.current = false;
       setIsSubmittingBank(false);
@@ -198,6 +189,7 @@ export function AccountsScreen({
   };
 
   const handleOpenAddWallet = () => {
+    setWalletError('');
     setEditingWallet(null);
     setWalletName('');
     setWalletType('cash');
@@ -208,6 +200,7 @@ export function AccountsScreen({
   };
 
   const handleOpenEditWallet = (wallet) => {
+    setWalletError('');
     setEditingWallet(wallet);
     setWalletName(wallet.name || '');
     setWalletType(wallet.walletType || 'cash');
@@ -243,93 +236,16 @@ export function AccountsScreen({
         setWalletModalOpen(false);
       }
     } catch (err) {
-      // Handled
+      setWalletError(err?.message || 'Could not save this wallet. Please try again.');
     } finally {
       isSubmittingWalletRef.current = false;
       setIsSubmittingWallet(false);
     }
   };
 
+  // Transfers use the entry sheet's Move tab (one transfer form for the whole app)
   const handleOpenTransfer = (sourceOpt = null) => {
-    setTransferError('');
-    setTransferAmount('');
-    setTransferNote('');
-
-    if (sourceOpt) {
-      setTransferSourceType(sourceOpt.type);
-      setTransferSourceId(sourceOpt.id);
-      // Pick a default destination that differs
-      if (sourceOpt.type === 'bank') {
-        setTransferDestType('wallet');
-        setTransferDestId(wallets[0]?._id || '');
-      } else {
-        setTransferDestType('bank');
-        setTransferDestId(bankAccounts[0]?._id || '');
-      }
-    } else {
-      setTransferSourceType('bank');
-      setTransferSourceId(bankAccounts[0]?._id || '');
-      setTransferDestType('wallet');
-      setTransferDestId(wallets[0]?._id || '');
-    }
-
-    setTransferModalOpen(true);
-  };
-
-  const transferFloorCheck = transferModalOpen
-    ? checkFloor(
-      findCashAccount(transferSourceId, bankAccounts, wallets),
-      Math.round(Number(transferAmount || 0) * 100),
-      { simulation }
-    )
-    : null;
-
-  const handleSaveTransfer = async (e, requestClose) => {
-    e.preventDefault();
-    if (isSubmittingTransferRef.current) return;
-    setTransferError('');
-
-    const amt = Math.round(Number(transferAmount || 0) * 100);
-    if (!amt || amt <= 0) {
-      setTransferError('Please enter a valid transfer amount');
-      return;
-    }
-
-    if (transferSourceType === transferDestType && transferSourceId === transferDestId) {
-      setTransferError('Source and destination accounts must be different');
-      return;
-    }
-
-    if (!transferSourceId || !transferDestId) {
-      setTransferError('Please select both source and destination accounts');
-      return;
-    }
-
-    isSubmittingTransferRef.current = true;
-    setIsSubmittingTransfer(true);
-    try {
-      await onCreateTransfer?.({
-        date: transferDate,
-        amount: amt,
-        sourceType: transferSourceType,
-        sourceBankAccountId: transferSourceType === 'bank' ? transferSourceId : null,
-        sourceWalletId: transferSourceType === 'wallet' ? transferSourceId : null,
-        destinationType: transferDestType,
-        destinationBankAccountId: transferDestType === 'bank' ? transferDestId : null,
-        destinationWalletId: transferDestType === 'wallet' ? transferDestId : null,
-        note: transferNote.trim()
-      });
-      if (typeof requestClose === 'function') {
-        requestClose();
-      } else {
-        setTransferModalOpen(false);
-      }
-    } catch (err) {
-      setTransferError(err.message || 'Failed to record transfer');
-    } finally {
-      isSubmittingTransferRef.current = false;
-      setIsSubmittingTransfer(false);
-    }
+    onOpenUnifiedEntry?.('transfer', sourceOpt ? { sourceAccountId: sourceOpt.id } : null);
   };
 
   const updateTabIndicator = (segment, immediate = false) => {
@@ -860,6 +776,7 @@ export function AccountsScreen({
         wallets={wallets}
         simulationCards={creditCards}
         simulation={simulation}
+        onPayBill={onOpenUnifiedEntry ? (card) => onOpenUnifiedEntry('transfer', { moveTarget: 'card', cardId: card.id }) : undefined}
         currencySymbol={currencySymbol}
         isReviewMode={isReviewMode}
         onChanged={onHeldLentChanged}
@@ -990,6 +907,8 @@ export function AccountsScreen({
                 </label>
               </div>
 
+              {bankError && <div className="form-error" role="alert">{bankError}</div>}
+
               <div className="accounts-row-12">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
@@ -1086,6 +1005,8 @@ export function AccountsScreen({
                 </label>
               </div>
 
+              {walletError && <div className="form-error" role="alert">{walletError}</div>}
+
               <div className="accounts-row-12">
                 <button type="button" className="btn-secondary" onClick={() => requestClose()}>
                   Cancel
@@ -1100,173 +1021,7 @@ export function AccountsScreen({
       </AnimatedModal>
 
       {/* Modal: Transfer Funds */}
-      <AnimatedModal
-        isOpen={transferModalOpen}
-        onClose={() => setTransferModalOpen(false)}
-        maxWidth="440px"
-        dataTestId="transfer-modal"
-        style={{ borderRadius: 'var(--radius-lg)' }}
-      >
-        {({ requestClose }) => (
-          <>
-            <div className="accounts-row-10">
-              <div className="accounts-row-13">
-                <ArrowRightLeftIcon size={18} />
-                <h3 className="accounts-heading">Paired Account Transfer</h3>
-              </div>
-              <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close">
-                <XIcon size={14} />
-              </button>
-            </div>
 
-            {transferError && (
-              <div className="accounts-note-14">
-                {transferError}
-              </div>
-            )}
-
-            <form className="accounts-stack" onSubmit={(e) => handleSaveTransfer(e, requestClose)}>
-              <div className="accounts-grid-2">
-                <div>
-                  <label className="form-label">Transfer Date *</label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={transferDate}
-                    onChange={(e) => setTransferDate(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="form-label">Amount ({currencySymbol}) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    className="input-field tabular-nums"
-                    placeholder="0.00"
-                    value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Source Account Picker */}
-              <div className="accounts-box-4">
-                <label className="form-label accounts-label-2">Source Account (Outflow) *</label>
-                <div className="accounts-grid-3">
-                  <select
-                    className="input-field"
-                    value={transferSourceType}
-                    onChange={(e) => {
-                      setTransferSourceType(e.target.value);
-                      if (e.target.value === 'bank') {
-                        setTransferSourceId(bankAccounts[0]?._id || '');
-                      } else {
-                        setTransferSourceId(wallets[0]?._id || '');
-                      }
-                    }}
-                  >
-                    <option value="bank">Bank</option>
-                    <option value="wallet">Wallet</option>
-                  </select>
-
-                  <select
-                    className="input-field"
-                    value={transferSourceId}
-                    onChange={(e) => setTransferSourceId(e.target.value)}
-                    required
-                  >
-                    {transferSourceType === 'bank' ? (
-                      bankAccounts.map((b) => (
-                        <option key={b._id || b.id} value={b._id || b.id}>
-                          {b.name} ({formatCurrency(accountsMap[b._id || b.id]?.todayBalance ?? b.openingBalance, currencySymbol)})
-                        </option>
-                      ))
-                    ) : (
-                      wallets.map((w) => (
-                        <option key={w._id || w.id} value={w._id || w.id}>
-                          {w.name} ({formatCurrency(accountsMap[w._id || w.id]?.todayBalance ?? w.openingBalance, currencySymbol)})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              {/* Destination Account Picker */}
-              <div className="accounts-box-4">
-                <label className="form-label accounts-label-2">Destination Account (Inflow) *</label>
-                <div className="accounts-grid-3">
-                  <select
-                    className="input-field"
-                    value={transferDestType}
-                    onChange={(e) => {
-                      setTransferDestType(e.target.value);
-                      if (e.target.value === 'bank') {
-                        setTransferDestId(bankAccounts[0]?._id || '');
-                      } else {
-                        setTransferDestId(wallets[0]?._id || '');
-                      }
-                    }}
-                  >
-                    <option value="bank">Bank</option>
-                    <option value="wallet">Wallet</option>
-                  </select>
-
-                  <select
-                    className="input-field"
-                    value={transferDestId}
-                    onChange={(e) => setTransferDestId(e.target.value)}
-                    required
-                  >
-                    {transferDestType === 'bank' ? (
-                      bankAccounts.map((b) => (
-                        <option key={b._id || b.id} value={b._id || b.id}>
-                          {b.name} ({formatCurrency(accountsMap[b._id || b.id]?.todayBalance ?? b.openingBalance, currencySymbol)})
-                        </option>
-                      ))
-                    ) : (
-                      wallets.map((w) => (
-                        <option key={w._id || w.id} value={w._id || w.id}>
-                          {w.name} ({formatCurrency(accountsMap[w._id || w.id]?.todayBalance ?? w.openingBalance, currencySymbol)})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="form-label">Note / Reference</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="e.g. ATM withdrawal, savings deposit"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                />
-              </div>
-
-              <div className="accounts-note-6">
-                Moving money between your own accounts doesn't change your total cash.
-              </div>
-              <FloorBreachNotice check={transferFloorCheck} currencySymbol={currencySymbol} />
-
-              <div className="accounts-row-14">
-                <button type="button" className="btn-secondary" onClick={() => requestClose()}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary" disabled={isSubmittingTransfer}>
-                  {isSubmittingTransfer ? 'Recording...' : (transferFloorCheck?.breaches ? 'Record transfer anyway' : 'Record Transfer')}
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-      </AnimatedModal>
     </div>
   );
 }

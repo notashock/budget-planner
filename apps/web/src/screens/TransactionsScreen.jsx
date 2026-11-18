@@ -10,7 +10,6 @@ import {
   XIcon,
   TargetIcon,
   SearchIcon,
-  SparklesIcon,
   EditIcon,
   PlusIcon,
   InboxIcon,
@@ -20,14 +19,11 @@ import {
   UserIcon,
   CreditCardIcon
 } from '../components/Icons.jsx';
-import { DatePicker } from '../components/DatePicker.jsx';
-import { CustomSelect } from '../components/CustomSelect.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
-import { FloorBreachNotice } from '../components/FloorBreachNotice.jsx';
-import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
+import { SettleForm } from '../components/SettleForm.jsx';
 
 // Held & Lent money (ADR 0069): moves cash, never income or spending
 const PASS_THROUGH_IN = ['held_in', 'lent_repaid'];
@@ -73,9 +69,10 @@ export function TransactionsScreen({
 
   // Modals for Actions
   const [payingTx, setPayingTx] = useState(null);
-  const [actualAmount, setActualAmount] = useState('');
-  const [actualDate, setActualDate] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [settleError, setSettleError] = useState('');
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  // Errors from one-tap actions (quick mark paid), shown above the list
+  const [actionError, setActionError] = useState('');
   const [cancellingGoalTx, setCancellingGoalTx] = useState(null);
 
   const now = new Date();
@@ -102,26 +99,6 @@ export function TransactionsScreen({
     ];
   }, [bankAccounts, wallets, creditCards]);
 
-  // Payment account options for Settlement modal CustomSelect
-  const paymentAccountOptions = useMemo(() => {
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    const defaultAccId = primaryAcc ? (primaryAcc.id || primaryAcc._id) : '';
-    return [
-      { value: defaultAccId, label: primaryAcc ? `Default (${primaryAcc.name})` : 'Default Account' },
-      ...bankAccounts.map((b) => ({
-        value: b.id || b._id,
-        label: b.name,
-        icon: <BuildingLibraryIcon size={14} />,
-        badge: 'Bank'
-      })),
-      ...wallets.map((w) => ({
-        value: w.id || w._id,
-        label: w.name,
-        icon: <WalletIcon size={14} />,
-        badge: 'Wallet'
-      }))
-    ];
-  }, [allAccounts, bankAccounts, wallets]);
 
   // Partition transactions
   const successfulTransactions = useMemo(() => {
@@ -150,8 +127,9 @@ export function TransactionsScreen({
         date: todayStr,
         accountId: tx.accountId || primaryAcc?.id || primaryAcc?._id
       });
+      setActionError('');
     } catch (err) {
-      console.error('Quick pay failed:', err);
+      setActionError(err?.message || `Could not mark ${tx.name || 'this bill'} as paid.`);
     }
   };
 
@@ -285,33 +263,23 @@ export function TransactionsScreen({
 
   // Payment prompt opener
   const openPayPrompt = (tx) => {
+    setSettleError('');
     setPayingTx(tx);
-    const prefillAmount = tx.plannedAmount !== undefined && tx.plannedAmount !== null
-      ? tx.plannedAmount / 100
-      : (tx.amount ? Math.abs(tx.amount) / 100 : '');
-    setActualAmount(String(prefillAmount));
-    setActualDate(todayStr);
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    setSelectedAccountId(tx.accountId || primaryAcc?.id || primaryAcc?._id || '');
   };
 
-  // Payment confirmation
-  const handleConfirmPay = async (e) => {
-    e.preventDefault();
+  // Payment confirmation (from the Settle form)
+  const handleConfirmPay = async (payment) => {
     if (!payingTx) return;
-    const numAmount = Math.round(Number(actualAmount) * 100);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      alert('Please enter a valid actual amount');
-      return;
+    setSettleError('');
+    setSettleSubmitting(true);
+    try {
+      await onPayTransaction?.(payingTx.id || payingTx._id, payment);
+      setPayingTx(null);
+    } catch (err) {
+      setSettleError(err?.message || 'Could not mark this bill as paid.');
+    } finally {
+      setSettleSubmitting(false);
     }
-    const primaryAcc = allAccounts.find((a) => a.isPrimary) || allAccounts[0];
-    const resolvedAccountId = selectedAccountId || payingTx.accountId || primaryAcc?.id || primaryAcc?._id;
-    await onPayTransaction?.(payingTx.id || payingTx._id, {
-      amount: numAmount,
-      date: actualDate || todayStr,
-      accountId: resolvedAccountId
-    });
-    setPayingTx(null);
   };
 
   // Cancellation prompt
@@ -331,21 +299,18 @@ export function TransactionsScreen({
     setCancellingGoalTx(null);
   };
 
-  // Settlement Live Variance calculation inside modal
-  const enteredAmountCents = Math.round(Number(actualAmount || 0) * 100);
-  const plannedAmountCents = payingTx
-    ? (payingTx.plannedAmount !== undefined && payingTx.plannedAmount !== null ? payingTx.plannedAmount : Math.abs(payingTx.amount || 0))
-    : 0;
-  const settlementVariance = plannedAmountCents - enteredAmountCents;
-  // Paying from a bank or wallet is checked against its safety floor (a card moves no cash)
-  const settleFloorCheck = payingTx
-    ? checkFloor(findCashAccount(selectedAccountId, bankAccounts, wallets), enteredAmountCents, { simulation })
-    : null;
-
   const hasUrgentCommitments = overdueCount > 0 || dueCount > 0;
 
   return (
     <div className="transactions-screen" style={{ paddingBottom: '90px' }}>
+      {actionError && (
+        <div className="form-error tx-action-error" role="alert">
+          <span>{actionError}</span>
+          <button type="button" className="tx-btn-icon-subtle" onClick={() => setActionError('')} aria-label="Dismiss">
+            <XIcon size={12} />
+          </button>
+        </div>
+      )}
       {/* =========================================================================
           ROW 1: APPLE TITLE & EMBEDDED SEARCH-SORT CAPSULE
           ========================================================================= */}
@@ -843,133 +808,41 @@ export function TransactionsScreen({
         </div>
       )}
 
-      {/* Precision Settlement Popup (Unified Entry Modal Style with AnimatedModal) */}
+      {/* Settle (mark as paid): the shared Settle form */}
       <AnimatedModal
         isOpen={Boolean(payingTx)}
         onClose={() => setPayingTx(null)}
         maxWidth="440px"
       >
         {payingTx && (
-          <div style={{ padding: '6px 2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'var(--surface-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--text)'
-                  }}
-                >
-                  <CheckCircleIcon size={16} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>
-                    Confirm payment
-                  </h3>
-                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
-                    Enter what you actually paid and when
-                  </span>
-                </div>
+          <div className="settle-modal">
+            <div className="settle-modal-head">
+              <div>
+                <h3 className="settle-modal-title">Confirm payment</h3>
+                <span className="settle-modal-sub">Enter what you actually paid and when</span>
               </div>
-
               <button
                 type="button"
                 className="tx-btn-icon-subtle"
                 onClick={() => setPayingTx(null)}
                 title="Close"
+                aria-label="Close"
               >
                 <XIcon size={14} />
               </button>
             </div>
-
-            <p style={{ margin: '0 0 14px', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Confirm actual amount and date paid for <strong>{payingTx.name}</strong>.
-            </p>
-
-            {/* Plan vs Actual Comparison & Live Variance Card */}
-            <div className="tx-settle-comparison">
-              <div className="tx-settle-box">
-                <span className="tx-settle-box-label">Planned Commitment</span>
-                <span className="tx-settle-box-val">{formatCurrency(plannedAmountCents, currencySymbol)}</span>
-              </div>
-              <div className="tx-settle-box">
-                <span className="tx-settle-box-label">Actual Entered</span>
-                <span className="tx-settle-box-val">{formatCurrency(enteredAmountCents, currencySymbol)}</span>
-              </div>
-
-              {settlementVariance > 0 ? (
-                <div className="tx-variance-banner under">
-                  <SparklesIcon size={12} />
-                  <span>{formatCurrency(settlementVariance, currencySymbol)} under planned budget (saving cash)</span>
-                </div>
-              ) : settlementVariance < 0 ? (
-                <div className="tx-variance-banner over">
-                  <AlertTriangleIcon size={12} />
-                  <span>+{formatCurrency(Math.abs(settlementVariance), currencySymbol)} over planned budget</span>
-                </div>
-              ) : (
-                <div className="tx-variance-banner exact">
-                  <span>Matches planned budget exactly</span>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleConfirmPay} className="form-stack">
-              <div className="form-group">
-                <label className="form-label" htmlFor="settle-amount">
-                  Actual Amount ({currencySymbol})
-                </label>
-                <input
-                  id="settle-amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  required
-                  autoFocus
-                  className="input-field tabular-nums settle-amount-input"
-                  value={actualAmount}
-                  onChange={(e) => setActualAmount(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Actual Date Paid</label>
-                <DatePicker
-                  value={actualDate}
-                  onChange={(d) => setActualDate(d)}
-                  maxDate={todayStr}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Payment Account</label>
-                <CustomSelect
-                  value={selectedAccountId}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
-                  options={paymentAccountOptions}
-                  placeholder="Select payment account"
-                />
-              </div>
-
-              <FloorBreachNotice check={settleFloorCheck} currencySymbol={currencySymbol} />
-              <div className="form-footer">
-                <button
-                  type="button"
-                  className="btn-subtle"
-                  onClick={() => setPayingTx(null)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  {settleFloorCheck?.breaches ? 'Confirm paid anyway' : 'Confirm Paid'}
-                </button>
-              </div>
-            </form>
+            <SettleForm
+              bill={payingTx}
+              bankAccounts={bankAccounts}
+              wallets={wallets}
+              creditCards={creditCards}
+              currencySymbol={currencySymbol}
+              simulation={simulation}
+              onSubmit={handleConfirmPay}
+              onCancel={() => setPayingTx(null)}
+              submitting={settleSubmitting}
+              error={settleError}
+            />
           </div>
         )}
       </AnimatedModal>

@@ -5,6 +5,7 @@ import { useGSAP } from '@gsap/react';
 import {
   formatCurrency,
   formatDate,
+  formatDisplayDate,
   getRelativeDay,
   getDateFromRelativeDay
 } from '@budget/engine';
@@ -20,11 +21,11 @@ import {
   WalletIcon,
   AlertTriangleIcon,
   CalendarIcon,
-  LockIcon,
-  UserIcon
+  LockIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { HeldLentForm } from './HeldLentForm.jsx';
+import { SettleForm } from './SettleForm.jsx';
 import { SearchableItemPicker } from './SearchableItemPicker.jsx';
 import { AccountSelect } from './AccountSelect.jsx';
 import { api } from '../api.js';
@@ -70,6 +71,11 @@ export function UnifiedEntryModal({
   simulation = null,
   accountSimulations = {},
   onHeldLentSaved,
+  // Settle a planned bill (mark as paid): (billId, { amount, date, accountId, remainder })
+  onSettleTransaction,
+  // Optional starting point, e.g. { sourceAccountId } from an account's "Transfer" button,
+  // or { moveTarget: 'card', cardId } from a card's "Pay bill"
+  initialPreset = null,
   creditCards = []
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -124,13 +130,23 @@ export function UnifiedEntryModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recommending, setRecommending] = useState(false);
   const [transferError, setTransferError] = useState('');
-  const [underSpendData, setUnderSpendData] = useState(null);
+  // Move tab: where the money goes ('account' = between my accounts, 'card' = pay a card bill, 'person' = held/lent)
+  const [moveTarget, setMoveTarget] = useState('account');
+  const [cardId, setCardId] = useState('');
+  // Settle view: the planned bill a new spend turned out to be
+  const [settleItem, setSettleItem] = useState(null);
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [settleError, setSettleError] = useState('');
+  // Inline form error (replaces alert())
+  const [formError, setFormError] = useState('');
   const [floorBreachData, setFloorBreachData] = useState(null);
 
   // Earliest date a planned item may use: the first day of the month being planned
   const planMinDate = month?.year && month?.month
     ? `${month.year}-${String(month.month).padStart(2, '0')}-01`
     : `${todayStr.slice(0, 7)}-01`;
+
+  const selectedCard = (creditCards || []).find((c) => String(c.id || c._id) === String(cardId)) || null;
 
   // Eligible planned items for matching
   const eligiblePlannedItems = useMemo(
@@ -159,7 +175,6 @@ export function UnifiedEntryModal({
   const incomeBtnRef = useRef(null);
   const planBtnRef = useRef(null);
   const transferBtnRef = useRef(null);
-  const heldBtnRef = useRef(null);
 
   // Touch gesture tracking for mobile bottom-sheet
   const touchStartY = useRef(0);
@@ -174,7 +189,10 @@ export function UnifiedEntryModal({
       isClosingRef.current = false;
       isSubmittingRef.current = false;
       setIsSubmitting(false);
-      setUnderSpendData(null);
+      setFormError('');
+      setSettleItem(null);
+      setSettleError('');
+      setMoveTarget('account');
       setFloorBreachData(null);
       setTransferError('');
       setCascadeScope('single');
@@ -217,7 +235,11 @@ export function UnifiedEntryModal({
           setAmount(initialItem.amount ? (Math.abs(initialItem.amount) / 100).toString() : '');
           setDescription(initialItem.note || initialItem.description || '');
           setDate(initialItem.date || todayStr);
-          if (initialItem.destinationAccountId) {
+          if (initialItem.destinationAccountId && creditCards.some((c) => String(c.id || c._id) === String(initialItem.destinationAccountId))) {
+            // A transfer into a card is a bill payment
+            setMoveTarget('card');
+            setCardId(initialItem.destinationAccountId);
+          } else if (initialItem.destinationAccountId) {
             const destIsWallet = (wallets || []).some((w) => (w._id || w.id) === initialItem.destinationAccountId);
             setDestAccountType(destIsWallet ? 'wallet' : 'bank');
             setDestAccountId(initialItem.destinationAccountId);
@@ -255,7 +277,10 @@ export function UnifiedEntryModal({
           }
         }
       } else {
-        setMode(initialMode || 'log');
+        // 'held' is the Move tab's "With a person" (Held & Lent is a move, not a separate tab)
+        setMode(initialMode === 'held' ? 'transfer' : (initialMode || 'log'));
+        setMoveTarget(initialMode === 'held' ? 'person' : (initialPreset?.moveTarget || 'account'));
+        setCardId(initialPreset?.cardId || creditCards[0]?.id || creditCards[0]?._id || '');
         setAmount('');
         setIsRefund(false);
         setTag('Food');
@@ -288,6 +313,22 @@ export function UnifiedEntryModal({
           setDestAccountId(wallets[0]?._id || wallets[0]?.id || '');
         }
 
+        // Preset source (an account's own "Transfer" button)
+        if (initialPreset?.sourceAccountId) {
+          const sid = String(initialPreset.sourceAccountId);
+          const srcIsWallet = (wallets || []).some((w) => String(w._id || w.id) === sid);
+          setAccountType(srcIsWallet ? 'wallet' : 'bank');
+          setAccountId(sid);
+          const other = [...bankAccounts.map((b) => ({ t: 'bank', id: b._id || b.id })), ...wallets.map((w) => ({ t: 'wallet', id: w._id || w.id }))]
+            .find((a) => String(a.id) !== sid && (srcIsWallet ? a.t === 'bank' : a.t === 'wallet'))
+            || [...bankAccounts.map((b) => ({ t: 'bank', id: b._id || b.id })), ...wallets.map((w) => ({ t: 'wallet', id: w._id || w.id }))]
+              .find((a) => String(a.id) !== sid);
+          if (other) {
+            setDestAccountType(other.t);
+            setDestAccountId(other.id);
+          }
+        }
+
         // Plan defaults
         setItemType('one-time');
         setPriority(0);
@@ -299,7 +340,7 @@ export function UnifiedEntryModal({
     } else {
       triggerExit();
     }
-  }, [isOpen, initialItem, initialMode, month, bankAccounts, wallets, todayStr]);
+  }, [isOpen, initialItem, initialMode, initialPreset, month, bankAccounts, wallets, todayStr]);
 
   // Click outside and escape key to dismiss variable info popover
   useEffect(() => {
@@ -325,7 +366,6 @@ export function UnifiedEntryModal({
     if (targetMode === 'income') targetEl = incomeBtnRef.current;
     else if (targetMode === 'plan') targetEl = planBtnRef.current;
     else if (targetMode === 'transfer') targetEl = transferBtnRef.current;
-    else if (targetMode === 'held') targetEl = heldBtnRef.current;
     if (!targetEl) return;
 
     const { offsetLeft, offsetWidth } = targetEl;
@@ -549,6 +589,7 @@ export function UnifiedEntryModal({
     if (newMode === mode) return;
     setMode(newMode);
     setTransferError('');
+    setFormError('');
   });
 
   // Quick Amount Presets
@@ -573,9 +614,16 @@ export function UnifiedEntryModal({
 
   // Matched planned item selection
   const handleSelectMatchedItem = (id) => {
+    const linked = id ? eligiblePlannedItems.find((i) => (i._id || i.id) === id) : null;
+    // A new spend that pays a planned bill is a settlement: one flow, the Settle form
+    if (linked && !initialItem && !isRefund && onSettleTransaction) {
+      setSettleError('');
+      setSettleItem(linked);
+      return;
+    }
     setMatchedItemId(id);
     if (id) {
-      const selectedItem = eligiblePlannedItems.find((i) => (i._id || i.id) === id);
+      const selectedItem = linked;
       if (selectedItem && selectedItem.accountType && selectedItem.accountType !== 'unassigned') {
         setAccountType(selectedItem.accountType);
         if (selectedItem.accountType === 'bank') {
@@ -586,6 +634,22 @@ export function UnifiedEntryModal({
           if (walletId) setAccountId(walletId);
         }
       }
+    }
+  };
+
+  const handleSettleSubmit = async (payment) => {
+    if (!settleItem || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setSettleSubmitting(true);
+    setSettleError('');
+    try {
+      await onSettleTransaction(settleItem._id || settleItem.id, payment);
+      triggerExit();
+    } catch (err) {
+      setSettleError(err?.message || 'Could not mark this bill as paid.');
+    } finally {
+      isSubmittingRef.current = false;
+      setSettleSubmitting(false);
     }
   };
 
@@ -600,7 +664,7 @@ export function UnifiedEntryModal({
       if (rec?.recommendedDate) {
         setDate(rec.recommendedDate);
       } else {
-        alert(rec?.explanation || 'No safe date could be found this month without risking floor breach.');
+        setFormError(rec?.explanation || 'No safe date this month keeps you above your safety floor.');
       }
     } catch {
       const nowObj = new Date();
@@ -653,13 +717,14 @@ export function UnifiedEntryModal({
   }, [accountSimulations, simulation]);
 
   // Mode 1: Log Spending Submission
-  const handleTransactionSubmit = async (e, forcedUnderSpendAction = null, bypassFloorCheck = false) => {
+  const handleTransactionSubmit = async (e, bypassFloorCheck = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!amount || isNaN(Number(amount))) return;
+    setFormError('');
 
     if (!accountId) {
-      alert('Please select an active Bank Account or Wallet');
+      setFormError('Choose the account you paid from.');
       return;
     }
 
@@ -682,25 +747,10 @@ export function UnifiedEntryModal({
             type: 'spending',
             accountName: selectedAccount.name,
             minimumBalance: minBal,
-            projectedBalance: accBal - netDebitChange,
-            forcedUnderSpendAction
+            projectedBalance: accBal - netDebitChange
           });
           return;
         }
-      }
-    }
-
-    // Check under-spend when matched to a planned item
-    if (matchedItemId && !isRefund && !forcedUnderSpendAction) {
-      const linkedItem = eligiblePlannedItems.find((i) => (i._id || i.id) === matchedItemId);
-      if (linkedItem && baseAmount < linkedItem.amount) {
-        setUnderSpendData({
-          linkedItem,
-          spentAmt: baseAmount,
-          plannedAmt: linkedItem.amount,
-          diffAmt: linkedItem.amount - baseAmount
-        });
-        return;
       }
     }
 
@@ -722,14 +772,9 @@ export function UnifiedEntryModal({
         walletId: accountType === 'wallet' ? accountId : null,
         cascadeScope
       };
-      if (forcedUnderSpendAction) {
-        await onLogTransaction(txPayload, forcedUnderSpendAction);
-      } else {
-        await onLogTransaction(txPayload);
-      }
-      setUnderSpendData(null);
-    } catch {
-      // Handled in parent
+      await onLogTransaction(txPayload);
+    } catch (err) {
+      setFormError(err?.message || 'Could not save this spend. Please try again.');
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -740,13 +785,14 @@ export function UnifiedEntryModal({
   const handleIncomeSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
+    setFormError('');
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      alert('Please enter a valid positive income amount');
+      setFormError('Enter an amount above zero.');
       return;
     }
 
     if (!accountId) {
-      alert('Please select an active Bank Account or Wallet');
+      setFormError('Choose the account the money came into.');
       return;
     }
 
@@ -772,8 +818,8 @@ export function UnifiedEntryModal({
         updateSalaryTemplate
       });
       triggerExit();
-    } catch {
-      // Handled in parent
+    } catch (err) {
+      setFormError(err?.message || 'Could not save this income. Please try again.');
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -785,9 +831,10 @@ export function UnifiedEntryModal({
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!description.trim()) return;
+    setFormError('');
 
     if (!accountId) {
-      alert('Please select an active Bank Account or Wallet');
+      setFormError('Choose the account this bill is paid from.');
       return;
     }
 
@@ -846,8 +893,8 @@ export function UnifiedEntryModal({
     setIsSubmitting(true);
     try {
       await onSaveItem(payload);
-    } catch {
-      // Handled in parent
+    } catch (err) {
+      setFormError(err?.message || 'Could not save this bill. Please try again.');
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -865,12 +912,22 @@ export function UnifiedEntryModal({
       return;
     }
 
-    if (!accountId || !destAccountId) {
+    // Paying a card is a transfer into the card (ADR 0070)
+    const toCard = moveTarget === 'card';
+    const destType = toCard ? 'credit_card' : destAccountType;
+    const destId = toCard ? cardId : destAccountId;
+
+    if (toCard && !destId) {
+      setTransferError('Choose the card to pay.');
+      return;
+    }
+
+    if (!accountId || !destId) {
       setTransferError('Both source and destination accounts are required.');
       return;
     }
 
-    if (accountType === destAccountType && accountId === destAccountId) {
+    if (accountType === destType && String(accountId) === String(destId)) {
       setTransferError('Source and destination accounts must be different.');
       return;
     }
@@ -908,12 +965,12 @@ export function UnifiedEntryModal({
         sourceBankAccountId: accountType === 'bank' ? accountId : null,
         sourceWalletId: accountType === 'wallet' ? accountId : null,
         sourceAccountId: accountId,
-        destinationType: destAccountType,
-        destinationBankAccountId: destAccountType === 'bank' ? destAccountId : null,
-        destinationWalletId: destAccountType === 'wallet' ? destAccountId : null,
-        destinationAccountId: destAccountId,
-        note: description.trim(),
-        description: description.trim()
+        destinationType: destType,
+        destinationBankAccountId: destType === 'bank' ? destId : null,
+        destinationWalletId: destType === 'wallet' ? destId : null,
+        destinationAccountId: destId,
+        note: description.trim() || (toCard ? `${selectedCard?.name || 'Card'} bill` : ''),
+        description: description.trim() || (toCard ? `${selectedCard?.name || 'Card'} bill` : '')
       };
 
       if (initialItem) {
@@ -1041,23 +1098,11 @@ export function UnifiedEntryModal({
                   className={`modal-tab-btn timeline-filter-btn ${mode === 'transfer' ? 'active' : ''} entry-btn`}
                   data-active={mode === 'transfer' ? 'true' : 'false'}
                   onClick={() => handleSwitchMode('transfer')}
-                  aria-label="Transfer"
-                  title="Transfer Funds"
+                  aria-label="Move"
+                  title="Move money: between your accounts, to a card, or with a person"
                 >
                   <ArrowRightLeftIcon size={14} />
-                  <span>Transfer</span>
-                </button>
-                <button
-                  ref={heldBtnRef}
-                  type="button"
-                  className={`modal-tab-btn timeline-filter-btn ${mode === 'held' ? 'active' : ''} entry-btn`}
-                  data-active={mode === 'held' ? 'true' : 'false'}
-                  onClick={() => handleSwitchMode('held')}
-                  aria-label="Held or Lent"
-                  title="Money held for someone, or lent out (not income or spending)"
-                >
-                  <UserIcon size={14} />
-                  <span>Held/Lent</span>
+                  <span>Move</span>
                 </button>
               </div>
             )}
@@ -1073,11 +1118,29 @@ export function UnifiedEntryModal({
             </button>
           </div>
 
-          {/* Transfer Error Alert */}
-          {mode === 'transfer' && transferError && (
-            <div className="entry-note-2"
-            >
-              {transferError}
+          {/* Move: where the money goes */}
+          {mode === 'transfer' && !initialItem && !settleItem && (
+            <div className="move-target-row">
+              <div className="entry-segment move-target" role="group" aria-label="Move money">
+                {[
+                  ['account', 'My accounts'],
+                  ['card', 'Pay a card'],
+                  ['person', 'A person']
+                ].filter(([key]) => key !== 'card' || creditCards.length > 0).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`entry-segment-btn ${moveTarget === key ? 'active' : ''}`}
+                    aria-pressed={moveTarget === key}
+                    onClick={() => {
+                      setMoveTarget(key);
+                      setTransferError('');
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -1085,7 +1148,30 @@ export function UnifiedEntryModal({
               THE UNIVERSAL 6-SLOT FORM VIEW
               Identical spatial sequence across all 4 modes.
              ========================================================================= */}
-          {mode === 'held' ? (
+          {settleItem ? (
+            <div className="modal-form-scroll-body">
+              <p className="field-hint settle-intro">This pays a planned bill, so it is marked paid instead of logged as new spending.</p>
+              <SettleForm
+                bill={settleItem}
+                bankAccounts={bankAccounts}
+                wallets={wallets}
+                creditCards={creditCards}
+                currencySymbol={currencySymbol}
+                simulation={simulation}
+                initialAmount={amount}
+                initialAccountId={accountId}
+                onSubmit={handleSettleSubmit}
+                onCancel={() => {
+                  setSettleItem(null);
+                  setMatchedItemId('');
+                }}
+                cancelLabel="Log as new spend"
+                submitting={settleSubmitting}
+                error={settleError}
+                submitLabel="Mark paid"
+              />
+            </div>
+          ) : mode === 'transfer' && moveTarget === 'person' ? (
             <div className="modal-form-scroll-body hl-modal-body">
               <HeldLentForm
                 bankAccounts={bankAccounts}
@@ -1343,7 +1429,7 @@ export function UnifiedEntryModal({
                 {mode === 'log' && 'Payment Account *'}
                 {mode === 'income' && 'Deposited To (Account) *'}
                 {mode === 'plan' && 'Dedicated Account *'}
-                {mode === 'transfer' && 'Source Account (Outflow) *'}
+                {mode === 'transfer' && (moveTarget === 'card' ? 'Pay from *' : 'Source Account (Outflow) *')}
               </label>
 
               {hasZeroAccounts ? (
@@ -1426,6 +1512,52 @@ export function UnifiedEntryModal({
                       Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
                     </span>
                   )}
+                </>
+              ) : moveTarget === 'card' ? (
+                <>
+                  <label className="form-label">Card to pay *</label>
+                  <div className="move-card-list" role="group" aria-label="Card to pay">
+                    {creditCards.map((c) => {
+                      const id = c.id || c._id;
+                      const bill = c.openBill;
+                      const active = String(cardId) === String(id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`choice-card ${active ? 'active' : ''}`}
+                          aria-pressed={active}
+                          onClick={() => setCardId(id)}
+                        >
+                          <span className="choice-card-title">{c.name}</span>
+                          <span className="choice-card-sub">
+                            Owes {formatCurrency(c.outstanding || 0, currencySymbol)}
+                            {bill && bill.remaining > 0 ? ` · bill ${formatCurrency(bill.remaining, currencySymbol)}${bill.dueDate ? ` due ${formatDisplayDate(bill.dueDate, false)}` : ''}` : ''}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedCard && (
+                    <div className="move-bill-chips">
+                      {selectedCard.openBill?.remaining > 0 && (
+                        <button type="button" className="quick-amt-chip" onClick={() => setAmount(String(selectedCard.openBill.remaining / 100))}>
+                          Bill {formatCurrency(selectedCard.openBill.remaining, currencySymbol)}
+                        </button>
+                      )}
+                      {selectedCard.openBill?.minimumDue > 0 && (
+                        <button type="button" className="quick-amt-chip" onClick={() => setAmount(String(Math.min(selectedCard.openBill.minimumDue, selectedCard.openBill.remaining) / 100))}>
+                          Minimum {formatCurrency(Math.min(selectedCard.openBill.minimumDue, selectedCard.openBill.remaining), currencySymbol)}
+                        </button>
+                      )}
+                      {selectedCard.outstanding > 0 && (
+                        <button type="button" className="quick-amt-chip" onClick={() => setAmount(String(selectedCard.outstanding / 100))}>
+                          All owed {formatCurrency(selectedCard.outstanding, currencySymbol)}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <span className="field-hint">Paying a card moves money from your account to the card. It isn't counted as spending again.</span>
                 </>
               ) : (
                 <>
@@ -1651,6 +1783,10 @@ export function UnifiedEntryModal({
               )}
             </div>
 
+            {(formError || (mode === 'transfer' && transferError)) && (
+              <div className="form-error" role="alert">{formError || transferError}</div>
+            )}
+
             {/* ---------------------------------------------------------------------
                 SLOT 6: UNIFIED ACTION FOOTER (FIXED DOCKED FOOTER)
                --------------------------------------------------------------------- */}
@@ -1735,7 +1871,9 @@ export function UnifiedEntryModal({
                   >
                     {isSubmitting
                       ? (initialItem ? 'Updating...' : 'Recording...')
-                      : (initialItem ? 'Update Transfer' : 'Record Transfer')}
+                      : (initialItem
+                          ? 'Update Transfer'
+                          : (moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Record Transfer'))}
                   </button>
                 )}
               </div>
@@ -1791,7 +1929,7 @@ export function UnifiedEntryModal({
                       if (data.type === 'transfer') {
                         handleTransferSubmit(null, true);
                       } else {
-                        handleTransactionSubmit(null, data.forcedUnderSpendAction, true);
+                        handleTransactionSubmit(null, true);
                       }
                     }}
                   >
@@ -1802,83 +1940,6 @@ export function UnifiedEntryModal({
             </div>
           )}
 
-          {/* Under-Spend Settlement Modal */}
-          {underSpendData && (
-            <div className="entry-row-14"
-              data-testid="under-spend-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="modal-content entry-box-10"
-              >
-                <div className="entry-box-11">
-                  <div className="entry-row-17">
-                    <SparklesIcon size={18} style={{ color: 'var(--indigo)' }} />
-                    <h3 className="entry-heading-2">
-                      Settlement for {underSpendData.linkedItem.name}
-                    </h3>
-                  </div>
-                  <p className="entry-text-7">
-                    You logged spending of{' '}
-                    <strong className="entry-text-4">{formatCurrency(underSpendData.spentAmt, currencySymbol)}</strong>,
-                    which is{' '}
-                    <strong className="entry-text-8">{formatCurrency(underSpendData.diffAmt, currencySymbol)}</strong>{' '}
-                    less than planned ({formatCurrency(underSpendData.plannedAmt, currencySymbol)}).
-                    How should the remaining amount be handled?
-                  </p>
-                </div>
-
-                <div className="entry-stack-4">
-                  <button
-                    type="button"
-                    className="btn-primary entry-btn-11"
-                    onClick={() =>
-                      handleTransactionSubmit(null, {
-                        action: 'release',
-                        spentAmt: underSpendData.spentAmt,
-                        itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
-                      })
-                    }
-                  >
-                    <span className="entry-text-9">
-                      Release remaining {formatCurrency(underSpendData.diffAmt, currencySymbol)} to balance
-                    </span>
-                    <span className="entry-note-11">
-                      Frees remaining money into your safe-to-spend allowance and marks item paid.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn-subtle entry-btn-12"
-                    onClick={() =>
-                      handleTransactionSubmit(null, {
-                        action: 'keep_remainder',
-                        spentAmt: underSpendData.spentAmt,
-                        remainderAmt: underSpendData.diffAmt,
-                        itemId: underSpendData.linkedItem._id || underSpendData.linkedItem.id
-                      })
-                    }
-                  >
-                    <span className="entry-text-9">
-                      Keep remainder scheduled ({formatCurrency(underSpendData.diffAmt, currencySymbol)})
-                    </span>
-                    <span className="entry-note-12">
-                      Marks spent amount paid and keeps a new pending item for the remaining expense.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn-subtle entry-btn-13"
-                    onClick={() => setUnderSpendData(null)}
-                  >
-                    Back to editing
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

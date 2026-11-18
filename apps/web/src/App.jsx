@@ -22,10 +22,33 @@ import { AnimatedLogo } from './components/AnimatedLogo.jsx';
 import { EyeIcon, ZapIcon, BanknoteIcon } from './components/Icons.jsx';
 import { useThemeMode } from './hooks/useThemeMode.js';
 
-/** What to do with an under-spent planned item: 'release' | 'keep_remainder' | null.
- * The entry modal sends { action }; older callers sent { type }. */
-export function underSpendActionKind(underSpendAction) {
-  return underSpendAction?.action || underSpendAction?.type || null;
+/**
+ * Planned-bill payload for the part of a bill still owed after a partial
+ * payment ("Still owed — keep the rest pending" in the Settle form).
+ */
+export function buildRemainderItem(remainder, { bankAccounts = [], wallets = [] } = {}) {
+  if (!remainder || !(remainder.amount > 0)) return null;
+  const isWallet = wallets.some((w) => String(w.id || w._id) === String(remainder.accountId));
+  const isBank = bankAccounts.some((b) => String(b.id || b._id) === String(remainder.accountId));
+  const accountType = isWallet ? 'wallet' : (isBank ? 'bank' : 'unassigned');
+  const day = Number(String(remainder.date || '').slice(8, 10)) || 1;
+  return {
+    type: 'one-time',
+    name: remainder.name,
+    title: remainder.name,
+    amount: Math.round(remainder.amount),
+    date: remainder.date,
+    day,
+    category: remainder.category || undefined,
+    tag: remainder.category || undefined,
+    priority: 1,
+    isFixed: false,
+    isPaid: false,
+    accountType,
+    accountId: isWallet || isBank ? remainder.accountId : undefined,
+    bankAccountId: isBank ? remainder.accountId : null,
+    walletId: isWallet ? remainder.accountId : null
+  };
 }
 
 export function resolveEntryModeFromItem(item) {
@@ -70,6 +93,8 @@ export default function App() {
   const [unifiedEntryOpen, setUnifiedEntryOpen] = useState(false);
   const [unifiedEntryMode, setUnifiedEntryMode] = useState('log'); // 'log' | 'plan'
   const [editingItem, setEditingItem] = useState(null);
+  // Where the entry sheet starts, e.g. { sourceAccountId } from an account's Transfer button
+  const [unifiedEntryPreset, setUnifiedEntryPreset] = useState(null);
   const [autoOpenAddBank, setAutoOpenAddBank] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewAccountId, setReviewAccountId] = useState('all');
@@ -430,7 +455,7 @@ export default function App() {
 
 
   // Transaction entry actions
-  const handleLogTransaction = async (txData, underSpendAction = null) => {
+  const handleLogTransaction = async (txData) => {
     try {
       let created;
       if (editingItem) {
@@ -446,43 +471,7 @@ export default function App() {
         setTransactions((prev) => [...prev, created]);
       }
 
-      if (underSpendAction && txData.plannedItemId && currentMonth) {
-        const settleAction = underSpendActionKind(underSpendAction);
-        const targetItem = items.find((i) => String(i._id || i.id) === String(txData.plannedItemId));
-        if (targetItem) {
-          const targetId = targetItem._id || targetItem.id;
-          if (settleAction === 'release') {
-            const updated = await api.updateItem(targetId, {
-              amount: underSpendAction.spentAmt,
-              isPaid: true
-            });
-            setItems((prev) => prev.map((i) => (String(i._id || i.id) === String(targetId) ? { ...i, ...updated } : i)));
-          } else if (settleAction === 'keep_remainder') {
-            const updated = await api.updateItem(targetId, {
-              amount: underSpendAction.spentAmt,
-              isPaid: true
-            });
-            const newItemData = {
-              type: targetItem.type,
-              name: `${targetItem.name} (Remainder)`,
-              amount: underSpendAction.remainderAmt,
-              priority: targetItem.priority,
-              isPaid: false,
-              accountType: targetItem.accountType,
-              bankAccountId: targetItem.bankAccountId?._id || targetItem.bankAccountId,
-              walletId: targetItem.walletId?._id || targetItem.walletId
-            };
-            if (targetItem.type === 'one-time') {
-              newItemData.day = targetItem.day;
-            } else if (targetItem.type === 'recurring') {
-              newItemData.dayOfMonth = targetItem.dayOfMonth;
-              newItemData.isFixed = targetItem.isFixed;
-            }
-            const remainderItem = await api.createItem(currentMonth.year, currentMonth.month, newItemData);
-            setItems((prev) => [...prev.map((i) => (String(i._id || i.id) === String(targetId) ? { ...i, ...updated } : i)), remainderItem]);
-          }
-        }
-      } else if (txData.plannedItemId && currentMonth) {
+      if (txData.plannedItemId && currentMonth) {
         setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
       }
 
@@ -502,7 +491,6 @@ export default function App() {
       }
       return created;
     } catch (err) {
-      alert(err.message || 'Failed to log transaction');
       throw err;
     }
   };
@@ -546,7 +534,12 @@ export default function App() {
 
   const handlePayTransaction = async (txId, payData) => {
     try {
-      const res = await api.payTransaction(txId, payData);
+      const { remainder, ...payment } = payData || {};
+      const res = await api.payTransaction(txId, payment);
+      const remainderItem = buildRemainderItem(remainder, { bankAccounts, wallets });
+      if (remainderItem && currentMonth) {
+        await api.createItem(currentMonth.year, currentMonth.month, remainderItem);
+      }
       
       // Reload months to reflect any cycle advancement
       const list = await api.getMonths();
@@ -575,7 +568,6 @@ export default function App() {
         setTransactions(globalTxs || []);
       }
     } catch (err) {
-      alert(err.message || 'Failed to settle transaction');
       throw err;
     }
   };
@@ -638,7 +630,6 @@ export default function App() {
       }
       return result;
     } catch (err) {
-      alert(err.message || 'Failed to save item');
       throw err;
     }
   };
@@ -791,7 +782,6 @@ export default function App() {
       }
       return createdOrUpdated;
     } catch (err) {
-      alert(err.message || 'Failed to save bank account');
       throw err;
     }
   };
@@ -824,7 +814,6 @@ export default function App() {
       }
       return createdOrUpdated;
     } catch (err) {
-      alert(err.message || 'Failed to save wallet');
       throw err;
     }
   };
@@ -882,9 +871,10 @@ export default function App() {
     }
   };
 
-  const handleOpenUnifiedEntry = (mode = 'log') => {
+  const handleOpenUnifiedEntry = (mode = 'log', preset = null) => {
     if (isReviewMode) return;
     setEditingItem(null);
+    setUnifiedEntryPreset(preset);
     setUnifiedEntryMode(mode);
     setUnifiedEntryOpen(true);
   };
@@ -892,6 +882,7 @@ export default function App() {
   const handleEditItem = (item) => {
     if (isReviewMode) return;
     setEditingItem(item);
+    setUnifiedEntryPreset(null);
     const targetMode = resolveEntryModeFromItem(item);
     setUnifiedEntryMode(targetMode);
     setUnifiedEntryOpen(true);
@@ -1180,6 +1171,7 @@ export default function App() {
               onArchiveBankAccount={handleArchiveBankAccount}
               onArchiveWallet={handleArchiveWallet}
               onCreateTransfer={handleCreateTransfer}
+              onOpenUnifiedEntry={handleOpenUnifiedEntry}
               onDeleteTransfer={handleDeleteTransfer}
               month={currentMonth}
               initialOpenBankModal={autoOpenAddBank}
@@ -1218,6 +1210,8 @@ export default function App() {
         isOpen={unifiedEntryOpen}
         initialMode={unifiedEntryMode}
         initialItem={editingItem}
+        initialPreset={unifiedEntryPreset}
+        onSettleTransaction={handlePayTransaction}
         plannedItems={items}
         bankAccounts={bankAccounts}
         wallets={wallets}

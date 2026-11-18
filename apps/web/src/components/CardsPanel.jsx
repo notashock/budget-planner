@@ -311,7 +311,9 @@ export function CardsPanel({
   simulation = null,
   currencySymbol = '₹',
   isReviewMode = false,
-  onChanged
+  onChanged,
+  // In the app, paying a bill opens the entry sheet's Move tab on this card (one payment form)
+  onPayBill
 }) {
   const [cards, setCards] = useState([]);
   const [modal, setModal] = useState(null); // { kind: 'add'|'edit'|'confirm'|'pay', card, statement?, bill? }
@@ -419,7 +421,7 @@ export function CardsPanel({
                       {bill.isOverdue ? ` since ${dayLabel(bill.dueDate)}` : ` by ${dayLabel(bill.dueDate)}`}
                       {bill.minimumDue ? ` (minimum ${money(Math.min(bill.minimumDue, bill.remaining), currencySymbol)})` : ''}
                     </span>
-                    {!isReviewMode && <Button size="sm" variant="primary" onClick={() => setModal({ kind: 'pay', card, bill })}>Pay bill</Button>}
+                    {!isReviewMode && <Button size="sm" variant="primary" onClick={() => (onPayBill ? onPayBill(card, bill) : setModal({ kind: 'pay', card, bill }))}>Pay bill</Button>}
                   </div>
                 )}
 

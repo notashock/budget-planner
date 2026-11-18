@@ -130,9 +130,11 @@ describe('AccountsScreen component', () => {
     expect(screen.getByText(/ATM withdrawal/i)).toBeInTheDocument();
   });
 
-  it('opens Transfer modal when Transfer Funds button is clicked', () => {
+  it('opens the entry sheet\'s Move tab when Transfer Funds is clicked (one transfer form)', () => {
+    const onOpenUnifiedEntry = vi.fn();
     render(
       <AccountsScreen
+        onOpenUnifiedEntry={onOpenUnifiedEntry}
         bankAccounts={mockBankAccounts}
         wallets={mockWallets}
         transfers={mockTransfers}
@@ -144,8 +146,7 @@ describe('AccountsScreen component', () => {
     const transferBtn = screen.getByRole('button', { name: /Transfer Funds/i });
     fireEvent.click(transferBtn);
 
-    expect(screen.getByText('Paired Account Transfer')).toBeInTheDocument();
-    expect(screen.getByText(/Source Account/i)).toBeInTheDocument();
-    expect(screen.getByText(/Destination Account/i)).toBeInTheDocument();
+    expect(onOpenUnifiedEntry).toHaveBeenCalledWith('transfer', null);
+    expect(screen.queryByText('Paired Account Transfer')).not.toBeInTheDocument();
   });
 });

@@ -559,3 +559,100 @@ select.input-field {
     font-size: var(--fs-input);
   }
 }
+
+/* Server or form-level error, directly above the footer */
+.form-error {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+  color: var(--bad-ink);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+/* Settle (mark as paid) */
+.settle-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  background: var(--surface-subtle);
+}
+
+.settle-summary-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.settle-summary-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.settle-leftover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.settle-leftover legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+
+/* Move tab: who the money goes to */
+.move-target {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.move-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.move-card-list .choice-card {
+  width: 100%;
+}
+
+.move-bill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tx-action-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.settle-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.settle-modal-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.settle-modal-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}

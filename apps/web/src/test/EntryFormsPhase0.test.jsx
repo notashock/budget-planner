@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { UnifiedEntryModal, INCOME_CATEGORIES, DEFAULT_INCOME_TAG } from '../components/UnifiedEntryModal.jsx';
 import { HeldLentForm } from '../components/HeldLentForm.jsx';
-import { underSpendActionKind } from '../App.jsx';
+import { buildRemainderItem } from '../App.jsx';
 import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
 import { api } from '../api.js';
 
@@ -19,12 +19,21 @@ vi.mock('../api.js', () => ({
 const bank = { id: 'b1', _id: 'b1', name: 'Main Bank', isPrimary: true, openingBalance: 1000000, minimumBalance: 500000 };
 const wallet = { id: 'w1', _id: 'w1', name: 'Cash Wallet', openingBalance: 20000 };
 
-describe('B1: under-spend choice reaches the settlement logic', () => {
-  it('reads the { action } the entry modal sends, and the legacy { type }', () => {
-    expect(underSpendActionKind({ action: 'release' })).toBe('release');
-    expect(underSpendActionKind({ action: 'keep_remainder' })).toBe('keep_remainder');
-    expect(underSpendActionKind({ type: 'release' })).toBe('release');
-    expect(underSpendActionKind(null)).toBeNull();
+describe('B1: paying less than planned can keep the rest as a pending bill', () => {
+  it('builds a planned bill for the remainder on the same account', () => {
+    const item = buildRemainderItem(
+      { amount: 5000, name: 'Rent (remainder)', category: 'Utilities', date: '2026-11-20', accountId: 'b1' },
+      { bankAccounts: [bank], wallets: [wallet] }
+    );
+    expect(item).toMatchObject({
+      type: 'one-time', name: 'Rent (remainder)', amount: 5000, date: '2026-11-20', day: 20,
+      accountType: 'bank', bankAccountId: 'b1', walletId: null, isPaid: false
+    });
+  });
+
+  it('builds nothing when the bill was paid in full', () => {
+    expect(buildRemainderItem(null)).toBeNull();
+    expect(buildRemainderItem({ amount: 0 })).toBeNull();
   });
 });
 

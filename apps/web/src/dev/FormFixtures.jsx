@@ -28,6 +28,11 @@ const plannedItems = [
   { _id: 'p2', id: 'p2', type: 'recurring', name: 'Internet', amount: 99900, dayOfMonth: 12, isPaid: false }
 ];
 
+const creditCards = [
+  { id: 'c1', name: 'HDFC Millennia', outstanding: 1845000, openBill: { statementId: 's1', remaining: 1210000, minimumDue: 60500, dueDate: '2026-12-05' } },
+  { id: 'c2', name: 'Amazon Pay ICICI', outstanding: 230000, openBill: null }
+];
+
 const EDIT_ITEMS = {
   'edit-spend': { _id: 't1', id: 't1', origin: 'spot', status: 'successful', title: 'Groceries', amount: 125000, date: '2026-11-15', category: 'Food', accountId: 'b1' },
   'edit-plan': { _id: 'p2', id: 'p2', type: 'recurring', name: 'Internet', amount: 99900, dayOfMonth: 12, category: 'Utilities', accountId: 'b1', status: 'planned' }
@@ -39,6 +44,7 @@ const FORMS = {
   plan: { kind: 'entry', mode: 'plan' },
   transfer: { kind: 'entry', mode: 'transfer' },
   held: { kind: 'entry', mode: 'held' },
+  'move-card': { kind: 'entry', mode: 'transfer', preset: { moveTarget: 'card', cardId: 'c1' } },
   'edit-spend': { kind: 'entry', mode: 'log', edit: true },
   'edit-plan': { kind: 'entry', mode: 'plan', edit: true },
   'held-form': { kind: 'held' },
@@ -73,6 +79,9 @@ function Fixture() {
           onClose={() => setOpen(false)}
           initialMode={form.mode}
           initialItem={form.edit ? EDIT_ITEMS[name] : null}
+          initialPreset={form.preset || null}
+          creditCards={creditCards}
+          onSettleTransaction={noop}
           onLogTransaction={noop}
           onSaveItem={noop}
           onCreateTransfer={noop}

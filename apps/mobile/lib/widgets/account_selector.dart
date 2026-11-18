@@ -43,8 +43,13 @@ class AccountSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Wrap, not Row: on narrow phones the Bank / Wallet / Card switch moves
+        // under the label instead of overflowing
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
           children: [
             Text(
               label + (isRequired ? ' *' : ''),

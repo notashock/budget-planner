@@ -29,7 +29,9 @@ const heldLentActions = <HeldLentAction>[
 
 const _newPerson = '__new__';
 
-class HeldLentModal extends StatefulWidget {
+/// The Held & Lent form on its own (no sheet chrome), so it can sit in its own
+/// sheet or inside the entry sheet's Move tab ("A person").
+class HeldLentForm extends StatefulWidget {
   final String initialAction;
   final String? initialFundId;
 
@@ -39,7 +41,10 @@ class HeldLentModal extends StatefulWidget {
   final DateTime? initialDate;
   final String? initialAccountId;
 
-  const HeldLentModal({
+  /// Called after a successful save.
+  final VoidCallback? onSaved;
+
+  const HeldLentForm({
     super.key,
     this.initialAction = 'hold',
     this.initialFundId,
@@ -47,13 +52,14 @@ class HeldLentModal extends StatefulWidget {
     this.initialNote = '',
     this.initialDate,
     this.initialAccountId,
+    this.onSaved,
   });
 
   @override
-  State<HeldLentModal> createState() => _HeldLentModalState();
+  State<HeldLentForm> createState() => _HeldLentFormState();
 }
 
-class _HeldLentModalState extends State<HeldLentModal> {
+class _HeldLentFormState extends State<HeldLentForm> {
   final _amountCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -158,7 +164,6 @@ class _HeldLentModalState extends State<HeldLentModal> {
       return;
     }
     setState(() => _submitting = true);
-    final navigator = Navigator.of(context);
     try {
       if (_fundId == _newPerson) {
         await budget.createPersonFund({
@@ -178,7 +183,7 @@ class _HeldLentModalState extends State<HeldLentModal> {
           'note': _noteCtrl.text.trim(),
         });
       }
-      navigator.pop(true);
+      widget.onSaved?.call();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -190,31 +195,13 @@ class _HeldLentModalState extends State<HeldLentModal> {
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final text = isDark ? AppColors.darkText : AppColors.lightText;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final selected = _selected;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        padding: AppForm.sheetPadding,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Held & Lent money', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: text)),
-                  IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -313,6 +300,64 @@ class _HeldLentModalState extends State<HeldLentModal> {
                   onPressed: _submitting || _accountId == null ? null : _submit,
                   child: Text(_submitting ? 'Saving…' : _current.label),
                 ),
+              ),
+      ],
+    );
+  }
+}
+
+/// Held & Lent in its own bottom sheet (People section, card actions).
+class HeldLentModal extends StatelessWidget {
+  final String initialAction;
+  final String? initialFundId;
+  final String initialAmount;
+  final String initialNote;
+  final DateTime? initialDate;
+  final String? initialAccountId;
+
+  const HeldLentModal({
+    super.key,
+    this.initialAction = 'hold',
+    this.initialFundId,
+    this.initialAmount = '',
+    this.initialNote = '',
+    this.initialDate,
+    this.initialAccountId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: AppForm.sheetPadding,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Held & Lent money', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: text)),
+                  IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+              HeldLentForm(
+                initialAction: initialAction,
+                initialFundId: initialFundId,
+                initialAmount: initialAmount,
+                initialNote: initialNote,
+                initialDate: initialDate,
+                initialAccountId: initialAccountId,
+                onSaved: () => Navigator.pop(context, true),
               ),
             ],
           ),

@@ -244,7 +244,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
 
       expect(screen.getByRole('button', { name: /^Spending$/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^Plan/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^Transfer$/i })).toBeInTheDocument();
+      // Transfers live in the Move tab (accounts, cards and people)
+      expect(screen.getByRole('button', { name: /^Move$/i })).toBeInTheDocument();
 
       // Payment Account selector exists in Log mode
       expect(screen.getByText(/Payment Account/)).toBeInTheDocument();
@@ -402,7 +403,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       });
     });
 
-    it('switches to Transfer mode and submits transfer payload', async () => {
+    it('switches to the Move tab and submits a transfer between accounts', async () => {
       const mockCreateTransfer = vi.fn().mockResolvedValue({});
       render(
         <UnifiedEntryModal
@@ -418,7 +419,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      const transferTabBtn = screen.getByRole('button', { name: /Transfer$/i });
+      const transferTabBtn = screen.getByRole('button', { name: /^Move$/i });
       fireEvent.click(transferTabBtn);
 
       expect(screen.getByText(/Source Account \(Outflow\)/i)).toBeInTheDocument();

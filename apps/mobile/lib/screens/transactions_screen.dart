@@ -5,7 +5,7 @@ import '../engine/engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
-import '../modals/add_transaction_modal.dart';
+import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -139,7 +139,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AddTransactionModal(initialStatus: _activeTab),
+      // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
+      builder: (_) => UnifiedEntryModal(initialType: _activeTab == 'planned' ? EntryType.item : EntryType.transaction),
     );
   }
 

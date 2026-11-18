@@ -54,7 +54,7 @@ describe('Held/Lent keeps what the user already typed', () => {
     expect(screen.getByText('Main Bank')).toBeInTheDocument();
   });
 
-  it('switching Spending -> Held/Lent -> Spending keeps the amount and note', async () => {
+  it('switching Spending -> Move / A person -> Spending keeps the amount and note', async () => {
     render(
       <UnifiedEntryModal
         isOpen={true}
@@ -69,7 +69,8 @@ describe('Held/Lent keeps what the user already typed', () => {
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '1250' } });
     fireEvent.change(screen.getByPlaceholderText(/Grocery/), { target: { value: 'Ravi cash' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Held or Lent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A person' }));
     expect(await screen.findByTestId('held-lent-form')).toBeInTheDocument();
     expect(screen.getByLabelText(/Amount/)).toHaveValue(1250);
     expect(screen.getByLabelText(/Note/)).toHaveValue('Ravi cash');
