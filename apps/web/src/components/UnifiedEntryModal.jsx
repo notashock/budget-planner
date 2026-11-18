@@ -28,6 +28,7 @@ import { HeldLentForm } from './HeldLentForm.jsx';
 import { SettleForm } from './SettleForm.jsx';
 import { ConsequenceLine } from './ConsequenceLine.jsx';
 import { suggestCategory } from '../utils/categorySuggest.js';
+import { findBillMatch, detectDuplicateSalary, detectPersonHint } from '../utils/entryAssists.js';
 import {
   lastAccountFor,
   rememberAccount,
@@ -91,6 +92,10 @@ export function UnifiedEntryModal({
   initialPreset = null,
   // Delete the record being edited: (initialItem) => Promise
   onDeleteEntry,
+  // Change the type of the record being edited: (initialItem, targetMode, carriedValues)
+  onConvertEntry,
+  // Open the salary schedule (the duplicate-salary guard points there)
+  onOpenSalarySchedule,
   creditCards = []
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -149,6 +154,11 @@ export function UnifiedEntryModal({
   const [editSnapshot, setEditSnapshot] = useState(null);
   const [snapshotPending, setSnapshotPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Smart assists
+  const [personFunds, setPersonFunds] = useState([]);
+  const [dismissedAssists, setDismissedAssists] = useState({});
+  const [personPreset, setPersonPreset] = useState(null);
+  const [showConvert, setShowConvert] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Entries saved with "Save & add another" since the sheet opened
   const [session, setSession] = useState({ count: 0, total: 0 });
@@ -184,11 +194,19 @@ export function UnifiedEntryModal({
   );
 
   // Candidate match based on entered amount
+  // A new spend that looks like a planned bill: amount within 10% or the bill's
+  // name in the description, and the bill overdue or due within 7 days
   const candidateMatch = useMemo(() => {
-    if (!amount || isNaN(Number(amount)) || matchedItemId) return null;
-    const numAmount = Math.round(Math.abs(Number(amount)) * 100);
-    return eligiblePlannedItems.find((item) => !item.isPaid && item.amount === numAmount) || null;
-  }, [amount, matchedItemId, eligiblePlannedItems]);
+    if (matchedItemId || isRefund) return null;
+    const match = findBillMatch(eligiblePlannedItems, {
+      amount: Math.round(Math.abs(Number(amount) || 0) * 100),
+      description,
+      today: todayStr,
+      year: month?.year,
+      month: month?.month
+    });
+    return match ? match.item : null;
+  }, [amount, description, isRefund, matchedItemId, eligiblePlannedItems, todayStr, month]);
 
   // DOM and Animation Refs
   const containerRef = useRef(null);
@@ -221,6 +239,9 @@ export function UnifiedEntryModal({
       setFormError('');
       setConfirmDiscard(false);
       setConfirmDelete(false);
+      setDismissedAssists({});
+      setPersonPreset(null);
+      setShowConvert(false);
       setEditSnapshot(null);
       setSnapshotPending(Boolean(initialItem));
       setSession({ count: 0, total: 0 });
@@ -374,12 +395,16 @@ export function UnifiedEntryModal({
           }
         }
 
-        // Preset: logging a held/lent entry again with the details it had
-        if (initialPreset?.heldLent) {
-          const hl = initialPreset.heldLent;
+        // Preset: logging a held/lent entry again, or changing an entry's type, with the details it had
+        if (initialPreset?.heldLent || initialPreset?.carry) {
+          const hl = initialPreset.heldLent || initialPreset.carry;
           if (hl.amount) setAmount(String(Math.abs(Number(hl.amount)) / 100));
           if (hl.date) setDate(hl.date);
           if (hl.note) setDescription(hl.note);
+          if (hl.category && SPEND_CATEGORIES.includes(hl.category)) {
+            setTag(hl.category);
+            setCategoryTouched(true);
+          }
           if (hl.accountId) {
             const hlIsWallet = (wallets || []).some((w) => String(w._id || w.id) === String(hl.accountId));
             setAccountType(hlIsWallet ? 'wallet' : 'bank');
@@ -415,6 +440,15 @@ export function UnifiedEntryModal({
       triggerExit();
     }
   }, [isOpen, initialItem, initialMode, initialPreset, month, bankAccounts, wallets, todayStr]);
+
+  useEffect(() => {
+    if (!isOpen || initialItem || typeof api.getPersonFunds !== 'function') return undefined;
+    let alive = true;
+    Promise.resolve(api.getPersonFunds())
+      .then((res) => { if (alive) setPersonFunds(Array.isArray(res?.funds) ? res.funds : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isOpen, initialItem]);
 
   // Take the snapshot on the render after the init effect has applied the record's values
   useEffect(() => {
@@ -1406,8 +1440,9 @@ export function UnifiedEntryModal({
           ) : mode === 'transfer' && moveTarget === 'person' ? (
             <div className="modal-form-scroll-body hl-modal-body">
               <HeldLentForm
-                initialAction={initialPreset?.heldLent?.action || 'hold'}
-                initialFundId={initialPreset?.heldLent?.fundId || ''}
+                initialAction={personPreset?.action || initialPreset?.heldLent?.action || 'hold'}
+                initialFundId={personPreset?.fundId || initialPreset?.heldLent?.fundId || ''}
+                initialPersonName={personPreset?.personName || ''}
                 bankAccounts={bankAccounts}
                 wallets={wallets}
                 currencySymbol={currencySymbol}
@@ -1866,25 +1901,6 @@ export function UnifiedEntryModal({
               {/* SPENDING: Candidate match banner & Planned Item Matcher */}
               {mode === 'log' && (
                 <div className="entry-box-6">
-                  {candidateMatch && !matchedItemId && (
-                    <div className="entry-row-9"
-                    >
-                      <div className="entry-row-10">
-                        <SparklesIcon size={14} style={{ color: 'var(--indigo)', flexShrink: 0 }} />
-                        <span className="entry-text-2">
-                          Matches: <strong>{candidateMatch.name}</strong> ({formatCurrency(candidateMatch.amount, currencySymbol)})
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-subtle entry-btn-6"
-                        onClick={() => handleSelectMatchedItem(candidateMatch._id || candidateMatch.id)}
-                      >
-                        Link & Settle
-                      </button>
-                    </div>
-                  )}
-
                   <SearchableItemPicker
                     items={eligiblePlannedItems}
                     selectedId={matchedItemId}
@@ -2025,6 +2041,86 @@ export function UnifiedEntryModal({
               )}
             </div>
 
+            {!initialItem && (() => {
+              // One assist at a time: bill > salary > person
+              const minor = Math.round(Math.abs(Number(amount) || 0) * 100);
+              if (mode === 'log' && candidateMatch && !matchedItemId && !dismissedAssists.bill) {
+                return (
+                  <div className="assist-banner" data-testid="assist-bill">
+                    <SparklesIcon size={14} />
+                    <span>
+                      Paying <strong>{candidateMatch.name || candidateMatch.title}</strong>
+                      {' '}({formatCurrency(Math.abs(candidateMatch.plannedAmount ?? candidateMatch.amount ?? 0), currencySymbol)})?
+                    </span>
+                    <div className="assist-actions">
+                      <button type="button" className="btn-subtle" onClick={() => setDismissedAssists((d) => ({ ...d, bill: true }))}>No</button>
+                      <button type="button" className="btn-primary" onClick={() => handleSelectMatchedItem(candidateMatch._id || candidateMatch.id)}>
+                        Yes, settle it
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+              const salary = mode === 'income' && !dismissedAssists.salary
+                ? detectDuplicateSalary({ description, amount: minor, month })
+                : null;
+              if (salary) {
+                return (
+                  <div className="assist-banner tone-warn" data-testid="assist-salary">
+                    <AlertTriangleIcon size={14} />
+                    <span>
+                      Your <strong>{formatCurrency(salary.amount, currencySymbol)}</strong> salary
+                      {salary.date ? ` on ${formatDisplayDate(salary.date, false)}` : ''} is already in the plan. Logging it here counts it twice.
+                    </span>
+                    <div className="assist-actions">
+                      <button type="button" className="btn-subtle" onClick={() => setDismissedAssists((d) => ({ ...d, salary: true }))}>
+                        It's extra income
+                      </button>
+                      {onOpenSalarySchedule && (
+                        <button type="button" className="btn-primary" onClick={() => { setConfirmDiscard(false); triggerExit(() => onOpenSalarySchedule()); }}>
+                          Update salary instead
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              const flow = mode === 'income' || (mode === 'log' && isRefund) ? 'in' : 'out';
+              const hint = (mode === 'log' || mode === 'income') && !dismissedAssists.person
+                ? detectPersonHint({ description, flow, funds: personFunds })
+                : null;
+              if (hint) {
+                const who = hint.personName || 'someone';
+                const question = {
+                  hold: `Is this ${who === 'someone' ? "someone's" : `${who}'s`} money to keep?`,
+                  repaid: `Is ${who} paying back money you lent?`,
+                  lend: `Lending this to ${who}?`,
+                  return: `Giving back ${who === 'someone' ? "someone's" : `${who}'s`} money?`
+                }[hint.action];
+                return (
+                  <div className="assist-banner" data-testid="assist-person">
+                    <SparklesIcon size={14} />
+                    <span>{question} It wouldn't count as {flow === 'in' ? 'income' : 'spending'}.</span>
+                    <div className="assist-actions">
+                      <button type="button" className="btn-subtle" onClick={() => setDismissedAssists((d) => ({ ...d, person: true }))}>No</button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => {
+                          setPersonPreset({ action: hint.action, fundId: hint.fund?.id || '', personName: hint.fund ? '' : hint.personName });
+                          setMode('transfer');
+                          setMoveTarget('person');
+                        }}
+                      >
+                        Track as {hint.action === 'hold' || hint.action === 'return' ? 'held' : 'lent'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             {(() => {
               // Live "After this: ..." line for the account the entry touches
               if (mode === 'plan') return null;
@@ -2111,9 +2207,48 @@ export function UnifiedEntryModal({
                         </span>
                       ))}</>}
                 </p>
-                {onDeleteEntry && !confirmDelete && (
-                  <button type="button" className="link-btn danger" onClick={() => setConfirmDelete(true)}>Delete</button>
-                )}
+                <div className="edit-summary-actions">
+                  {onConvertEntry && (mode === 'log' || mode === 'income') && !confirmDelete && (
+                    <button type="button" className="link-btn" aria-expanded={showConvert} onClick={() => setShowConvert((v) => !v)}>
+                      Change type
+                    </button>
+                  )}
+                  {onDeleteEntry && !confirmDelete && (
+                    <button type="button" className="link-btn danger" onClick={() => setConfirmDelete(true)}>Delete</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {initialItem && showConvert && (
+              <div className="inline-confirm convert-menu" role="group" aria-label="Change type to" data-testid="convert-menu">
+                <span>Change this {mode === 'income' ? 'income' : 'spend'} to:</span>
+                <div className="inline-confirm-actions">
+                  {[
+                    ['log', 'Spend'],
+                    ['income', 'Income'],
+                    ['transfer', 'Move']
+                  ].filter(([target]) => target !== mode).map(([target, label]) => (
+                    <button
+                      key={target}
+                      type="button"
+                      className="btn-subtle"
+                      onClick={() => {
+                        setShowConvert(false);
+                        onConvertEntry(initialItem, target, {
+                          amount: Math.round(Math.abs(Number(amount) || 0) * 100),
+                          date,
+                          note: description.trim(),
+                          accountId,
+                          category: tag
+                        });
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <span className="field-hint">The {mode === 'income' ? 'income' : 'spend'} is replaced once the new entry is saved.</span>
               </div>
             )}
 

@@ -891,3 +891,65 @@ select.input-field {
 .hl-footer .card-remove-btn {
   margin-right: auto;
 }
+
+/* Smart assists in the entry sheet ("Paying Rent?", duplicate salary, held/lent) */
+.assist-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--indigo-border, var(--border));
+  border-radius: var(--field-radius);
+  background: var(--indigo-subtle, var(--surface-subtle));
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.assist-banner > span {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.assist-banner > svg {
+  flex-shrink: 0;
+  color: var(--indigo, var(--text-secondary));
+}
+
+.assist-banner.tone-warn {
+  border-color: var(--amber-border, var(--border));
+  background: var(--amber-subtle);
+}
+
+.assist-banner.tone-warn > svg {
+  color: var(--warn-ink);
+}
+
+.assist-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.assist-actions button {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--fs-xs);
+}
+
+.edit-summary-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.hl-person-expected {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+}
+
+.hl-person-expected.late {
+  color: var(--bad-ink);
+  font-weight: 600;
+}

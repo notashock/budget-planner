@@ -126,6 +126,11 @@ export function PeoplePanel({
                         : (isHeld ? 'You hold their money' : 'Owes you')}
                       {f.lastActivityDate ? ` · ${formatDisplayDate(f.lastActivityDate, false)}` : ''}
                     </span>
+                    {f.status !== 'settled' && f.expectedSettleDate && (
+                      <span className={`hl-person-expected ${f.expectedSettleDate < new Date().toISOString().slice(0, 10) ? 'late' : ''}`}>
+                        {isHeld ? 'Give back by ' : 'Back by '}{formatDisplayDate(f.expectedSettleDate, false)}
+                      </span>
+                    )}
                   </span>
                   <span className={`hl-person-amount tabular-nums ${isHeld ? 'held' : 'lent'}`}>
                     {formatCurrency(Math.max(0, f.outstanding), currencySymbol, 100, { decimals: 'auto' })}

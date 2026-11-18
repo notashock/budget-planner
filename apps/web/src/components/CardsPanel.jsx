@@ -199,10 +199,14 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
   const minor = toMinorUnits(amount || 0, 100);
   const diff = minor - (statement.computedAmount || 0);
 
+  const payNextRef = React.useRef(false);
+
   const submit = async (e) => {
     e?.preventDefault?.();
     setError('');
     setSaving(true);
+    const payNext = payNextRef.current;
+    payNextRef.current = false;
     try {
       await api.confirmCardStatement(statement.id, {
         statementAmount: minor,
@@ -210,7 +214,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
         dueDate,
         logChargesDifference: diff !== 0 && logDiff
       });
-      onSaved?.();
+      onSaved?.({ payNext });
     } catch (err) {
       setError(err?.message || 'Could not confirm the bill.');
     } finally {
@@ -230,6 +234,11 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
         <div className="form-group">
           <label className="form-label" htmlFor="cb-amount">Bill amount ({currencySymbol})</label>
           <input id="cb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <span className="field-hint" data-testid="bill-difference">
+            {diff === 0
+              ? `Matches what the app worked out (${money(statement.computedAmount, currencySymbol)}).`
+              : `${diff > 0 ? '+' : '−'}${money(Math.abs(diff), currencySymbol)} vs the app's ${money(statement.computedAmount, currencySymbol)} — ${diff > 0 ? 'fees or interest?' : 'cashback or a reversal?'}`}
+          </span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cb-min">Minimum due (optional)</label>
@@ -241,16 +250,35 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
         <DatePicker compact value={dueDate} onChange={setDueDate} minDate={statement.cycleEnd} required />
       </div>
       {diff !== 0 && (
-        <label className="cc-check">
-          <input type="checkbox" checked={logDiff} onChange={(e) => setLogDiff(e.target.checked)} />
-          <span>
-            Log the {money(Math.abs(diff), currencySymbol)} difference as card {diff > 0 ? 'charges (fees, interest)' : 'credit (cashback, reversal)'} so the card matches the bank
-          </span>
-        </label>
+        <div className="settle-leftover" role="group" aria-label="The difference">
+          <button
+            type="button"
+            className={`choice-card ${logDiff ? 'active' : ''}`}
+            aria-pressed={logDiff}
+            onClick={() => setLogDiff(true)}
+          >
+            <span className="choice-card-title">
+              Log the {money(Math.abs(diff), currencySymbol)} difference as card {diff > 0 ? 'charges' : 'credit'}
+            </span>
+            <span className="choice-card-sub">{diff > 0 ? 'Fees or interest' : 'Cashback or a reversal'}, so the card matches the bank.</span>
+          </button>
+          <button
+            type="button"
+            className={`choice-card ${!logDiff ? 'active' : ''}`}
+            aria-pressed={!logDiff}
+            onClick={() => setLogDiff(false)}
+          >
+            <span className="choice-card-title">Just update the bill</span>
+            <span className="choice-card-sub">Card entries stay as they are.</span>
+          </button>
+        </div>
       )}
       {error && <div className="hl-error" role="alert">{error}</div>}
       <div className="hl-footer">
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" type="submit" disabled={saving} onClick={() => { payNextRef.current = true; }}>
+          Confirm &amp; pay
+        </Button>
         <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Confirm bill'}</Button>
       </div>
     </form>
@@ -364,8 +392,10 @@ export function CardsPanel({
   const load = useCallback(async () => {
     try {
       const res = await api.getCards();
-      setCards(Array.isArray(res) ? res : []);
+      const list = Array.isArray(res) ? res : [];
+      setCards(list);
       setLoadError('');
+      return list;
     } catch (err) {
       setLoadError(err?.message || 'Could not load cards.');
     }
@@ -383,10 +413,19 @@ export function CardsPanel({
     return m;
   }, [simulationCards]);
 
-  const done = async () => {
+  const done = async (opts = {}) => {
+    const confirmedCard = modal?.card;
     setModal(null);
-    await load();
+    const list = await load();
     onChanged?.();
+    // "Confirm & pay": go straight to paying the bill just confirmed
+    if (opts?.payNext && confirmedCard) {
+      const fresh = (list || []).find((c) => c.id === confirmedCard.id) || confirmedCard;
+      if (fresh.openBill) {
+        if (onPayBill) onPayBill(fresh, fresh.openBill);
+        else setModal({ kind: 'pay', card: fresh, bill: fresh.openBill });
+      }
+    }
   };
 
   return (

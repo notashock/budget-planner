@@ -45,7 +45,7 @@ describe('Phase 2: one settlement flow', () => {
     renderEntry({ plannedItems: [rent], onSettleTransaction });
 
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '15000' } });
-    fireEvent.click(screen.getByRole('button', { name: /Link & Settle/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, settle it/ }));
 
     const form = await screen.findByTestId('settle-form');
     const amount = within(form).getByLabelText(/Amount paid/);
@@ -69,7 +69,7 @@ describe('Phase 2: one settlement flow', () => {
   it('"Log as new spend" goes back to the spend form', async () => {
     renderEntry({ plannedItems: [rent] });
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '15000' } });
-    fireEvent.click(screen.getByRole('button', { name: /Link & Settle/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, settle it/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Log as new spend' }));
     expect(screen.queryByTestId('settle-form')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('0.00')).toHaveValue(15000);
@@ -79,7 +79,7 @@ describe('Phase 2: one settlement flow', () => {
     const onSettleTransaction = vi.fn().mockRejectedValue(new Error('Bill already paid'));
     renderEntry({ plannedItems: [rent], onSettleTransaction });
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '15000' } });
-    fireEvent.click(screen.getByRole('button', { name: /Link & Settle/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, settle it/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Mark paid' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Bill already paid');
   });

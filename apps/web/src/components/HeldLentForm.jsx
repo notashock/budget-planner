@@ -42,6 +42,8 @@ export function HeldLentForm({
   // Values carried over from another form (the entry modal's shared state), so
   // switching to Held/Lent keeps what the user already typed.
   initialValues = null,
+  // A name suggested by the entry sheet ("from Ravi"), used when adding a new person
+  initialPersonName = '',
   onValuesChange,
   onSaved,
   onCancel
@@ -60,7 +62,9 @@ export function HeldLentForm({
   const [action, setAction] = useState(initialAction);
   const [funds, setFunds] = useState([]);
   const [fundId, setFundId] = useState(initialFundId || '');
-  const [personName, setPersonName] = useState('');
+  const [personName, setPersonName] = useState(initialPersonName || '');
+  // Lend / hold: when the money should come back or be given back (optional)
+  const [expectedDate, setExpectedDate] = useState('');
   const [amount, setAmount] = useState(initialValues?.amount ?? '');
   const [date, setDate] = useState(initialValues?.date || todayIso());
   const [note, setNote] = useState(initialValues?.note ?? '');
@@ -147,7 +151,8 @@ export function HeldLentForm({
           amount: minor,
           date,
           accountId: accountId || undefined,
-          entryNote: note
+          entryNote: note,
+          expectedSettleDate: startsNew && expectedDate ? expectedDate : undefined
         });
       } else {
         saved = await api.addPersonFundEntry(fundId, {
@@ -157,6 +162,10 @@ export function HeldLentForm({
           accountId: accountId || undefined,
           note
         });
+        // Lending more / holding more can set or move the expected date
+        if (startsNew && expectedDate && typeof api.updatePersonFund === 'function') {
+          await api.updatePersonFund(fundId, { expectedSettleDate: expectedDate });
+        }
       }
       onSaved?.(saved);
     } catch (err) {
@@ -268,6 +277,15 @@ export function HeldLentForm({
           />
         )}
       </div>
+
+      {startsNew && (
+        <div className="form-group">
+          <label className="form-label">
+            {current.key === 'lend' ? "They'll pay back by" : 'Give back by'} <span className="field-suggested">(optional)</span>
+          </label>
+          <DatePicker compact value={expectedDate} onChange={setExpectedDate} month={month} minDate={todayIso()} placeholder="No date" />
+        </div>
+      )}
 
       <div className="form-group">
         <label className="form-label" htmlFor="hl-note">Note (optional)</label>

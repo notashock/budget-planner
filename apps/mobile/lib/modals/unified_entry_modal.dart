@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../engine/category_suggest.dart';
+import '../engine/entry_assists.dart';
+import 'mark_paid_modal.dart';
+import 'salary_safeline_modal.dart';
 import '../services/entry_memory.dart';
 import '../widgets/confirm_dialog.dart';
 import '../theme/app_form.dart';
@@ -96,6 +99,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   final FocusNode _amountFocus = FocusNode();
   late final BudgetProvider _budgetRef;
 
+  // Smart assists: people (for the held/lent hint), dismissed hints, the person preset
+  List<dynamic> _personFunds = const [];
+  final Set<String> _dismissedAssists = {};
+  String? _personAction;
+  String? _personFundId;
+  String _personName = '';
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +116,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
     _budgetRef = budget;
+    if (widget.initialItem == null) {
+      budget.getPersonFunds().then((res) {
+        if (!mounted) return;
+        final list = res['funds'];
+        if (list is List) setState(() => _personFunds = list);
+      }).catchError((_) {});
+    }
     if (budget.bankAccounts.isNotEmpty) {
       _accountType = 'bank';
       final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
@@ -430,7 +447,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
               if (_isPersonMove)
                 HeldLentForm(
-                  initialAction: 'lend',
+                  initialAction: _personAction ?? 'lend',
+                  initialFundId: _personFundId,
+                  initialPersonName: _personName,
                   initialAmount: _amountCtrl.text.trim(),
                   initialNote: _nameCtrl.text.trim(),
                   initialDate: _selectedDate,
@@ -455,13 +474,17 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'SCHEDULED MONTHLY SALARY',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          // Flexible: the label shrinks on narrow phones instead of overflowing
+                          Flexible(
+                            child: Text(
+                              'SCHEDULED MONTHLY SALARY',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
                             ),
                           ),
                           Text(
@@ -479,11 +502,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Deposit Target: $salaryBankName',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          Flexible(
+                            child: Text(
+                              'Deposit Target: $salaryBankName',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                              ),
                             ),
                           ),
                           Text(
@@ -953,6 +979,12 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   ),
                 ],
               ],
+              // Smart assists: rebuilt as the amount or description changes
+              if (!_isEditing && (_activeType == EntryType.transaction || _activeType == EntryType.income))
+                AnimatedBuilder(
+                  animation: Listenable.merge([_amountCtrl, _nameCtrl]),
+                  builder: (context, _) => _buildAssist(budget, monthData, isDark),
+                ),
               // Safety floor: spending from, or moving money out of, a bank account or wallet
               if ((_activeType == EntryType.transaction && _txType == 'expense') || _activeType == EntryType.transfer)
                 FloorBreachNotice(
@@ -1015,6 +1047,116 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     ),
     );
   }
+
+  /// One assist at a time: planned bill > duplicate salary > someone else's money.
+  Widget _buildAssist(BudgetProvider budget, Map<String, dynamic> monthData, bool isDark) {
+    final amount = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
+    final description = _nameCtrl.text;
+    final navigator = Navigator.of(context);
+
+    Widget banner(String key, String message, List<Widget> actions, {bool warn = false}) => Container(
+          key: ValueKey(key),
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: warn ? AppColors.amber.withAlpha(25) : AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: warn ? AppColors.amber.withAlpha(90) : AppColors.primary.withAlpha(70)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(message, style: const TextStyle(fontSize: 13, height: 1.35)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, children: actions),
+          ]),
+        );
+
+    // A spend that pays a planned bill
+    if (_activeType == EntryType.transaction && _txType == 'expense' && !_dismissedAssists.contains('bill')) {
+      final planned = budget.transactions.where((t) => t is Map && t['status'] == 'planned').toList();
+      final bill = findBillMatch(planned, amount: amount, description: description, today: _formatDateYmd(DateTime.now()));
+      if (bill != null) {
+        return banner('assist-bill', 'Paying ${bill['name'] ?? bill['title'] ?? 'a planned bill'} (${formatCurrency(_minorOf(bill['plannedAmount'] ?? bill['amount']))})?', [
+          TextButton(onPressed: () => setState(() => _dismissedAssists.add('bill')), child: const Text('No')),
+          FilledButton(
+            onPressed: () {
+              final rootContext = navigator.context;
+              navigator.pop();
+              showModalBottomSheet(
+                context: rootContext,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => MarkPaidModal(transaction: bill),
+              );
+            },
+            child: const Text('Yes, mark it paid'),
+          ),
+        ]);
+      }
+    }
+
+    // Salary already in the plan
+    if (_activeType == EntryType.income && !_dismissedAssists.contains('salary')) {
+      final salary = detectDuplicateSalary(description: description, amount: amount, month: monthData);
+      if (salary != null) {
+        return banner(
+          'assist-salary',
+          'Your ${formatCurrency(salary['amount'] as int)} salary${salary['date'] != null ? ' on ${salary['date']}' : ''} is already in the plan. Logging it here counts it twice.',
+          [
+            TextButton(onPressed: () => setState(() => _dismissedAssists.add('salary')), child: const Text("It's extra income")),
+            FilledButton(
+              onPressed: () {
+                final rootContext = navigator.context;
+                navigator.pop();
+                showModalBottomSheet(
+                  context: rootContext,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const SalarySafelineModal(),
+                );
+              },
+              child: const Text('Update salary instead'),
+            ),
+          ],
+          warn: true,
+        );
+      }
+    }
+
+    // Someone else's money
+    if (!_dismissedAssists.contains('person')) {
+      final flow = _activeType == EntryType.income || _txType == 'income' ? 'in' : 'out';
+      final hint = detectPersonHint(description: description, flow: flow, funds: _personFunds);
+      if (hint != null) {
+        final action = hint['action'] as String;
+        final who = (hint['personName'] as String).isEmpty ? 'someone' : hint['personName'] as String;
+        final possessive = who == 'someone' ? "someone's" : "$who's";
+        final question = {
+          'hold': 'Is this $possessive money to keep?',
+          'repaid': 'Is $who paying back money you lent?',
+          'lend': 'Lending this to $who?',
+          'return': 'Giving back $possessive money?',
+        }[action]!;
+        return banner('assist-person', "$question It wouldn't count as ${flow == 'in' ? 'income' : 'spending'}.", [
+          TextButton(onPressed: () => setState(() => _dismissedAssists.add('person')), child: const Text('No')),
+          FilledButton(
+            onPressed: () => setState(() {
+              final fund = hint['fund'] as Map<String, dynamic>?;
+              _personAction = action;
+              _personFundId = fund?['id']?.toString();
+              _personName = fund == null ? hint['personName'] as String : '';
+              _sourceAccountId = _selectedAccountId ?? _sourceAccountId;
+              _activeType = EntryType.transfer;
+              _moveTarget = 'person';
+            }),
+            child: Text('Track as ${action == 'hold' || action == 'return' ? 'held' : 'lent'}'),
+          ),
+        ]);
+      }
+    }
+    return const SizedBox.shrink();
+  }
+
+  int _minorOf(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round().abs();
 
   bool get _canAddAnother =>
       !_isEditing &&

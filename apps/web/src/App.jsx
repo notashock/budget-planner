@@ -509,13 +509,16 @@ export default function App() {
         setItems((prev) => prev.map((i) => (i._id === txData.plannedItemId ? { ...i, isPaid: true } : i)));
       }
 
+      const replaced = !wasEditing && (await deleteReplacedEntry());
       if (!options.keepOpen) {
         setUnifiedEntryOpen(false);
         setEditingItem(null);
       }
       await refreshAfterEntry();
       const createdId = created?.id || created?._id;
-      if (wasEditing) {
+      if (replaced) {
+        showSavedToast(`Changed to ${txData.isIncome ? 'income' : 'spend'}`);
+      } else if (wasEditing) {
         showSavedToast('Changes saved');
       } else {
         const what = txData.isIncome ? 'Income' : (Number(txData.amount) < 0 ? 'Refund' : 'Spend');
@@ -902,6 +905,7 @@ export default function App() {
           monthId: currentMonth?._id || currentMonth?.id
         });
       }
+      const replaced = !wasEditing && (await deleteReplacedEntry());
       setUnifiedEntryOpen(false);
       setEditingItem(null);
       await loadAccounts();
@@ -909,7 +913,9 @@ export default function App() {
         await loadMonthDetails(currentMonth.year, currentMonth.month);
       }
       const transferId = res?.transfer?.id || res?.transfer?._id || res?.id || res?._id;
-      if (wasEditing) {
+      if (replaced) {
+        showSavedToast('Changed to a transfer');
+      } else if (wasEditing) {
         showSavedToast('Changes saved');
       } else {
         showSavedToast(
@@ -924,6 +930,25 @@ export default function App() {
   };
 
   // Delete from inside the edit form (the form asks to confirm inline, so no window.confirm here)
+  // Change an entry's type (spend <-> income <-> move): reopen the sheet on the new
+  // tab with the same values; the original is deleted only after the new entry saves.
+  const handleConvertEntry = (item, targetMode, carry) => {
+    setEditingItem(null);
+    setUnifiedEntryPreset({ carry, replaces: item });
+    setUnifiedEntryMode(targetMode);
+  };
+
+  const deleteReplacedEntry = async () => {
+    const replaced = unifiedEntryPreset?.replaces;
+    if (!replaced) return false;
+    const isTransfer = replaced.origin === 'transfer' || Boolean(replaced.isTransfer);
+    const id = isTransfer ? (replaced.transferId || replaced.id || replaced._id) : (replaced.id || replaced._id);
+    if (isTransfer) await api.deleteTransfer(id);
+    else await api.deleteTransaction(id);
+    setUnifiedEntryPreset(null);
+    return true;
+  };
+
   const handleDeleteFromEditor = async (item) => {
     const isTransfer = item.origin === 'transfer' || Boolean(item.isTransfer);
     const id = isTransfer ? (item.transferId || item.id || item._id) : (item.id || item._id);
@@ -1322,6 +1347,11 @@ export default function App() {
         initialItem={editingItem}
         initialPreset={unifiedEntryPreset}
         onDeleteEntry={handleDeleteFromEditor}
+        onConvertEntry={handleConvertEntry}
+        onOpenSalarySchedule={() => {
+          setUnifiedEntryOpen(false);
+          setIsSalarySafelineOpen(true);
+        }}
         onSettleTransaction={handlePayTransaction}
         plannedItems={items}
         bankAccounts={bankAccounts}

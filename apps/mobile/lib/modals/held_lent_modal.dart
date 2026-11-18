@@ -41,6 +41,9 @@ class HeldLentForm extends StatefulWidget {
   final DateTime? initialDate;
   final String? initialAccountId;
 
+  /// A name suggested by the entry sheet ("from Ravi"), used when adding a new person.
+  final String initialPersonName;
+
   /// Called after a successful save.
   final VoidCallback? onSaved;
 
@@ -52,6 +55,7 @@ class HeldLentForm extends StatefulWidget {
     this.initialNote = '',
     this.initialDate,
     this.initialAccountId,
+    this.initialPersonName = '',
     this.onSaved,
   });
 
@@ -71,6 +75,8 @@ class _HeldLentFormState extends State<HeldLentForm> {
   String? _accountId;
   bool _submitting = false;
   String? _error;
+  // Lend / hold: when the money should come back or be given back (optional)
+  DateTime? _expectedDate;
 
   HeldLentAction get _current => heldLentActions.firstWhere((a) => a.key == _action, orElse: () => heldLentActions.first);
 
@@ -79,6 +85,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
     super.initState();
     _action = widget.initialAction;
     _fundId = widget.initialFundId;
+    _nameCtrl.text = widget.initialPersonName;
     _amountCtrl.text = widget.initialAmount;
     _noteCtrl.text = widget.initialNote;
     if (widget.initialDate != null) _date = widget.initialDate!;
@@ -173,6 +180,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
           'date': _ymd(_date),
           'accountId': _accountId,
           'entryNote': _noteCtrl.text.trim(),
+          if (_expectedDate != null) 'expectedSettleDate': _ymd(_expectedDate!),
         });
       } else {
         await budget.addPersonFundEntry(_fundId!, {
@@ -275,6 +283,39 @@ class _HeldLentFormState extends State<HeldLentForm> {
                   _accountId = id;
                 }),
               ),
+              if (_current.startsNew) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: Text(
+                      _expectedDate == null
+                          ? (_current.key == 'lend' ? "They'll pay back by: no date" : 'Give back by: no date')
+                          : '${_current.key == 'lend' ? "They'll pay back by" : 'Give back by'} ${_ymd(_expectedDate!)}',
+                      key: const ValueKey('expected-date'),
+                      style: TextStyle(fontSize: 13, color: muted),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _expectedDate ?? now.add(const Duration(days: 7)),
+                        firstDate: DateTime(now.year, now.month, now.day),
+                        lastDate: DateTime(now.year + 5),
+                      );
+                      if (picked != null && mounted) setState(() => _expectedDate = picked);
+                    },
+                    child: Text(_expectedDate == null ? 'Add date' : 'Change'),
+                  ),
+                  if (_expectedDate != null)
+                    IconButton(
+                      tooltip: 'Remove date',
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () => setState(() => _expectedDate = null),
+                    ),
+                ]),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _noteCtrl,
