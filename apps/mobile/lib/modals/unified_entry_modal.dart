@@ -27,7 +27,11 @@ String resolveEntryName(String typed, String category, String typeTitle) {
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
 
-  const UnifiedEntryModal({super.key, this.initialType = EntryType.transaction});
+  /// Editing: the record to change (a transaction, planned bill or goal). The type
+  /// is locked while editing, as on web.
+  final Map<String, dynamic>? initialItem;
+
+  const UnifiedEntryModal({super.key, this.initialType = EntryType.transaction, this.initialItem});
 
   @override
   State<UnifiedEntryModal> createState() => _UnifiedEntryModalState();
@@ -90,6 +94,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   int _sessionCount = 0;
   int _sessionTotal = 0;
   final FocusNode _amountFocus = FocusNode();
+  late final BudgetProvider _budgetRef;
 
   @override
   void initState() {
@@ -100,6 +105,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     _amountCtrl.addListener(_onAmountChanged);
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
+    _budgetRef = budget;
     if (budget.bankAccounts.isNotEmpty) {
       _accountType = 'bank';
       final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
@@ -124,10 +130,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       _fetchGoalRecommendation();
     }
 
+    if (widget.initialItem != null) _prefillFromItem(budget);
+
     // Remembered: the account used last time for this kind of entry
     EntryMemory.load().then((memory) {
       if (!mounted) return;
       _memory = memory;
+      if (_isEditing) return;
       final remembered = memory.accountFor(_activeType.name);
       if (remembered == null) return;
       final type = remembered['accountType']!;
@@ -147,6 +156,68 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       });
     });
   }
+
+  bool get _isEditing => widget.initialItem != null;
+
+  String? _plainId(dynamic v) => v is Map ? (v['_id'] ?? v['id'])?.toString() : v?.toString();
+
+  String get _editId => (widget.initialItem?['_id'] ?? widget.initialItem?['id'] ?? '').toString();
+
+  /// Fill the form from the record being edited, so saving without changes
+  /// sends back what was there.
+  void _prefillFromItem(BudgetProvider budget) {
+    final item = widget.initialItem!;
+    final rawAmount = num.tryParse('${item['amount'] ?? item['targetAmount'] ?? item['plannedAmount'] ?? 0}') ?? 0;
+    final amt = rawAmount.abs();
+    if (amt > 0) _amountCtrl.text = (amt / 100).toStringAsFixed(amt % 100 == 0 ? 0 : 2);
+    _nameCtrl.text = (item['title'] ?? item['name'] ?? item['description'] ?? '').toString();
+    final parsed = DateTime.tryParse('${item['date'] ?? ''}');
+    if (parsed != null) _selectedDate = parsed;
+
+    if (_activeType == EntryType.goal) {
+      _goalPriority = (num.tryParse('${item['priority'] ?? 1}') ?? 1).toInt();
+      return;
+    }
+    final cat = (item['category'] ?? item['tag'] ?? '').toString();
+    if (_activeType == EntryType.income) {
+      if (cat.isNotEmpty) _incSource = cat;
+    } else if (cat.isNotEmpty) {
+      if (_quickCategories.contains(cat)) {
+        _selectedCategory = cat;
+      } else {
+        _isCustomCategory = true;
+        _customCategoryCtrl.text = cat;
+      }
+      _categoryTouched = true;
+    }
+    if (_activeType == EntryType.transaction && rawAmount < 0) _txType = 'income';
+    if (_activeType == EntryType.item) {
+      _itemType = item['type'] == 'recurring' ? 'recurring' : 'one-time';
+      if (_itemType == 'recurring') _dayCtrl.text = '${item['dayOfMonth'] ?? 1}';
+      _isFixed = item['isFixed'] == true;
+    }
+    final accId = _plainId(item['accountId']) ?? _plainId(item['bankAccountId']) ?? _plainId(item['walletId']);
+    if (accId != null && accId.isNotEmpty) {
+      bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == accId);
+      _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
+      _selectedAccountId = accId;
+    }
+  }
+
+  // Save helpers: update when editing, create otherwise
+  Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload) =>
+      _isEditing ? budget.updateTransaction(_editId, payload) : budget.addTransaction(payload);
+
+  Future<void> _saveItem(BudgetProvider budget, Map<String, dynamic> payload) =>
+      _isEditing ? budget.updateItem(_editId, payload) : budget.addItem(payload);
+
+  Future<void> _saveGoal(BudgetProvider budget, Map<String, dynamic> payload) => _isEditing
+      ? budget.updateGoal(_editId, {
+          'name': payload['name'],
+          'targetAmount': payload['targetAmount'],
+          'priority': payload['priority'],
+        })
+      : budget.addGoal(payload);
 
   bool get _isDirty => _amountCtrl.text.trim().isNotEmpty || _nameCtrl.text.trim().isNotEmpty;
 
@@ -179,8 +250,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     }
     if (mounted) setState(() => _loadingGoalRec = true);
     try {
-      final budget = Provider.of<BudgetProvider>(context, listen: false);
-      final res = await budget.recommendPurchaseDate(amt);
+      // Captured in initState: this can run from a timer after the sheet has closed
+      final res = await _budgetRef.recommendPurchaseDate(amt);
       if (mounted) {
         setState(() {
           _loadingGoalRec = false;
@@ -278,12 +349,19 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.initialType == EntryType.goal ? 'New purchase goal' : 'New entry',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                  // Expanded: a long title ("Edit purchase goal") must not push the close button off
+                  Expanded(
+                    child: Text(
+                      _isEditing
+                          ? 'Edit ${_titleForType(_activeType).toLowerCase()}'
+                          : (widget.initialType == EntryType.goal ? 'New purchase goal' : 'New entry'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -296,7 +374,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               const SizedBox(height: 12),
 
               // Segmented tabs: four equal segments, no horizontal scrolling
-              if (widget.initialType != EntryType.goal)
+              if (widget.initialType != EntryType.goal && !_isEditing)
                 Row(
                   children: [
                     _buildTab(EntryType.transaction, 'Spend', isDark),
@@ -630,11 +708,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       children: [
                         const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                         const SizedBox(width: 10),
-                        Text(
-                          'Calculating optimal purchase date on server...',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        // Expanded: the fixed-width text overflowed narrow phones
+                        Expanded(
+                          child: Text(
+                            'Calculating optimal purchase date on server...',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
                           ),
                         ),
                       ],
@@ -915,7 +996,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   child: _submitting
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : Text(
-                          _activeType == EntryType.income
+                          _isEditing
+                              ? 'Save changes'
+                              : _activeType == EntryType.income
                               ? 'Log Income Inflow'
                               : (_activeType == EntryType.transfer
                                   ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?['name'] ?? 'card'}' : 'Record transfer')
@@ -934,7 +1017,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   }
 
   bool get _canAddAnother =>
-      _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item;
+      !_isEditing &&
+      (_activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item);
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
 
@@ -1026,7 +1110,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         }
 
         final incNote = _nameCtrl.text.trim();
-        await budget.addTransaction({
+        await _saveTx(budget, {
           'amount': amt,
           'isIncome': true,
           'tag': _incSource,
@@ -1042,7 +1126,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         });
       } else if (_activeType == EntryType.transaction) {
         final isTxIncome = _txType == 'income';
-        await budget.addTransaction({
+        await _saveTx(budget, {
           'description': name,
           'amount': amt,
           'day': day,
@@ -1059,7 +1143,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           },
         });
       } else if (_activeType == EntryType.item) {
-        await budget.addItem({
+        await _saveItem(budget, {
           'name': name,
           'amount': amt,
           'day': day,
@@ -1076,7 +1160,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         });
 
       } else if (_activeType == EntryType.goal) {
-        await budget.addGoal({
+        await _saveGoal(budget, {
           'name': name,
           'targetAmount': amt,
           'priority': _goalPriority,
@@ -1116,6 +1200,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
       // Remember the account (and the category for this description) for next time
       final memory = _memory ?? await EntryMemory.load();
+      if (_isEditing) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
       if (_activeType == EntryType.transfer) {
         await memory.rememberAccount('transfer', _sourceAccountType, _sourceAccountId);
       } else {

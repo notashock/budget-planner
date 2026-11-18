@@ -298,6 +298,17 @@ class BudgetProvider with ChangeNotifier {
     await refresh();
   }
 
+  /// Cards are accounts of type credit_card: edits and removal go through /accounts.
+  Future<void> updateCard(String id, Map<String, dynamic> updates) async {
+    await _api.updateBankAccount(id, updates);
+    await refresh();
+  }
+
+  Future<void> archiveCard(String id) async {
+    await _api.deleteBankAccount(id);
+    await refresh();
+  }
+
   Future<void> confirmCardStatement(String statementId, Map<String, dynamic> body) async {
     await _api.confirmCardStatement(statementId, body);
     await refresh();
@@ -366,6 +377,11 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> deleteGoal(String id) async {
     await _api.deleteGoal(id);
+    await refresh();
+  }
+
+  Future<void> updateGoal(String id, Map<String, dynamic> updates) async {
+    await _api.updateGoal(id, updates);
     await refresh();
   }
 

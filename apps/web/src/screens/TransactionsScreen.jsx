@@ -53,6 +53,8 @@ export function TransactionsScreen({
   onCancelTransaction,
   onDeleteTransaction,
   onHeldLentChanged,
+  // Held/lent rows: delete and open the form again with the same details
+  onRelogHeldLent,
   creditCards = [],
   simulation = null
 }) {
@@ -63,6 +65,9 @@ export function TransactionsScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [originFilter, setOriginFilter] = useState('all'); // 'all' | 'spot' | 'planned' | 'goal'
   const [reclassifyTx, setReclassifyTx] = useState(null);
+  const [relogTx, setRelogTx] = useState(null);
+  const [relogging, setRelogging] = useState(false);
+  const [relogError, setRelogError] = useState('');
   const [plannedFilter, setPlannedFilter] = useState('all'); // 'all' | 'due' | 'overdue' | 'upcoming'
   const [selectedAccountFilter, setSelectedAccountFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest' | 'amount-desc' | 'amount-asc'
@@ -655,6 +660,20 @@ export function TransactionsScreen({
                               <EditIcon size={13} />
                             </button>
                           )}
+                          {isPassThrough && onRelogHeldLent && (
+                            <button
+                              type="button"
+                              className="apple-tx-btn-action tx-btn-action"
+                              onClick={() => {
+                                setRelogError('');
+                                setRelogTx(tx);
+                              }}
+                              title="Change (delete and log again)"
+                              aria-label="Change held or lent entry"
+                            >
+                              <EditIcon size={13} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="apple-tx-btn-action delete tx-btn-action"
@@ -889,6 +908,48 @@ export function TransactionsScreen({
                 style={{ justifyContent: 'center', padding: '10px', fontSize: 'var(--fs-sm)', color: 'var(--negative)' }}
               >
                 Mark as Dropped (Cancel the goal)
+              </button>
+            </div>
+          </div>
+        )}
+      </AnimatedModal>
+
+      {/* Held & Lent entries can't be edited in place: delete and log again */}
+      <AnimatedModal isOpen={Boolean(relogTx)} onClose={() => setRelogTx(null)} maxWidth="420px" dataTestId="relog-held-lent">
+        {relogTx && (
+          <div className="form-stack">
+            <div className="settle-modal-head">
+              <h3 className="settle-modal-title">Change this entry</h3>
+              <button type="button" className="tx-btn-icon-subtle" onClick={() => setRelogTx(null)} aria-label="Close">
+                <XIcon size={14} />
+              </button>
+            </div>
+            <p className="field-hint">
+              Held and lent entries can't be edited directly, so the right amount stays owed. This deletes{' '}
+              <strong>{relogTx.name || relogTx.title || 'this entry'}</strong> ({formatCurrency(Math.abs(relogTx.amount || 0), currencySymbol)})
+              and opens the form with the same details so you can log it again.
+            </p>
+            {relogError && <div className="form-error" role="alert">{relogError}</div>}
+            <div className="form-footer">
+              <button type="button" className="btn-subtle" onClick={() => setRelogTx(null)}>Cancel</button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={relogging}
+                onClick={async () => {
+                  setRelogging(true);
+                  setRelogError('');
+                  try {
+                    await onRelogHeldLent(relogTx);
+                    setRelogTx(null);
+                  } catch (err) {
+                    setRelogError(err?.message || 'Could not delete this entry.');
+                  } finally {
+                    setRelogging(false);
+                  }
+                }}
+              >
+                {relogging ? 'Deleting…' : 'Delete and log again'}
               </button>
             </div>
           </div>

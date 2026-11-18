@@ -136,6 +136,12 @@ class _CardsSectionState extends State<CardsSection> {
                     const SizedBox(width: 8),
                     Expanded(child: Text(card['name']?.toString() ?? 'Card', style: TextStyle(fontWeight: FontWeight.w600, color: text))),
                     Text('Bill day ${card['statementDay']} · due day ${card['dueDay']}', style: TextStyle(fontSize: 11, color: muted)),
+                    IconButton(
+                      key: ValueKey('edit-card-$id'),
+                      tooltip: 'Edit card',
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      onPressed: () => _sheet(AddCardModal(card: Map<String, dynamic>.from(card as Map))),
+                    ),
                   ]),
                   const SizedBox(height: 10),
                   Text('OWED NOW', style: AppTypography.sectionHeader(color: muted)),

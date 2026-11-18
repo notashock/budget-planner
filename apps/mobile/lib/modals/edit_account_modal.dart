@@ -24,6 +24,8 @@ class _EditAccountModalState extends State<EditAccountModal> {
   late TextEditingController _institutionCtrl;
   late TextEditingController _minBalCtrl;
   late TextEditingController _maskCtrl;
+  late TextEditingController _openingCtrl;
+  late int _originalOpening;
   bool _isPrimary = false;
   bool _submitting = false;
 
@@ -36,6 +38,8 @@ class _EditAccountModalState extends State<EditAccountModal> {
     final minBalMajor = toMajorUnits(acc['minimumBalance'] ?? 0);
     _minBalCtrl = TextEditingController(text: minBalMajor > 0 ? '$minBalMajor' : '0');
     _maskCtrl = TextEditingController(text: acc['accountNumberMask']?.toString() ?? '');
+    _originalOpening = (num.tryParse('${acc['openingBalance'] ?? 0}') ?? 0).round();
+    _openingCtrl = TextEditingController(text: '${toMajorUnits(_originalOpening)}');
     _isPrimary = acc['isPrimary'] == true;
   }
 
@@ -45,6 +49,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
     _institutionCtrl.dispose();
     _minBalCtrl.dispose();
     _maskCtrl.dispose();
+    _openingCtrl.dispose();
     super.dispose();
   }
 
@@ -59,6 +64,9 @@ class _EditAccountModalState extends State<EditAccountModal> {
     final budget = context.read<BudgetProvider>();
     final id = (widget.account['_id'] ?? widget.account['id']).toString();
     final minBal = toMinorUnits(num.tryParse(_minBalCtrl.text) ?? 0);
+    final opening = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0);
+    // Only send the opening balance when it changed: it rewrites every past balance
+    final openingUpdate = opening != _originalOpening ? {'openingBalance': opening} : <String, dynamic>{};
 
     try {
       if (widget.isBank) {
@@ -68,12 +76,14 @@ class _EditAccountModalState extends State<EditAccountModal> {
           'minimumBalance': minBal,
           'accountNumberMask': _maskCtrl.text.trim(),
           'isPrimary': _isPrimary,
+          ...openingUpdate,
         });
       } else {
         await budget.updateWallet(id, {
           'name': name,
           'minimumBalance': minBal,
           'isPrimary': _isPrimary,
+          ...openingUpdate,
         });
       }
 
@@ -148,6 +158,26 @@ class _EditAccountModalState extends State<EditAccountModal> {
                 ),
                 const SizedBox(height: 12),
               ],
+
+              TextField(
+                controller: _openingCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(labelText: 'Opening balance (₹)'),
+              ),
+              Builder(builder: (_) {
+                final shift = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0) - _originalOpening;
+                if (shift == 0) return const SizedBox(height: 12);
+                return Padding(
+                  key: const ValueKey('opening-balance-warning'),
+                  padding: const EdgeInsets.only(top: 6, bottom: 12),
+                  child: Text(
+                    'Changing this shifts every balance since ${widget.account['name'] ?? 'this account'} was added by '
+                    '${shift > 0 ? '+' : '−'}${formatCurrency(shift.abs())}.',
+                    style: const TextStyle(fontSize: 12, color: AppColors.amber),
+                  ),
+                );
+              }),
 
               TextField(
                 controller: _minBalCtrl,

@@ -302,6 +302,12 @@ class ApiService {
     await _request('DELETE', '$_v1/goals/$id');
   }
 
+  /// Edit a goal: name, targetAmount, priority, fundingAccountId.
+  Future<Map<String, dynamic>> updateGoal(String id, Map<String, dynamic> updates) async {
+    final data = await _request('PATCH', '$_v1/goals/$id', body: updates);
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   // Bank Accounts (bank, wallet and cash share /api/v1/accounts; `type` narrows a list)
   Future<List<dynamic>> getBankAccounts([bool includeArchived = false]) async {
     final data = await _request('GET', _accountsPath('bank', includeArchived));

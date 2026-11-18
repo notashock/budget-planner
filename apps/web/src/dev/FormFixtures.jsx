@@ -82,6 +82,7 @@ function Fixture() {
           initialPreset={form.preset || null}
           creditCards={creditCards}
           onSettleTransaction={noop}
+          onDeleteEntry={noop}
           onLogTransaction={noop}
           onSaveItem={noop}
           onCreateTransfer={noop}

@@ -94,7 +94,9 @@ Widget _primaryButton(BuildContext context, String label, VoidCallback? onPresse
 
 /// Add a credit card. The bill generation day and due day are the user's own.
 class AddCardModal extends StatefulWidget {
-  const AddCardModal({super.key});
+  /// Editing: the card to change. Null adds a new card.
+  final Map<String, dynamic>? card;
+  const AddCardModal({super.key, this.card});
 
   @override
   State<AddCardModal> createState() => _AddCardModalState();
@@ -109,14 +111,49 @@ class _AddCardModalState extends State<AddCardModal> {
   String _payType = 'bank';
   String? _payFrom;
   bool _saving = false;
+  bool _confirmRemove = false;
   String? _error;
+  int _originalOwed = 0;
+
+  bool get _isEdit => widget.card != null;
 
   @override
   void initState() {
     super.initState();
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    _payFrom = defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+    final card = widget.card;
+    if (card != null) {
+      String major(dynamic v) {
+        final n = (num.tryParse('${v ?? 0}') ?? 0).round();
+        return n == 0 ? '' : (n / 100).toStringAsFixed(n % 100 == 0 ? 0 : 2);
+      }
+      _name.text = card['name']?.toString() ?? '';
+      _limit.text = major(card['creditLimit']);
+      _originalOwed = (-(num.tryParse('${card['openingBalance'] ?? 0}') ?? 0)).round().clamp(0, 1 << 52).toInt();
+      _owed.text = major(_originalOwed);
+      _billDay.text = card['statementDay'] != null ? '${card['statementDay']}' : '';
+      _dueDay.text = card['dueDay'] != null ? '${card['dueDay']}' : '';
+      _payFrom = card['payFromAccountId']?.toString() ?? defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+    } else {
+      _payFrom = defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+    }
     _payType = payFromAccountType(_payFrom, budget.bankAccounts, budget.wallets);
+  }
+
+  Future<void> _remove() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final navigator = Navigator.of(context);
+    try {
+      await Provider.of<BudgetProvider>(context, listen: false).archiveCard((widget.card!['id'] ?? widget.card!['_id']).toString());
+      navigator.pop(true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -139,14 +176,20 @@ class _AddCardModalState extends State<AddCardModal> {
     });
     final navigator = Navigator.of(context);
     try {
-      await Provider.of<BudgetProvider>(context, listen: false).createCard({
+      final budget = Provider.of<BudgetProvider>(context, listen: false);
+      final body = {
         'name': _name.text.trim(),
         'creditLimit': toMinorUnits(num.tryParse(_limit.text) ?? 0),
         'currentOutstanding': toMinorUnits(num.tryParse(_owed.text) ?? 0),
         'statementDay': sd,
         'dueDay': dd,
         'payFromAccountId': _payFrom,
-      });
+      };
+      if (_isEdit) {
+        await budget.updateCard((widget.card!['id'] ?? widget.card!['_id']).toString(), body);
+      } else {
+        await budget.createCard(body);
+      }
       navigator.pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -158,14 +201,24 @@ class _AddCardModalState extends State<AddCardModal> {
   @override
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
-    return _Sheet(title: 'Add a credit card', children: [
+    final owedShift = _isEdit ? toMinorUnits(num.tryParse(_owed.text) ?? 0) - _originalOwed : 0;
+    return _Sheet(title: _isEdit ? 'Edit card' : 'Add a credit card', children: [
       TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *')),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: TextField(controller: _limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Credit limit (₹)'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Owed now (₹)'))),
+        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: _isEdit ? 'Owed when added (₹)' : 'Owed now (₹)'))),
       ]),
+      if (owedShift != 0)
+        Padding(
+          key: const ValueKey('card-owed-warning'),
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Changing this shifts what the card owed on every day since it was added by ${owedShift > 0 ? '+' : '−'}${formatCurrency(owedShift.abs())}.',
+            style: const TextStyle(fontSize: 12, color: AppColors.amber),
+          ),
+        ),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: TextField(controller: _billDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bill day (1-31) *'))),
@@ -189,7 +242,26 @@ class _AddCardModalState extends State<AddCardModal> {
         Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
       ],
       const SizedBox(height: 16),
-      _primaryButton(context, _saving ? 'Saving…' : 'Add card', _saving ? null : _save),
+      _primaryButton(context, _saving ? 'Saving…' : (_isEdit ? 'Save changes' : 'Add card'), _saving ? null : _save),
+      if (_isEdit) ...[
+        const SizedBox(height: 8),
+        if (!_confirmRemove)
+          TextButton(
+            onPressed: _saving ? null : () => setState(() => _confirmRemove = true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red, minimumSize: const Size.fromHeight(AppForm.controlHeightSm)),
+            child: const Text('Remove card'),
+          )
+        else
+          Row(children: [
+            Expanded(child: Text('Remove ${widget.card!['name'] ?? 'this card'}? Its history is kept.', style: const TextStyle(fontSize: 13))),
+            TextButton(onPressed: () => setState(() => _confirmRemove = false), child: const Text('Keep')),
+            TextButton(
+              onPressed: _saving ? null : _remove,
+              style: TextButton.styleFrom(foregroundColor: AppColors.red),
+              child: const Text('Remove'),
+            ),
+          ]),
+      ],
     ]);
   }
 }

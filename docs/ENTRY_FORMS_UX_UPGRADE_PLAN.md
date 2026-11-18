@@ -507,7 +507,8 @@ Validation rules (amount > 0, accounts differ, date bounds, name fallback, retur
 | 1 | Done | Tokens, field/trigger sizes, 16px phone inputs, container-query layouts, Flutter `AppForm` theme, modal portal + z-index scale (V13) |
 | 2 | Done | Settle form (web: entry sheet + Transactions; mobile keeps Mark Paid without the remainder choice), Move tab with My accounts / Pay a card / A person on both platforms, W7 + M2 + M4 removed, card "Pay bill" opens Move in the app, no `alert()` in entry, settle, bank or wallet forms |
 | 3 | Done | Quick amounts set the value, category suggestion (history, then keywords; same lists on both platforms), remembered account per entry type and transfer pair, Save & add another with a session counter (Ctrl/⌘+Enter on web), live "After this" line, discard guard, toast with Undo after saves (web), `N` opens the sheet (web). Kept by design: a floor breach still needs an explicit "Confirm Anyway" (now inline, not a dialog), per the existing safety-floor rule and tests. Not done: summary-chip layout for date/account (§5.1), copy changes (§8) |
-| 4–5 | Not started | |
+| 4 | Done | Web: "what's changing" summary in edit (Save stays enabled; two existing tests save unchanged edits), Delete inside the edit form with inline confirm, recurring scope asked only once something changed, "Payment done" only when editing (new bills get "Already paid? Log it as spend"), goal edit (sends only changed fields), card edit warns when "Owed when added" changes plus Remove card and a close button, opening-balance warning on bank/wallet edit, held/lent rows get "Delete and log again". Mobile: edit mode in the entry sheet (spend, income, planned bill, goal) from the detail sheet and goal cards, card edit/remove, opening balance with warning (sent only when changed). Not done: convert type (needs an API) |
+| 5 | Not started | |
 
 
 | Phase | Contents | Size | Done when |

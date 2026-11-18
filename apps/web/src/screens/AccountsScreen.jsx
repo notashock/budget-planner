@@ -127,6 +127,23 @@ export function AccountsScreen({
 
   const totalPortfolioBalance = totalBankBalance + totalWalletBalance;
 
+  // Editing an opening balance rewrites every balance since the account was added
+  const openingShift = (account, typedValue) => {
+    if (!account) return 0;
+    const typed = Math.round(Number(String(typedValue || '').replace(/[^0-9.-]+/g, '') || 0) * 100);
+    return typed - Math.round(Number(account.openingBalance) || 0);
+  };
+  const historyWarning = (account, typedValue) => {
+    const shift = openingShift(account, typedValue);
+    if (!shift) return null;
+    return (
+      <p className="history-warning" role="note" data-testid="opening-balance-warning">
+        Changing this shifts every balance since {account.name || 'this account'} was added by{' '}
+        <strong className="tabular-nums">{shift > 0 ? '+' : '−'}{formatCurrency(Math.abs(shift), currencySymbol)}</strong>.
+      </p>
+    );
+  };
+
   const handleOpenAddBank = () => {
     setBankError('');
     setEditingBank(null);
@@ -879,6 +896,7 @@ export function AccountsScreen({
                     value={bankOpeningBalance}
                     onChange={(e) => setBankOpeningBalance(e.target.value)}
                   />
+                  {historyWarning(editingBank, bankOpeningBalance)}
                 </div>
 
                 <div>
@@ -977,6 +995,7 @@ export function AccountsScreen({
                     value={walletOpeningBalance}
                     onChange={(e) => setWalletOpeningBalance(e.target.value)}
                   />
+                  {historyWarning(editingWallet, walletOpeningBalance)}
                 </div>
 
                 <div>

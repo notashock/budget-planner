@@ -86,8 +86,11 @@ export function UnifiedEntryModal({
   // Settle a planned bill (mark as paid): (billId, { amount, date, accountId, remainder })
   onSettleTransaction,
   // Optional starting point, e.g. { sourceAccountId } from an account's "Transfer" button,
-  // or { moveTarget: 'card', cardId } from a card's "Pay bill"
+  // { moveTarget: 'card', cardId } from a card's "Pay bill", or { heldLent: {...} } to log
+  // a held/lent entry again with the same details
   initialPreset = null,
+  // Delete the record being edited: (initialItem) => Promise
+  onDeleteEntry,
   creditCards = []
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -142,6 +145,11 @@ export function UnifiedEntryModal({
   const [tagSuggested, setTagSuggested] = useState(false);
   // "Discard this entry?" before closing a half-filled form
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Editing: the values the record opened with, to show what is changing
+  const [editSnapshot, setEditSnapshot] = useState(null);
+  const [snapshotPending, setSnapshotPending] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   // Entries saved with "Save & add another" since the sheet opened
   const [session, setSession] = useState({ count: 0, total: 0 });
   const againRef = useRef(false);
@@ -212,6 +220,9 @@ export function UnifiedEntryModal({
       setIsSubmitting(false);
       setFormError('');
       setConfirmDiscard(false);
+      setConfirmDelete(false);
+      setEditSnapshot(null);
+      setSnapshotPending(Boolean(initialItem));
       setSession({ count: 0, total: 0 });
       setCategoryTouched(Boolean(initialItem));
       setTagSuggested(false);
@@ -363,6 +374,19 @@ export function UnifiedEntryModal({
           }
         }
 
+        // Preset: logging a held/lent entry again with the details it had
+        if (initialPreset?.heldLent) {
+          const hl = initialPreset.heldLent;
+          if (hl.amount) setAmount(String(Math.abs(Number(hl.amount)) / 100));
+          if (hl.date) setDate(hl.date);
+          if (hl.note) setDescription(hl.note);
+          if (hl.accountId) {
+            const hlIsWallet = (wallets || []).some((w) => String(w._id || w.id) === String(hl.accountId));
+            setAccountType(hlIsWallet ? 'wallet' : 'bank');
+            setAccountId(hl.accountId);
+          }
+        }
+
         // Preset source (an account's own "Transfer" button)
         if (initialPreset?.sourceAccountId) {
           const sid = String(initialPreset.sourceAccountId);
@@ -391,6 +415,17 @@ export function UnifiedEntryModal({
       triggerExit();
     }
   }, [isOpen, initialItem, initialMode, initialPreset, month, bankAccounts, wallets, todayStr]);
+
+  // Take the snapshot on the render after the init effect has applied the record's values
+  useEffect(() => {
+    if (!snapshotPending) return;
+    setEditSnapshot({
+      amount: String(amount || ''), date, accountId: String(accountId || ''), destAccountId: String(destAccountId || ''),
+      description, tag, incomeTag, itemType, dayOfMonth: Number(dayOfMonth) || 1, priority: Number(priority) || 0,
+      isFixed, isPaid, isRefund
+    });
+    setSnapshotPending(false);
+  }, [snapshotPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Click outside and escape key to dismiss variable info popover
   useEffect(() => {
@@ -727,6 +762,35 @@ export function UnifiedEntryModal({
   };
 
   const canAddAnother = !initialItem && (mode === 'log' || mode === 'income' || mode === 'plan');
+
+  // What an edit changes, for the summary line ("Amount ₹500 → ₹450 · Date 12 Nov → 11 Nov")
+  const editChanges = (() => {
+    if (!initialItem || !editSnapshot) return [];
+    const money = (v) => (v === '' || v === null || v === undefined ? '' : formatCurrency(Math.round(Number(v) * 100), currencySymbol));
+    const day = (d) => (d ? formatDisplayDate(d, false) : '');
+    const accountName = (id) => {
+      const all = [...bankAccounts, ...wallets, ...creditCards];
+      return all.find((a) => String(a._id || a.id) === String(id))?.name || '';
+    };
+    const out = [];
+    const push = (label, from, to) => { if (String(from) !== String(to)) out.push({ label, from, to }); };
+    push('Amount', money(editSnapshot.amount), money(amount));
+    if (mode === 'plan' && itemType === 'recurring') push('Day', editSnapshot.dayOfMonth, Number(dayOfMonth) || 1);
+    else push('Date', day(editSnapshot.date), day(date));
+    push(mode === 'transfer' ? 'From' : 'Account', accountName(editSnapshot.accountId), accountName(accountId));
+    if (mode === 'transfer') push('To', accountName(editSnapshot.destAccountId), accountName(destAccountId));
+    push(mode === 'plan' ? 'Name' : 'Note', editSnapshot.description.trim(), description.trim());
+    if (mode === 'log' || mode === 'plan') push('Category', editSnapshot.tag, tag);
+    if (mode === 'income') push('Source', editSnapshot.incomeTag, incomeTag);
+    if (mode === 'log') push('Type', editSnapshot.isRefund ? 'Refund' : 'Spend', isRefund ? 'Refund' : 'Spend');
+    if (mode === 'plan') {
+      push('Repeat', editSnapshot.itemType === 'recurring' ? 'Monthly' : 'Once', itemType === 'recurring' ? 'Monthly' : 'Once');
+      push('Priority', ['High', 'Medium', 'Low'][editSnapshot.priority] || '', ['High', 'Medium', 'Low'][Number(priority) || 0] || '');
+      push('Rollover', editSnapshot.isFixed ? 'Fixed' : 'Variable', isFixed ? 'Fixed' : 'Variable');
+      push('Status', editSnapshot.isPaid ? 'Paid' : 'Pending', isPaid ? 'Paid' : 'Pending');
+    }
+    return out;
+  })();
 
   const submitAndAddAnother = () => {
     if (!canAddAnother || !formRef.current) return;
@@ -1342,6 +1406,8 @@ export function UnifiedEntryModal({
           ) : mode === 'transfer' && moveTarget === 'person' ? (
             <div className="modal-form-scroll-body hl-modal-body">
               <HeldLentForm
+                initialAction={initialPreset?.heldLent?.action || 'hold'}
+                initialFundId={initialPreset?.heldLent?.fundId || ''}
                 bankAccounts={bankAccounts}
                 wallets={wallets}
                 currencySymbol={currencySymbol}
@@ -1911,7 +1977,7 @@ export function UnifiedEntryModal({
             </div>
 
             {/* Recurrence Scope Selector for Recurring Planned Item Edit */}
-              {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && (
+              {initialItem && mode === 'plan' && (initialItem.type === 'recurring' || itemType === 'recurring') && editChanges.length > 0 && (
                 <div className="entry-box-7">
                   <label className="form-label entry-label-2">Recurrence Update Scope</label>
                   <div className="entry-grid">
@@ -2034,6 +2100,52 @@ export function UnifiedEntryModal({
               </div>
             )}
 
+            {initialItem && (
+              <div className="edit-summary" data-testid="edit-summary">
+                <p className="edit-summary-text">
+                  {editChanges.length === 0
+                    ? 'No changes yet'
+                    : <>Changing: {editChanges.map((c, i) => (
+                        <span key={c.label} className="edit-change">
+                          {i > 0 && ' · '}{c.label} <span className="edit-from">{c.from || '—'}</span> → <strong>{c.to || '—'}</strong>
+                        </span>
+                      ))}</>}
+                </p>
+                {onDeleteEntry && !confirmDelete && (
+                  <button type="button" className="link-btn danger" onClick={() => setConfirmDelete(true)}>Delete</button>
+                )}
+              </div>
+            )}
+
+            {initialItem && confirmDelete && (
+              <div className="inline-confirm" role="alertdialog" aria-label="Delete this entry?" data-testid="delete-confirm">
+                <span>Delete this {mode === 'transfer' ? 'transfer' : (mode === 'plan' ? 'planned bill' : (mode === 'income' ? 'income' : 'spend'))}? This can't be undone.</span>
+                <div className="inline-confirm-actions">
+                  <button type="button" className="btn-subtle" onClick={() => setConfirmDelete(false)}>Keep</button>
+                  <button
+                    type="button"
+                    className="btn-primary danger"
+                    disabled={deleting}
+                    onClick={async () => {
+                      setDeleting(true);
+                      setFormError('');
+                      try {
+                        await onDeleteEntry(initialItem);
+                        triggerExit();
+                      } catch (err) {
+                        setFormError(err?.message || 'Could not delete. Please try again.');
+                        setConfirmDelete(false);
+                      } finally {
+                        setDeleting(false);
+                      }
+                    }}
+                  >
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {(formError || (mode === 'transfer' && transferError)) && (
               <div className="form-error" role="alert">{formError || transferError}</div>
             )}
@@ -2042,8 +2154,12 @@ export function UnifiedEntryModal({
                 SLOT 6: UNIFIED ACTION FOOTER (FIXED DOCKED FOOTER)
                --------------------------------------------------------------------- */}
             <div className="modal-footer-row">
-              {/* Left corner: Payment status toggle for Plan mode */}
-              {mode === 'plan' ? (
+              {/* Left corner: a new bill that's already paid is a spend; editing keeps the paid toggle */}
+              {mode === 'plan' && !initialItem ? (
+                <button type="button" className="link-btn" onClick={() => handleSwitchMode('log')}>
+                  Already paid? Log it as spend
+                </button>
+              ) : mode === 'plan' ? (
                 <div
                   className="recurring-toggle-switch"
                   onClick={() => setIsPaid((prev) => !prev)}

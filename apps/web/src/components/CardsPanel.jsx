@@ -7,7 +7,7 @@ import { DatePicker } from './DatePicker.jsx';
 import { Button } from './ui/Button.jsx';
 import { FloorBreachNotice, anywayLabel } from './FloorBreachNotice.jsx';
 import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
-import { PlusIcon, CreditCardIcon, EditIcon, AlertTriangleIcon } from './Icons.jsx';
+import { PlusIcon, CreditCardIcon, EditIcon, AlertTriangleIcon, XIcon } from './Icons.jsx';
 
 const BAND_TONE = {
   comfortable: 'good',
@@ -58,7 +58,12 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
   const firstPayer = bankAccounts.find((b) => b.isPrimary) || bankAccounts[0] || wallets[0] || null;
   const [name, setName] = useState(card?.name || '');
   const [limit, setLimit] = useState(toMajorInput(card?.creditLimit));
-  const [owed, setOwed] = useState(isEdit ? toMajorInput(Math.max(0, -(card?.openingBalance || 0))) : '');
+  const originalOwed = isEdit ? Math.max(0, -(card?.openingBalance || 0)) : 0;
+  const [owed, setOwed] = useState(isEdit ? toMajorInput(originalOwed) : '');
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  // Changing what was owed when the card was added shifts every balance since then
+  const owedShift = isEdit ? toMinorUnits(owed || 0, 100) - originalOwed : 0;
   const [statementDay, setStatementDay] = useState(card?.statementDay ? String(card.statementDay) : '');
   const [dueDay, setDueDay] = useState(card?.dueDay ? String(card.dueDay) : '');
   const initialPayFrom = card?.payFromAccountId || (firstPayer ? (firstPayer.id || firstPayer._id) : '');
@@ -110,6 +115,12 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
         <div className="form-group">
           <label className="form-label" htmlFor="cc-owed">{isEdit ? 'Owed when added' : 'Owed right now'} ({currencySymbol})</label>
           <input id="cc-owed" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={owed} onChange={(e) => setOwed(e.target.value)} placeholder="0" />
+          {owedShift !== 0 && (
+            <p className="history-warning" role="note" data-testid="card-owed-warning">
+              Changing this shifts what the card owed on every day since it was added by{' '}
+              <strong className="tabular-nums">{owedShift > 0 ? '+' : '−'}{money(Math.abs(owedShift), currencySymbol)}</strong>.
+            </p>
+          )}
         </div>
       </div>
       <div className="hl-row">
@@ -137,8 +148,39 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
           currencySymbol={currencySymbol}
         />
       </div>
+      {isEdit && confirmRemove && (
+        <div className="inline-confirm" role="alertdialog" aria-label="Remove this card?" data-testid="card-remove-confirm">
+          <span>Remove {card.name}? Its history is kept; it stops showing here.</span>
+          <div className="inline-confirm-actions">
+            <button type="button" className="btn-subtle" onClick={() => setConfirmRemove(false)}>Keep</button>
+            <button
+              type="button"
+              className="btn-primary danger"
+              disabled={removing}
+              onClick={async () => {
+                setRemoving(true);
+                setError('');
+                try {
+                  await api.archiveCard(card.id);
+                  onSaved?.();
+                } catch (err) {
+                  setError(err?.message || 'Could not remove the card.');
+                  setConfirmRemove(false);
+                } finally {
+                  setRemoving(false);
+                }
+              }}
+            >
+              {removing ? 'Removing…' : 'Remove'}
+            </button>
+          </div>
+        </div>
+      )}
       {error && <div className="hl-error" role="alert">{error}</div>}
       <div className="hl-footer">
+        {isEdit && !confirmRemove && (
+          <button type="button" className="link-btn danger card-remove-btn" onClick={() => setConfirmRemove(true)}>Remove card</button>
+        )}
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : (isEdit ? 'Save' : 'Add card')}</Button>
       </div>
@@ -441,6 +483,9 @@ export function CardsPanel({
       )}
 
       <AnimatedModal isOpen={Boolean(modal)} onClose={() => setModal(null)} dataTestId="card-modal">
+        <button type="button" className="btn-icon modal-corner-close" onClick={() => setModal(null)} aria-label="Close">
+          <XIcon size={14} />
+        </button>
         {modal?.kind === 'add' && (
           <CardForm bankAccounts={bankAccounts} wallets={wallets} currencySymbol={currencySymbol} onSaved={done} onCancel={() => setModal(null)} />
         )}

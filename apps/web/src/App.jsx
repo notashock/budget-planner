@@ -804,6 +804,13 @@ export default function App() {
     }
   };
 
+  // Edit a goal: name, price, priority, funding account. Throws so the form can show the error.
+  const handleUpdateGoal = async (goalId, updates) => {
+    await api.updateGoal(goalId, updates);
+    if (currentMonth) await loadGoals(currentMonth.year, currentMonth.month);
+    setToast({ id: Date.now(), message: 'Goal updated' });
+  };
+
   const handleDeleteGoal = async (goalId) => {
     try {
       await api.deleteGoal(goalId);
@@ -914,6 +921,36 @@ export default function App() {
     } catch (err) {
       throw err;
     }
+  };
+
+  // Delete from inside the edit form (the form asks to confirm inline, so no window.confirm here)
+  const handleDeleteFromEditor = async (item) => {
+    const isTransfer = item.origin === 'transfer' || Boolean(item.isTransfer);
+    const id = isTransfer ? (item.transferId || item.id || item._id) : (item.id || item._id);
+    if (isTransfer) await api.deleteTransfer(id);
+    else await api.deleteTransaction(id);
+    setUnifiedEntryOpen(false);
+    setEditingItem(null);
+    await refreshAfterEntry();
+    setToast({ id: Date.now(), message: `Deleted ${item.title || item.name || (isTransfer ? 'transfer' : 'entry')}` });
+  };
+
+  // Held & Lent entries can't be edited in place (ADR 0069): delete, then open the
+  // form with the same details so the corrected entry can be logged again.
+  const HELD_LENT_ACTION_BY_ORIGIN = { held_in: 'hold', held_return: 'return', lent_out: 'lend', lent_repaid: 'repaid' };
+  const handleRelogHeldLent = async (tx) => {
+    await api.deleteTransaction(tx.id || tx._id);
+    await refreshAfterEntry();
+    handleOpenUnifiedEntry('held', {
+      heldLent: {
+        action: HELD_LENT_ACTION_BY_ORIGIN[tx.origin] || 'hold',
+        fundId: tx.personFundId || '',
+        amount: Math.abs(Number(tx.amount) || 0),
+        date: tx.date,
+        note: tx.note || '',
+        accountId: tx.accountId || tx.bankAccountId || tx.walletId || ''
+      }
+    });
   };
 
   const handleDeleteTransfer = async (id) => {
@@ -1205,6 +1242,7 @@ export default function App() {
               onCancelTransaction={handleCancelTransaction}
               onDeleteTransaction={handleDeleteTransaction}
               onHeldLentChanged={handleHeldLentChanged}
+              onRelogHeldLent={handleRelogHeldLent}
               creditCards={creditCards}
               simulation={activeSimulation}
             />
@@ -1226,6 +1264,7 @@ export default function App() {
               onDeferGoal={handleDeferGoal}
               onReactivateGoal={handleReactivateGoal}
               onDeleteGoal={handleDeleteGoal}
+              onUpdateGoal={handleUpdateGoal}
             />
           )}
 
@@ -1282,6 +1321,7 @@ export default function App() {
         initialMode={unifiedEntryMode}
         initialItem={editingItem}
         initialPreset={unifiedEntryPreset}
+        onDeleteEntry={handleDeleteFromEditor}
         onSettleTransaction={handlePayTransaction}
         plannedItems={items}
         bankAccounts={bankAccounts}

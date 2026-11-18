@@ -790,3 +790,104 @@ select.input-field {
     transform: none;
   }
 }
+
+/* Editing: what is changing, with Delete beside it */
+.edit-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--field-radius);
+}
+
+.edit-summary-text {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.edit-summary-text strong {
+  color: var(--text);
+}
+
+.edit-from {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Inline confirmation (delete, history changes) */
+.inline-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--field-radius);
+  background: var(--danger-subtle);
+  font-size: var(--fs-sm);
+}
+
+.inline-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-primary.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Text-style action */
+.link-btn {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--text);
+}
+
+.link-btn.danger {
+  color: var(--bad-ink);
+}
+
+/* Warning under a field whose change rewrites history */
+.history-warning {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--warn-ink);
+}
+
+/* Close button in the corner of a modal form */
+.modal-corner-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+
+/* Card forms: room for the corner close button; Remove sits on the left of the footer */
+.modal-content:has(> .modal-corner-close) {
+  position: relative;
+}
+
+.modal-content:has(> .modal-corner-close) .hl-modal-title {
+  padding-right: var(--space-8);
+}
+
+.hl-footer .card-remove-btn {
+  margin-right: auto;
+}
