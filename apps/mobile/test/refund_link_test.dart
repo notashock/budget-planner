@@ -7,6 +7,8 @@ import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/services/entry_memory.dart';
 
 class FakeBudget extends BudgetProvider {
+  FakeBudget({this.extra = const []});
+  final List<Map<String, dynamic>> extra;
   final List<Map<String, dynamic>> created = [];
 
   @override
@@ -28,6 +30,7 @@ class FakeBudget extends BudgetProvider {
         {'_id': 't3', 'title': 'Salary', 'amount': 8500000, 'status': 'successful', 'isIncome': true, 'accountId': 'b1', 'date': '2026-11-01'},
         {'_id': 'p1', 'title': 'Rent', 'amount': 1500000, 'status': 'planned', 'date': '2026-11-20'},
         {'_id': 'r1', 'title': 'Shoe refund', 'amount': -150000, 'status': 'successful', 'origin': 'spot', 'refundTargetTransactionId': 't1', 'date': '2026-11-16'},
+        ...extra,
       ];
 
   @override
@@ -37,11 +40,11 @@ class FakeBudget extends BudgetProvider {
   Future<void> addTransaction(Map<String, dynamic> tx) async => created.add(tx);
 }
 
-Future<FakeBudget> pumpSheet(WidgetTester tester, {Map<String, dynamic>? item}) async {
+Future<FakeBudget> pumpSheet(WidgetTester tester, {Map<String, dynamic>? item, List<Map<String, dynamic>> extra = const []}) async {
   tester.view.physicalSize = const Size(1080, 2600);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
-  final budget = FakeBudget();
+  final budget = FakeBudget(extra: extra);
   await tester.pumpWidget(
     ChangeNotifierProvider<BudgetProvider>.value(
       value: budget,
@@ -113,5 +116,60 @@ void main() {
     expect(find.byKey(const ValueKey('refund-link-readonly')), findsOneWidget);
     expect(find.textContaining('Refund for Shoes'), findsOneWidget);
     expect(find.byKey(const ValueKey('refund-for')), findsNothing);
+  });
+
+  group('several refunds on one spend use what is left, not the original amount', () {
+    // Shoes: 4,500 paid, 1,500 already refunded by r1
+    const r2 = {'_id': 'r2', 'title': 'Shoe refund 2', 'amount': -200000, 'status': 'successful', 'origin': 'spot', 'refundTargetTransactionId': 't1', 'date': '2026-11-17'};
+
+    Future<void> pickShoes(WidgetTester tester) async {
+      await tester.tap(find.text('Credit / Refund'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('refund-for')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the remaining amount goes down with each linked refund', (tester) async {
+      await pumpSheet(tester);
+      await pickShoes(tester);
+      expect(find.textContaining('Shoes · ₹3,000.00 left of ₹4,500.00'), findsWidgets);
+    });
+
+    testWidgets('after a second refund only 1,000 is left', (tester) async {
+      await pumpSheet(tester, extra: [r2]);
+      await pickShoes(tester);
+      expect(find.textContaining('Shoes · ₹1,000.00 left of ₹4,500.00'), findsWidgets);
+    });
+
+    testWidgets('refunds cannot add up to more than the spend', (tester) async {
+      final budget = await pumpSheet(tester, extra: [r2]);
+      await pickShoes(tester);
+      await tester.tap(find.textContaining('Shoes · ').last);
+      await tester.pumpAndSettle();
+      // 1,500 fits the original 4,500 but not the 1,000 left
+      await tester.enterText(find.widgetWithText(TextField, 'Amount (₹) *'), '1500');
+      await tester.ensureVisible(find.text('Add Spend'));
+      await tester.tap(find.text('Add Spend'));
+      await tester.pumpAndSettle();
+      expect(budget.created, isEmpty);
+      expect(find.text('Only ₹1,000.00 of Shoes is left to refund.'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Amount (₹) *'), '1000');
+      await tester.ensureVisible(find.text('Add Spend'));
+      await tester.tap(find.text('Add Spend'));
+      await tester.pumpAndSettle();
+      expect(budget.created, hasLength(1));
+      expect(budget.created.single['amount'], -100000);
+    });
+
+    testWidgets('a fully refunded spend is no longer offered', (tester) async {
+      await pumpSheet(tester, extra: [
+        {...r2, 'amount': -300000},
+        {'_id': 't2', 'title': 'Tea', 'amount': 2000, 'status': 'successful', 'origin': 'spot', 'date': '2026-11-15'},
+      ]);
+      await pickShoes(tester);
+      expect(find.textContaining('Tea · '), findsWidgets);
+      expect(find.textContaining('Shoes · '), findsNothing);
+    });
   });
 }

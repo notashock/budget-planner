@@ -119,6 +119,52 @@ describe('BudgetExecution & Goal Evaluation Seam Suite', () => {
     expect(res.body.data.refundTargetTransactionId).toBe(spentTxId);
   });
 
+  describe('several refunds on one spend (checked against what is left, not the original amount)', () => {
+    const refund = (amount) => request(app)
+      .post('/api/months/2026/11/transactions')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ amount, isRefund: true, category: 'Food', note: 'Part refund', date: '2026-11-07', accountId: bankId, refundTargetTransactionId: spentTxId });
+    let secondRefundId;
+
+    it('accepts a second refund that fits in what is left (2500 paid, 500 already refunded)', async () => {
+      const res = await refund(-1500);
+      expect(res.status).toBe(201);
+      expect(res.body.data.refundTargetTransactionId).toBe(spentTxId);
+      secondRefundId = res.body.data.id;
+    });
+
+    it('rejects a refund that fits the original 2500 but not the 500 left', async () => {
+      const res = await refund(-600);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('only 5.00 of 25.00 is left');
+    });
+
+    it('rejects editing a linked refund up past what is left', async () => {
+      const res = await request(app)
+        .put(`/api/transactions/${secondRefundId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ amount: -2100 });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('allows editing a linked refund within what is left (its own amount is not counted twice)', async () => {
+      const res = await request(app)
+        .put(`/api/transactions/${secondRefundId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ amount: -2000 });
+      expect(res.status).toBe(200);
+      expect(res.body.data.amount).toBe(-2000);
+    });
+
+    it('refuses anything more once the spend is fully refunded', async () => {
+      const res = await refund(-1);
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain('only 0.00 of 25.00 is left');
+    });
+  });
+
   it('creates purchase goals and evaluates them with strict priority reservation per ADR 0063', async () => {
     // Goal 1: High Priority (priority 0)
     const goal1Res = await request(app)

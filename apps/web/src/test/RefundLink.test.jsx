@@ -113,3 +113,68 @@ describe('Refunds can be linked to the spend they reverse', () => {
     expect(screen.getByTestId('refund-for-tag')).toHaveTextContent('Refund for Running shoes');
   });
 });
+
+describe('Several refunds on one spend use what is left, not the original amount', () => {
+  // Movie ticket: 1,260.24 paid, 160.00 already refunded (the production case), then a second 300.00 refund
+  const movie = { _id: 'm1', id: 'm1', title: 'Movie ticket', amount: 126024, date: '2026-11-18', status: 'successful', origin: 'spot', category: 'Entertainment', accountId: 'b1' };
+  const firstRefund = { _id: 'r1', id: 'r1', title: 'Ticket money', amount: -16000, date: '2026-11-19', status: 'successful', origin: 'spot', refundTargetTransactionId: 'm1', accountId: 'b1' };
+  const secondRefund = { _id: 'r2', id: 'r2', title: 'Ticket money 2', amount: -30000, date: '2026-11-19', status: 'successful', origin: 'spot', refundTargetTransactionId: 'm1', accountId: 'b1' };
+
+  const pickMovie = () => {
+    openRefund();
+    fireEvent.click(screen.getByRole('button', { name: /Refund for/ }));
+    fireEvent.click(screen.getByText('Movie ticket'));
+  };
+
+  it('the remaining amount goes down with each linked refund', () => {
+    const { unmount } = renderEntry({ transactions: [movie, firstRefund] });
+    pickMovie();
+    expect(screen.getByRole('button', { name: /Refund for: Movie ticket/ })).toHaveTextContent('₹1,100.24');
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '100' } });
+    expect(screen.getByTestId('link-hint')).toHaveTextContent(/net cost becomes ₹1,000\.24/);
+    unmount();
+
+    renderEntry({ transactions: [movie, firstRefund, secondRefund] });
+    pickMovie();
+    expect(screen.getByRole('button', { name: /Refund for: Movie ticket/ })).toHaveTextContent('₹800.24');
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '100' } });
+    expect(screen.getByTestId('link-hint')).toHaveTextContent(/net cost becomes ₹700\.24/);
+  });
+
+  it('refunds cannot add up to more than the spend', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({});
+    renderEntry({ onLogTransaction, transactions: [movie, firstRefund, secondRefund] });
+    pickMovie();
+    // 900 fits the original 1,260.24 but not the 800.24 left
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '900' } });
+    expect(screen.getByTestId('link-hint')).toHaveTextContent(/More than the ₹800\.24 left to refund on Movie ticket \(₹1,260\.24 paid\)/);
+    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Only ₹800.24 of Movie ticket is left to refund.');
+    expect(onLogTransaction).not.toHaveBeenCalled();
+
+    // Exactly what is left is fine
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '800.24' } });
+    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
+    expect(onLogTransaction.mock.calls[0][0]).toMatchObject({ amount: -80024, refundTargetTransactionId: 'm1' });
+  });
+
+  it('a fully refunded spend is no longer offered', () => {
+    const rest = { ...secondRefund, _id: 'r3', id: 'r3', amount: -80024 };
+    renderEntry({ transactions: [movie, firstRefund, secondRefund, rest, tea] });
+    openRefund();
+    fireEvent.click(screen.getByRole('button', { name: /Refund for/ }));
+    expect(screen.getByText('Tea')).toBeInTheDocument();
+    expect(screen.queryByText('Movie ticket')).not.toBeInTheDocument();
+  });
+
+  it('editing a linked refund counts the other refunds but not itself', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({});
+    renderEntry({ onLogTransaction, transactions: [movie, firstRefund, secondRefund], initialItem: secondRefund, initialMode: 'log' });
+    expect(screen.getByTestId('refund-link-readonly')).toHaveTextContent('Refund for Movie ticket (₹1,260.24');
+    // 1,100.24 is left once this refund's own 300 is set aside; 1,200 is too much
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '1200' } });
+    fireEvent.click(screen.getByRole('button', { name: /credit inflow|Save|Update/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Only ₹1,100.24 of Movie ticket is left to refund.');
+  });
+});
