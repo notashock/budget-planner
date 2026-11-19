@@ -7,7 +7,8 @@ import {
   formatDate,
   formatDisplayDate,
   getRelativeDay,
-  getDateFromRelativeDay
+  getDateFromRelativeDay,
+  getRefundableRemaining
 } from '@budget/engine';
 import {
   XIcon,
@@ -212,16 +213,27 @@ export function UnifiedEntryModal({
       })
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
       .slice(0, 100)
-      .map((t) => ({
-        _id: String(t.id || t._id),
-        name: t.title || t.name || t.description || t.category || 'Spend',
-        amount: Math.abs(Number(t.amount) || 0),
-        date: t.date,
-        category: t.category || t.tag,
-        accountId: t.accountId || t.bankAccountId?._id || t.bankAccountId || t.walletId?._id || t.walletId || ''
-      }));
+      .map((t) => {
+        // What is left after the refunds already linked to this spend (not counting the one being edited)
+        const remaining = getRefundableRemaining(t, transactions, { excludeId: editingId });
+        return {
+          _id: String(t.id || t._id),
+          name: t.title || t.name || t.description || t.category || 'Spend',
+          paid: Math.abs(Number(t.amount) || 0),
+          remaining,
+          amount: remaining,
+          date: t.date,
+          category: t.category || t.tag,
+          accountId: t.accountId || t.bankAccountId?._id || t.bankAccountId || t.walletId?._id || t.walletId || ''
+        };
+      });
   }, [transactions, initialItem]); // eslint-disable-line react-hooks/exhaustive-deps
   const refundTarget = refundTargets.find((t) => t._id === String(refundTargetId)) || null;
+  // Fully refunded spends can't take another refund, so the picker leaves them out
+  const refundPickerItems = useMemo(
+    () => refundTargets.filter((t) => t.remaining > 0 || t._id === String(refundTargetId)),
+    [refundTargets, refundTargetId]
+  );
 
   // Eligible planned items for matching
   const eligiblePlannedItems = useMemo(
@@ -1003,6 +1015,14 @@ export function UnifiedEntryModal({
 
     const baseAmount = Math.round(Math.abs(Number(amount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
+
+    // Refunds linked to one spend can't add up to more than was paid
+    if (isRefund && refundTarget && baseAmount > refundTarget.remaining) {
+      setFormError(refundTarget.remaining > 0
+        ? `Only ${formatCurrency(refundTarget.remaining, currencySymbol)} of ${refundTarget.name} is left to refund.`
+        : `${refundTarget.name} is already fully refunded.`);
+      return;
+    }
 
     // Safety Floor Check
     if (!isRefund && !bypassFloorCheck) {
@@ -1951,12 +1971,12 @@ export function UnifiedEntryModal({
                     // The link is set when the refund is created; it can't be changed afterwards
                     <p className="field-hint" data-testid="refund-link-readonly">
                       {refundTarget
-                        ? <>Refund for <strong>{refundTarget.name}</strong> ({formatCurrency(refundTarget.amount, currencySymbol)}{refundTarget.date ? `, ${formatDisplayDate(refundTarget.date, false)}` : ''}).</>
+                        ? <>Refund for <strong>{refundTarget.name}</strong> ({formatCurrency(refundTarget.paid, currencySymbol)}{refundTarget.date ? `, ${formatDisplayDate(refundTarget.date, false)}` : ''}).</>
                         : (initialItem.refundTargetTransactionId ? 'Linked to an earlier spend.' : 'Not linked to a spend.')}
                     </p>
                   ) : isRefund ? (
                     <SearchableItemPicker
-                      items={refundTargets}
+                      items={refundPickerItems}
                       selectedId={refundTargetId}
                       onSelect={(id) => {
                         setRefundTargetId(id);
@@ -1996,9 +2016,11 @@ export function UnifiedEntryModal({
                   <span className={`field-hint ${isRefund ? 'is-positive' : ''}`} data-testid="link-hint">
                     {isRefund
                       ? (refundTarget
-                          ? (Math.round(Math.abs(Number(amount) || 0) * 100) > refundTarget.amount
-                              ? `More than the ${formatCurrency(refundTarget.amount, currencySymbol)} you paid for ${refundTarget.name}.`
-                              : `Gives back money for ${refundTarget.name}: its net cost becomes ${formatCurrency(Math.max(0, refundTarget.amount - Math.round(Math.abs(Number(amount) || 0) * 100)), currencySymbol)}.`)
+                          ? (Math.round(Math.abs(Number(amount) || 0) * 100) > refundTarget.remaining
+                              ? (refundTarget.remaining < refundTarget.paid
+                                  ? `More than the ${formatCurrency(refundTarget.remaining, currencySymbol)} left to refund on ${refundTarget.name} (${formatCurrency(refundTarget.paid, currencySymbol)} paid).`
+                                  : `More than the ${formatCurrency(refundTarget.paid, currencySymbol)} you paid for ${refundTarget.name}.`)
+                              : `Gives back money for ${refundTarget.name}: its net cost becomes ${formatCurrency(Math.max(0, refundTarget.remaining - Math.round(Math.abs(Number(amount) || 0) * 100)), currencySymbol)}.`)
                           : 'Adds this credit back to your spending money. Link the spend it refunds to keep its category right.')
                       : (matchedItemId
                           ? 'Fulfills and replaces the planned item to prevent double-counting.'

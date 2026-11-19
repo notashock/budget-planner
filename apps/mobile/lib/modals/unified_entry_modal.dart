@@ -196,17 +196,50 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               t['isIncome'] != true &&
               t['origin'] != 'transfer' &&
               t['origin'] != 'salary' &&
-              !passThrough.contains(t['origin']);
+              !passThrough.contains(t['origin']) &&
+              // A fully refunded spend can't take another refund
+              (_refundRemaining(budget, t) > 0 || id == _refundTargetId);
         })
         .toList()
       ..sort((a, b) => '${b['date'] ?? ''}'.compareTo('${a['date'] ?? ''}'));
     return list.take(100).toList();
   }
 
-  String _txLabel(Map<String, dynamic> t) {
+  /// What is left to refund on a spend: its amount minus the refunds already
+  /// linked to it (ADR 0062), leaving out the refund being edited. Never the
+  /// spend's original amount on its own.
+  int _refundRemaining(BudgetProvider budget, Map<String, dynamic> spend) {
+    final spendId = (spend['_id'] ?? spend['id'])?.toString();
+    final editingId = _isEditing ? _editId : null;
+    var refunded = 0;
+    for (final t in budget.transactions.whereType<Map>()) {
+      if (spendId == null || t['refundTargetTransactionId']?.toString() != spendId) continue;
+      if (editingId != null && (t['_id'] ?? t['id'])?.toString() == editingId) continue;
+      final amount = num.tryParse('${t['amount'] ?? 0}') ?? 0;
+      if (amount < 0) refunded += amount.round().abs();
+    }
+    final left = _minorOf(spend['amount']) - refunded;
+    return left > 0 ? left : 0;
+  }
+
+  /// The spend this refund is (or will be) linked to, if it is in the list.
+  Map<String, dynamic>? _linkedSpend(BudgetProvider budget) {
+    final String? id = _isEditing ? (widget.initialItem?['refundTargetTransactionId']?.toString()) : _refundTargetId;
+    if (id == null) return null;
+    for (final t in budget.transactions.whereType<Map>()) {
+      if ((t['_id'] ?? t['id'])?.toString() == id) return Map<String, dynamic>.from(t);
+    }
+    return null;
+  }
+
+  String _txLabel(Map<String, dynamic> t, {int? remaining}) {
     final name = (t['title'] ?? t['name'] ?? t['description'] ?? t['category'] ?? 'Spend').toString();
     final date = t['date']?.toString();
-    return '$name · ${formatCurrency(_minorOf(t['amount']))}${date != null && date.length >= 10 ? ' · ${date.substring(0, 10)}' : ''}';
+    final paid = _minorOf(t['amount']);
+    final amountText = remaining != null && remaining < paid
+        ? '${formatCurrency(remaining)} left of ${formatCurrency(paid)}'
+        : formatCurrency(paid);
+    return '$name · $amountText${date != null && date.length >= 10 ? ' · ${date.substring(0, 10)}' : ''}';
   }
 
   /// "Refund for": pick the spend this refund gives money back for. Set when the
@@ -235,7 +268,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         const DropdownMenuItem<String?>(value: null, child: Text('Not linked to a spend')),
         ...targets.map((t) => DropdownMenuItem<String?>(
               value: (t['_id'] ?? t['id']).toString(),
-              child: Text(_txLabel(t), overflow: TextOverflow.ellipsis),
+              child: Text(_txLabel(t, remaining: _refundRemaining(budget, t)), overflow: TextOverflow.ellipsis),
             )),
       ],
       onChanged: (id) => setState(() {
@@ -1364,6 +1397,19 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         // "Credit / Refund" is a refund: a negative spend (as on web and per the server),
         // not income, so it reduces spending in its category instead of inflating income
         final isRefund = _txType == 'income';
+        // Refunds linked to one spend can't add up to more than was paid
+        final linked = isRefund ? _linkedSpend(budget) : null;
+        if (linked != null && amt > _refundRemaining(budget, linked)) {
+          final left = _refundRemaining(budget, linked);
+          final spendName = (linked['title'] ?? linked['name'] ?? 'this spend').toString();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(left > 0
+                ? 'Only ${formatCurrency(left)} of $spendName is left to refund.'
+                : '$spendName is already fully refunded.'),
+          ));
+          setState(() => _submitting = false);
+          return;
+        }
         await _saveTx(budget, {
           'description': name,
           'amount': isRefund ? -amt : amt,

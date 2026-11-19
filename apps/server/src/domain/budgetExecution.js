@@ -1,7 +1,7 @@
 import { eq, and, or, asc, inArray, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
-import { recommendPurchaseDate, deriveTransactionState, isPassThrough } from '@budget/engine';
+import { recommendPurchaseDate, deriveTransactionState, isPassThrough, getRefundableRemaining } from '@budget/engine';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
@@ -38,6 +38,30 @@ function pad(n) {
  * BudgetExecution Domain Service
  * Consolidates transaction recording, refund verification, and purchase goal evaluation.
  */
+/**
+ * A spend can be refunded in parts, but the refunds linked to it can never add up
+ * to more than was paid (ADR 0062). Checks against what is left after the refunds
+ * already linked to the spend, not the spend's original amount.
+ * @param {string} userId
+ * @param {object} targetTx - the spend being refunded
+ * @param {number} refundAmount - the new refund's amount (minor units, negative)
+ * @param {string} [excludeId] - the refund being edited, left out of the total
+ */
+async function assertRefundFits(userId, targetTx, refundAmount, excludeId) {
+  const linkedRefunds = await db.query.transactions.findMany({
+    where: and(
+      eq(s.transactions.refundTargetTransactionId, targetTx.id),
+      eq(s.transactions.userId, userId)
+    )
+  });
+  const remaining = getRefundableRemaining(targetTx, linkedRefunds, { excludeId });
+  if (Math.abs(Number(refundAmount) || 0) > remaining) {
+    throw new ValidationError(
+      `Refunds can't add up to more than the spend: only ${(remaining / 100).toFixed(2)} of ${(Math.abs(Number(targetTx.amount) || 0) / 100).toFixed(2)} is left to refund`
+    );
+  }
+}
+
 export const BudgetExecution = {
   /**
    * Lists transactions for a specific month with status/origin filtering and derived status attribution.
@@ -262,6 +286,7 @@ export const BudgetExecution = {
         )
       });
       if (targetTx) {
+        await assertRefundFits(userId, targetTx, numAmount);
         verifiedRefundTargetId = targetTx.id;
       }
     }
@@ -644,6 +669,13 @@ export const BudgetExecution = {
       }
 
       const updates = { updatedAt: new Date() };
+      // A linked refund's new amount must still fit in what is left of its spend
+      if (payload.amount !== undefined && tx.refundTargetTransactionId) {
+        const targetTx = await db.query.transactions.findFirst({
+          where: and(eq(s.transactions.id, tx.refundTargetTransactionId), eq(s.transactions.userId, userId))
+        });
+        if (targetTx) await assertRefundFits(userId, targetTx, Math.round(Number(payload.amount)), tx.id);
+      }
       const effectiveName = payload.name !== undefined ? payload.name : payload.title;
       if (effectiveName !== undefined) updates.name = String(effectiveName).trim();
       if (payload.amount !== undefined) updates.amount = Math.round(Number(payload.amount));
