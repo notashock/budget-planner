@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
@@ -13,18 +15,56 @@ class StorageService {
     defaultValue: 'http://127.0.0.1:4000',
   );
 
+  // The auth token lives in the Android Keystore / iOS Keychain, never in
+  // SharedPreferences. Older builds stored it under [keyToken] in
+  // SharedPreferences; the first read moves it and deletes the old copy.
+  static const FlutterSecureStorage _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  // Every request needs the token, so keep it in memory after the first read.
+  static String? _token;
+  static bool _tokenLoaded = false;
+
   static Future<String?> getToken() async {
+    if (_tokenLoaded) return _token;
+
+    var token = await _secure.read(key: keyToken);
+    if (token == null || token.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getString(keyToken);
+      if (legacy != null && legacy.isNotEmpty) {
+        await _secure.write(key: keyToken, value: legacy);
+        token = legacy;
+      }
+    }
+    // Remove any plain-text copy, migrated or stale.
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(keyToken);
+    if (prefs.containsKey(keyToken)) await prefs.remove(keyToken);
+
+    _token = (token == null || token.isEmpty) ? null : token;
+    _tokenLoaded = true;
+    return _token;
   }
 
   static Future<void> setToken(String? token) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (token == null) {
-      await prefs.remove(keyToken);
+    if (token == null || token.isEmpty) {
+      await _secure.delete(key: keyToken);
+      _token = null;
     } else {
-      await prefs.setString(keyToken, token);
+      await _secure.write(key: keyToken, value: token);
+      _token = token;
     }
+    _tokenLoaded = true;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(keyToken)) await prefs.remove(keyToken);
+  }
+
+  /// Forgets the in-memory token so the next read goes to storage.
+  @visibleForTesting
+  static void resetTokenCache() {
+    _token = null;
+    _tokenLoaded = false;
   }
 
   static Future<String> getThemeMode() async {
@@ -48,7 +88,6 @@ class StorageService {
   }
 
   static Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(keyToken);
+    await setToken(null);
   }
 }

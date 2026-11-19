@@ -5,6 +5,7 @@ import '../providers/budget_provider.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
+import '../widgets/load_error_banner.dart';
 import '../modals/month_review_modal.dart';
 import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
@@ -33,6 +34,11 @@ class _PlanScreenState extends State<PlanScreen> {
 
     if (budget.isLoading && budget.simulation == null) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    // A failed load is never shown as "no month": that is only for a real 404.
+    if (budget.activeMonth == null && budget.loadError != null && !budget.monthMissing) {
+      return LoadErrorView(error: budget.loadError!);
     }
 
     if (budget.activeMonth == null) {

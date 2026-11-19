@@ -382,7 +382,7 @@ class TransactionDetailModal extends StatelessWidget {
                         isPlanned ? 'Cancel Commitment' : 'Delete Transaction',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onPressed: () async {
+                      onPressed: budget.isSaving ? null : () async {
                         final navigator = Navigator.of(context);
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
                         final confirmed = await confirmDestructive(

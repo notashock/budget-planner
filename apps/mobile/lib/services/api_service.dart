@@ -1,13 +1,62 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show SocketException;
+import 'dart:math';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'storage_service.dart';
 
+/// What went wrong with a request, so callers can react without parsing text.
+enum ApiErrorKind {
+  /// No connection, DNS failure, refused connection.
+  offline,
+
+  /// No answer within [ApiService.requestTimeout].
+  timeout,
+
+  /// 401: not signed in, or the token expired.
+  unauthorized,
+
+  /// 404: the resource does not exist (e.g. a month that was never created).
+  notFound,
+
+  /// 409: conflict, including a duplicate write still in progress.
+  conflict,
+
+  /// Other 4xx: the request was rejected (validation and similar).
+  rejected,
+
+  /// 5xx.
+  server,
+
+  /// The server answered 2xx with a body the app could not read.
+  badResponse,
+}
+
 class ApiException implements Exception {
   final String message;
   final int statusCode;
+  final ApiErrorKind kind;
 
-  ApiException(this.message, [this.statusCode = 0]);
+  /// Server error code from the envelope, e.g. `VALIDATION_ERROR`.
+  final String? code;
+
+  ApiException(this.message, [this.statusCode = 0, ApiErrorKind? kind, this.code])
+      : kind = kind ?? _kindForStatus(statusCode);
+
+  static ApiErrorKind _kindForStatus(int status) {
+    if (status == 401) return ApiErrorKind.unauthorized;
+    if (status == 404) return ApiErrorKind.notFound;
+    if (status == 409) return ApiErrorKind.conflict;
+    if (status >= 500) return ApiErrorKind.server;
+    if (status >= 400) return ApiErrorKind.rejected;
+    return ApiErrorKind.badResponse;
+  }
+
+  /// The request may not have reached the server, or the server failed in a
+  /// way that is not about this request.
+  bool get isTransient =>
+      kind == ApiErrorKind.offline || kind == ApiErrorKind.timeout || kind == ApiErrorKind.server;
 
   @override
   String toString() => message;
@@ -17,6 +66,18 @@ class ApiException implements Exception {
 /// v1 counterpart yet (docs/api-v1-migration.md).
 const String _v1 = '/api/v1';
 
+final Random _random = Random.secure();
+
+/// RFC 4122 version 4 UUID.
+String newIdempotencyKey() {
+  final b = List<int>.generate(16, (_) => _random.nextInt(256));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  final h = b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-'
+      '${h.substring(16, 20)}-${h.substring(20)}';
+}
+
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -24,6 +85,12 @@ class ApiService {
 
   String _baseUrl = StorageService.defaultBaseUrl;
   http.Client _client = http.Client();
+
+  /// How long one attempt may take before it fails with [ApiErrorKind.timeout].
+  Duration requestTimeout = const Duration(seconds: 15);
+
+  /// Pause before the single retry of a transient failure.
+  Duration retryDelay = const Duration(milliseconds: 600);
 
   Future<void> init() async {
     _baseUrl = await StorageService.getBaseUrl();
@@ -51,50 +118,92 @@ class ApiService {
     return headers;
   }
 
+  static const Set<String> _writeMethods = {'POST', 'PUT', 'PATCH', 'DELETE'};
+
+  /// Sends a request and returns the unwrapped envelope `data`.
+  ///
+  /// Writes to /api/v1 carry an `Idempotency-Key` that stays the same across
+  /// the retry, so the server runs the write at most once
+  /// (apps/server/src/middleware/idempotency.js). One retry is made for:
+  /// - offline or timeout (any request with a key, and every GET);
+  /// - 5xx on a GET or on a keyed write;
+  /// - 409 `IDEMPOTENCY_IN_PROGRESS` (the first attempt is still running).
+  /// A write without a key (auth, settings, AI) is resent only after a dropped
+  /// connection, never after a timeout or a 5xx.
   Future<dynamic> _request(
     String method,
     String path, {
     Map<String, dynamic>? body,
   }) async {
+    final verb = method.toUpperCase();
+    if (verb != 'GET' && !_writeMethods.contains(verb)) {
+      throw ApiException('Unsupported HTTP method $method', 0, ApiErrorKind.rejected);
+    }
+    final isWrite = _writeMethods.contains(verb);
+    final idempotencyKey = isWrite && path.startsWith(_v1) ? newIdempotencyKey() : null;
+    final safeToResend = !isWrite || idempotencyKey != null;
+
+    try {
+      return await _send(verb, path, body, idempotencyKey);
+    } on ApiException catch (e) {
+      final inProgress = e.statusCode == 409 && e.code == 'IDEMPOTENCY_IN_PROGRESS';
+      final retry = inProgress ||
+          (safeToResend && e.isTransient) ||
+          // Unkeyed writes are auth, settings and AI calls, which are harmless to
+          // repeat after a dropped connection; a timeout is still not resent.
+          (!safeToResend && e.kind == ApiErrorKind.offline);
+      if (!retry) rethrow;
+      await Future<void>.delayed(inProgress ? const Duration(seconds: 1) : retryDelay);
+      return _send(verb, path, body, idempotencyKey);
+    }
+  }
+
+  Future<dynamic> _send(String verb, String path, Map<String, dynamic>? body, String? idempotencyKey) async {
     final uri = Uri.parse('$_baseUrl$path');
     final headers = await _headers();
+    if (idempotencyKey != null) headers['Idempotency-Key'] = idempotencyKey;
     final encoded = body != null ? jsonEncode(body) : null;
 
     http.Response response;
     try {
-      switch (method.toUpperCase()) {
-        case 'GET':
-          response = await _client.get(uri, headers: headers);
-          break;
-        case 'POST':
-          response = await _client.post(uri, headers: headers, body: encoded);
-          break;
-        case 'PUT':
-          response = await _client.put(uri, headers: headers, body: encoded);
-          break;
-        case 'PATCH':
-          response = await _client.patch(uri, headers: headers, body: encoded);
-          break;
-        case 'DELETE':
-          response = await _client.delete(uri, headers: headers);
-          break;
-        default:
-          throw ApiException('Unsupported HTTP method $method');
-      }
-    } catch (e) {
-      throw ApiException('Network connection failed. Verify host server at $_baseUrl ($e)');
+      final Future<http.Response> pending = switch (verb) {
+        'GET' => _client.get(uri, headers: headers),
+        'POST' => _client.post(uri, headers: headers, body: encoded),
+        'PUT' => _client.put(uri, headers: headers, body: encoded),
+        'PATCH' => _client.patch(uri, headers: headers, body: encoded),
+        _ => _client.delete(uri, headers: headers),
+      };
+      response = await pending.timeout(requestTimeout);
+    } on TimeoutException {
+      throw ApiException(
+        'The server did not answer in time. Check your connection and try again.',
+        0,
+        ApiErrorKind.timeout,
+      );
+    } on SocketException catch (e) {
+      throw ApiException('No connection to the server at $_baseUrl (${e.message})', 0, ApiErrorKind.offline);
+    } on http.ClientException catch (e) {
+      throw ApiException('No connection to the server at $_baseUrl (${e.message})', 0, ApiErrorKind.offline);
     }
 
     dynamic responseData;
-    try {
-      if (response.body.isNotEmpty) {
+    var parsed = true;
+    if (response.body.isNotEmpty) {
+      try {
         responseData = jsonDecode(response.body);
+      } catch (_) {
+        parsed = false;
       }
-    } catch (_) {
-      responseData = null;
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (!parsed) {
+        throw ApiException(
+          'The server sent a response the app could not read (${response.statusCode}).',
+          response.statusCode,
+          ApiErrorKind.badResponse,
+        );
+      }
       // Unwrap the response envelope { status: 'success', data, metadata, timestamp }
       if (responseData is Map && responseData['status'] == 'success' && responseData.containsKey('data')) {
         return responseData['data'];
@@ -103,14 +212,17 @@ class ApiService {
     }
 
     String errorMsg = 'Request failed (${response.statusCode})';
+    String? code;
     if (responseData is Map && responseData['error'] != null) {
-      if (responseData['error'] is Map && responseData['error']['message'] != null) {
-        errorMsg = responseData['error']['message'].toString();
+      final err = responseData['error'];
+      if (err is Map) {
+        if (err['message'] != null) errorMsg = err['message'].toString();
+        if (err['code'] != null) code = err['code'].toString();
       } else {
-        errorMsg = responseData['error'].toString();
+        errorMsg = err.toString();
       }
     }
-    throw ApiException(errorMsg, response.statusCode);
+    throw ApiException(errorMsg, response.statusCode, null, code);
   }
 
   String _accountsPath(String? type, bool includeArchived) {
