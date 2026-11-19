@@ -54,10 +54,13 @@ export function serialize(data) {
       }
     }
 
-    // Account ID bridge for items and transactions
+    // Account ID bridge for items and transactions.
+    // accountType / sourceType / destinationType carry the real account type:
+    // taken from a joined account row when there is one, otherwise set
+    // upstream (utils/accountTypes.js) or left unset. Never guessed.
     if (out.accountId) {
       if (!out.bankAccountId) out.bankAccountId = out.accountId;
-      if (!out.accountType) out.accountType = 'bank';
+      if (!out.accountType && data.account?.type) out.accountType = data.account.type;
     }
 
     // Month salary account bridge
@@ -75,12 +78,12 @@ export function serialize(data) {
     if (out.sourceAccountId) {
       if (!out.sourceBankAccountId) out.sourceBankAccountId = out.sourceAccountId;
       if (!out.sourceId) out.sourceId = out.sourceAccountId;
-      if (!out.sourceType) out.sourceType = 'bank';
+      if (!out.sourceType && data.sourceAccount?.type) out.sourceType = data.sourceAccount.type;
     }
     if (out.destinationAccountId) {
       if (!out.destinationBankAccountId) out.destinationBankAccountId = out.destinationAccountId;
       if (!out.destinationId) out.destinationId = out.destinationAccountId;
-      if (!out.destinationType) out.destinationType = 'bank';
+      if (!out.destinationType && data.destinationAccount?.type) out.destinationType = data.destinationAccount.type;
     }
 
     // Goal funding account bridge
