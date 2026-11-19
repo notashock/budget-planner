@@ -249,6 +249,24 @@ The new version:
 - shows an opaque cover while the app isn't in front, plus Android `FLAG_SECURE` (no screenshots, blank recents thumbnail).
 
 Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompat (needed for Android 8 and below), and `NSFaceIDUsageDescription` is set. iOS is not built or tested here.
+
+**Status, fourth PR (1.1 continued: screens):** all four tab screens (Plan, Transactions, Goals, Accounts) now read typed models, with no raw map reads left. The provider parses `MonthInfo`, accounts, goals and the new `Transfer` model once per load, all-or-nothing. Bugs fixed on the way:
+- **Accounts:**
+  - transfers always showed "Source → Destination" (the server sends ids only; names now come from the loaded accounts and cards);
+  - the last 4 digits typed when adding a bank were dropped (sent as `accountNumberMask`; the server reads `accountNumberMasked`) and were never shown;
+  - one tap on the bin archived an account or deleted a transfer with no confirmation;
+  - account balances fell back to the opening balance;
+  - the Add dialog accepted an empty name and dropped errors.
+- **Goals:**
+  - every new goal showed "Floor breach risk this month. Deferral recommended." because the engine never evaluates `logged` goals (now: "No safe purchase date checked yet");
+  - `deferred`/`active` statuses were unknown to the model;
+  - delete had no confirmation (and the message now says a scheduled goal's planned transaction stays);
+  - action errors were dropped.
+- **Plan:** an account without its own simulation showed all-accounts numbers under that account's name; account pills fell back to the opening balance.
+- **Still open:**
+  - **engine:** `evaluateGoalsWithReservation` (`packages/engine/src/recommender.js`) skips `logged` goals, so new goals get no recommendation until reactivated, and its explanation shows raw minor units;
+  - **3.3:** Plan's `summary_cards.dart`, `step_line_chart.dart` and `timeline_list.dart` overflow at phone width with wide text;
+  - **next migration:** the sheets and widgets in `modals/` and `widgets/`.
 - Found while recording, for later:
   - the serializer sets `accountType`/`destinationType` to `'bank'` for wallet and card rows (`utils/serializer.js`);
   - month detail is ~236 KB because the simulation appears several times over (`events`/`allEvents`, `days`/`dailyBalances`, `accountSimulations` twice), which is Phase 2 payload work.

@@ -9,6 +9,7 @@ import 'package:budget_mobile/models/person_fund.dart';
 import 'package:budget_mobile/models/simulation.dart';
 import 'package:budget_mobile/models/transaction.dart';
 import 'package:budget_mobile/models/transaction_lists.dart';
+import 'package:budget_mobile/models/transfer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The typed models against responses recorded from the real server
@@ -51,6 +52,38 @@ void main() {
       expect(funds.totalHeld, funds.funds.single.outstanding);
       expect(fixture('transfers') as List, isNotEmpty);
       expect(fixture('periods') as List, isNotEmpty);
+    });
+  });
+
+  group('transfers, goals and month header', () {
+    test('a recorded transfer parses with both account ids and its day', () {
+      final t = Transfer.fromJson((fixture('transfers') as List).single);
+      expect(t.sourceAccountId, isNot(t.destinationAccountId));
+      expect(t.amount, 100000);
+      expect(t.day, int.parse(t.date.substring(8)));
+    });
+
+    test('goal statuses are the ones the server sets', () {
+      Goal g(String status) => Goal.fromJson({'id': 'g', 'name': 'X', 'targetAmount': 100, 'status': status});
+      expect(g('logged').status, GoalStatus.logged);
+      expect(g('active').status, GoalStatus.active);
+      expect(g('deferred').status, GoalStatus.deferred);
+      expect(g('deferred').isDeferred, isTrue);
+      expect(g('scheduled').canSchedule, isFalse);
+      expect(g('something-new').status, GoalStatus.unknown);
+    });
+
+    test('a goal can be scheduled only when the engine found a safe day', () {
+      final base = {'id': 'g', 'name': 'X', 'targetAmount': 100, 'status': 'active'};
+      expect(Goal.fromJson(base).canSchedule, isFalse, reason: 'not evaluated');
+      expect(Goal.fromJson({...base, 'recommendation': {'feasible': false}}).canSchedule, isFalse);
+      expect(Goal.fromJson({...base, 'recommendation': {'feasible': true, 'recommendedDay': 3}}).canSchedule, isTrue);
+    });
+
+    test('the month header carries the salary day', () {
+      final m = MonthDetail.fromJson(fixture('month_detail')).month;
+      expect(m.incomeCreditDay, 1);
+      expect(m.year, greaterThan(2000));
     });
   });
 

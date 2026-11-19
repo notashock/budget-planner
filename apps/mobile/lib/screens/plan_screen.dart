@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
+import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
@@ -37,11 +38,12 @@ class _PlanScreenState extends State<PlanScreen> {
     }
 
     // A failed load is never shown as "no month": that is only for a real 404.
-    if (budget.activeMonth == null && budget.loadError != null && !budget.monthMissing) {
+    if (budget.monthInfo == null && budget.loadError != null && !budget.monthMissing) {
       return LoadErrorView(error: budget.loadError!);
     }
 
-    if (budget.activeMonth == null) {
+    final month = budget.monthInfo;
+    if (month == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -64,35 +66,30 @@ class _PlanScreenState extends State<PlanScreen> {
       );
     }
 
-    final rawMonth = budget.activeMonth;
-    final Map<String, dynamic>? monthData = (rawMonth != null && rawMonth['month'] is Map)
-        ? Map<String, dynamic>.from(rawMonth['month'] as Map)
-        : rawMonth;
+    final currencySymbol = month.currencySymbol;
 
-    final currencySymbol = (monthData?['currencySymbol'] ?? '₹').toString();
-    final activeSimulation = _resolveActiveSimulation(budget, _selectedAccountId);
-    final isFilteringAccount = _selectedAccountId != 'all';
-
+    // An account view needs that account's own simulation from the server. If it
+    // is not there (yet), show the all-accounts view honestly, not all-accounts
+    // numbers under one account's name.
     final selectedAccount = _resolveSelectedAccount(budget, _selectedAccountId);
-    final activeSafetyFloor = isFilteringAccount
-        ? (num.tryParse('${selectedAccount?['minimumBalance'] ?? 0}') ?? 0).round()
-        : (num.tryParse('${monthData?['safetyFloor'] ?? 0}') ?? 0).round();
+    final accountSimulation =
+        selectedAccount == null ? null : budget.getAccountSimulation(selectedAccount.id);
+    final isFilteringAccount = accountSimulation != null;
+    final activeSimulation = accountSimulation ?? _unifiedSimulation(budget);
+    final activeSafetyFloor = isFilteringAccount ? selectedAccount!.minimumBalance : month.safetyFloor;
 
     final now = DateTime.now();
-    final monthYear = (num.tryParse('${monthData?['year']}') ?? now.year).toInt();
-    final monthNum = (num.tryParse('${monthData?['month']}') ?? now.month).toInt();
+    final monthYear = month.year;
+    final monthNum = month.month;
     final isCurrentMonth = monthYear == now.year && monthNum == now.month;
     final currentDay = isCurrentMonth ? now.day : null;
 
-    final incomeCreditDay = (num.tryParse('${monthData?['incomeCreditDay'] ?? 1}') ?? 1).toInt();
-    final isSalaryCredited = monthData?['isSalaryCredited'] == true;
-    final salaryCreditedDate = monthData?['salaryCreditedDate']?.toString();
-
     int? salaryCreditDay;
-    if (salaryCreditedDate != null && salaryCreditedDate.isNotEmpty) {
+    final salaryCreditedDate = month.salaryCreditedDate;
+    if (salaryCreditedDate != null) {
       salaryCreditDay = getRelativeDay(salaryCreditedDate, monthYear, monthNum);
     }
-    salaryCreditDay ??= incomeCreditDay;
+    salaryCreditDay ??= month.incomeCreditDay;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -108,9 +105,9 @@ class _PlanScreenState extends State<PlanScreen> {
               const SizedBox(height: 10),
 
               // 2. Isolated Account Notification Banner (if filtered)
-              if (isFilteringAccount && selectedAccount != null) ...[
+              if (isFilteringAccount) ...[
                 _buildIsolatedAccountBanner(
-                  selectedAccount,
+                  selectedAccount!,
                   activeSafetyFloor,
                   activeSimulation.closingBalance,
                   currencySymbol,
@@ -142,7 +139,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 onOpenReview: () {
                   showMonthReviewModal(
                     context,
-                    month: budget.activeMonth ?? {},
+                    month: month.raw,
                     simulation: activeSimulation,
                     safetyFloor: activeSafetyFloor,
                     currencySymbol: currencySymbol,
@@ -154,8 +151,8 @@ class _PlanScreenState extends State<PlanScreen> {
               // 5. Detailed KPI Grid (2x2 Bento)
               DetailedKpiGrid(
                 incomeAmount: activeSimulation.totalIncome,
-                incomeCreditDay: incomeCreditDay,
-                isSalaryCredited: isSalaryCredited,
+                incomeCreditDay: month.incomeCreditDay,
+                isSalaryCredited: month.isSalaryCredited,
                 salaryCreditedDate: salaryCreditedDate,
                 totalExpenses: activeSimulation.totalPlannedExpenses + activeSimulation.totalActualExpenses,
                 expenseOccurrencesCount: activeSimulation.allEvents.where((e) => e.amount < 0).length,
@@ -209,8 +206,8 @@ class _PlanScreenState extends State<PlanScreen> {
     Color textSecondary,
     String currencySymbol,
   ) {
-    final bankAccounts = budget.bankAccounts;
-    final wallets = budget.wallets;
+    final bankAccounts = budget.bankAccountModels;
+    final wallets = budget.walletModels;
     final hasAccounts = bankAccounts.isNotEmpty || wallets.isNotEmpty;
 
     if (!hasAccounts) return const SizedBox.shrink();
@@ -238,17 +235,16 @@ class _PlanScreenState extends State<PlanScreen> {
           // Bank Accounts
           for (final b in bankAccounts) ...[
             Builder(builder: (_) {
-              final accId = (b['_id'] ?? b['id'])?.toString() ?? '';
-              final accSim = budget.accountSimulations[accId];
-              final todayBal = accSim?.todaysBalance ??
+              final accId = b.id;
+              // Never the opening balance in place of today's: unknown shows no amount.
+              final int? todayBal = budget.accountSimulations[accId]?.todaysBalance ??
                   budget.simulation?.accountBalances[accId] ??
-                  (num.tryParse('${b['currentBalance'] ?? b['openingBalance'] ?? 0}') ?? 0).round();
-              final minBal = (num.tryParse('${b['minimumBalance'] ?? 0}') ?? 0).round();
-              final isBreached = todayBal < minBal;
+                  b.currentBalance;
+              final isBreached = todayBal != null && todayBal < b.minimumBalance;
 
               return _buildFilterPill(
                 id: accId,
-                label: (b['name'] ?? 'Bank').toString(),
+                label: b.name.isEmpty ? 'Bank' : b.name,
                 amount: todayBal,
                 icon: Icons.account_balance,
                 hasBreach: isBreached,
@@ -266,17 +262,16 @@ class _PlanScreenState extends State<PlanScreen> {
           // Wallets
           for (final w in wallets) ...[
             Builder(builder: (_) {
-              final accId = (w['_id'] ?? w['id'])?.toString() ?? '';
-              final accSim = budget.accountSimulations[accId];
-              final todayBal = accSim?.todaysBalance ??
+              final accId = w.id;
+              // Never the opening balance in place of today's: unknown shows no amount.
+              final int? todayBal = budget.accountSimulations[accId]?.todaysBalance ??
                   budget.simulation?.accountBalances[accId] ??
-                  (num.tryParse('${w['currentBalance'] ?? w['openingBalance'] ?? 0}') ?? 0).round();
-              final minBal = (num.tryParse('${w['minimumBalance'] ?? 0}') ?? 0).round();
-              final isBreached = todayBal < minBal;
+                  w.currentBalance;
+              final isBreached = todayBal != null && todayBal < w.minimumBalance;
 
               return _buildFilterPill(
                 id: accId,
-                label: (w['name'] ?? 'Wallet').toString(),
+                label: w.name.isEmpty ? 'Wallet' : w.name,
                 amount: todayBal,
                 icon: Icons.account_balance_wallet_outlined,
                 hasBreach: isBreached,
@@ -369,7 +364,7 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   Widget _buildIsolatedAccountBanner(
-    Map<String, dynamic> account,
+    Account account,
     int safetyFloor,
     int endingBalance,
     String currencySymbol,
@@ -392,7 +387,7 @@ class _PlanScreenState extends State<PlanScreen> {
             child: Row(
               children: [
                 Icon(
-                  account['type'] == 'wallet' ? Icons.account_balance_wallet_outlined : Icons.account_balance,
+                  account.kind == AccountKind.wallet ? Icons.account_balance_wallet_outlined : Icons.account_balance,
                   size: 13,
                   color: textSecondary,
                 ),
@@ -406,7 +401,7 @@ class _PlanScreenState extends State<PlanScreen> {
                       children: [
                         const TextSpan(text: 'Viewing isolated trajectory for '),
                         TextSpan(
-                          text: '${account['name']} ',
+                          text: '${account.name} ',
                           style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w700, color: text),
                         ),
                         if (safetyFloor > 0)
@@ -440,53 +435,29 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
-  String? _extractId(dynamic obj) {
-    if (obj == null) return null;
-    if (obj is Map) {
-      return (obj['_id'] ?? obj['id'])?.toString();
-    }
-    return obj.toString();
-  }
+  /// The all-accounts simulation, or an empty one before the first load.
+  SimulationResult _unifiedSimulation(BudgetProvider budget) =>
+      budget.simulation ??
+      SimulationResult(
+        openingBalance: 0,
+        closingBalance: 0,
+        lowestBalance: 0,
+        lowestBalanceDay: 1,
+        totalIncome: 0,
+        totalPlannedExpenses: 0,
+        totalActualExpenses: 0,
+        todaysBalance: 0,
+        days: [],
+        allEvents: [],
+        breaches: [],
+        safeVelocity: SafeVelocity(safeDailyAmount: 0, remainingDays: 1, availableBudget: 0, status: 'healthy'),
+        accountBalances: {},
+      );
 
-  SimulationResult _resolveActiveSimulation(BudgetProvider budget, String selectedAccountId) {
-    final unified = budget.simulation;
-    if (selectedAccountId == 'all' || unified == null) {
-      return unified ??
-          SimulationResult(
-            openingBalance: 0,
-            closingBalance: 0,
-            lowestBalance: 0,
-            lowestBalanceDay: 1,
-            totalIncome: 0,
-            totalPlannedExpenses: 0,
-            totalActualExpenses: 0,
-            todaysBalance: 0,
-            days: [],
-            allEvents: [],
-            breaches: [],
-            safeVelocity: SafeVelocity(safeDailyAmount: 0, remainingDays: 1, availableBudget: 0, status: 'healthy'),
-            accountBalances: {},
-          );
-    }
-
-    // The server computes every account's simulation (same engine as the web
-    // app). If one is missing (e.g. data still loading), show the all-accounts
-    // view rather than recomputing locally with different maths.
-    return budget.getAccountSimulation(selectedAccountId) ?? unified;
-  }
-
-  Map<String, dynamic>? _resolveSelectedAccount(BudgetProvider budget, String selectedAccountId) {
+  Account? _resolveSelectedAccount(BudgetProvider budget, String selectedAccountId) {
     if (selectedAccountId == 'all') return null;
-
-    for (final b in budget.bankAccounts) {
-      if (_extractId(b) == selectedAccountId) {
-        return Map<String, dynamic>.from(b as Map)..putIfAbsent('type', () => 'bank');
-      }
-    }
-    for (final w in budget.wallets) {
-      if (_extractId(w) == selectedAccountId) {
-        return Map<String, dynamic>.from(w as Map)..putIfAbsent('type', () => 'wallet');
-      }
+    for (final a in [...budget.bankAccountModels, ...budget.walletModels]) {
+      if (a.id == selectedAccountId) return a;
     }
     return null;
   }
