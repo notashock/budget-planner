@@ -5,7 +5,13 @@ class StorageService {
   static const String keyTheme = 'budget_theme';
   static const String keyBaseUrl = 'budget_base_url';
 
-  static const String defaultBaseUrl = 'http://127.0.0.1:4000';
+  /// Server used until the user picks one in server settings. Set per build:
+  /// `flutter build apk --dart-define=API_BASE_URL=https://api.example.com`.
+  /// Release builds block plain HTTP, so give them an https:// URL.
+  static const String defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:4000',
+  );
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
