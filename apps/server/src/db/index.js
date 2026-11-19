@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import * as schema from './schema.js';
 import { config } from '../config.js';
+import { poolSizing } from './poolSizing.js';
 import { migrateLedgerAndMaterializedBalances } from '../scripts/migrate_ledger_and_materialized_balances.js';
 
 const { Pool } = pg;
@@ -24,13 +25,15 @@ const isRemoteDb = Boolean(
 
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-export const pool = new Pool({
+/** Connection settings shared by the pool and any one-off client (e.g. the salary job's lock). */
+export const connectionOptions = {
   connectionString: config.databaseUrl,
-  ssl: isRemoteDb ? { rejectUnauthorized: false } : false,
-  max: isServerless ? 4 : (config.isProduction ? 10 : 4),
-  idleTimeoutMillis: isServerless ? 30000 : 10000,
-  connectionTimeoutMillis: 5000,
-  allowExitOnIdle: false
+  ssl: isRemoteDb ? { rejectUnauthorized: false } : false
+};
+
+export const pool = new Pool({
+  ...connectionOptions,
+  ...poolSizing({ serverless: isServerless, production: config.isProduction })
 });
 
 export const db = drizzle(pool, { schema });
