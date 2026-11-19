@@ -192,7 +192,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
     try {
       final sim = budget.simulation;
-      final floor = (num.tryParse('${budget.activeMonth?['safetyFloor'] ?? 0}') ?? 0).round();
+      final floor = budget.monthInfo?.safetyFloor ?? 0;
 
       final res = await ApiService().explainTimelineAi({
         'lowestBalance': sim?.lowestBalance ?? 0,

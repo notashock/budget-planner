@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/person_fund.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/held_lent_modal.dart';
@@ -16,7 +17,7 @@ class HeldLentSection extends StatefulWidget {
 }
 
 class _HeldLentSectionState extends State<HeldLentSection> {
-  List<Map<String, dynamic>> _funds = [];
+  List<PersonFund> _funds = [];
   int _held = 0;
   int _lent = 0;
   bool _showSettled = false;
@@ -28,18 +29,14 @@ class _HeldLentSectionState extends State<HeldLentSection> {
     _load();
   }
 
-  int _int(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round();
-
   Future<void> _load() async {
     try {
-      final res = await Provider.of<BudgetProvider>(context, listen: false).getPersonFunds();
+      final res = await Provider.of<BudgetProvider>(context, listen: false).getPersonFundsTyped();
       if (!mounted) return;
-      final list = res['funds'] is List ? res['funds'] as List : [];
-      final totals = res['totals'] is Map ? res['totals'] as Map : {};
       setState(() {
-        _funds = list.map((f) => Map<String, dynamic>.from(f as Map)).toList();
-        _held = _int(totals['held']);
-        _lent = _int(totals['lent']);
+        _funds = res.funds;
+        _held = res.totalHeld;
+        _lent = res.totalLent;
         _error = null;
       });
     } catch (e) {
@@ -65,7 +62,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
 
-    final open = _funds.where((f) => f['status'] != 'settled').toList();
+    final open = _funds.where((f) => f.status != FundStatus.settled).toList();
     final settledCount = _funds.length - open.length;
     final visible = _showSettled ? _funds : open;
 
@@ -127,9 +124,9 @@ class _HeldLentSectionState extends State<HeldLentSection> {
           )
         else
           ...visible.map((f) {
-            final isHeld = f['direction'] == 'held';
-            final settled = f['status'] == 'settled';
-            final out = _int(f['outstanding']);
+            final isHeld = f.direction == FundDirection.held;
+            final settled = f.status == FundStatus.settled;
+            final out = f.outstanding;
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
@@ -139,7 +136,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
               ),
               child: ListTile(
                 leading: const CircleAvatar(radius: 16, child: Icon(Icons.person_outline, size: 16)),
-                title: Text(f['personName']?.toString() ?? 'Person', style: TextStyle(color: text, fontWeight: FontWeight.w500)),
+                title: Text(f.personName, style: TextStyle(color: text, fontWeight: FontWeight.w500)),
                 subtitle: Text(
                   settled ? 'Settled' : (isHeld ? 'You hold their money' : 'Owes you'),
                   style: TextStyle(fontSize: 12, color: muted),
@@ -149,8 +146,8 @@ class _HeldLentSectionState extends State<HeldLentSection> {
                   style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? AppColors.primary : text)),
                 ),
                 onTap: settled
-                    ? () => _open(action: isHeld ? 'hold' : 'lend', fundId: f['id']?.toString())
-                    : () => _open(action: isHeld ? 'return' : 'repaid', fundId: f['id']?.toString()),
+                    ? () => _open(action: isHeld ? 'hold' : 'lend', fundId: f.id)
+                    : () => _open(action: isHeld ? 'return' : 'repaid', fundId: f.id),
               ),
             );
           }),

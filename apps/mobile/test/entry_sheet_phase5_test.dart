@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:budget_mobile/models/month_detail.dart';
+import 'package:budget_mobile/models/person_fund.dart';
+import 'package:budget_mobile/models/transaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,7 +35,8 @@ class FakeBudget extends BudgetProvider {
       ];
 
   @override
-  Map<String, dynamic>? get activeMonth => {'incomeAmount': 8500000, 'incomeCreditDate': '2026-11-30'};
+  MonthInfo? get monthInfo =>
+      const MonthInfo(id: 'm1', year: 2026, month: 11, incomeAmount: 8500000, incomeCreditDate: '2026-11-30');
 
   @override
   Future<Map<String, dynamic>> getPersonFunds() async => {'funds': []};
@@ -60,28 +64,30 @@ void main() {
   });
 
   group('assists (pure)', () {
-    final rent = {'_id': 'p1', 'name': 'Rent', 'amount': 1500000, 'status': 'planned', 'date': '2026-11-20'};
+    final rentJson = {'_id': 'p1', 'name': 'Rent', 'amount': 1500000, 'status': 'planned', 'date': '2026-11-20'};
+    Transaction tx(Map<String, dynamic> j) => Transaction.fromJson(j);
+    final rent = tx(rentJson);
 
     test('bill match: within 10%, by name, not when paid or far off', () {
-      expect(findBillMatch([rent], amount: 1400000, today: '2026-11-18')?['_id'], 'p1');
+      expect(findBillMatch([rent], amount: 1400000, today: '2026-11-18')?.id, 'p1');
       expect(findBillMatch([rent], amount: 1300000, today: '2026-11-18'), isNull);
-      expect(findBillMatch([rent], amount: 0, description: 'rent for Nov', today: '2026-11-18')?['_id'], 'p1');
-      expect(findBillMatch([{...rent, 'status': 'successful'}], amount: 1500000, today: '2026-11-18'), isNull);
-      expect(findBillMatch([{...rent, 'date': '2026-12-30'}], amount: 1500000, today: '2026-11-18'), isNull);
+      expect(findBillMatch([rent], amount: 0, description: 'rent for Nov', today: '2026-11-18')?.id, 'p1');
+      expect(findBillMatch([tx({...rentJson, 'status': 'successful'})], amount: 1500000, today: '2026-11-18'), isNull);
+      expect(findBillMatch([tx({...rentJson, 'date': '2026-12-30'})], amount: 1500000, today: '2026-11-18'), isNull);
     });
 
     test('duplicate salary: wording or the scheduled amount', () {
-      final month = {'incomeAmount': 8500000, 'incomeCreditDate': '2026-11-30'};
-      expect(detectDuplicateSalary(description: 'Nov salary', amount: 1, month: month)?['amount'], 8500000);
+      const month = MonthInfo(id: 'm1', year: 2026, month: 11, incomeAmount: 8500000, incomeCreditDate: '2026-11-30');
+      expect(detectDuplicateSalary(description: 'Nov salary', amount: 1, month: month)?.amount, 8500000);
       expect(detectDuplicateSalary(description: 'Bonus', amount: 8400000, month: month), isNotNull);
       expect(detectDuplicateSalary(description: 'Freelance', amount: 500000, month: month), isNull);
     });
 
     test('person hint: names and wording', () {
-      final ravi = {'id': 'f1', 'personName': 'Ravi', 'direction': 'lent', 'outstanding': 300000};
-      expect(detectPersonHint(description: 'Ravi paid', flow: 'in', funds: [ravi])?['action'], 'repaid');
-      expect(detectPersonHint(description: 'Cash from Meera to keep', flow: 'in')?['personName'], 'Meera');
-      expect(detectPersonHint(description: 'Lent to Arjun', flow: 'out')?['action'], 'lend');
+      final ravi = PersonFund.fromJson({'id': 'f1', 'personName': 'Ravi', 'direction': 'lent', 'outstanding': 300000});
+      expect(detectPersonHint(description: 'Ravi paid', flow: 'in', funds: [ravi])?.action, 'repaid');
+      expect(detectPersonHint(description: 'Cash from Meera to keep', flow: 'in')?.personName, 'Meera');
+      expect(detectPersonHint(description: 'Lent to Arjun', flow: 'out')?.action, 'lend');
       expect(detectPersonHint(description: 'Groceries', flow: 'out'), isNull);
     });
   });

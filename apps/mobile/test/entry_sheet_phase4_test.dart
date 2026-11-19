@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:budget_mobile/models/account.dart';
+import 'package:budget_mobile/models/goal.dart';
+import 'package:budget_mobile/models/transaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,9 +85,12 @@ void main() {
   testWidgets('edit a spend: filled in, type locked, saved as an update', (tester) async {
     final budget = await pumpSheet(
       tester,
-      const UnifiedEntryModal(
+      UnifiedEntryModal(
         initialType: EntryType.transaction,
-        initialItem: {'_id': 't1', 'title': 'Tea', 'amount': 2000, 'date': '2026-11-10', 'category': 'Travel', 'accountId': 'w1'},
+        initialTransaction: Transaction.fromJson(const {
+          '_id': 't1', 'title': 'Tea', 'amount': 2000, 'status': 'successful', 'date': '2026-11-10',
+          'category': 'Travel', 'accountId': 'w1',
+        }),
       ),
     );
     expect(find.text('Edit spend'), findsOneWidget);
@@ -110,9 +115,9 @@ void main() {
   testWidgets('edit a goal: name, price and priority are updated', (tester) async {
     final budget = await pumpSheet(
       tester,
-      const UnifiedEntryModal(
+      UnifiedEntryModal(
         initialType: EntryType.goal,
-        initialItem: {'_id': 'g1', 'name': 'Headphones', 'targetAmount': 1500000, 'priority': 2},
+        initialGoal: Goal.fromJson(const {'_id': 'g1', 'name': 'Headphones', 'targetAmount': 1500000, 'priority': 2}),
       ),
     );
     expect(find.text('Edit purchase goal'), findsOneWidget);
@@ -126,7 +131,7 @@ void main() {
   testWidgets('account edit: changing the opening balance warns and is sent; untouched it is not', (tester) async {
     final budget = await pumpSheet(
       tester,
-      const EditAccountModal(account: {'_id': 'b1', 'name': 'Main Bank', 'openingBalance': 1000000}, isBank: true),
+      EditAccountModal(account: Account.fromJson({'_id': 'b1', 'name': 'Main Bank', 'type': 'bank', 'openingBalance': 1000000}), isBank: true),
     );
     final opening = find.widgetWithText(TextField, 'Opening balance (₹)');
     expect(find.byKey(const ValueKey('opening-balance-warning')), findsNothing);
@@ -143,7 +148,7 @@ void main() {
   testWidgets('account edit without touching the opening balance does not send it', (tester) async {
     final budget = await pumpSheet(
       tester,
-      const EditAccountModal(account: {'_id': 'b1', 'name': 'Main Bank', 'openingBalance': 1000000}, isBank: true),
+      EditAccountModal(account: Account.fromJson({'_id': 'b1', 'name': 'Main Bank', 'type': 'bank', 'openingBalance': 1000000}), isBank: true),
     );
     await tester.ensureVisible(find.text('Save Changes'));
     await tester.tap(find.text('Save Changes'));

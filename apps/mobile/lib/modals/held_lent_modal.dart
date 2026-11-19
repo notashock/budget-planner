@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/person_fund.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
@@ -18,6 +19,8 @@ class HeldLentAction {
   const HeldLentAction(this.key, this.direction, this.flow, this.label, this.hint);
 
   bool get startsNew => key == 'hold' || key == 'lend';
+
+  FundDirection get fundDirection => direction == 'held' ? FundDirection.held : FundDirection.lent;
 }
 
 const heldLentActions = <HeldLentAction>[
@@ -69,7 +72,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
   final _noteCtrl = TextEditingController();
   late String _action;
   String? _fundId;
-  List<Map<String, dynamic>> _funds = [];
+  List<PersonFund> _funds = [];
   DateTime _date = DateTime.now();
   String _accountType = 'bank';
   String? _accountId;
@@ -90,29 +93,31 @@ class _HeldLentFormState extends State<HeldLentForm> {
     _noteCtrl.text = widget.initialNote;
     if (widget.initialDate != null) _date = widget.initialDate!;
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    String? idOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
     // Held and lent money moves through a bank account or wallet, never a card
+    final banks = budget.bankAccountModels;
+    final wallets = budget.walletModels;
     final carried = widget.initialAccountId;
-    if (carried != null && budget.bankAccounts.any((b) => idOf(b) == carried)) {
+    if (carried != null && banks.any((b) => b.id == carried)) {
       _accountId = carried;
-    } else if (carried != null && budget.wallets.any((w) => idOf(w) == carried)) {
+    } else if (carried != null && wallets.any((w) => w.id == carried)) {
       _accountType = 'wallet';
       _accountId = carried;
-    } else if (budget.bankAccounts.isNotEmpty) {
-      final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
-      _accountId = (primary['_id'] ?? primary['id'])?.toString();
-    } else if (budget.wallets.isNotEmpty) {
+    } else if (banks.isNotEmpty) {
+      _accountId = banks.firstWhere((b) => b.isPrimary, orElse: () => banks.first).id;
+    } else if (wallets.isNotEmpty) {
       _accountType = 'wallet';
-      _accountId = (budget.wallets.first['_id'] ?? budget.wallets.first['id'])?.toString();
+      _accountId = wallets.first.id;
     }
-    budget.getPersonFunds().then((res) {
+    budget.getPersonFundsTyped().then((res) {
       if (!mounted) return;
-      final list = res['funds'] is List ? res['funds'] as List : [];
       setState(() {
-        _funds = list.map((f) => Map<String, dynamic>.from(f as Map)).toList();
+        _funds = res.funds;
         _syncFund();
       });
-    }).catchError((_) {});
+    }).catchError((Object _) {
+      // Without the list, a Return or Got back would wrongly say no one owes you.
+      if (mounted) setState(() => _error = 'Could not load people. Check your connection and try again.');
+    });
   }
 
   @override
@@ -123,23 +128,21 @@ class _HeldLentFormState extends State<HeldLentForm> {
     super.dispose();
   }
 
-  int _outstandingOf(Map<String, dynamic> f) => (num.tryParse('${f['outstanding'] ?? 0}') ?? 0).round();
-
-  List<Map<String, dynamic>> get _matching => _funds.where((f) {
-        if (f['direction'] != _current.direction) return false;
-        return _current.startsNew || _outstandingOf(f) > 0 || f['id']?.toString() == _fundId;
+  List<PersonFund> get _matching => _funds.where((f) {
+        if (f.direction != _current.fundDirection) return false;
+        return _current.startsNew || f.outstanding > 0 || f.id == _fundId;
       }).toList();
 
   void _syncFund() {
-    final ids = _matching.map((f) => f['id'].toString()).toList();
+    final ids = _matching.map((f) => f.id).toList();
     if (_fundId == _newPerson && _current.startsNew) return;
     if (_fundId != null && ids.contains(_fundId)) return;
     _fundId = ids.isNotEmpty ? ids.first : (_current.startsNew ? _newPerson : null);
   }
 
-  Map<String, dynamic>? get _selected {
+  PersonFund? get _selected {
     for (final f in _funds) {
-      if (f['id']?.toString() == _fundId) return f;
+      if (f.id == _fundId) return f;
     }
     return null;
   }
@@ -164,8 +167,8 @@ class _HeldLentFormState extends State<HeldLentForm> {
       setState(() => _error = _current.direction == 'held' ? 'No one has money held with you yet.' : 'No one owes you money yet.');
       return;
     }
-    if (!_current.startsNew && selected != null && amt > _outstandingOf(selected)) {
-      setState(() => _error = 'That is more than the ${formatCurrency(_outstandingOf(selected))} outstanding with ${selected['personName']}.');
+    if (!_current.startsNew && selected != null && amt > selected.outstanding) {
+      setState(() => _error = 'That is more than the ${formatCurrency(selected.outstanding)} outstanding with ${selected.personName}.');
       return;
     }
     if (_fundId == _newPerson && _nameCtrl.text.trim().isEmpty) {
@@ -242,9 +245,9 @@ class _HeldLentFormState extends State<HeldLentForm> {
                 ),
                 items: [
                   ..._matching.map((f) {
-                    final out = _outstandingOf(f);
-                    final suffix = out > 0 ? ' (${formatCurrency(out)} ${f['direction'] == 'held' ? 'held' : 'owed'})' : '';
-                    return DropdownMenuItem(value: f['id'].toString(), child: Text('${f['personName']}$suffix'));
+                    final out = f.outstanding;
+                    final suffix = out > 0 ? ' (${formatCurrency(out)} ${f.direction == FundDirection.held ? 'held' : 'owed'})' : '';
+                    return DropdownMenuItem(value: f.id, child: Text('${f.personName}$suffix'));
                   }),
                   if (_current.startsNew) const DropdownMenuItem(value: _newPerson, child: Text('+ New person')),
                 ],
@@ -268,8 +271,8 @@ class _HeldLentFormState extends State<HeldLentForm> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
-                    onPressed: () => setState(() => _amountCtrl.text = (_outstandingOf(selected) / 100).toString()),
-                    child: Text('All ${formatCurrency(_outstandingOf(selected))}'),
+                    onPressed: () => setState(() => _amountCtrl.text = (selected.outstanding / 100).toString()),
+                    child: Text('All ${formatCurrency(selected.outstanding)}'),
                   ),
                 ),
               const SizedBox(height: 12),

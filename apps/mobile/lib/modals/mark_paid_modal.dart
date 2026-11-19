@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/transaction.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
@@ -9,7 +10,7 @@ import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
 
 class MarkPaidModal extends StatefulWidget {
-  final Map<String, dynamic> transaction;
+  final Transaction transaction;
 
   const MarkPaidModal({
     super.key,
@@ -31,27 +32,31 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
   void initState() {
     super.initState();
     final tx = widget.transaction;
-    final num plannedRaw = tx['plannedAmount'] ?? tx['amount'] ?? 0;
-    _amountCtrl.text = (plannedRaw / 100).toStringAsFixed(2);
+    _amountCtrl.text = (tx.displayAmount / 100).toStringAsFixed(2);
     _selectedDate = DateTime.now();
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    final String? txAccId = tx['accountId']?.toString();
+    final txAccId = tx.accountId;
+    final banks = budget.bankAccountModels;
+    final wallets = budget.walletModels;
 
-    // Check if tx account is a wallet
-    final isWallet = budget.wallets.any((w) => (w['_id'] ?? w['id'])?.toString() == txAccId);
-    if (isWallet) {
+    // Pay from the account the bill was planned on, including a card: it used
+    // to fall back to the first bank for a card, silently changing the account.
+    if (wallets.any((w) => w.id == txAccId)) {
       _accountType = 'wallet';
       _selectedAccountId = txAccId;
-    } else if (txAccId != null && budget.bankAccounts.any((b) => (b['_id'] ?? b['id'])?.toString() == txAccId)) {
+    } else if (banks.any((b) => b.id == txAccId)) {
       _accountType = 'bank';
       _selectedAccountId = txAccId;
-    } else if (budget.bankAccounts.isNotEmpty) {
+    } else if (budget.cardAccountModels.any((c) => c.id == txAccId)) {
+      _accountType = 'credit_card';
+      _selectedAccountId = txAccId;
+    } else if (banks.isNotEmpty) {
       _accountType = 'bank';
-      _selectedAccountId = (budget.bankAccounts.first['_id'] ?? budget.bankAccounts.first['id'])?.toString();
-    } else if (budget.wallets.isNotEmpty) {
+      _selectedAccountId = banks.first.id;
+    } else if (wallets.isNotEmpty) {
       _accountType = 'wallet';
-      _selectedAccountId = (budget.wallets.first['_id'] ?? budget.wallets.first['id'])?.toString();
+      _selectedAccountId = wallets.first.id;
     }
   }
 
@@ -77,7 +82,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
 
     setState(() => _submitting = true);
     final budget = context.read<BudgetProvider>();
-    final txId = (widget.transaction['id'] ?? widget.transaction['_id']).toString();
+    final txId = widget.transaction.id;
     final amountInCents = (parsed * 100).round();
     final dateStr = _formatDateYmd(_selectedDate);
 
@@ -109,9 +114,9 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
     final budget = context.watch<BudgetProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tx = widget.transaction;
-    final name = tx['name']?.toString() ?? 'Planned Transaction';
-    final currency = budget.activeMonth?['currencySymbol']?.toString() ?? '₹';
-    final num plannedRaw = tx['plannedAmount'] ?? tx['amount'] ?? 0;
+    final name = tx.name.isEmpty ? 'Planned Transaction' : tx.name;
+    final currency = budget.monthInfo?.currencySymbol ?? '₹';
+    final plannedRaw = tx.displayAmount;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -250,6 +255,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
                 selectedAccountId: _selectedAccountId,
                 bankAccounts: budget.bankAccountModels,
                 wallets: budget.walletModels,
+                creditCards: budget.cardAccountModels,
                 onChanged: (newType, newId) {
                   setState(() {
                     _accountType = newType;

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 
 class EditAccountModal extends StatefulWidget {
-  final Map<String, dynamic> account;
+  final Account account;
   final bool isBank;
 
   const EditAccountModal({
@@ -33,14 +34,15 @@ class _EditAccountModalState extends State<EditAccountModal> {
   void initState() {
     super.initState();
     final acc = widget.account;
-    _nameCtrl = TextEditingController(text: acc['name']?.toString() ?? '');
-    _institutionCtrl = TextEditingController(text: acc['institution']?.toString() ?? '');
-    final minBalMajor = toMajorUnits(acc['minimumBalance'] ?? 0);
+    _nameCtrl = TextEditingController(text: acc.name);
+    _institutionCtrl = TextEditingController(text: acc.institution ?? '');
+    final minBalMajor = toMajorUnits(acc.minimumBalance);
     _minBalCtrl = TextEditingController(text: minBalMajor > 0 ? '$minBalMajor' : '0');
-    _maskCtrl = TextEditingController(text: acc['accountNumberMask']?.toString() ?? '');
-    _originalOpening = (num.tryParse('${acc['openingBalance'] ?? 0}') ?? 0).round();
+    // The server's field is accountNumberMasked; the sheet read (and saved) 'accountNumberMask'.
+    _maskCtrl = TextEditingController(text: acc.accountNumberMasked ?? '');
+    _originalOpening = acc.openingBalance;
     _openingCtrl = TextEditingController(text: '${toMajorUnits(_originalOpening)}');
-    _isPrimary = acc['isPrimary'] == true;
+    _isPrimary = acc.isPrimary;
   }
 
   @override
@@ -62,7 +64,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
 
     setState(() => _submitting = true);
     final budget = context.read<BudgetProvider>();
-    final id = (widget.account['_id'] ?? widget.account['id']).toString();
+    final id = widget.account.id;
     final minBal = toMinorUnits(num.tryParse(_minBalCtrl.text) ?? 0);
     final opening = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0);
     // Only send the opening balance when it changed: it rewrites every past balance
@@ -74,7 +76,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
           'name': name,
           'institution': _institutionCtrl.text.trim(),
           'minimumBalance': minBal,
-          'accountNumberMask': _maskCtrl.text.trim(),
+          'accountNumberMasked': _maskCtrl.text.trim(),
           'isPrimary': _isPrimary,
           ...openingUpdate,
         });
@@ -172,7 +174,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   key: const ValueKey('opening-balance-warning'),
                   padding: const EdgeInsets.only(top: 6, bottom: 12),
                   child: Text(
-                    'Changing this shifts every balance since ${widget.account['name'] ?? 'this account'} was added by '
+                    'Changing this shifts every balance since ${widget.account.name.isEmpty ? 'this account' : widget.account.name} was added by '
                     '${shift > 0 ? '+' : '−'}${formatCurrency(shift.abs())}.',
                     style: const TextStyle(fontSize: 12, color: AppColors.amber),
                   ),

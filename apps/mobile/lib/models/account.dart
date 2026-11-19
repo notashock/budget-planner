@@ -289,14 +289,19 @@ class SimulatedCard {
   final Account account;
   final CardPayability? payability;
 
-  const SimulatedCard({required this.account, this.payability});
+  /// The bill to pay now, if any.
+  final CardBill? openBill;
+
+  const SimulatedCard({required this.account, this.payability, this.openBill});
 
   factory SimulatedCard.fromJson(Object? source) {
     final r = JsonReader('SimulatedCard', source);
     final p = r.json['payability'];
+    final bill = r.json['openBill'];
     return SimulatedCard(
       account: Account.fromJson(r.json, fallbackKind: AccountKind.creditCard),
       payability: p == null ? null : CardPayability.fromJson(p),
+      openBill: bill == null ? null : CardBill.fromJson(bill),
     );
   }
 }
