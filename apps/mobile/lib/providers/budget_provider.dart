@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../engine/engine.dart';
+import '../models/transaction.dart';
+import '../models/transaction_lists.dart';
 
 /// Why the last load did not complete. The data already on screen is kept;
 /// [hasData] says whether there is any to show.
@@ -72,6 +74,8 @@ class BudgetProvider with ChangeNotifier {
   Map<String, dynamic>? _activeMonthDetail;
   List<dynamic> _items = [];
   List<dynamic> _transactions = [];
+  List<Transaction> _transactionModels = const [];
+  TransactionLists _transactionLists = TransactionLists.empty;
   List<dynamic> _goals = [];
   List<dynamic> _evaluatedGoals = [];
   List<dynamic> _bankAccounts = [];
@@ -108,6 +112,12 @@ class BudgetProvider with ChangeNotifier {
   Map<String, dynamic>? get activeMonth => _activeMonthDetail;
   List<dynamic> get items => _items;
   List<dynamic> get transactions => _transactions;
+
+  /// The month's transactions as typed models (upgrade plan 1.1).
+  List<Transaction> get transactionModels => _transactionModels;
+
+  /// Sorted and filtered lists for the Transactions screen, built once per load.
+  TransactionLists get transactionLists => _transactionLists;
   List<dynamic> get goals => _goals;
   List<dynamic> get evaluatedGoals => _evaluatedGoals;
   List<dynamic> get bankAccounts => _bankAccounts;
@@ -258,6 +268,8 @@ class BudgetProvider with ChangeNotifier {
     final wallets = await _api.getWallets();
     final monthId = missing ? null : _monthOf(detail!)?['_id']?.toString() ?? _monthOf(detail)?['id']?.toString();
     final transfers = await _api.getTransfers(monthId);
+    // Month detail carries no goals: they have their own (evaluated) list.
+    final goals = missing ? const <dynamic>[] : await _api.getGoals(_currentYear, _currentMonth);
 
     if (generation != _loadGeneration) return;
 
@@ -266,6 +278,8 @@ class BudgetProvider with ChangeNotifier {
       _activeMonthDetail = null;
       _items = [];
       _transactions = [];
+      _transactionModels = const [];
+      _transactionLists = TransactionLists.empty;
       _goals = [];
       _evaluatedGoals = [];
       _simulation = null;
@@ -273,6 +287,8 @@ class BudgetProvider with ChangeNotifier {
     } else {
       _monthMissing = false;
       _applyMonthDetail(detail!);
+      _goals = goals;
+      _evaluatedGoals = goals;
     }
     _bankAccounts = banks;
     _wallets = wallets;
@@ -283,11 +299,19 @@ class BudgetProvider with ChangeNotifier {
   Map<String, dynamic>? _monthOf(Map<String, dynamic> detail) =>
       detail['month'] is Map ? Map<String, dynamic>.from(detail['month'] as Map) : detail;
 
-  /// Throws [ApiException] (badResponse) if the simulation cannot be read, so a
-  /// stale plan is never shown as current.
+  /// Throws [ApiException] (badResponse) if the simulation or any transaction
+  /// cannot be read; nothing is applied then, so a stale or half-read month is
+  /// never shown as current.
   void _applyMonthDetail(Map<String, dynamic> detail) {
     SimulationResult? simulation;
     final accountSims = <String, SimulationResult>{};
+    final rawTransactions = detail['transactions'] is List ? detail['transactions'] as List : const [];
+    List<Transaction> transactionModels;
+    try {
+      transactionModels = List.unmodifiable(rawTransactions.map(Transaction.fromJson));
+    } on FormatException catch (e) {
+      throw ApiException('A transaction from the server could not be read (${e.message}).', 200, ApiErrorKind.badResponse);
+    }
     try {
       if (detail['simulation'] is Map) {
         simulation = SimulationResult.fromJson(Map<String, dynamic>.from(detail['simulation'] as Map));
@@ -305,9 +329,9 @@ class BudgetProvider with ChangeNotifier {
 
     _activeMonthDetail = _monthOf(detail);
     _items = detail['items'] is List ? detail['items'] as List : [];
-    _transactions = detail['transactions'] is List ? detail['transactions'] as List : [];
-    _goals = detail['goals'] is List ? detail['goals'] as List : [];
-    _evaluatedGoals = detail['evaluatedGoals'] is List ? detail['evaluatedGoals'] as List : _goals;
+    _transactions = rawTransactions;
+    _transactionModels = transactionModels;
+    _transactionLists = TransactionLists.from(transactionModels);
     final simCards = detail['simulation'] is Map ? (detail['simulation'] as Map)['cards'] : null;
     if (simCards is List && simCards.isNotEmpty) {
       _creditCards = simCards;

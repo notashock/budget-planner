@@ -1,0 +1,139 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:budget_mobile/providers/budget_provider.dart';
+import 'package:budget_mobile/screens/transactions_screen.dart';
+import 'package:budget_mobile/services/api_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'helpers/fake_font_http.dart';
+
+/// The Transactions screen on a month recorded from the real server
+/// (test/fixtures/api), plus one refund (upgrade plan 1.1).
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  useFakeFontHttp();
+
+  dynamic fixture(String name) => jsonDecode(File('test/fixtures/api/$name.json').readAsStringSync());
+  // UTF-8 bytes like the real server (the fixtures contain '₹').
+  http.Response ok(Object? data) => http.Response.bytes(
+        utf8.encode(jsonEncode({'status': 'success', 'data': data})),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+
+  Future<BudgetProvider> load() async {
+    SharedPreferences.setMockInitialValues({});
+    final detail = fixture('month_detail') as Map<String, dynamic>;
+    final groceries = (detail['transactions'] as List).firstWhere((t) => t['name'] == 'Groceries') as Map;
+    (detail['transactions'] as List).add({
+      ...groceries,
+      'id': 'refund-1',
+      '_id': 'refund-1',
+      'name': 'Groceries refund',
+      'amount': -50000,
+      'refundTargetTransactionId': groceries['id'],
+    });
+
+    final api = ApiService()
+      ..updateBaseUrl('http://api.test')
+      ..retryDelay = Duration.zero;
+    api.client = MockClient((req) async {
+      final path = req.url.path;
+      if (path == '/api/settings') return ok(<String, dynamic>{});
+      if (path == '/api/v1/periods') return ok(fixture('periods'));
+      if (RegExp(r'^/api/v1/periods/\d+/\d+$').hasMatch(path)) return ok(detail);
+      if (RegExp(r'^/api/v1/periods/\d+/\d+/goals$').hasMatch(path)) return ok(fixture('goals'));
+      if (path == '/api/v1/accounts') {
+        return ok(fixture(req.url.queryParameters['type'] == 'wallet' ? 'accounts_wallet' : 'accounts_bank'));
+      }
+      if (path == '/api/v1/transfers') return ok(fixture('transfers'));
+      return ok([]);
+    });
+    final budget = BudgetProvider(api: api);
+    await budget.loadInitialData();
+    expect(budget.loadError, isNull, reason: '${budget.loadError?.message}');
+    return budget;
+  }
+
+  Future<void> pump(WidgetTester tester, BudgetProvider budget) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ChangeNotifierProvider.value(
+      value: budget,
+      child: const MaterialApp(home: TransactionsScreen()),
+    ));
+    await tester.pump();
+  }
+
+  Finder rowWith(String name) => find.ancestor(of: find.text(name), matching: find.byType(InkWell)).first;
+  String amountIn(WidgetTester tester, String name) => tester
+      .widgetList<Text>(find.descendant(of: rowWith(name), matching: find.byType(Text)))
+      .map((t) => t.data ?? '')
+      .firstWhere((d) => d.contains('₹'));
+
+  testWidgets('chip counts match the lists they open', (tester) async {
+    final budget = (await tester.runAsync(load))!;
+    await pump(tester, budget);
+
+    expect(find.text('Successful (7)'), findsOneWidget);
+    expect(find.text('All (7)'), findsOneWidget);
+    expect(find.text('Expenses (4)'), findsOneWidget, reason: 'Groceries, Coffee, Shoes and the refund');
+    expect(find.text('Incomes (1)'), findsOneWidget);
+  });
+
+  testWidgets('Expenses lists spending only: no transfer, no held money', (tester) async {
+    final budget = (await tester.runAsync(load))!;
+    await pump(tester, budget);
+
+    await tester.tap(find.byKey(const ValueKey('filter-RecordedFilter.expense')));
+    await tester.pump();
+
+    for (final name in ['Groceries', 'Coffee', 'Shoes', 'Groceries refund']) {
+      expect(find.text(name), findsOneWidget, reason: name);
+    }
+    expect(find.text('Inter-Account Transfer'), findsNothing);
+    expect(find.text('Holding for Ravi'), findsNothing);
+    expect(find.text('Freelance'), findsNothing);
+  });
+
+  testWidgets('rows show the right sign and badge for each kind', (tester) async {
+    final budget = (await tester.runAsync(load))!;
+    await pump(tester, budget);
+
+    expect(amountIn(tester, 'Groceries'), startsWith('-₹'));
+    expect(amountIn(tester, 'Freelance'), startsWith('+₹'));
+    expect(amountIn(tester, 'Groceries refund'), '+₹500.00', reason: 'no double minus');
+    expect(amountIn(tester, 'Holding for Ravi'), startsWith('+₹'));
+    expect(amountIn(tester, 'Inter-Account Transfer'), startsWith('₹'), reason: 'a transfer has no sign');
+
+    // Category "Transfer"; the matching badge is not repeated next to it.
+    expect(find.descendant(of: rowWith('Inter-Account Transfer'), matching: find.text('Transfer')), findsOneWidget);
+    expect(find.descendant(of: rowWith('Holding for Ravi'), matching: find.text('Held')), findsOneWidget);
+    expect(find.descendant(of: rowWith('Groceries refund'), matching: find.text('Refund')), findsOneWidget);
+    expect(find.descendant(of: rowWith('Groceries'), matching: find.text('Planned')), findsNothing);
+  });
+
+  testWidgets('goals load from their own endpoint (month detail has none)', (tester) async {
+    final budget = (await tester.runAsync(load))!;
+    expect(budget.evaluatedGoals.map((g) => g['name']), ['Headphones']);
+  });
+
+  testWidgets('the planned tab lists the bill due on its planned date', (tester) async {
+    final budget = (await tester.runAsync(load))!;
+    await pump(tester, budget);
+
+    await tester.tap(find.text('Planned (1)'));
+    await tester.pump();
+
+    expect(find.text('Rent'), findsOneWidget);
+    expect(find.text('₹25,000.00'), findsOneWidget);
+    expect(find.textContaining('Due ${budget.transactionLists.planned.single.plannedDate}'), findsOneWidget);
+  });
+}

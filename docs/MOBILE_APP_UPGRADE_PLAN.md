@@ -221,6 +221,20 @@ Each phase is a set of small PRs. A phase is done only when its **exit criteria*
 - 1.5 retries: a GET once on offline, timeout or 5xx; a keyed write once on the same failures plus 409 in-progress; an unkeyed write only after a dropped connection.
 - Still open, each as its own PR: **1.1** typed models (start with Transactions), **1.9** biometric lock and privacy blur, **1.10** contract fixtures recorded from a running server (they belong with 1.1, where the models parse them).
 
+**Status, second PR (1.1 + 1.10):**
+- Models in `lib/models/`: `Transaction` (one `TxKind` per transaction), `TransactionLists`, `Account`/`CreditCardSummary`, `Goal`, `PersonFund(s)`, `MonthInfo`/`MonthDetail`. Strict readers: a missing, fractional or wrong-typed amount, an unknown status or a bad date throws and is shown as an unreadable response. An unknown origin is kept as `other`.
+- **Transactions screen migrated** and now rebuilds only when its lists change. Bugs fixed:
+  - transfers and held/lent money were listed under Expenses;
+  - the Expenses chip count didn't match its list;
+  - transfers and held entries were badged "Planned";
+  - refunds showed as `--₹…`.
+- **Goals tab fixed:** month detail never carried goals, so the tab was always empty. They now load from `GET /periods/:y/:m/goals`.
+- **1.10:** `apps/server/test/mobile_contract_fixtures.test.js` records 8 responses into `apps/mobile/test/fixtures/api/` (`RECORD_MOBILE_FIXTURES=1`), and on every CI run fails if the server drops or retypes a field they contain.
+- Next screens to migrate: Accounts, Goals, Plan (the remaining `Map<String, dynamic>` users).
+- Found while recording, for later:
+  - the serializer sets `accountType`/`destinationType` to `'bank'` for wallet and card rows (`utils/serializer.js`);
+  - month detail is ~236 KB because the simulation appears several times over (`events`/`allEvents`, `days`/`dailyBalances`, `accountSimulations` twice), which is Phase 2 payload work.
+
 ### Phase 2 — Performance & offline capture (weeks 4–6)
 
 | # | Task | Fixes / target |

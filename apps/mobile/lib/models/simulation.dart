@@ -44,27 +44,43 @@ class TimelineEvent {
   factory TimelineEvent.fromJson(Map<String, dynamic> json) {
     final label = json['label']?.toString();
     final note = json['note']?.toString();
-    final desc = json['description']?.toString() ?? note ?? json['memo']?.toString();
+    final desc =
+        json['description']?.toString() ?? note ?? json['memo']?.toString();
     final rawName = json['name']?.toString() ?? label ?? desc ?? 'Event';
     final rawCat = json['category']?.toString() ?? json['tag']?.toString();
     final rawStatus = json['status']?.toString();
-    final bool isSuccessful = rawStatus == 'successful' || json['isPaid'] == true;
+    final bool isSuccessful =
+        rawStatus == 'successful' || json['isPaid'] == true;
 
     return TimelineEvent(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
       date: json['date']?.toString() ?? '',
       day: (num.tryParse('${json['day']}') ?? 1).toInt(),
-      type: json['type']?.toString() ?? (json['itemType']?.toString() ?? 'transaction'),
+      type:
+          json['type']?.toString() ??
+          (json['itemType']?.toString() ?? 'transaction'),
       name: rawName,
       description: desc ?? label ?? rawName,
       amount: (num.tryParse('${json['amount']}') ?? 0).round(),
-      runningBalance: (num.tryParse('${json['balanceAfter'] ?? json['runningBalance']}') ?? 0).round(),
-      accountId: json['accountId']?.toString() ?? (json['bankAccountId']?.toString() ?? json['walletId']?.toString()),
+      runningBalance:
+          (num.tryParse('${json['balanceAfter'] ?? json['runningBalance']}') ??
+                  0)
+              .round(),
+      accountId:
+          json['accountId']?.toString() ??
+          (json['bankAccountId']?.toString() ?? json['walletId']?.toString()),
       accountType: json['accountType']?.toString(),
-      category: (rawCat != null && rawCat.trim().isNotEmpty && rawCat.trim().toLowerCase() != 'other') ? rawCat.trim() : (rawCat?.trim() ?? 'General'),
+      category:
+          (rawCat != null &&
+              rawCat.trim().isNotEmpty &&
+              rawCat.trim().toLowerCase() != 'other')
+          ? rawCat.trim()
+          : (rawCat?.trim() ?? 'General'),
       isPaid: isSuccessful,
       status: rawStatus ?? (isSuccessful ? 'successful' : 'planned'),
-      origin: json['origin']?.toString() ?? (json['type'] == 'item' ? 'planned' : 'spot'),
+      origin:
+          json['origin']?.toString() ??
+          (json['type'] == 'item' ? 'planned' : 'spot'),
       derivedStatus: json['derivedStatus']?.toString(),
       raw: json,
     );
@@ -101,7 +117,11 @@ class TimelineDay {
       closingBalance: (num.tryParse('${json['closingBalance']}') ?? 0).round(),
       totalInflow: (num.tryParse('${json['totalInflow']}') ?? 0).round(),
       totalOutflow: (num.tryParse('${json['totalOutflow']}') ?? 0).round(),
-      events: rawEvents.map((e) => TimelineEvent.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      events: rawEvents
+          .map(
+            (e) => TimelineEvent.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList(),
       hasBreach: json['hasBreach'] == true,
     );
   }
@@ -151,11 +171,16 @@ class SafeVelocity {
   });
 
   factory SafeVelocity.fromJson(Map<String, dynamic> json) {
-    final daily = json['safeVelocityPerDay'] ?? json['safeDailyAmount'] ?? json['rate'] ?? 0;
+    final daily =
+        json['safeVelocityPerDay'] ??
+        json['safeDailyAmount'] ??
+        json['rate'] ??
+        0;
     final days = json['daysLeft'] ?? json['remainingDays'] ?? 1;
     final budget = json['freeSurplus'] ?? json['availableBudget'] ?? 0;
     final stat = json['paceStatus'] ?? json['status'] ?? 'healthy';
-    final committed = json['committedUpcomingItems'] ?? json['committedBills'] ?? 0;
+    final committed =
+        json['committedUpcomingItems'] ?? json['committedBills'] ?? 0;
     final burn = json['burnRatePerDay'] ?? json['burnRate'] ?? 0;
 
     return SafeVelocity(
@@ -183,10 +208,13 @@ class SimulationResult {
   final List<FloorBreach> breaches;
   final SafeVelocity safeVelocity;
   final Map<String, int> accountBalances;
+
   /// Money held for other people today: in the balance, but kept out of Safe-to-Spend
   final int heldReserve;
+
   /// Money other people owe you today
   final int lentOutstanding;
+
   /// Owed on credit cards today: set aside from Safe-to-Spend from the swipe day
   final int cardReserve;
 
@@ -213,13 +241,17 @@ class SimulationResult {
     final rawEvents = json['allEvents'] is List
         ? json['allEvents'] as List
         : (json['events'] is List ? json['events'] as List : []);
-    final rawBreaches = json['breaches'] is List ? json['breaches'] as List : [];
+    final rawBreaches = json['breaches'] is List
+        ? json['breaches'] as List
+        : [];
 
     final rawVelocity = json['safeVelocity'] is Map
         ? Map<String, dynamic>.from(json['safeVelocity'] as Map)
         : <String, dynamic>{};
 
-    final rawAccts = json['accountBalances'] is Map ? json['accountBalances'] as Map : {};
+    final rawAccts = json['accountBalances'] is Map
+        ? json['accountBalances'] as Map
+        : {};
     final parsedAccts = <String, int>{};
     rawAccts.forEach((k, v) {
       parsedAccts[k.toString()] = (num.tryParse('$v') ?? 0).round();
@@ -240,20 +272,42 @@ class SimulationResult {
 
     return SimulationResult(
       openingBalance: (num.tryParse('${json['openingBalance']}') ?? 0).round(),
-      closingBalance: (num.tryParse('${json['closingBalance'] ?? json['endingBalance']}') ?? 0).round(),
+      closingBalance:
+          (num.tryParse('${json['closingBalance'] ?? json['endingBalance']}') ??
+                  0)
+              .round(),
       lowestBalance: (num.tryParse('${json['lowestBalance']}') ?? 0).round(),
-      lowestBalanceDay: (num.tryParse('${json['lowestBalanceDay']}') ?? 1).toInt(),
-      totalIncome: (num.tryParse('${json['totalIncome'] ?? json['incomeAmount']}') ?? 0).round(),
-      totalPlannedExpenses: (num.tryParse('${json['totalPlannedExpenses'] ?? json['totalExpenses']}') ?? 0).round(),
-      totalActualExpenses: (num.tryParse('${json['totalActualExpenses']}') ?? 0).round(),
-      todaysBalance: (num.tryParse('${json['todaysBalance'] ?? json['todayBalance']}') ?? 0).round(),
+      lowestBalanceDay: (num.tryParse('${json['lowestBalanceDay']}') ?? 1)
+          .toInt(),
+      totalIncome:
+          (num.tryParse('${json['totalIncome'] ?? json['incomeAmount']}') ?? 0)
+              .round(),
+      totalPlannedExpenses:
+          (num.tryParse(
+                    '${json['totalPlannedExpenses'] ?? json['totalExpenses']}',
+                  ) ??
+                  0)
+              .round(),
+      totalActualExpenses: (num.tryParse('${json['totalActualExpenses']}') ?? 0)
+          .round(),
+      todaysBalance:
+          (num.tryParse('${json['todaysBalance'] ?? json['todayBalance']}') ??
+                  0)
+              .round(),
       days: parsedDays,
-      allEvents: rawEvents.map((e) => TimelineEvent.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
-      breaches: rawBreaches.map((b) => FloorBreach.fromJson(Map<String, dynamic>.from(b as Map))).toList(),
+      allEvents: rawEvents
+          .map(
+            (e) => TimelineEvent.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList(),
+      breaches: rawBreaches
+          .map((b) => FloorBreach.fromJson(Map<String, dynamic>.from(b as Map)))
+          .toList(),
       safeVelocity: SafeVelocity.fromJson(rawVelocity),
       accountBalances: parsedAccts,
       heldReserve: (num.tryParse('${json['heldReserve'] ?? 0}') ?? 0).round(),
-      lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0).round(),
+      lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0)
+          .round(),
       cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
     );
   }
