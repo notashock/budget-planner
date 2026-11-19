@@ -950,9 +950,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: _activeType == EntryType.income ? 'Deposited To Account' : 'Payment Account',
                   accountType: _accountType,
                   selectedAccountId: _selectedAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
-                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.creditCards : const [],
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
+                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.cardAccountModels : const [],
                   isRequired: _activeType == EntryType.income,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -966,8 +966,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
                   selectedAccountId: _sourceAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
                   isRequired: true,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -1043,8 +1043,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: 'Destination Account (To)',
                   accountType: _destAccountType,
                   selectedAccountId: _destAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
                   isRequired: true,
                   onChanged: (newType, newId) {
                     setState(() {

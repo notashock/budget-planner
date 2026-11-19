@@ -248,8 +248,8 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
                 label: 'Paid From Account',
                 accountType: _accountType,
                 selectedAccountId: _selectedAccountId,
-                bankAccounts: budget.bankAccounts,
-                wallets: budget.wallets,
+                bankAccounts: budget.bankAccountModels,
+                wallets: budget.walletModels,
                 onChanged: (newType, newId) {
                   setState(() {
                     _accountType = newType;

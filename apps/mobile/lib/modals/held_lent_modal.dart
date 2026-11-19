@@ -283,8 +283,8 @@ class _HeldLentFormState extends State<HeldLentForm> {
                 label: _current.flow == 'in' ? 'Into account' : 'From account',
                 accountType: _accountType,
                 selectedAccountId: _accountId,
-                bankAccounts: budget.bankAccounts,
-                wallets: budget.wallets,
+                bankAccounts: budget.bankAccountModels,
+                wallets: budget.walletModels,
                 isRequired: true,
                 onChanged: (t, id) => setState(() {
                   _accountType = t;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:budget_mobile/models/account.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -153,10 +154,10 @@ void main() {
   testWidgets('card edit: filled in, owed change warns, card can be removed', (tester) async {
     final budget = await pumpSheet(
       tester,
-      const AddCardModal(card: {
-        'id': 'c1', 'name': 'Visa', 'creditLimit': 5000000, 'openingBalance': -100000,
-        'statementDay': 20, 'dueDay': 8, 'payFromAccountId': 'b1',
-      }),
+      AddCardModal(card: CreditCardSummary.fromJson({
+        'id': 'c1', 'name': 'Visa', 'type': 'credit_card', 'creditLimit': 5000000, 'openingBalance': -100000,
+        'outstanding': 100000, 'statementDay': 20, 'dueDay': 8, 'payFromAccountId': 'b1',
+      })),
     );
     expect(find.text('Edit card'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Visa'), findsOneWidget);
