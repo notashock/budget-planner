@@ -63,7 +63,8 @@ export const GoalExecution = {
         safetyFloor: month.safetyFloor,
         unplannedAllowance: month.unplannedAllowance || 0,
         currentDay,
-        scale: 100
+        scale: 100,
+        currencySymbol: month.currencySymbol || undefined
       },
       items: serialize(items),
       month: { year, month: monthNum },

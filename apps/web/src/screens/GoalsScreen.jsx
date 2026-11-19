@@ -377,7 +377,7 @@ export function GoalsScreen({
           ) : (
             <div className="goals-grid goals-box-5">
               {evaluatedGoals.map((goal) => {
-                const isActive = goal.status === 'active' || goal.status === 'evaluating';
+                const isActive = !goal.status || goal.status === 'logged' || goal.status === 'active' || goal.status === 'evaluating';
                 const isScheduled = goal.status === 'scheduled' || goal.status === 'ready';
                 const isDeferred = goal.status === 'deferred';
                 const rec = goal.recommendation;
