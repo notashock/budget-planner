@@ -36,8 +36,7 @@ class RecommendationResult {
       recommendedDate: json['recommendedDate']?.toString(),
       recommendedDay: (num.tryParse('${json['recommendedDay']}') ?? 1).toInt(),
       feasible: json['feasible'] == true,
-      projectedLowestBalance:
-          (num.tryParse('${json['projectedLowestBalance']}') ?? 0).round(),
+      projectedLowestBalance: (num.tryParse('${json['projectedLowestBalance']}') ?? 0).round(),
       savingsBuffer: (num.tryParse('${json['savingsBuffer']}') ?? 0).round(),
       projectedFloorDeficit: json['projectedFloorDeficit'] != null
           ? (num.tryParse('${json['projectedFloorDeficit']}') ?? 0).round()
