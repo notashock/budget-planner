@@ -1,5 +1,6 @@
 import { eq, and, or, desc } from 'drizzle-orm';
-import { db, pool } from '../db/index.js';
+import pg from 'pg';
+import { db, connectionOptions } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { SalaryTemplateService } from './salaryTemplateService.js';
 import { isHistoricalPastMonth } from '../domain/monthLifecycle.js';
@@ -143,7 +144,11 @@ export const SalaryCycleJob = {
    * Runs across all registered users to advance pending salary cycles with PostgreSQL advisory locking.
    */
   async runJob() {
-    const client = await pool.connect();
+    // The advisory lock lives on its own connection, not one from the pool: the work
+    // below queries through the pool, and on serverless the pool has one connection,
+    // so holding it here would leave the job waiting on itself.
+    const client = new pg.Client(connectionOptions);
+    await client.connect();
     try {
       await client.query('BEGIN');
       const lockRes = await client.query('SELECT pg_try_advisory_xact_lock(987654321) as locked');
@@ -167,7 +172,7 @@ export const SalaryCycleJob = {
       try { await client.query('ROLLBACK'); } catch (_) {}
       console.error('[SalaryCycleJob] Background job execution error:', jobErr);
     } finally {
-      client.release();
+      await client.end().catch(() => {});
     }
   }
 };
