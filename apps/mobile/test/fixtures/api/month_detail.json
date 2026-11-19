@@ -13,6 +13,36 @@
       "openBill": null,
       "history": [],
       "_id": "00000000-0000-4000-8000-000000000004"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "name": "Amex",
+      "creditLimit": 5000000,
+      "payFromAccountId": "00000000-0000-4000-8000-000000000003",
+      "openingOutstanding": 1200000,
+      "unbilledSoFar": 0,
+      "cycleStart": "2026-11-15",
+      "cycleEnd": "2026-12-14",
+      "cycleDueDate": "2026-12-28",
+      "openBill": {
+        "statementId": "00000000-0000-4000-8000-000000000006",
+        "remaining": 1200000,
+        "amount": 1200000,
+        "minimumDue": null,
+        "dueDate": "2026-11-28",
+        "isDraft": true,
+        "isOverdue": false
+      },
+      "history": [
+        {
+          "amount": 1200000,
+          "newSpend": 1200000,
+          "cycleDays": 10,
+          "paidInFull": false,
+          "paidLate": true
+        }
+      ],
+      "_id": "00000000-0000-4000-8000-000000000005"
     }
   ],
   "month": {
@@ -44,7 +74,7 @@
   "items": [],
   "transactions": [
     {
-      "id": "00000000-0000-4000-8000-000000000005",
+      "id": "00000000-0000-4000-8000-000000000007",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Freelance",
@@ -69,7 +99,7 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000005",
+      "_id": "00000000-0000-4000-8000-000000000007",
       "tag": "Other",
       "day": 18,
       "dayOfMonth": 18,
@@ -79,7 +109,7 @@
       "accountType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000006",
+      "id": "00000000-0000-4000-8000-000000000008",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Groceries",
@@ -104,7 +134,7 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000006",
+      "_id": "00000000-0000-4000-8000-000000000008",
       "tag": "Food",
       "day": 19,
       "dayOfMonth": 19,
@@ -114,7 +144,7 @@
       "accountType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000007",
+      "id": "00000000-0000-4000-8000-000000000009",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Coffee",
@@ -128,7 +158,7 @@
       "note": "",
       "isIncome": false,
       "recurrence": null,
-      "accountId": "00000000-0000-4000-8000-000000000008",
+      "accountId": "00000000-0000-4000-8000-000000000010",
       "destinationAccountId": null,
       "goalId": null,
       "legacyItemId": null,
@@ -139,17 +169,17 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000007",
+      "_id": "00000000-0000-4000-8000-000000000009",
       "tag": "Food",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
       "originalDate": "2026-11-19",
-      "bankAccountId": "00000000-0000-4000-8000-000000000008",
+      "bankAccountId": "00000000-0000-4000-8000-000000000010",
       "accountType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000009",
+      "id": "00000000-0000-4000-8000-000000000011",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Shoes",
@@ -174,7 +204,7 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000009",
+      "_id": "00000000-0000-4000-8000-000000000011",
       "tag": "Shopping",
       "day": 19,
       "dayOfMonth": 19,
@@ -184,7 +214,7 @@
       "accountType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000010",
+      "id": "00000000-0000-4000-8000-000000000012",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Inter-Account Transfer",
@@ -199,17 +229,17 @@
       "isIncome": false,
       "recurrence": null,
       "accountId": "00000000-0000-4000-8000-000000000003",
-      "destinationAccountId": "00000000-0000-4000-8000-000000000008",
+      "destinationAccountId": "00000000-0000-4000-8000-000000000010",
       "goalId": null,
       "legacyItemId": null,
       "plannedItemId": null,
       "refundTargetTransactionId": null,
-      "transferId": "00000000-0000-4000-8000-000000000011",
+      "transferId": "00000000-0000-4000-8000-000000000013",
       "personFundId": null,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000010",
+      "_id": "00000000-0000-4000-8000-000000000012",
       "tag": "Transfer",
       "day": 19,
       "dayOfMonth": 19,
@@ -217,12 +247,12 @@
       "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank",
-      "destinationBankAccountId": "00000000-0000-4000-8000-000000000008",
-      "destinationId": "00000000-0000-4000-8000-000000000008",
+      "destinationBankAccountId": "00000000-0000-4000-8000-000000000010",
+      "destinationId": "00000000-0000-4000-8000-000000000010",
       "destinationType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000012",
+      "id": "00000000-0000-4000-8000-000000000014",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Holding for Ravi",
@@ -243,11 +273,11 @@
       "plannedItemId": null,
       "refundTargetTransactionId": null,
       "transferId": null,
-      "personFundId": "00000000-0000-4000-8000-000000000013",
+      "personFundId": "00000000-0000-4000-8000-000000000015",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
-      "_id": "00000000-0000-4000-8000-000000000012",
+      "_id": "00000000-0000-4000-8000-000000000014",
       "tag": "Held & Lent",
       "day": 19,
       "dayOfMonth": 19,
@@ -257,7 +287,42 @@
       "accountType": "bank"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000014",
+      "id": "00000000-0000-4000-8000-000000000016",
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "monthId": "00000000-0000-4000-8000-000000000001",
+      "name": "Lent to Asha",
+      "status": "successful",
+      "origin": "lent_out",
+      "amount": 50000,
+      "date": "2026-11-19",
+      "plannedAmount": null,
+      "plannedDate": null,
+      "category": "Held & Lent",
+      "note": "",
+      "isIncome": false,
+      "recurrence": null,
+      "accountId": "00000000-0000-4000-8000-000000000010",
+      "destinationAccountId": null,
+      "goalId": null,
+      "legacyItemId": null,
+      "plannedItemId": null,
+      "refundTargetTransactionId": null,
+      "transferId": null,
+      "personFundId": "00000000-0000-4000-8000-000000000017",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "derivedStatus": "successful",
+      "_id": "00000000-0000-4000-8000-000000000016",
+      "tag": "Held & Lent",
+      "day": 19,
+      "dayOfMonth": 19,
+      "originalDay": 19,
+      "originalDate": "2026-11-19",
+      "bankAccountId": "00000000-0000-4000-8000-000000000010",
+      "accountType": "bank"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000018",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Rent",
@@ -282,7 +347,7 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "planned",
-      "_id": "00000000-0000-4000-8000-000000000014",
+      "_id": "00000000-0000-4000-8000-000000000018",
       "tag": "Housing",
       "day": 28,
       "dayOfMonth": 28,
@@ -294,17 +359,17 @@
   ],
   "transfers": [
     {
-      "id": "00000000-0000-4000-8000-000000000011",
+      "id": "00000000-0000-4000-8000-000000000013",
       "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "date": "2026-11-19",
       "amount": 100000,
       "sourceAccountId": "00000000-0000-4000-8000-000000000003",
-      "destinationAccountId": "00000000-0000-4000-8000-000000000008",
+      "destinationAccountId": "00000000-0000-4000-8000-000000000010",
       "note": "",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
-      "_id": "00000000-0000-4000-8000-000000000011",
+      "_id": "00000000-0000-4000-8000-000000000013",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
@@ -312,8 +377,8 @@
       "sourceBankAccountId": "00000000-0000-4000-8000-000000000003",
       "sourceId": "00000000-0000-4000-8000-000000000003",
       "sourceType": "bank",
-      "destinationBankAccountId": "00000000-0000-4000-8000-000000000008",
-      "destinationId": "00000000-0000-4000-8000-000000000008",
+      "destinationBankAccountId": "00000000-0000-4000-8000-000000000010",
+      "destinationId": "00000000-0000-4000-8000-000000000010",
       "destinationType": "bank"
     }
   ],
@@ -346,7 +411,7 @@
   ],
   "wallets": [
     {
-      "id": "00000000-0000-4000-8000-000000000008",
+      "id": "00000000-0000-4000-8000-000000000010",
       "userId": "00000000-0000-4000-8000-000000000002",
       "name": "UPI",
       "type": "wallet",
@@ -355,7 +420,7 @@
       "accountNumberMasked": "",
       "openingBalance": 250000,
       "openingBalanceDate": null,
-      "currentBalance": 332000,
+      "currentBalance": 282000,
       "minimumBalance": 0,
       "isPrimary": false,
       "isArchived": false,
@@ -366,10 +431,10 @@
       "payFromAccountId": null,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
-      "_id": "00000000-0000-4000-8000-000000000008",
+      "_id": "00000000-0000-4000-8000-000000000010",
       "accountType": "digital",
       "walletType": "digital",
-      "walletId": "00000000-0000-4000-8000-000000000008"
+      "walletId": "00000000-0000-4000-8000-000000000010"
     }
   ],
   "simulation": {
@@ -423,17 +488,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 0,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 13000000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 1
       },
@@ -457,7 +523,7 @@
         "isIncome": true,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000005",
+        "transactionId": "00000000-0000-4000-8000-000000000007",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -486,17 +552,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 0,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14500000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 18
       },
@@ -520,7 +587,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000012",
+        "transactionId": "00000000-0000-4000-8000-000000000014",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -538,7 +605,7 @@
         "destinationWalletId": null,
         "origin": "held_in",
         "passThroughKind": "held_in",
-        "personFundId": "00000000-0000-4000-8000-000000000013",
+        "personFundId": "00000000-0000-4000-8000-000000000015",
         "heldAfter": 200000,
         "lentAfter": 0,
         "isCardSpend": false,
@@ -549,17 +616,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14700000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 19
       },
@@ -583,7 +651,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000006",
+        "transactionId": "00000000-0000-4000-8000-000000000008",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -612,17 +680,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 19
       },
@@ -646,11 +715,11 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000007",
+        "transactionId": "00000000-0000-4000-8000-000000000009",
         "plannedItemId": null,
-        "accountId": "00000000-0000-4000-8000-000000000008",
+        "accountId": "00000000-0000-4000-8000-000000000010",
         "accountType": "bank",
-        "bankAccountId": "00000000-0000-4000-8000-000000000008",
+        "bankAccountId": "00000000-0000-4000-8000-000000000010",
         "walletId": null,
         "transferId": null,
         "transferAmount": null,
@@ -675,17 +744,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 232000
+          "00000000-0000-4000-8000-000000000010": 232000
         },
         "dayOfMonth": 19
       },
@@ -709,7 +779,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000009",
+        "transactionId": "00000000-0000-4000-8000-000000000011",
         "plannedItemId": null,
         "accountId": null,
         "accountType": "credit_card",
@@ -738,17 +808,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 232000
+          "00000000-0000-4000-8000-000000000010": 232000
         },
         "dayOfMonth": 19
       },
@@ -772,21 +843,21 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000010",
+        "transactionId": "00000000-0000-4000-8000-000000000012",
         "plannedItemId": null,
         "accountId": null,
         "accountType": null,
         "bankAccountId": null,
         "walletId": null,
-        "transferId": "00000000-0000-4000-8000-000000000011",
+        "transferId": "00000000-0000-4000-8000-000000000013",
         "transferAmount": 100000,
         "sourceType": "bank",
         "sourceAccountId": "00000000-0000-4000-8000-000000000003",
         "sourceBankAccountId": "00000000-0000-4000-8000-000000000003",
         "sourceWalletId": null,
         "destinationType": "bank",
-        "destinationAccountId": "00000000-0000-4000-8000-000000000008",
-        "destinationBankAccountId": "00000000-0000-4000-8000-000000000008",
+        "destinationAccountId": "00000000-0000-4000-8000-000000000010",
+        "destinationBankAccountId": "00000000-0000-4000-8000-000000000010",
         "destinationWalletId": null,
         "origin": "transfer",
         "passThroughKind": null,
@@ -801,49 +872,48 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14355000,
-          "00000000-0000-4000-8000-000000000008": 332000
+          "00000000-0000-4000-8000-000000000010": 332000
         },
         "dayOfMonth": 19,
         "sourceId": "00000000-0000-4000-8000-000000000003",
-        "destinationId": "00000000-0000-4000-8000-000000000008"
+        "destinationId": "00000000-0000-4000-8000-000000000010"
       },
       {
-        "date": "2026-11-28",
-        "day": 28,
-        "originalDay": 28,
-        "originalDate": "2026-11-28",
-        "label": "Rent",
-        "name": "Rent",
-        "description": "Rent",
-        "category": "Housing",
-        "tag": "Housing",
-        "amount": -2500000,
-        "balanceAfter": 12187000,
-        "accountBalanceAfter": 11855000,
+        "date": "2026-11-19",
+        "day": 19,
+        "originalDay": 19,
+        "originalDate": "2026-11-19",
+        "label": "Lent to Asha",
+        "name": "Lent to Asha",
+        "description": "Lent to Asha",
+        "category": "Held & Lent",
+        "tag": "Held & Lent",
+        "amount": -50000,
+        "balanceAfter": 14637000,
+        "accountBalanceAfter": 282000,
         "sourceAccountBalanceAfter": null,
         "destinationAccountBalanceAfter": null,
-        "itemType": "planned-transaction",
+        "itemType": "pass-through",
         "isSalary": false,
         "isIncome": false,
-        "isPaid": false,
-        "isPending": false,
-        "isActual": false,
-        "itemId": "00000000-0000-4000-8000-000000000014",
-        "transactionId": "00000000-0000-4000-8000-000000000014",
+        "isActual": true,
+        "itemId": null,
+        "transactionId": "00000000-0000-4000-8000-000000000016",
         "plannedItemId": null,
-        "accountId": "00000000-0000-4000-8000-000000000003",
+        "accountId": "00000000-0000-4000-8000-000000000010",
         "accountType": "bank",
-        "bankAccountId": "00000000-0000-4000-8000-000000000003",
+        "bankAccountId": "00000000-0000-4000-8000-000000000010",
         "walletId": null,
         "transferId": null,
         "transferAmount": null,
@@ -855,11 +925,11 @@
         "destinationAccountId": null,
         "destinationBankAccountId": null,
         "destinationWalletId": null,
-        "origin": "planned",
-        "passThroughKind": null,
-        "personFundId": null,
+        "origin": "lent_out",
+        "passThroughKind": "lent_out",
+        "personFundId": "00000000-0000-4000-8000-000000000017",
         "heldAfter": 200000,
-        "lentAfter": 0,
+        "lentAfter": 50000,
         "isCardSpend": false,
         "cardAccountId": null,
         "cardPaymentFor": null,
@@ -868,19 +938,20 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
-          "00000000-0000-4000-8000-000000000003": 11855000,
-          "00000000-0000-4000-8000-000000000008": 332000
+          "00000000-0000-4000-8000-000000000003": 14355000,
+          "00000000-0000-4000-8000-000000000010": 282000
         },
-        "dayOfMonth": 28
+        "dayOfMonth": 19
       }
     ],
     "allEvents": [
@@ -933,17 +1004,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 0,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 13000000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 1
       },
@@ -967,7 +1039,7 @@
         "isIncome": true,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000005",
+        "transactionId": "00000000-0000-4000-8000-000000000007",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -996,17 +1068,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 0,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14500000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 18
       },
@@ -1030,7 +1103,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000012",
+        "transactionId": "00000000-0000-4000-8000-000000000014",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -1048,7 +1121,7 @@
         "destinationWalletId": null,
         "origin": "held_in",
         "passThroughKind": "held_in",
-        "personFundId": "00000000-0000-4000-8000-000000000013",
+        "personFundId": "00000000-0000-4000-8000-000000000015",
         "heldAfter": 200000,
         "lentAfter": 0,
         "isCardSpend": false,
@@ -1059,17 +1132,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14700000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 19
       },
@@ -1093,7 +1167,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000006",
+        "transactionId": "00000000-0000-4000-8000-000000000008",
         "plannedItemId": null,
         "accountId": "00000000-0000-4000-8000-000000000003",
         "accountType": "bank",
@@ -1122,17 +1196,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 250000
+          "00000000-0000-4000-8000-000000000010": 250000
         },
         "dayOfMonth": 19
       },
@@ -1156,11 +1231,11 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000007",
+        "transactionId": "00000000-0000-4000-8000-000000000009",
         "plannedItemId": null,
-        "accountId": "00000000-0000-4000-8000-000000000008",
+        "accountId": "00000000-0000-4000-8000-000000000010",
         "accountType": "bank",
-        "bankAccountId": "00000000-0000-4000-8000-000000000008",
+        "bankAccountId": "00000000-0000-4000-8000-000000000010",
         "walletId": null,
         "transferId": null,
         "transferAmount": null,
@@ -1185,17 +1260,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 0,
+        "cardLiabilityAfter": 1200000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 0
+          "00000000-0000-4000-8000-000000000004": 0,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 232000
+          "00000000-0000-4000-8000-000000000010": 232000
         },
         "dayOfMonth": 19
       },
@@ -1219,7 +1295,7 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000009",
+        "transactionId": "00000000-0000-4000-8000-000000000011",
         "plannedItemId": null,
         "accountId": null,
         "accountType": "credit_card",
@@ -1248,17 +1324,18 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14455000,
-          "00000000-0000-4000-8000-000000000008": 232000
+          "00000000-0000-4000-8000-000000000010": 232000
         },
         "dayOfMonth": 19
       },
@@ -1282,21 +1359,21 @@
         "isIncome": false,
         "isActual": true,
         "itemId": null,
-        "transactionId": "00000000-0000-4000-8000-000000000010",
+        "transactionId": "00000000-0000-4000-8000-000000000012",
         "plannedItemId": null,
         "accountId": null,
         "accountType": null,
         "bankAccountId": null,
         "walletId": null,
-        "transferId": "00000000-0000-4000-8000-000000000011",
+        "transferId": "00000000-0000-4000-8000-000000000013",
         "transferAmount": 100000,
         "sourceType": "bank",
         "sourceAccountId": "00000000-0000-4000-8000-000000000003",
         "sourceBankAccountId": "00000000-0000-4000-8000-000000000003",
         "sourceWalletId": null,
         "destinationType": "bank",
-        "destinationAccountId": "00000000-0000-4000-8000-000000000008",
-        "destinationBankAccountId": "00000000-0000-4000-8000-000000000008",
+        "destinationAccountId": "00000000-0000-4000-8000-000000000010",
+        "destinationBankAccountId": "00000000-0000-4000-8000-000000000010",
         "destinationWalletId": null,
         "origin": "transfer",
         "passThroughKind": null,
@@ -1311,49 +1388,48 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
           "00000000-0000-4000-8000-000000000003": 14355000,
-          "00000000-0000-4000-8000-000000000008": 332000
+          "00000000-0000-4000-8000-000000000010": 332000
         },
         "dayOfMonth": 19,
         "sourceId": "00000000-0000-4000-8000-000000000003",
-        "destinationId": "00000000-0000-4000-8000-000000000008"
+        "destinationId": "00000000-0000-4000-8000-000000000010"
       },
       {
-        "date": "2026-11-28",
-        "day": 28,
-        "originalDay": 28,
-        "originalDate": "2026-11-28",
-        "label": "Rent",
-        "name": "Rent",
-        "description": "Rent",
-        "category": "Housing",
-        "tag": "Housing",
-        "amount": -2500000,
-        "balanceAfter": 12187000,
-        "accountBalanceAfter": 11855000,
+        "date": "2026-11-19",
+        "day": 19,
+        "originalDay": 19,
+        "originalDate": "2026-11-19",
+        "label": "Lent to Asha",
+        "name": "Lent to Asha",
+        "description": "Lent to Asha",
+        "category": "Held & Lent",
+        "tag": "Held & Lent",
+        "amount": -50000,
+        "balanceAfter": 14637000,
+        "accountBalanceAfter": 282000,
         "sourceAccountBalanceAfter": null,
         "destinationAccountBalanceAfter": null,
-        "itemType": "planned-transaction",
+        "itemType": "pass-through",
         "isSalary": false,
         "isIncome": false,
-        "isPaid": false,
-        "isPending": false,
-        "isActual": false,
-        "itemId": "00000000-0000-4000-8000-000000000014",
-        "transactionId": "00000000-0000-4000-8000-000000000014",
+        "isActual": true,
+        "itemId": null,
+        "transactionId": "00000000-0000-4000-8000-000000000016",
         "plannedItemId": null,
-        "accountId": "00000000-0000-4000-8000-000000000003",
+        "accountId": "00000000-0000-4000-8000-000000000010",
         "accountType": "bank",
-        "bankAccountId": "00000000-0000-4000-8000-000000000003",
+        "bankAccountId": "00000000-0000-4000-8000-000000000010",
         "walletId": null,
         "transferId": null,
         "transferAmount": null,
@@ -1365,11 +1441,11 @@
         "destinationAccountId": null,
         "destinationBankAccountId": null,
         "destinationWalletId": null,
-        "origin": "planned",
-        "passThroughKind": null,
-        "personFundId": null,
+        "origin": "lent_out",
+        "passThroughKind": "lent_out",
+        "personFundId": "00000000-0000-4000-8000-000000000017",
         "heldAfter": 200000,
-        "lentAfter": 0,
+        "lentAfter": 50000,
         "isCardSpend": false,
         "cardAccountId": null,
         "cardPaymentFor": null,
@@ -1378,19 +1454,20 @@
         "cardSourceId": null,
         "cardDestinationId": null,
         "statementId": null,
-        "cardLiabilityAfter": 350000,
+        "cardLiabilityAfter": 1550000,
         "cardBalances": {
-          "00000000-0000-4000-8000-000000000004": 350000
+          "00000000-0000-4000-8000-000000000004": 350000,
+          "00000000-0000-4000-8000-000000000005": 1200000
         },
         "accountHeld": {
           "00000000-0000-4000-8000-000000000003": 200000,
-          "00000000-0000-4000-8000-000000000008": 0
+          "00000000-0000-4000-8000-000000000010": 0
         },
         "accountBalances": {
-          "00000000-0000-4000-8000-000000000003": 11855000,
-          "00000000-0000-4000-8000-000000000008": 332000
+          "00000000-0000-4000-8000-000000000003": 14355000,
+          "00000000-0000-4000-8000-000000000010": 282000
         },
-        "dayOfMonth": 28
+        "dayOfMonth": 19
       }
     ],
     "dailyBalances": [
@@ -1449,17 +1526,18 @@
             "cardSourceId": null,
             "cardDestinationId": null,
             "statementId": null,
-            "cardLiabilityAfter": 0,
+            "cardLiabilityAfter": 1200000,
             "cardBalances": {
-              "00000000-0000-4000-8000-000000000004": 0
+              "00000000-0000-4000-8000-000000000004": 0,
+              "00000000-0000-4000-8000-000000000005": 1200000
             },
             "accountHeld": {
               "00000000-0000-4000-8000-000000000003": 0,
-              "00000000-0000-4000-8000-000000000008": 0
+              "00000000-0000-4000-8000-000000000010": 0
             },
             "accountBalances": {
               "00000000-0000-4000-8000-000000000003": 13000000,
-              "00000000-0000-4000-8000-000000000008": 250000
+              "00000000-0000-4000-8000-000000000010": 250000
             },
             "dayOfMonth": 1
           }
@@ -1598,17 +1676,18 @@
             "cardSourceId": null,
             "cardDestinationId": null,
             "statementId": null,
-            "cardLiabilityAfter": 0,
+            "cardLiabilityAfter": 1200000,
             "cardBalances": {
-              "00000000-0000-4000-8000-000000000004": 0
+              "00000000-0000-4000-8000-000000000004": 0,
+              "00000000-0000-4000-8000-000000000005": 1200000
             },
             "accountHeld": {
               "00000000-0000-4000-8000-000000000003": 0,
-              "00000000-0000-4000-8000-000000000008": 0
+              "00000000-0000-4000-8000-000000000010": 0
             },
             "accountBalances": {
               "00000000-0000-4000-8000-000000000003": 13000000,
-              "00000000-0000-4000-8000-000000000008": 250000
+              "00000000-0000-4000-8000-000000000010": 250000
             },
             "dayOfMonth": 1
           }
@@ -1725,13 +1804,13 @@
         "originalDate": "2026-11-08"
       }
     ],
-    "endingBalance": 12187000,
-    "todayBalance": 14687000,
-    "todaysBalance": 14687000,
+    "endingBalance": 10937000,
+    "todayBalance": 14637000,
+    "todaysBalance": 14637000,
     "openingBalance": 5250000,
-    "lowestBalance": 11987000,
+    "lowestBalance": 10737000,
     "lowestDate": "2026-11-28",
-    "lowestUpcomingBalance": 11987000,
+    "lowestUpcomingBalance": 10737000,
     "lowestUpcomingDate": "2026-11-28",
     "pastBreach": null,
     "lowestBalanceDay": 28,
@@ -1747,16 +1826,16 @@
     "salaryTransactionId": null,
     "daysInMonth": 30,
     "itemNetMap": {},
-    "unplannedAllowance": 11750000,
+    "unplannedAllowance": 10500000,
     "totalUnplannedSpent": 613000,
-    "allowanceLeft": 11137000,
+    "allowanceLeft": 9887000,
     "daysLeft": 12,
     "daysElapsed": 19,
-    "safeToSpendPerDay": 928083,
+    "safeToSpendPerDay": 823916,
     "safeVelocity": {
-      "safeVelocityPerDay": 928083,
-      "rate": 928083,
-      "freeSurplus": 11137000,
+      "safeVelocityPerDay": 823916,
+      "rate": 823916,
+      "freeSurplus": 9887000,
       "burnRatePerDay": 32263,
       "burnRate": 32263,
       "committedUpcomingItems": 2500000,
@@ -1764,14 +1843,14 @@
       "activeGoalsCost": 0,
       "goalReserve": 0,
       "heldReserve": 200000,
-      "cardReserve": 350000,
+      "cardReserve": 1550000,
       "daysLeft": 12,
       "daysElapsed": 19,
       "paceStatus": "expanding",
       "status": "expanding"
     },
-    "cardReserve": 350000,
-    "cardLiability": 350000,
+    "cardReserve": 1550000,
+    "cardLiability": 1550000,
     "cards": [
       {
         "id": "00000000-0000-4000-8000-000000000004",
@@ -1794,10 +1873,10 @@
           "band": "comfortable",
           "bandLabel": "Comfortable",
           "projectedBill": 368421,
-          "capacity": 19487000,
-          "coverage": 52.89,
+          "capacity": 17037000,
+          "coverage": 46.24,
           "shortfall": 0,
-          "safeCardSpendPerDay": 19137000,
+          "safeCardSpendPerDay": 16687000,
           "daysRemaining": 1,
           "latePayments": 0,
           "utilization": 0.035,
@@ -1807,37 +1886,86 @@
             "nextBill": 368421,
             "changeFromPrevious": null
           },
-          "statement": "At your current pace this card's bill will be about ₹3,684. By 5 Dec you'll have about ₹1,94,870 you can safely pay. You can pay it in full with room to spare. Keep card spending under ₹1,91,370/day for the remaining 1 day of this cycle to stay payable.",
+          "statement": "At your current pace this card's bill will be about ₹3,684. By 5 Dec you'll have about ₹1,70,370 you can safely pay. You can pay it in full with room to spare. Keep card spending under ₹1,66,870/day for the remaining 1 day of this cycle to stay payable.",
           "rate": 18421,
           "currentRate": 18421,
           "historicalRate": null
         },
         "_id": "00000000-0000-4000-8000-000000000004"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "name": "Amex",
+        "creditLimit": 5000000,
+        "outstanding": 1200000,
+        "openingOutstanding": 1200000,
+        "endingOutstanding": 0,
+        "unbilledSoFar": 0,
+        "billedUnpaid": 1200000,
+        "utilization": 0.24,
+        "availableCredit": 3800000,
+        "cycleStart": "2026-11-15",
+        "nextStatementDate": "2026-12-14",
+        "nextDueDate": "2026-12-28",
+        "openBill": {
+          "statementId": "00000000-0000-4000-8000-000000000006",
+          "remaining": 1200000,
+          "amount": 1200000,
+          "minimumDue": null,
+          "dueDate": "2026-11-28",
+          "isDraft": true,
+          "isOverdue": false
+        },
+        "payFromAccountId": "00000000-0000-4000-8000-000000000003",
+        "payability": {
+          "score": 95,
+          "band": "comfortable",
+          "bandLabel": "Comfortable",
+          "projectedBill": 2400000,
+          "capacity": 19068579,
+          "coverage": 7.95,
+          "shortfall": 0,
+          "safeCardSpendPerDay": 714743,
+          "daysRemaining": 25,
+          "latePayments": 1,
+          "utilization": 0.24,
+          "trend": {
+            "previousBill": 1200000,
+            "averageBill": 1200000,
+            "nextBill": 1200000,
+            "changeFromPrevious": 0
+          },
+          "statement": "At your current pace this card's next bill will be about ₹12,000. ₹12,000 is still due on the current bill, so ₹24,000 in all. By 28 Dec you'll have about ₹1,90,686 you can safely pay. You can pay it in full with room to spare. Keep card spending under ₹7,147/day for the remaining 25 days of this cycle to stay payable.",
+          "rate": 48000,
+          "currentRate": 0,
+          "historicalRate": 120000
+        },
+        "_id": "00000000-0000-4000-8000-000000000005"
       }
     ],
     "cardPayability": {
       "score": 100,
       "band": "comfortable",
       "bandLabel": "Comfortable",
-      "projectedBill": 368421,
-      "capacity": 19487000,
-      "coverage": 52.89,
+      "projectedBill": 2768421,
+      "capacity": 19437000,
+      "coverage": 7.02,
       "shortfall": 0,
-      "safeCardSpendPerDay": 19137000,
+      "safeCardSpendPerDay": 17887000,
       "daysRemaining": 1,
       "latePayments": 0,
-      "utilization": 0.035,
+      "utilization": 0.103,
       "trend": {
         "previousBill": null,
         "averageBill": null,
-        "nextBill": 368421,
+        "nextBill": 1568421,
         "changeFromPrevious": null
       },
-      "statement": "At your current pace this card's bill will be about ₹3,684. By 5 Dec you'll have about ₹1,94,870 you can safely pay. You can pay it in full with room to spare. Keep card spending under ₹1,91,370/day for the remaining 1 day of this cycle to stay payable."
+      "statement": "At your current pace this card's next bill will be about ₹15,684. ₹12,000 is still due on the current bill, so ₹27,684 in all. By 5 Dec you'll have about ₹1,94,370 you can safely pay. You can pay it in full with room to spare. Keep card spending under ₹1,78,870/day for the remaining 1 day of this cycle to stay payable."
     },
     "heldReserve": 200000,
     "heldForOthers": 200000,
-    "lentOutstanding": 0,
+    "lentOutstanding": 50000,
     "heldByDay": {
       "1": 0,
       "2": 0,
@@ -1873,12 +2001,12 @@
     "passThrough": {
       "heldIn": 200000,
       "heldReturned": 0,
-      "lentOut": 0,
+      "lentOut": 50000,
       "lentRepaid": 0,
       "heldOpening": 0,
       "lentOpening": 0,
       "heldEnding": 200000,
-      "lentEnding": 0
+      "lentEnding": 50000
     },
     "accounts": {
       "00000000-0000-4000-8000-000000000003": {
@@ -1890,11 +2018,11 @@
         "accountType": "bank",
         "accountNumberMasked": "",
         "openingBalance": 5000000,
-        "endingBalance": 11855000,
+        "endingBalance": 10655000,
         "todayBalance": 14355000,
-        "lowestBalance": 11655000,
+        "lowestBalance": 10455000,
         "lowestDate": "2026-11-28",
-        "lowestUpcomingBalance": 11655000,
+        "lowestUpcomingBalance": 10455000,
         "lowestUpcomingDate": "2026-11-28",
         "pastBreach": null,
         "minimumBalance": 0,
@@ -1907,17 +2035,17 @@
         "isSalaryCredited": false,
         "salaryCreditedDate": null,
         "safeVelocity": {
-          "rate": 971250,
-          "safeVelocityPerDay": 971250,
+          "rate": 871250,
+          "safeVelocityPerDay": 871250,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 11655000,
+          "freeSurplus": 10455000,
           "burnRate": 12895,
           "burnRatePerDay": 12895,
-          "committedBills": 2500000,
-          "committedUpcomingItems": 2500000,
-          "totalAllowance": 11900000,
-          "allowanceLeft": 11655000,
+          "committedBills": 3700000,
+          "committedUpcomingItems": 3700000,
+          "totalAllowance": 10700000,
+          "allowanceLeft": 10455000,
           "activeGoalsCost": 0,
           "heldReserve": 200000,
           "daysLeft": 12,
@@ -1926,8 +2054,8 @@
         "_id": "00000000-0000-4000-8000-000000000003",
         "bankAccountId": "00000000-0000-4000-8000-000000000003"
       },
-      "00000000-0000-4000-8000-000000000008": {
-        "id": "00000000-0000-4000-8000-000000000008",
+      "00000000-0000-4000-8000-000000000010": {
+        "id": "00000000-0000-4000-8000-000000000010",
         "altId": null,
         "type": "wallet",
         "name": "UPI",
@@ -1935,11 +2063,11 @@
         "accountType": "wallet",
         "accountNumberMasked": "",
         "openingBalance": 250000,
-        "endingBalance": 332000,
-        "todayBalance": 332000,
+        "endingBalance": 282000,
+        "todayBalance": 282000,
         "lowestBalance": 250000,
         "lowestDate": "2026-11-01",
-        "lowestUpcomingBalance": 332000,
+        "lowestUpcomingBalance": 282000,
         "lowestUpcomingDate": "2026-11-19",
         "pastBreach": null,
         "minimumBalance": 0,
@@ -1952,25 +2080,25 @@
         "isSalaryCredited": false,
         "salaryCreditedDate": null,
         "safeVelocity": {
-          "rate": 27666,
-          "safeVelocityPerDay": 27666,
+          "rate": 23500,
+          "safeVelocityPerDay": 23500,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 332000,
+          "freeSurplus": 282000,
           "burnRate": 947,
           "burnRatePerDay": 947,
           "committedBills": 0,
           "committedUpcomingItems": 0,
-          "totalAllowance": 350000,
-          "allowanceLeft": 332000,
+          "totalAllowance": 300000,
+          "allowanceLeft": 282000,
           "activeGoalsCost": 0,
           "heldReserve": 0,
           "daysLeft": 12,
           "daysElapsed": 19
         },
-        "_id": "00000000-0000-4000-8000-000000000008",
+        "_id": "00000000-0000-4000-8000-000000000010",
         "walletType": "cash",
-        "walletId": "00000000-0000-4000-8000-000000000008"
+        "walletId": "00000000-0000-4000-8000-000000000010"
       }
     },
     "accountSummaries": [
@@ -1983,11 +2111,11 @@
         "accountType": "bank",
         "accountNumberMasked": "",
         "openingBalance": 5000000,
-        "endingBalance": 11855000,
+        "endingBalance": 10655000,
         "todayBalance": 14355000,
-        "lowestBalance": 11655000,
+        "lowestBalance": 10455000,
         "lowestDate": "2026-11-28",
-        "lowestUpcomingBalance": 11655000,
+        "lowestUpcomingBalance": 10455000,
         "lowestUpcomingDate": "2026-11-28",
         "pastBreach": null,
         "minimumBalance": 0,
@@ -2000,17 +2128,17 @@
         "isSalaryCredited": false,
         "salaryCreditedDate": null,
         "safeVelocity": {
-          "rate": 971250,
-          "safeVelocityPerDay": 971250,
+          "rate": 871250,
+          "safeVelocityPerDay": 871250,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 11655000,
+          "freeSurplus": 10455000,
           "burnRate": 12895,
           "burnRatePerDay": 12895,
-          "committedBills": 2500000,
-          "committedUpcomingItems": 2500000,
-          "totalAllowance": 11900000,
-          "allowanceLeft": 11655000,
+          "committedBills": 3700000,
+          "committedUpcomingItems": 3700000,
+          "totalAllowance": 10700000,
+          "allowanceLeft": 10455000,
           "activeGoalsCost": 0,
           "heldReserve": 200000,
           "daysLeft": 12,
@@ -2020,7 +2148,7 @@
         "bankAccountId": "00000000-0000-4000-8000-000000000003"
       },
       {
-        "id": "00000000-0000-4000-8000-000000000008",
+        "id": "00000000-0000-4000-8000-000000000010",
         "altId": null,
         "type": "wallet",
         "name": "UPI",
@@ -2028,11 +2156,11 @@
         "accountType": "wallet",
         "accountNumberMasked": "",
         "openingBalance": 250000,
-        "endingBalance": 332000,
-        "todayBalance": 332000,
+        "endingBalance": 282000,
+        "todayBalance": 282000,
         "lowestBalance": 250000,
         "lowestDate": "2026-11-01",
-        "lowestUpcomingBalance": 332000,
+        "lowestUpcomingBalance": 282000,
         "lowestUpcomingDate": "2026-11-19",
         "pastBreach": null,
         "minimumBalance": 0,
@@ -2045,25 +2173,25 @@
         "isSalaryCredited": false,
         "salaryCreditedDate": null,
         "safeVelocity": {
-          "rate": 27666,
-          "safeVelocityPerDay": 27666,
+          "rate": 23500,
+          "safeVelocityPerDay": 23500,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 332000,
+          "freeSurplus": 282000,
           "burnRate": 947,
           "burnRatePerDay": 947,
           "committedBills": 0,
           "committedUpcomingItems": 0,
-          "totalAllowance": 350000,
-          "allowanceLeft": 332000,
+          "totalAllowance": 300000,
+          "allowanceLeft": 282000,
           "activeGoalsCost": 0,
           "heldReserve": 0,
           "daysLeft": 12,
           "daysElapsed": 19
         },
-        "_id": "00000000-0000-4000-8000-000000000008",
+        "_id": "00000000-0000-4000-8000-000000000010",
         "walletType": "cash",
-        "walletId": "00000000-0000-4000-8000-000000000008"
+        "walletId": "00000000-0000-4000-8000-000000000010"
       }
     ],
     "accountDailyBalances": {
@@ -2123,17 +2251,18 @@
               "cardSourceId": null,
               "cardDestinationId": null,
               "statementId": null,
-              "cardLiabilityAfter": 0,
+              "cardLiabilityAfter": 1200000,
               "cardBalances": {
-                "00000000-0000-4000-8000-000000000004": 0
+                "00000000-0000-4000-8000-000000000004": 0,
+                "00000000-0000-4000-8000-000000000005": 1200000
               },
               "accountHeld": {
                 "00000000-0000-4000-8000-000000000003": 0,
-                "00000000-0000-4000-8000-000000000008": 0
+                "00000000-0000-4000-8000-000000000010": 0
               },
               "accountBalances": {
                 "00000000-0000-4000-8000-000000000003": 13000000,
-                "00000000-0000-4000-8000-000000000008": 250000
+                "00000000-0000-4000-8000-000000000010": 250000
               },
               "dayOfMonth": 1
             }
@@ -2213,7 +2342,7 @@
           "originalDate": "2026-11-08"
         }
       ],
-      "00000000-0000-4000-8000-000000000008": [
+      "00000000-0000-4000-8000-000000000010": [
         {
           "day": 1,
           "date": "2026-11-01",
@@ -2374,10 +2503,10 @@
       "00000000-0000-4000-8000-000000000003": {
         "todayBalance": 14355000,
         "todaysBalance": 14355000,
-        "endingBalance": 11855000,
-        "lowestBalance": 11655000,
+        "endingBalance": 10655000,
+        "lowestBalance": 10455000,
         "lowestDate": "2026-11-28",
-        "lowestUpcomingBalance": 11655000,
+        "lowestUpcomingBalance": 10455000,
         "lowestUpcomingDate": "2026-11-28",
         "pastBreach": null,
         "floorBreached": false,
@@ -2437,17 +2566,18 @@
                 "cardSourceId": null,
                 "cardDestinationId": null,
                 "statementId": null,
-                "cardLiabilityAfter": 0,
+                "cardLiabilityAfter": 1200000,
                 "cardBalances": {
-                  "00000000-0000-4000-8000-000000000004": 0
+                  "00000000-0000-4000-8000-000000000004": 0,
+                  "00000000-0000-4000-8000-000000000005": 1200000
                 },
                 "accountHeld": {
                   "00000000-0000-4000-8000-000000000003": 0,
-                  "00000000-0000-4000-8000-000000000008": 0
+                  "00000000-0000-4000-8000-000000000010": 0
                 },
                 "accountBalances": {
                   "00000000-0000-4000-8000-000000000003": 13000000,
-                  "00000000-0000-4000-8000-000000000008": 250000
+                  "00000000-0000-4000-8000-000000000010": 250000
                 },
                 "dayOfMonth": 1
               }
@@ -2533,30 +2663,30 @@
         "incomeAmount": 9500000,
         "totalExpenses": 2745000,
         "safeVelocity": {
-          "rate": 971250,
-          "safeVelocityPerDay": 971250,
+          "rate": 871250,
+          "safeVelocityPerDay": 871250,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 11655000,
+          "freeSurplus": 10455000,
           "burnRate": 12895,
           "burnRatePerDay": 12895,
-          "committedBills": 2500000,
-          "committedUpcomingItems": 2500000,
-          "totalAllowance": 11900000,
-          "allowanceLeft": 11655000,
+          "committedBills": 3700000,
+          "committedUpcomingItems": 3700000,
+          "totalAllowance": 10700000,
+          "allowanceLeft": 10455000,
           "activeGoalsCost": 0,
           "heldReserve": 200000,
           "daysLeft": 12,
           "daysElapsed": 19
         }
       },
-      "00000000-0000-4000-8000-000000000008": {
-        "todayBalance": 332000,
-        "todaysBalance": 332000,
-        "endingBalance": 332000,
+      "00000000-0000-4000-8000-000000000010": {
+        "todayBalance": 282000,
+        "todaysBalance": 282000,
+        "endingBalance": 282000,
         "lowestBalance": 250000,
         "lowestDate": "2026-11-01",
-        "lowestUpcomingBalance": 332000,
+        "lowestUpcomingBalance": 282000,
         "lowestUpcomingDate": "2026-11-19",
         "pastBreach": null,
         "floorBreached": false,
@@ -2648,17 +2778,17 @@
         "incomeAmount": 0,
         "totalExpenses": 18000,
         "safeVelocity": {
-          "rate": 27666,
-          "safeVelocityPerDay": 27666,
+          "rate": 23500,
+          "safeVelocityPerDay": 23500,
           "status": "expanding",
           "paceStatus": "expanding",
-          "freeSurplus": 332000,
+          "freeSurplus": 282000,
           "burnRate": 947,
           "burnRatePerDay": 947,
           "committedBills": 0,
           "committedUpcomingItems": 0,
-          "totalAllowance": 350000,
-          "allowanceLeft": 332000,
+          "totalAllowance": 300000,
+          "allowanceLeft": 282000,
           "activeGoalsCost": 0,
           "heldReserve": 0,
           "daysLeft": 12,
@@ -2671,10 +2801,10 @@
     "00000000-0000-4000-8000-000000000003": {
       "todayBalance": 14355000,
       "todaysBalance": 14355000,
-      "endingBalance": 11855000,
-      "lowestBalance": 11655000,
+      "endingBalance": 10655000,
+      "lowestBalance": 10455000,
       "lowestDate": "2026-11-28",
-      "lowestUpcomingBalance": 11655000,
+      "lowestUpcomingBalance": 10455000,
       "lowestUpcomingDate": "2026-11-28",
       "pastBreach": null,
       "floorBreached": false,
@@ -2734,17 +2864,18 @@
               "cardSourceId": null,
               "cardDestinationId": null,
               "statementId": null,
-              "cardLiabilityAfter": 0,
+              "cardLiabilityAfter": 1200000,
               "cardBalances": {
-                "00000000-0000-4000-8000-000000000004": 0
+                "00000000-0000-4000-8000-000000000004": 0,
+                "00000000-0000-4000-8000-000000000005": 1200000
               },
               "accountHeld": {
                 "00000000-0000-4000-8000-000000000003": 0,
-                "00000000-0000-4000-8000-000000000008": 0
+                "00000000-0000-4000-8000-000000000010": 0
               },
               "accountBalances": {
                 "00000000-0000-4000-8000-000000000003": 13000000,
-                "00000000-0000-4000-8000-000000000008": 250000
+                "00000000-0000-4000-8000-000000000010": 250000
               },
               "dayOfMonth": 1
             }
@@ -2830,30 +2961,30 @@
       "incomeAmount": 9500000,
       "totalExpenses": 2745000,
       "safeVelocity": {
-        "rate": 971250,
-        "safeVelocityPerDay": 971250,
+        "rate": 871250,
+        "safeVelocityPerDay": 871250,
         "status": "expanding",
         "paceStatus": "expanding",
-        "freeSurplus": 11655000,
+        "freeSurplus": 10455000,
         "burnRate": 12895,
         "burnRatePerDay": 12895,
-        "committedBills": 2500000,
-        "committedUpcomingItems": 2500000,
-        "totalAllowance": 11900000,
-        "allowanceLeft": 11655000,
+        "committedBills": 3700000,
+        "committedUpcomingItems": 3700000,
+        "totalAllowance": 10700000,
+        "allowanceLeft": 10455000,
         "activeGoalsCost": 0,
         "heldReserve": 200000,
         "daysLeft": 12,
         "daysElapsed": 19
       }
     },
-    "00000000-0000-4000-8000-000000000008": {
-      "todayBalance": 332000,
-      "todaysBalance": 332000,
-      "endingBalance": 332000,
+    "00000000-0000-4000-8000-000000000010": {
+      "todayBalance": 282000,
+      "todaysBalance": 282000,
+      "endingBalance": 282000,
       "lowestBalance": 250000,
       "lowestDate": "2026-11-01",
-      "lowestUpcomingBalance": 332000,
+      "lowestUpcomingBalance": 282000,
       "lowestUpcomingDate": "2026-11-19",
       "pastBreach": null,
       "floorBreached": false,
@@ -2945,17 +3076,17 @@
       "incomeAmount": 0,
       "totalExpenses": 18000,
       "safeVelocity": {
-        "rate": 27666,
-        "safeVelocityPerDay": 27666,
+        "rate": 23500,
+        "safeVelocityPerDay": 23500,
         "status": "expanding",
         "paceStatus": "expanding",
-        "freeSurplus": 332000,
+        "freeSurplus": 282000,
         "burnRate": 947,
         "burnRatePerDay": 947,
         "committedBills": 0,
         "committedUpcomingItems": 0,
-        "totalAllowance": 350000,
-        "allowanceLeft": 332000,
+        "totalAllowance": 300000,
+        "allowanceLeft": 282000,
         "activeGoalsCost": 0,
         "heldReserve": 0,
         "daysLeft": 12,

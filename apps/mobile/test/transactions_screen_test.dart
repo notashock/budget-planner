@@ -82,8 +82,8 @@ void main() {
     final budget = (await tester.runAsync(load))!;
     await pump(tester, budget);
 
-    expect(find.text('Successful (7)'), findsOneWidget);
-    expect(find.text('All (7)'), findsOneWidget);
+    expect(find.text('Successful (8)'), findsOneWidget);
+    expect(find.text('All (8)'), findsOneWidget);
     expect(find.text('Expenses (4)'), findsOneWidget, reason: 'Groceries, Coffee, Shoes and the refund');
     expect(find.text('Incomes (1)'), findsOneWidget);
   });
@@ -100,6 +100,7 @@ void main() {
     }
     expect(find.text('Inter-Account Transfer'), findsNothing);
     expect(find.text('Holding for Ravi'), findsNothing);
+    expect(find.text('Lent to Asha'), findsNothing);
     expect(find.text('Freelance'), findsNothing);
   });
 
