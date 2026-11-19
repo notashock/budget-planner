@@ -1,0 +1,28 @@
+{
+  "funds": [
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "personName": "Ravi",
+      "direction": "held",
+      "note": "",
+      "expectedSettleDate": null,
+      "status": "open",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "outstanding": 200000,
+      "settleAccountId": "00000000-0000-4000-8000-000000000003",
+      "totalIn": 200000,
+      "totalOut": 0,
+      "plannedIn": 0,
+      "plannedOut": 0,
+      "lastActivityDate": "2026-11-19",
+      "entryCount": 1,
+      "_id": "00000000-0000-4000-8000-000000000013"
+    }
+  ],
+  "totals": {
+    "held": 200000,
+    "lent": 0
+  }
+}
