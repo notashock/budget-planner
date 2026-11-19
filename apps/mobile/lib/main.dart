@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/budget_provider.dart';
+import 'providers/app_lock_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'screens/auth_screen.dart';
@@ -13,6 +14,7 @@ import 'screens/accounts_screen.dart';
 import 'screens/assistant_screen.dart';
 import 'widgets/header.dart';
 import 'widgets/load_error_banner.dart';
+import 'widgets/app_lock_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +25,16 @@ void main() async {
   final authProvider = AuthProvider();
   await authProvider.init();
 
+  // Before the first frame, so a locked app never shows its contents.
+  final appLock = AppLockProvider();
+  await appLock.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: appLock),
         ChangeNotifierProvider(create: (_) => BudgetProvider()),
       ],
       child: const BudgetMobileApp(),
@@ -35,8 +42,30 @@ void main() async {
   );
 }
 
-class BudgetMobileApp extends StatelessWidget {
+class BudgetMobileApp extends StatefulWidget {
   const BudgetMobileApp({super.key});
+
+  @override
+  State<BudgetMobileApp> createState() => _BudgetMobileAppState();
+}
+
+class _BudgetMobileAppState extends State<BudgetMobileApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    context.read<AppLockProvider>().handleLifecycle(state);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +78,13 @@ class BudgetMobileApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      // App lock sits above the navigator, so it also covers open sheets and
+      // dialogs. The app underneath stays mounted (state kept) but offstage:
+      // not painted and not read by screen readers.
+      builder: (context, child) => AppLockGate(
+        signedIn: authProvider.isAuthenticated,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: authProvider.isLoading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : (authProvider.isAuthenticated ? const AppShell() : const AuthScreen()),

@@ -6,6 +6,8 @@ import '../providers/auth_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
 import 'server_settings_dialog.dart';
+import 'app_lock_settings_sheet.dart';
+import '../providers/app_lock_provider.dart';
 import '../modals/month_modals.dart';
 import '../modals/salary_safeline_modal.dart';
 
@@ -202,6 +204,20 @@ class HeaderWidget extends StatelessWidget {
                   color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                 ),
                 onPressed: () => theme.cycleTheme(),
+              ),
+
+              // App lock settings
+              IconButton(
+                key: const ValueKey('header-app-lock'),
+                tooltip: 'App lock',
+                iconSize: 18,
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  context.select<AppLockProvider, bool>((l) => l.isEnabled) ? Icons.lock : Icons.lock_open_outlined,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
+                onPressed: () => AppLockSettingsSheet.show(context),
               ),
 
               // Server Settings (for physical mobile device testing)

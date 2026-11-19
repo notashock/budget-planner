@@ -231,6 +231,24 @@ Each phase is a set of small PRs. A phase is done only when its **exit criteria*
 - **Goals tab fixed:** month detail never carried goals, so the tab was always empty. They now load from `GET /periods/:y/:m/goals`.
 - **1.10:** `apps/server/test/mobile_contract_fixtures.test.js` records 8 responses into `apps/mobile/test/fixtures/api/` (`RECORD_MOBILE_FIXTURES=1`), and on every CI run fails if the server drops or retypes a field they contain.
 - Next screens to migrate: Accounts, Goals, Plan (the remaining `Map<String, dynamic>` users).
+
+**Status, third PR (1.9 App lock):** opt-in from the lock icon in the header. Not copied from the release branch, which had several problems:
+- it could re-lock right after a successful unlock;
+- the notification shade alone could lock the app;
+- its custom PIN was stored in plain text, compared with `==` and had no attempt limit;
+- there was no way out if the sensor failed;
+- turning it on wasn't verified.
+
+The new version:
+- uses the phone's own prompt (fingerprint or face, with the device PIN/pattern as fallback), so the app keeps no PIN of its own;
+- needs one successful authentication to turn on;
+- counts only paused/hidden toward the lock delay (immediately, 30 s, 1 min or 5 min) and ignores lifecycle events during a prompt;
+- always offers "Sign out instead" on the lock screen;
+- switches itself off if the phone's screen lock is removed;
+- draws above the navigator, so it also covers open sheets and dialogs, while the app keeps its state offstage;
+- shows an opaque cover while the app isn't in front, plus Android `FLAG_SECURE` (no screenshots, blank recents thumbnail).
+
+Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompat (needed for Android 8 and below), and `NSFaceIDUsageDescription` is set. iOS is not built or tested here.
 - Found while recording, for later:
   - the serializer sets `accountType`/`destinationType` to `'bank'` for wallet and card rows (`utils/serializer.js`);
   - month detail is ~236 KB because the simulation appears several times over (`events`/`allEvents`, `days`/`dailyBalances`, `accountSimulations` twice), which is Phase 2 payload work.
