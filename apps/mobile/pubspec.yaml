@@ -1,5 +1,5 @@
 name: budget_mobile
-description: "A new Flutter project."
+description: "Budget Planner mobile app: plan the month, log spends, and track safe-to-spend."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
