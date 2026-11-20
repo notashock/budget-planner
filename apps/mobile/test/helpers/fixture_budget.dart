@@ -43,7 +43,16 @@ class FixtureBudget {
       if (req.method != 'GET') return okJson(<String, dynamic>{});
       if (path == '/api/settings') return okJson(<String, dynamic>{});
       if (path == '/api/v1/periods') return okJson(fixtures['periods']);
-      if (RegExp(r'^/api/v1/periods/\d+/\d+$').hasMatch(path)) return okJson(fixtures['month_detail']);
+      if (RegExp(r'^/api/v1/periods/\d+/\d+$').hasMatch(path)) {
+        // The server's month detail carries the same account and transfer rows
+        // as their own endpoints; serve the (possibly edited) list fixtures.
+        return okJson({
+          ...fixtures['month_detail'] as Map<String, dynamic>,
+          'bankAccounts': fixtures['accounts_bank'],
+          'wallets': fixtures['accounts_wallet'],
+          'transfers': fixtures['transfers'],
+        });
+      }
       if (RegExp(r'^/api/v1/periods/\d+/\d+/goals$').hasMatch(path)) return okJson(fixtures['goals']);
       if (path == '/api/v1/accounts') {
         return okJson(fixtures[req.url.queryParameters['type'] == 'wallet' ? 'accounts_wallet' : 'accounts_bank']);

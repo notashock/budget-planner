@@ -287,6 +287,14 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 
 **Exit:** profile-mode traces on a mid-range Android device: cold start to cached Plan < 1 s, save-to-updated-number < 300 ms optimistic / < 1.5 s confirmed on 4G, no jank frames > 16 ms when scrolling 500 transactions. Airplane-mode test: log 3 spends, reconnect, exactly 3 on the server.
 
+**Status, first Phase 2 PR (2.1, 2.4, 2.5, 2.6):**
+- **2.1:** a load or a reload after a save is now **2 requests in parallel** (month detail + goals), down from 5 in series. Month detail already carries the active banks, wallets and the month's transfers (the same rows `/accounts` and `/transfers?monthId` return, checked against the recorded fixtures). A detail without those lists is reported as unreadable, never shown as "no accounts". Only a missing month (404) fetches the accounts on their own; it now shows no transfers, where it used to list every transfer ever made.
+- **2.4:** already done in Phase 1 (token kept in memory after the first read).
+- **2.5:** Inter and JetBrains Mono (weights 400–800, ~2.1 MB, OFL licences registered) ship in `google_fonts/`; runtime fetching is off in the app and in tests. The files are the ones `google_fonts` 6.3.3 downloaded before, checked against the SHA-256 it pins.
+- **2.6:** the start month is saved on the device after each good load. A cold start shows it at once with "Showing saved data from 10:42 · updating", then the server's answer replaces it. Offline, it stays with the usual "Offline · showing data from …" strip. It holds only server figures (ADR 0052). It is deleted whenever the token changes (sign-in, sign-out, expiry), never written after a sign-out mid-load, and browsing other months doesn't replace it. Stored in SharedPreferences (app-private, not encrypted); move it to an encrypted store if that is not acceptable.
+- **Not measured yet:** the exit timings need a profile build on a real device.
+- **Next PRs:** 2.7 outbox + 2.8 optimistic insert (with ADR 0071); then 2.2/2.3/2.9 rebuild and list work, and the ~236 KB month payload.
+
 ### Phase 3 — UI / UX (weeks 6–9)
 
 | # | Task |
