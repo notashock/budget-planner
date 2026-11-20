@@ -13,6 +13,7 @@ import '../engine/entry_assists.dart';
 import 'mark_paid_modal.dart';
 import 'salary_safeline_modal.dart';
 import '../services/entry_memory.dart';
+import '../services/outbox.dart';
 import '../widgets/confirm_dialog.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
@@ -347,9 +348,23 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     _goalPriority = g.priority.rank;
   }
 
-  // Save helpers: update when editing, create otherwise
-  Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload) =>
-      _isEditing ? budget.updateTransaction(_editId, payload) : budget.addTransaction(payload);
+  // Save helpers: update when editing, create otherwise.
+  // A new spend, refund or income does not wait for the server (upgrade plan
+  // 2.8, ADR 0071): it shows as "Saving…" in the sync strip and the sheet
+  // closes. Only a refusal comes back, as a snackbar.
+  Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload, {required String label}) async {
+    if (_isEditing) return budget.updateTransaction(_editId, payload);
+    final messenger = ScaffoldMessenger.of(context);
+    unawaited(budget.addTransaction(payload).then((result) {
+      if (result == WriteResult.queued) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('No connection. \u201c$label\u201d is saved on this phone and will sync.'),
+        ));
+      }
+    }, onError: (Object e) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn\u2019t save \u201c$label\u201d: $e')));
+    }));
+  }
 
   Future<void> _saveItem(BudgetProvider budget, Map<String, dynamic> payload) =>
       _isEditing ? budget.updateItem(_editId, payload) : budget.addItem(payload);
@@ -1365,7 +1380,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         }
 
         final incNote = _nameCtrl.text.trim();
-        await _saveTx(budget, {
+        await _saveTx(budget, label: incNote.isNotEmpty ? incNote : '$_incSource income', {
           'amount': amt,
           'isIncome': true,
           'tag': _incSource,
@@ -1396,7 +1411,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           setState(() => _submitting = false);
           return;
         }
-        await _saveTx(budget, {
+        await _saveTx(budget, label: name, {
           'description': name,
           'amount': isRefund ? -amt : amt,
           'day': day,

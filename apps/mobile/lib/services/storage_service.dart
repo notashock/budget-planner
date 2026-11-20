@@ -9,6 +9,7 @@ class StorageService {
   static const String keyTheme = 'budget_theme';
   static const String keyBaseUrl = 'budget_base_url';
   static const String keyMonthCache = 'budget_month_cache_v1';
+  static const String keyUser = 'budget_user';
 
   /// Server used until the user picks one in server settings. Set per build:
   /// `flutter build apk --dart-define=API_BASE_URL=https://api.example.com`.
@@ -63,7 +64,34 @@ class StorageService {
     if (prefs.containsKey(keyToken)) await prefs.remove(keyToken);
     // A new session (sign-in, sign-out, expiry) never sees the last one's month.
     await prefs.remove(keyMonthCache);
+    if (token == null || token.isEmpty) await prefs.remove(keyUser);
   }
+
+  /// The signed-in user as the server last described it (`id`, `email`), so
+  /// the app can start offline and knows whose outbox entries to show.
+  static Future<Map<String, dynamic>?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(keyUser);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static Future<void> setUser(Map<String, dynamic>? user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = user?['id'] ?? user?['_id'];
+    if (id == null) {
+      await prefs.remove(keyUser);
+    } else {
+      await prefs.setString(keyUser, jsonEncode({'id': '$id', 'email': ?user?['email']}));
+    }
+  }
+
+  static Future<String?> getUserId() async => (await getUser())?['id'] as String?;
 
   /// The last month loaded from the server (see BudgetProvider), or null.
   static Future<Map<String, dynamic>?> readMonthCache() async {

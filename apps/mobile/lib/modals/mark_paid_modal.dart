@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../services/outbox.dart';
 import '../engine/engine.dart';
 import '../models/transaction.dart';
 import '../theme/app_form.dart';
@@ -87,7 +88,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
     final dateStr = _formatDateYmd(_selectedDate);
 
     try {
-      await budget.payTransaction(
+      final result = await budget.payTransaction(
         txId,
         accountId: _selectedAccountId,
         amount: amountInCents,
@@ -95,9 +96,11 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
       );
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction successfully marked as paid')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result == WriteResult.queued
+              ? 'No connection. The payment is saved on this phone and will sync.'
+              : 'Transaction successfully marked as paid'),
+        ));
       }
     } catch (e) {
       if (mounted) {

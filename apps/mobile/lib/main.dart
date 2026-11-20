@@ -15,6 +15,7 @@ import 'screens/accounts_screen.dart';
 import 'screens/assistant_screen.dart';
 import 'widgets/header.dart';
 import 'widgets/load_error_banner.dart';
+import 'widgets/sync_strip.dart';
 import 'widgets/app_lock_gate.dart';
 
 void main() async {
@@ -140,6 +141,7 @@ class _AppShellState extends State<AppShell> {
           children: [
             const HeaderWidget(),
             const LoadErrorBanner(),
+            const SyncStrip(),
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,

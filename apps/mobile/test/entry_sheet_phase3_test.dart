@@ -6,6 +6,7 @@ import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/engine/category_suggest.dart';
 import 'package:budget_mobile/services/entry_memory.dart';
+import 'package:budget_mobile/services/outbox.dart';
 
 /// Budget data without a server; records what the sheet saves.
 class FakeBudget extends BudgetProvider {
@@ -26,7 +27,10 @@ class FakeBudget extends BudgetProvider {
   List<dynamic> get creditCards => const [];
 
   @override
-  Future<void> addTransaction(Map<String, dynamic> tx) async => saved.add(tx);
+  Future<WriteResult> addTransaction(Map<String, dynamic> tx) async {
+    saved.add(tx);
+    return WriteResult.saved;
+  }
 }
 
 Future<FakeBudget> pumpSheet(WidgetTester tester) async {
