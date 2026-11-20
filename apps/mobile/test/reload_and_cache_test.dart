@@ -192,6 +192,37 @@ void main() {
     });
   });
 
+  group('2.2 what the tabs rebuild on', () {
+    test('a save that is waiting, and the sync strip, leave viewState unchanged', () async {
+      final fb = FixtureBudget();
+      final budget = await fb.load(prefs: const {StorageService.keyUser: '{"id":"user-a"}'});
+      final before = budget.viewState;
+      var notified = 0;
+      budget.addListener(() => notified++);
+
+      fb.offline = true;
+      await budget.addTransaction({'description': 'Tea', 'amount': 2000});
+
+      expect(notified, greaterThan(0), reason: 'the strip and isSaving still update');
+      expect(budget.viewState, before);
+    });
+
+    test('new data, a month switch or a load error change it', () async {
+      final fb = FixtureBudget();
+      final budget = await fb.load();
+      final first = budget.viewState;
+
+      await budget.refresh();
+      final reloaded = budget.viewState;
+      expect(reloaded, isNot(first));
+
+      fb.offline = true;
+      await budget.refresh();
+      expect(budget.viewState.error, isNotNull);
+      expect(budget.viewState.data, reloaded.data, reason: 'the data on screen did not change');
+    });
+  });
+
   test('formatLoadedAt shows the day only when it is not today', () {
     final now = DateTime(2026, 11, 20, 18);
     // intl puts a narrow no-break space before AM/PM

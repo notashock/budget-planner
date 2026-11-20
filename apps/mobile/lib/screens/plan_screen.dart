@@ -25,7 +25,8 @@ class _PlanScreenState extends State<PlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.read<BudgetProvider>();
+    context.select<BudgetProvider, Object>((b) => b.viewState);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
@@ -126,25 +127,28 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
               const SizedBox(height: 12),
 
-              // 4. Cashflow Trajectory Chart (Curved Spline)
-              StepLineChartWidget(
-                simulation: activeSimulation,
-                safetyFloor: activeSafetyFloor,
-                daysInMonth: activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30,
-                currentDay: currentDay,
-                salaryCreditDay: salaryCreditDay,
-                selectedDay: _selectedDay,
-                onSelectDay: (day) => setState(() => _selectedDay = day),
-                currencySymbol: currencySymbol,
-                onOpenReview: () {
-                  showMonthReviewModal(
-                    context,
-                    month: month,
-                    simulation: activeSimulation,
-                    safetyFloor: activeSafetyFloor,
-                    currencySymbol: currencySymbol,
-                  );
-                },
+              // 4. Cashflow Trajectory Chart (Curved Spline). Own layer, so
+              // scrolling the page doesn't repaint it (upgrade plan 2.9).
+              RepaintBoundary(
+                child: StepLineChartWidget(
+                  simulation: activeSimulation,
+                  safetyFloor: activeSafetyFloor,
+                  daysInMonth: activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30,
+                  currentDay: currentDay,
+                  salaryCreditDay: salaryCreditDay,
+                  selectedDay: _selectedDay,
+                  onSelectDay: (day) => setState(() => _selectedDay = day),
+                  currencySymbol: currencySymbol,
+                  onOpenReview: () {
+                    showMonthReviewModal(
+                      context,
+                      month: month,
+                      simulation: activeSimulation,
+                      safetyFloor: activeSafetyFloor,
+                      currencySymbol: currencySymbol,
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 12),
 
