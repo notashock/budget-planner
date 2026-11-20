@@ -274,7 +274,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
               // Confirm Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: context.palette.good,
+                  backgroundColor: context.palette.goodInk,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,

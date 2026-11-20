@@ -364,7 +364,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: AppTypography.mono(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? activeText : (hasBreach ? context.palette.bad : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
+                  color: isSelected ? activeText : (hasBreach ? context.palette.badInk : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
                 ),
               ),
             ],
@@ -373,7 +373,7 @@ class _PlanScreenState extends State<PlanScreen> {
               Icon(
                 Icons.warning_amber_rounded,
                 size: 9,
-                color: isSelected ? activeText : context.palette.bad,
+                color: isSelected ? activeText : context.palette.badInk,
               ),
             ],
           ],

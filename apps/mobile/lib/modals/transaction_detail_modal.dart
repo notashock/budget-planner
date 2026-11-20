@@ -102,9 +102,9 @@ class TransactionDetailModal extends StatelessWidget {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final accent = switch (v.flow) {
-      MoneyFlow.moved => context.palette.warn,
-      MoneyFlow.moneyIn => context.palette.good,
-      MoneyFlow.moneyOut => context.palette.bad,
+      MoneyFlow.moved => context.palette.warnInk,
+      MoneyFlow.moneyIn => context.palette.goodInk,
+      MoneyFlow.moneyOut => context.palette.badInk,
     };
     final sign = switch (v.flow) {
       MoneyFlow.moved => '',
@@ -218,7 +218,7 @@ class TransactionDetailModal extends StatelessWidget {
               _buildDetailRow('Account', v.accountLabel, text, textSecondary),
               const SizedBox(height: 10),
             ],
-            _buildDetailRow('Status', v.statusLabel, v.isPlanned ? context.palette.warn : context.palette.good, textSecondary),
+            _buildDetailRow('Status', v.statusLabel, v.isPlanned ? context.palette.warnInk : context.palette.goodInk, textSecondary),
 
             if (runningBalance != null && runningBalance != 0) ...[
               const SizedBox(height: 10),
@@ -267,7 +267,7 @@ class TransactionDetailModal extends StatelessWidget {
                     child: ElevatedButton.icon(
                       key: const ValueKey('detail-mark-paid'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: context.palette.good,
+                        backgroundColor: context.palette.goodInk,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -295,7 +295,7 @@ class TransactionDetailModal extends StatelessWidget {
                       key: const ValueKey('detail-remove'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.palette.bad.withAlpha(25),
-                        foregroundColor: context.palette.bad,
+                        foregroundColor: context.palette.badInk,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

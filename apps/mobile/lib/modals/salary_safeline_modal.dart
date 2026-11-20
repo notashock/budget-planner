@@ -109,11 +109,11 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
 
     Color badgeColor;
     if (isAlreadyCredited) {
-      badgeColor = context.palette.good;
+      badgeColor = context.palette.goodInk;
     } else if (status.status == 'in_window') {
-      badgeColor = context.palette.good;
+      badgeColor = context.palette.goodInk;
     } else if (status.status == 'before_window') {
-      badgeColor = context.palette.warn;
+      badgeColor = context.palette.warnInk;
     } else {
       badgeColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
     }
@@ -186,8 +186,8 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: context.palette.good,
-                      side: BorderSide(color: context.palette.good),
+                      foregroundColor: context.palette.goodInk,
+                      side: BorderSide(color: context.palette.goodInk),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     icon: const Icon(Icons.account_balance_wallet, size: 18),
@@ -316,7 +316,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                       color: isDark ? AppColors.darkText : AppColors.lightText,
                     ),
                   ),
-                  activeColor: context.palette.good,
+                  activeColor: context.palette.goodInk,
                   onChanged: isModalLocked
                       ? null
                       : (val) {

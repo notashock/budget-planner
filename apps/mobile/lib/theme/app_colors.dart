@@ -16,7 +16,7 @@ class AppColors {
   static const lightBorderStrong = Color(0xFFD4D4D8);
   static const lightText = Color(0xFF09090B);
   static const lightTextSecondary = Color(0xFF52525B);
-  static const lightTextMuted = Color(0xFF71717A);
+  static const lightTextMuted = Color(0xFF67676F);
   static const lightAccent = Color(0xFF09090B);
 
   // [data-theme="dark"]
@@ -29,7 +29,7 @@ class AppColors {
   static const darkBorderStrong = Color(0xFF3F3F46);
   static const darkText = Color(0xFFF4F4F5);
   static const darkTextSecondary = Color(0xFFA1A1AA);
-  static const darkTextMuted = Color(0xFF71717A);
+  static const darkTextMuted = Color(0xFF8A8A93);
   static const darkAccent = Color(0xFFFFFFFF);
 
   static const darkBackground = darkBg;

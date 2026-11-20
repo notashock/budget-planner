@@ -60,7 +60,7 @@ class GoalsScreen extends StatelessWidget {
                 final feasible = rec?.feasible ?? false;
 
                 final prioColor = switch (g.priority) {
-                  GoalPriority.high => context.palette.bad,
+                  GoalPriority.high => context.palette.badInk,
                   GoalPriority.low => Colors.blue,
                   GoalPriority.medium => textMuted,
                 };
@@ -153,7 +153,7 @@ class GoalsScreen extends StatelessWidget {
                             Icon(
                               feasible ? Icons.auto_awesome : Icons.info_outline,
                               size: 15,
-                              color: feasible ? context.palette.good : textMuted,
+                              color: feasible ? context.palette.goodInk : textMuted,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -162,7 +162,7 @@ class GoalsScreen extends StatelessWidget {
                                 style: AppTypography.inter(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w500,
-                                  color: feasible ? context.palette.good : textSecondary,
+                                  color: feasible ? context.palette.goodInk : textSecondary,
                                 ),
                               ),
                             ),
@@ -234,6 +234,7 @@ class GoalsScreen extends StatelessWidget {
               },
             ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Add goal',
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         child: const Icon(Icons.add),

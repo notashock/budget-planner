@@ -90,7 +90,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       child: Text(
                         auth.error!,
-                        style: TextStyle(color: context.palette.bad, fontSize: 13),
+                        style: TextStyle(color: context.palette.badInk, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     ),

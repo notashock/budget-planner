@@ -177,7 +177,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   child: Text(
                     'Changing this shifts every balance since ${widget.account.name.isEmpty ? 'this account' : widget.account.name} was added by '
                     '${shift > 0 ? '+' : '−'}${formatCurrency(shift.abs())}.',
-                    style: TextStyle(fontSize: 12, color: context.palette.warn),
+                    style: TextStyle(fontSize: 12, color: context.palette.warnInk),
                   ),
                 );
               }),
@@ -206,7 +206,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   'Default destination for unassigned transactions & salary',
                   style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                 ),
-                activeTrackColor: context.palette.good,
+                activeTrackColor: context.palette.goodInk,
                 onChanged: (val) => setState(() => _isPrimary = val),
               ),
               const SizedBox(height: 20),
