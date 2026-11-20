@@ -168,7 +168,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       (b) => b.transactionLists,
     );
     final currency = context.select<BudgetProvider, String>(
-      (b) => b.activeMonth?['currencySymbol']?.toString() ?? '₹',
+      (b) => b.monthInfo?.currencySymbol ?? '₹',
     );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;

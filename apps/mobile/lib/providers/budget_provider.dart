@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
+import '../models/goal.dart';
+import '../models/month_detail.dart';
 import '../models/transaction.dart';
+import '../models/transfer.dart';
 import '../models/transaction_lists.dart';
 
 /// Why the last load did not complete. The data already on screen is kept;
@@ -76,6 +80,11 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> _transactions = [];
   List<Transaction> _transactionModels = const [];
   TransactionLists _transactionLists = TransactionLists.empty;
+  MonthInfo? _monthInfo;
+  List<Account> _bankAccountModels = const [];
+  List<Account> _walletModels = const [];
+  List<Goal> _goalModels = const [];
+  List<Transfer> _transferModels = const [];
   List<dynamic> _goals = [];
   List<dynamic> _evaluatedGoals = [];
   List<dynamic> _bankAccounts = [];
@@ -118,6 +127,28 @@ class BudgetProvider with ChangeNotifier {
 
   /// Sorted and filtered lists for the Transactions screen, built once per load.
   TransactionLists get transactionLists => _transactionLists;
+
+  /// The selected month's header, typed; null when no month is loaded.
+  MonthInfo? get monthInfo => _monthInfo;
+  List<Account> get bankAccountModels => _bankAccountModels;
+  List<Account> get walletModels => _walletModels;
+
+  /// Goals with the engine's recommendation, in the server's (priority) order.
+  List<Goal> get goalModels => _goalModels;
+  List<Transfer> get transferModels => _transferModels;
+
+  /// Name of a bank, wallet or card by id, for lists that only carry ids
+  /// (transfers); null when the account is not loaded.
+  String? accountName(String? id) {
+    if (id == null) return null;
+    for (final a in [..._bankAccountModels, ..._walletModels]) {
+      if (a.id == id) return a.name;
+    }
+    for (final c in _creditCards) {
+      if (c is Map && '${c['id'] ?? c['_id']}' == id) return c['name']?.toString();
+    }
+    return null;
+  }
   List<dynamic> get goals => _goals;
   List<dynamic> get evaluatedGoals => _evaluatedGoals;
   List<dynamic> get bankAccounts => _bankAccounts;
@@ -273,6 +304,23 @@ class BudgetProvider with ChangeNotifier {
 
     if (generation != _loadGeneration) return;
 
+    // Read everything before applying anything: one unreadable row leaves the
+    // whole previous state in place and is reported (loadError).
+    final MonthInfo? monthInfo;
+    final List<Account> bankModels;
+    final List<Account> walletModels;
+    final List<Goal> goalModels;
+    final List<Transfer> transferModels;
+    try {
+      monthInfo = missing ? null : MonthInfo.fromJson(_monthOf(detail!));
+      bankModels = List.unmodifiable(banks.map((a) => Account.fromJson(a, fallbackKind: AccountKind.bank)));
+      walletModels = List.unmodifiable(wallets.map((a) => Account.fromJson(a, fallbackKind: AccountKind.wallet)));
+      goalModels = List.unmodifiable(goals.map(Goal.fromJson));
+      transferModels = List.unmodifiable(transfers.map(Transfer.fromJson));
+    } on FormatException catch (e) {
+      throw ApiException('Data from the server could not be read (${e.message}).', 200, ApiErrorKind.badResponse);
+    }
+
     if (missing) {
       _monthMissing = true;
       _activeMonthDetail = null;
@@ -282,6 +330,7 @@ class BudgetProvider with ChangeNotifier {
       _transactionLists = TransactionLists.empty;
       _goals = [];
       _evaluatedGoals = [];
+      _monthInfo = null;
       _simulation = null;
       _accountSimulations = {};
     } else {
@@ -289,10 +338,15 @@ class BudgetProvider with ChangeNotifier {
       _applyMonthDetail(detail!);
       _goals = goals;
       _evaluatedGoals = goals;
+      _monthInfo = monthInfo;
     }
+    _goalModels = goalModels;
     _bankAccounts = banks;
     _wallets = wallets;
     _transfers = transfers;
+    _bankAccountModels = bankModels;
+    _walletModels = walletModels;
+    _transferModels = transferModels;
     _recordLoadSuccess();
   }
 

@@ -9,6 +9,9 @@ class Account {
   final AccountKind kind;
   final String? subtype;
 
+  /// Last digits the user gave for the account number (shown as •••• 1234).
+  final String? accountNumberMasked;
+
   /// Today's balance in minor units; null when the server did not send one
   /// (an opening balance is never shown in its place). Negative on a card: owed.
   final int? currentBalance;
@@ -31,6 +34,7 @@ class Account {
     required this.name,
     required this.kind,
     this.subtype,
+    this.accountNumberMasked,
     this.currentBalance,
     this.openingBalance = 0,
     this.minimumBalance = 0,
@@ -70,6 +74,7 @@ class Account {
       name: r.optString('name') ?? '',
       kind: kind,
       subtype: r.optString('subtype'),
+      accountNumberMasked: r.optString('accountNumberMasked'),
       currentBalance: r.optMoney('currentBalance'),
       openingBalance: r.optMoney('openingBalance') ?? 0,
       minimumBalance: r.optMoney('minimumBalance') ?? 0,

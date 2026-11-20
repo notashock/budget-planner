@@ -15,6 +15,9 @@ class MonthInfo {
   final String? salaryCreditedDate;
   final String? incomeCreditDate;
   final String? salaryAccountId;
+
+  /// Day of the month the salary is planned to arrive.
+  final int incomeCreditDay;
   final bool isClosed;
   final Map<String, dynamic> raw;
 
@@ -30,6 +33,7 @@ class MonthInfo {
     this.salaryCreditedDate,
     this.incomeCreditDate,
     this.salaryAccountId,
+    this.incomeCreditDay = 1,
     this.isClosed = false,
     this.raw = const {},
   });
@@ -61,6 +65,9 @@ class MonthInfo {
       salaryCreditedDate: r.optDate('salaryCreditedDate'),
       incomeCreditDate: r.optDate('incomeCreditDate'),
       salaryAccountId: r.optString('salaryAccountId'),
+      incomeCreditDay: r.optInt('incomeCreditDay') ??
+          int.tryParse(r.optDate('incomeCreditDate')?.substring(8) ?? '') ??
+          1,
       isClosed: r.flag('isClosed'),
       raw: r.json,
     );
