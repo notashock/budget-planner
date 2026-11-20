@@ -348,6 +348,25 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 
 **Exit:** TalkBack walkthrough of the golden path with no unlabeled elements; golden-image tests for light/dark and 1.0×/2.0× text; usability check with 5 users: quick spend logged in ≤ 5 s.
 
+**Status, first Phase 3 PR (device findings; parts of 3.2 and 3.8):**
+- **Device:** Xiaomi 22101320I (Android 14, 1080×2400 at 440 dpi, about 393 dp wide), over USB.
+- **Test server:** a local server on the throwaway Postgres, reached through `adb reverse`, with a throwaway account.
+- **Header (3.2):** it overflowed by 10 px on the phone, which cut off sign-out.
+  - **Now:** the month and the floor pill shrink and ellipsize. Theme, app lock, server settings and sign-out moved into one 48 dp "More" menu (four 30 dp icons before).
+  - **Tests:** `test/phone_width_test.dart` checks 320, 360 and 393 dp, and 393 dp at 1.3× text. With the old header all four fail (150–223 px overflow in the test font).
+- **First run (3.8):** a new user's Plan said "Create or select a budget month" with no way to do it. It now has a "Create November 2026" button that opens the create-month sheet with that month filled in. The sheet's title ellipsizes instead of overflowing.
+- **Checked on the phone:**
+  - sign-in;
+  - the header in dark mode;
+  - the More menu (four items);
+  - the create-month sheet;
+  - creating a month and the Plan that follows (safe-to-spend, chart, cards, timeline).
+- **Not checked on the phone yet:** light mode, large text, TalkBack, App lock's fingerprint prompt, offline capture, timings.
+- **Seen on the phone, for later items:**
+  - **3.4:** amounts show paise (`₹10,909.09 / day`, `₹0.00/day`);
+  - **3.2/3.3:** the "New Entry" button covers the timeline's filter chips;
+  - **to check:** "Today's balance" includes a salary the timeline still lists as planned.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |
@@ -382,6 +401,7 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 4. No new `Map<String, dynamic>` in screens or widgets once 1.1 lands for that area.
 5. No `double` for money; no hard-coded currency symbol.
 6. Golden path integration test (sign in → log spend → safe-to-spend changes) on an emulator, nightly.
+7. **From Phase 3 on: checked on a real device.** Run the change on an Android phone over USB debugging (or an emulator) against a local server on a throwaway database. The PR says what was exercised there and what wasn't. Widget tests run at 800 dp with a test font, so they miss what only a phone shows; Phase 3's first device run found a header overflow and a dead end for new users that 205 tests had passed.
 
 ## 5. Success metrics
 

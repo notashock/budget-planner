@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
@@ -7,6 +8,7 @@ import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
 import '../widgets/load_error_banner.dart';
+import '../modals/month_modals.dart';
 import '../modals/month_review_modal.dart';
 import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
@@ -59,6 +61,19 @@ class _PlanScreenState extends State<PlanScreen> {
                 'Create or select a budget month to view your cashflow plan.',
                 textAlign: TextAlign.center,
                 style: AppTypography.inter(fontSize: 13, color: textMuted),
+              ),
+              const SizedBox(height: 20),
+              // First run (upgrade plan 3.8): a new user had no way forward here.
+              FilledButton.icon(
+                key: const ValueKey('plan-create-month'),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => CreateMonthModal(year: budget.currentYear, month: budget.currentMonth),
+                ),
+                icon: const Icon(Icons.add),
+                label: Text('Create ${DateFormat.MMMM().format(DateTime(budget.currentYear, budget.currentMonth))} ${budget.currentYear}'),
               ),
             ],
           ),

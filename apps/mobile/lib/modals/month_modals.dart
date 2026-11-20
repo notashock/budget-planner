@@ -6,15 +6,19 @@ import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 
 class CreateMonthModal extends StatefulWidget {
-  const CreateMonthModal({super.key});
+  /// The month to suggest; today's month when not given.
+  final int? year;
+  final int? month;
+
+  const CreateMonthModal({super.key, this.year, this.month});
 
   @override
   State<CreateMonthModal> createState() => _CreateMonthModalState();
 }
 
 class _CreateMonthModalState extends State<CreateMonthModal> {
-  final _yearCtrl = TextEditingController(text: '${DateTime.now().year}');
-  final _monthCtrl = TextEditingController(text: '${DateTime.now().month}');
+  late final _yearCtrl = TextEditingController(text: '${widget.year ?? DateTime.now().year}');
+  late final _monthCtrl = TextEditingController(text: '${widget.month ?? DateTime.now().month}');
   final _openingCtrl = TextEditingController(text: '0');
   final _incomeCtrl = TextEditingController(text: '0');
   final _floorCtrl = TextEditingController(text: '0');
@@ -41,12 +45,16 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Create New Budget Month',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.darkText : AppColors.lightText,
+                Expanded(
+                  child: Text(
+                    'Create New Budget Month',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                    ),
                   ),
                 ),
                 IconButton(
