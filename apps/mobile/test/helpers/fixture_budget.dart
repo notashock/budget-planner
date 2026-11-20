@@ -34,6 +34,9 @@ class FixtureBudget {
   /// Every request fails as if the phone had no connection.
   bool offline = false;
 
+  /// The selected month does not exist (404), as for a new user.
+  bool monthMissing = false;
+
   /// Answers writes (default: an empty success).
   Future<http.Response> Function(http.Request req)? onWrite;
 
@@ -53,6 +56,12 @@ class FixtureBudget {
       if (req.method != 'GET') return onWrite == null ? okJson(<String, dynamic>{}) : onWrite!(req);
       if (path == '/api/settings') return okJson(<String, dynamic>{});
       if (path == '/api/v1/periods') return okJson(fixtures['periods']);
+      if (monthMissing && RegExp(r'^/api/v1/periods/\d+/\d+(/goals)?$').hasMatch(path)) {
+        return http.Response.bytes(
+            utf8.encode(jsonEncode({'status': 'error', 'error': {'code': 'NOT_FOUND', 'message': 'Month not found'}})),
+            404,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      }
       if (RegExp(r'^/api/v1/periods/\d+/\d+$').hasMatch(path)) {
         // The server's month detail carries the same account and transfer rows
         // as their own endpoints; serve the (possibly edited) list fixtures.
