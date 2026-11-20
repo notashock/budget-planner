@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
@@ -52,7 +53,8 @@ class BudgetMobileApp extends StatefulWidget {
   State<BudgetMobileApp> createState() => _BudgetMobileAppState();
 }
 
-class _BudgetMobileAppState extends State<BudgetMobileApp> with WidgetsBindingObserver {
+class _BudgetMobileAppState extends State<BudgetMobileApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -75,22 +77,34 @@ class _BudgetMobileAppState extends State<BudgetMobileApp> with WidgetsBindingOb
     final themeProvider = context.watch<ThemeProvider>();
     final authProvider = context.watch<AuthProvider>();
 
-    return MaterialApp(
-      title: 'Budget Planner',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
-      // App lock sits above the navigator, so it also covers open sheets and
-      // dialogs. The app underneath stays mounted (state kept) but offstage:
-      // not painted and not read by screen readers.
-      builder: (context, child) => AppLockGate(
-        signedIn: authProvider.isAuthenticated,
-        child: child ?? const SizedBox.shrink(),
+    // Device colours, when the user turned them on and the phone has them
+    // (Android 12+): only the accent changes, never the money colours.
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => MaterialApp(
+        title: 'Budget Planner',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.build(
+          Brightness.light,
+          accent: themeProvider.deviceColors ? lightDynamic?.primary : null,
+        ),
+        darkTheme: AppTheme.build(
+          Brightness.dark,
+          accent: themeProvider.deviceColors ? darkDynamic?.primary : null,
+        ),
+        themeMode: themeProvider.themeMode,
+        // App lock sits above the navigator, so it also covers open sheets and
+        // dialogs. The app underneath stays mounted (state kept) but offstage:
+        // not painted and not read by screen readers.
+        builder: (context, child) => AppLockGate(
+          signedIn: authProvider.isAuthenticated,
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: authProvider.isLoading
+            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            : (authProvider.isAuthenticated
+                  ? const AppShell()
+                  : const AuthScreen()),
       ),
-      home: authProvider.isLoading
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-          : (authProvider.isAuthenticated ? const AppShell() : const AuthScreen()),
     );
   }
 }
@@ -143,10 +157,7 @@ class _AppShellState extends State<AppShell> {
             const LoadErrorBanner(),
             const SyncStrip(),
             Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
+              child: IndexedStack(index: _currentIndex, children: _screens),
             ),
           ],
         ),

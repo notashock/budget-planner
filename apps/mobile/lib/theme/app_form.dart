@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'app_palette.dart';
 
 /// Form sizing and spacing shared by every entry and edit sheet. Mirrors the web
 /// tokens in apps/web/src/styles/tokens.css (--control-h, --field-radius, ...)
@@ -34,6 +35,7 @@ class AppForm {
   static InputDecorationTheme inputTheme({required bool isDark}) {
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final focus = isDark ? AppColors.darkText : AppColors.lightText;
+    final palette = isDark ? AppPalette.dark : AppPalette.light;
     OutlineInputBorder outline(Color c, [double w = 1]) =>
         OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: c, width: w));
     return InputDecorationTheme(
@@ -54,12 +56,12 @@ class AppForm {
       ),
       hintStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
       helperStyle: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-      errorStyle: const TextStyle(fontSize: 12, color: AppColors.red),
+      errorStyle: TextStyle(fontSize: 12, color: palette.bad),
       border: outline(border),
       enabledBorder: outline(border),
       focusedBorder: outline(focus, 1.5),
-      errorBorder: outline(AppColors.red),
-      focusedErrorBorder: outline(AppColors.red, 1.5),
+      errorBorder: outline(palette.bad),
+      focusedErrorBorder: outline(palette.bad, 1.5),
       disabledBorder: outline(border.withAlpha(120)),
     );
   }

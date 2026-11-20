@@ -376,6 +376,13 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Symbol:** no hard-coded `₹` is left in widgets. Amounts and input labels follow the loaded month's `currencySymbol` (`moneySymbol`, set on each load), and defaults use `kDefaultCurrencySymbol`.
 - **Dates:** the Indian day-month order ("Fri, 18 Sep"). The web app still uses "Fri, Sep 18" (follow-up for web).
 
+**Status, Phase 3 stack PR 3 (3.1 Material 3 theme and tokens):**
+- **Shared tokens:** `AppPalette` (a ThemeExtension, read as `context.palette`) holds the tokens of `apps/web/src/styles/tokens.css` for light and dark. `test/design_tokens_test.dart` reads that CSS and fails on any drift. It found the drift that was already there: light background and surface swapped, red #EF4444 vs rose #F43F5E, no dark-mode status colours.
+- **Colours migrated:** all 144 status-colour uses (`AppColors.green/red/amber`) and the 9 indigo uses now follow the theme (lighter in dark mode, as on web). The neutral `AppColors` constants equal the web.
+- **Theme:** both themes come from one builder with a full ColorScheme from the palette. Cards use the web's 12 px radius; snack bars float.
+- **Dynamic colour (opt-in):** "Device colours" in the More menu (`dynamic_color` 1.7.0; 1.9.0 needs a newer Kotlin Gradle plugin). Only the accent changes: the 33 hard-coded black/white accent spots now read `colorScheme.primary` / `onPrimary`. Neutrals and good/bad/warn never change.
+- **On the phone:** dark, light, and device colours on (the wallpaper accent on the FAB and the selected chip, money colours unchanged). The app's settings were put back afterwards.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

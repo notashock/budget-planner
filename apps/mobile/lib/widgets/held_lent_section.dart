@@ -4,6 +4,7 @@ import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../models/person_fund.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/held_lent_modal.dart';
 
@@ -111,7 +112,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 12)),
+          Text(_error!, style: TextStyle(color: context.palette.bad, fontSize: 12)),
         ],
         const SizedBox(height: 10),
         if (visible.isEmpty)
@@ -143,7 +144,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
                 ),
                 trailing: Text(
                   formatCurrencyWhole(out < 0 ? 0 : out),
-                  style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? AppColors.primary : text)),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? context.palette.indigo : text)),
                 ),
                 onTap: settled
                     ? () => _open(action: isHeld ? 'hold' : 'lend', fundId: f.id)

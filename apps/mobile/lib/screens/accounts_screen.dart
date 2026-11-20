@@ -6,6 +6,7 @@ import '../engine/engine.dart';
 import '../models/account.dart';
 import '../models/transfer.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/unified_entry_modal.dart';
 import '../modals/edit_account_modal.dart';
@@ -364,7 +365,7 @@ class AccountsScreen extends StatelessWidget {
                 style: AppTypography.mono(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.amber,
+                  color: context.palette.warn,
                 ),
               ),
               const SizedBox(width: 4),
