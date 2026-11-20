@@ -28,7 +28,8 @@ import { v1GoalsRouter } from './routes/v1/goals.js';
 import { v1ReportsRouter } from './routes/v1/reports.js';
 import { v1PersonFundsRouter } from './routes/v1/personFunds.js';
 import { v1CardsRouter } from './routes/v1/cards.js';
-import { ensureDatabaseInitialized, isDatabaseInitialized } from './db/index.js';
+import { ensureDatabaseInitialized, isDatabaseInitialized, pool } from './db/index.js';
+import { idempotency, createPgIdempotencyStore } from './middleware/idempotency.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +86,14 @@ export function createApp(options = {}) {
       }
       next();
     });
+  }
+
+  // Writes that carry an Idempotency-Key replay their first response on retry
+  // (the mobile app sends one on every write). Tests can pass their own store.
+  const idempotencyStore = options.idempotencyStore
+    ?? (config.databaseUrl ? createPgIdempotencyStore(pool) : null);
+  if (idempotencyStore) {
+    app.use('/api/v1', idempotency({ store: idempotencyStore }));
   }
 
   // Mount API v1 domain-driven routers

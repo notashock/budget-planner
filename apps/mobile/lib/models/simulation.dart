@@ -20,6 +20,10 @@ class TimelineEvent {
   final String status; // 'successful' | 'planned' | 'cancelled'
   final String? origin; // 'spot' | 'planned' | 'goal'
   final String? derivedStatus; // 'due' | 'overdue' | 'planned'
+
+  /// The transaction behind this event, when there is one (simulation events
+  /// carry `transactionId`, not `id`); null for e.g. the planned salary.
+  final String? transactionId;
   final Map<String, dynamic> raw;
 
   TimelineEvent({
@@ -38,6 +42,7 @@ class TimelineEvent {
     this.status = 'successful',
     this.origin,
     this.derivedStatus,
+    this.transactionId,
     this.raw = const {},
   });
 
@@ -66,6 +71,7 @@ class TimelineEvent {
       status: rawStatus ?? (isSuccessful ? 'successful' : 'planned'),
       origin: json['origin']?.toString() ?? (json['type'] == 'item' ? 'planned' : 'spot'),
       derivedStatus: json['derivedStatus']?.toString(),
+      transactionId: json['transactionId']?.toString(),
       raw: json,
     );
   }

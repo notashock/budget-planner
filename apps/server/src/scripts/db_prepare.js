@@ -10,6 +10,7 @@ import {
   syncTransferSchema,
   syncPersonFundsSchema,
   syncCreditCardSchema,
+  syncIdempotencySchema,
   syncDatabaseNormalFormsAndConstraints,
   healPrematurelyClosedMonths,
   pruneEmptyFutureMonths
@@ -47,7 +48,8 @@ const CORE_APP_TABLES = [
   'salary_templates',
   'settings',
   'person_funds',
-  'card_statements'
+  'card_statements',
+  'idempotency_keys'
 ];
 
 async function runPrepare() {
@@ -139,6 +141,7 @@ async function runPrepare() {
     await syncTransferSchema();
     await syncPersonFundsSchema();
     await syncCreditCardSchema();
+    await syncIdempotencySchema();
     console.log('  ✔ Transfer schema synchronized.');
 
     // 3. Normal Forms, BCNF & 2NF Constraints

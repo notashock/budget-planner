@@ -2,18 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/goal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/unified_entry_modal.dart';
+import '../widgets/confirm_dialog.dart';
 
 class GoalsScreen extends StatelessWidget {
   const GoalsScreen({super.key});
 
+  /// Runs a goal action and reports a failure instead of dropping it.
+  static Future<void> _run(BuildContext context, Future<void> Function() action) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    // Only the goals: other provider changes do not rebuild this screen.
+    final goals = context.select<BudgetProvider, List<Goal>>((b) => b.goalModels);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final goals = budget.evaluatedGoals;
 
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
@@ -41,28 +53,35 @@ class GoalsScreen extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final g = goals[index];
-                final id = (g['_id'] ?? g['id']).toString();
-                final name = g['name']?.toString() ?? 'Purchase Goal';
-                final amount = num.tryParse('${g['targetAmount']}') ?? 0;
-                final priority = (num.tryParse('${g['priority']}') ?? 1).toInt();
-                final status = g['status']?.toString() ?? 'active';
+                final budget = context.read<BudgetProvider>();
+                final name = g.name.isEmpty ? 'Purchase Goal' : g.name;
+                final rec = g.recommendation;
+                final feasible = rec?.feasible ?? false;
 
-                final rec = g['recommendation'] is Map ? g['recommendation'] as Map : null;
-                final bool feasible = rec?['feasible'] == true;
-                final String? recDate = rec?['recommendedDate']?.toString();
-                final int? recDay = rec?['recommendedDay'] as int?;
+                final prioColor = switch (g.priority) {
+                  GoalPriority.high => AppColors.red,
+                  GoalPriority.low => Colors.blue,
+                  GoalPriority.medium => textMuted,
+                };
 
-                Color prioColor = textMuted;
-                String prioLabel = 'Medium';
-                if (priority == 0) {
-                  prioColor = AppColors.red;
-                  prioLabel = 'High';
-                } else if (priority == 2) {
-                  prioColor = Colors.blue;
-                  prioLabel = 'Low';
+                // Not evaluated is not the same as not affordable: say which.
+                final String advice;
+                if (g.isDeferred) {
+                  advice = 'Deferred. Reactivate it to get a safe purchase date.';
+                } else if (g.status == GoalStatus.scheduled) {
+                  advice = rec?.recommendedDate != null
+                      ? 'Scheduled for ${rec!.recommendedDate}.'
+                      : 'Scheduled as a planned transaction.';
+                } else if (rec == null) {
+                  advice = 'No safe purchase date checked yet.';
+                } else if (feasible && rec.recommendedDay != null) {
+                  advice = 'Safe purchase date: Day ${rec.recommendedDay} (${rec.recommendedDate})';
+                } else {
+                  advice = rec.explanation ?? 'No safe day this month without going below your floor.';
                 }
 
                 return Container(
+                  key: ValueKey('goal-${g.id}'),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -96,7 +115,7 @@ class GoalsScreen extends StatelessWidget {
                               border: Border.all(color: prioColor.withAlpha(70), width: 0.8),
                             ),
                             child: Text(
-                              prioLabel,
+                              g.priority.label,
                               style: AppTypography.inter(fontSize: 10, fontWeight: FontWeight.w700, color: prioColor),
                             ),
                           ),
@@ -106,7 +125,7 @@ class GoalsScreen extends StatelessWidget {
 
                       // Cost
                       Text(
-                        formatCurrency(amount),
+                        formatCurrency(g.targetAmount),
                         style: AppTypography.mono(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -138,9 +157,7 @@ class GoalsScreen extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                feasible && recDay != null
-                                    ? 'Safe purchase date: Day $recDay ($recDate)'
-                                    : (rec?['explanation'] ?? 'Floor breach risk this month. Deferral recommended.'),
+                                advice,
                                 style: AppTypography.inter(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w500,
@@ -153,31 +170,31 @@ class GoalsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
 
-                      // Actions Row: Convert, Defer, Delete
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      // Actions Row: Schedule, Defer / Reactivate, Edit, Delete
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (feasible && status != 'scheduled')
+                          if (g.canSchedule)
                             TextButton.icon(
                               icon: const Icon(Icons.calendar_today, size: 14),
                               label: Text('Schedule Transaction', style: AppTypography.inter(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                              onPressed: () => budget.convertGoalToTransaction(id),
+                              onPressed: () => _run(context, () => budget.convertGoalToTransaction(g.id)),
                             ),
-                          TextButton(
-                            child: Text(
-                              status == 'deferred' ? 'Reactivate' : 'Defer',
-                              style: AppTypography.inter(fontSize: 11.5, fontWeight: FontWeight.w600),
+                          if (!g.isClosed)
+                            TextButton(
+                              key: ValueKey('goal-defer-${g.id}'),
+                              child: Text(
+                                g.isDeferred ? 'Reactivate' : 'Defer',
+                                style: AppTypography.inter(fontSize: 11.5, fontWeight: FontWeight.w600),
+                              ),
+                              onPressed: () => _run(
+                                context,
+                                () => g.isDeferred ? budget.reactivateGoal(g.id) : budget.deferGoal(g.id),
+                              ),
                             ),
-                            onPressed: () {
-                              if (status == 'deferred') {
-                                budget.reactivateGoal(id);
-                              } else {
-                                budget.deferGoal(id);
-                              }
-                            },
-                          ),
                           IconButton(
-                            key: ValueKey('edit-goal-$id'),
+                            key: ValueKey('edit-goal-${g.id}'),
                             tooltip: 'Edit goal',
                             icon: const Icon(Icons.edit_outlined, size: 16),
                             color: textMuted,
@@ -187,14 +204,26 @@ class GoalsScreen extends StatelessWidget {
                               backgroundColor: Colors.transparent,
                               builder: (_) => UnifiedEntryModal(
                                 initialType: EntryType.goal,
-                                initialItem: Map<String, dynamic>.from(g as Map),
+                                initialGoal: g,
                               ),
                             ),
                           ),
                           IconButton(
+                            key: ValueKey('delete-goal-${g.id}'),
+                            tooltip: 'Delete goal',
                             icon: const Icon(Icons.delete_outline, size: 16),
                             color: textMuted,
-                            onPressed: () => budget.deleteGoal(id),
+                            onPressed: () async {
+                              final ok = await confirmDestructive(
+                                context,
+                                title: 'Delete "$name"?',
+                                // The server keeps a scheduled goal's planned transaction (goal_id is set null).
+                                message: g.status == GoalStatus.scheduled
+                                    ? 'Its planned transaction stays in your plan. Cancel it from Transactions if you no longer need it.'
+                                    : "This can't be undone.",
+                              );
+                              if (ok && context.mounted) await _run(context, () => budget.deleteGoal(g.id));
+                            },
                           ),
                         ],
                       ),

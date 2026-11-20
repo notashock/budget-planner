@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../engine/currency.dart';
+import '../models/account.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
 
@@ -13,20 +14,19 @@ class FloorCheck {
   bool get breaches => balanceAfter < minimumBalance;
 }
 
-int _minor(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round();
-
 /// Checks an outflow of [amount] (minor units) from [account]. Uses the server's
-/// per-account balance when known ([simulatedBalance]); held money is not the
-/// user's to spend (ADR 0069), so it is taken off first. Returns null when there
-/// is nothing to check (no account, no floor, no outflow).
-FloorCheck? checkFloor(Map<String, dynamic>? account, int amount, {int? simulatedBalance, int heldForOthers = 0}) {
+/// per-account balance when known ([simulatedBalance]), else the account's
+/// current balance; held money is not the user's to spend (ADR 0069), so it is
+/// taken off first. Returns null when there is nothing to check: no account,
+/// floor, outflow, or known balance (an opening balance is not today's).
+FloorCheck? checkFloor(Account? account, int amount, {int? simulatedBalance, int heldForOthers = 0}) {
   if (account == null || amount <= 0) return null;
-  final floor = _minor(account['minimumBalance'] ?? account['safetyFloor']);
+  final floor = account.minimumBalance;
   if (floor <= 0) return null;
-  final balance = simulatedBalance ??
-      _minor(account['currentBalance'] ?? account['balance'] ?? account['openingBalance']);
+  final balance = simulatedBalance ?? account.currentBalance;
+  if (balance == null) return null;
   return FloorCheck(
-    accountName: account['name']?.toString() ?? 'This account',
+    accountName: account.name.isEmpty ? 'This account' : account.name,
     minimumBalance: floor,
     balanceAfter: balance - heldForOthers - amount,
   );
@@ -58,10 +58,10 @@ class FloorBreachNotice extends StatelessWidget {
       valueListenable: amountController,
       builder: (context, value, _) {
         final budget = context.watch<BudgetProvider>();
-        Map<String, dynamic>? account;
-        for (final a in [...budget.bankAccounts, ...budget.wallets]) {
-          if (a is Map && (a['_id'] ?? a['id'])?.toString() == accountId) {
-            account = Map<String, dynamic>.from(a);
+        Account? account;
+        for (final a in [...budget.bankAccountModels, ...budget.walletModels]) {
+          if (a.id == accountId) {
+            account = a;
             break;
           }
         }
@@ -69,9 +69,8 @@ class FloorBreachNotice extends StatelessWidget {
         final sim = accountId == null ? null : budget.getAccountSimulation(accountId!);
         final check = checkFloor(account, amount, simulatedBalance: sim?.todaysBalance);
         if (check == null || !check.breaches) {
-          if (!showWhenSafe || account == null || amount <= 0) return const SizedBox.shrink();
-          final balance = sim?.todaysBalance ??
-              _minor(account['currentBalance'] ?? account['balance'] ?? account['openingBalance']);
+          final balance = sim?.todaysBalance ?? account?.currentBalance;
+          if (!showWhenSafe || account == null || amount <= 0 || balance == null) return const SizedBox.shrink();
           final after = balance - amount;
           final margin = check != null ? check.balanceAfter - check.minimumBalance : null;
           final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -85,7 +84,7 @@ class FloorBreachNotice extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              'After this: ${account['name'] ?? 'Account'} ${formatCurrency(after)}'
+              'After this: ${account.name.isEmpty ? 'Account' : account.name} ${formatCurrency(after)}'
               '${margin != null ? ' · ${formatCurrency(margin)} above floor' : ''}',
               style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
             ),

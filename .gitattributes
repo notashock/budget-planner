@@ -1,0 +1,31 @@
+# Source files are UTF-8 with LF line endings in the repository.
+# A UTF-16 lib/main.dart once broke the mobile build while `flutter analyze`
+# still reported no issues; CI also rejects non-UTF-8 source files.
+* text=auto eol=lf
+
+*.dart text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.gradle text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.md text eol=lf
+
+# Windows-only files keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.keystore binary
+*.jks binary
