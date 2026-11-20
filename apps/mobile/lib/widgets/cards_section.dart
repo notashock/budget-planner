@@ -155,10 +155,10 @@ class _CardsSectionState extends State<CardsSection> {
                   const SizedBox(height: 10),
                   Text('OWED NOW', style: AppTypography.sectionHeader(color: muted)),
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text(formatCurrency(owed), style: AppTypography.cardTitle(color: text)),
+                    Text(formatCurrencyWhole(owed), style: AppTypography.cardTitle(color: text)),
                     if (limit > 0) ...[
                       const SizedBox(width: 6),
-                      Text('of ${formatCurrency(limit)}', style: TextStyle(fontSize: 12, color: muted)),
+                      Text('of ${formatCurrencyWhole(limit)}', style: TextStyle(fontSize: 12, color: muted)),
                     ],
                   ]),
                   if (util != null) ...[
@@ -175,7 +175,7 @@ class _CardsSectionState extends State<CardsSection> {
                   ],
                   const SizedBox(height: 10),
                   Text(
-                    'This cycle ${formatCurrency(card.unbilledSoFar)} · next bill ${_shortDate(card.cycleEnd)} · due ${_shortDate(card.cycleDueDate)}',
+                    'This cycle ${formatCurrencyWhole(card.unbilledSoFar)} · next bill ${_shortDate(card.cycleEnd)} · due ${_shortDate(card.cycleDueDate)}',
                     style: TextStyle(fontSize: 12, color: muted),
                   ),
                   if (bill != null) ...[
@@ -190,8 +190,8 @@ class _CardsSectionState extends State<CardsSection> {
                         Expanded(
                           child: Text(
                             draft != null
-                                ? 'Bill ready: ${formatCurrency(draft.billAmount)}, due ${_shortDate(bill.dueDate)}'
-                                : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrency(bill.remaining)} by ${_shortDate(bill.dueDate)}',
+                                ? 'Bill ready: ${formatCurrencyWhole(draft.billAmount)}, due ${_shortDate(bill.dueDate)}'
+                                : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrencyWhole(bill.remaining)} by ${_shortDate(bill.dueDate)}',
                             style: TextStyle(fontSize: 12, color: overdue ? AppColors.red : text),
                           ),
                         ),

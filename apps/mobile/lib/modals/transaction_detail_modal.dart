@@ -30,7 +30,7 @@ class TransactionDetailModal extends StatelessWidget {
     this.transaction,
     this.transfer,
     this.timelineEvent,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
   });
 
   static void show(
@@ -38,7 +38,7 @@ class TransactionDetailModal extends StatelessWidget {
     Transaction? transaction,
     Transfer? transfer,
     TimelineEvent? timelineEvent,
-    String currencySymbol = '₹',
+    String currencySymbol = kDefaultCurrencySymbol,
   }) {
     showModalBottomSheet(
       context: context,

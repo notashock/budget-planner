@@ -266,7 +266,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
               TextField(
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amount (₹) *'),
+                decoration: InputDecoration(labelText: 'Amount ($moneySymbol) *'),
               ),
               if (!_current.startsNew && selected != null)
                 Align(

@@ -12,7 +12,7 @@ class SafeVelocityCard extends StatelessWidget {
   const SafeVelocityCard({
     super.key,
     required this.safeVelocity,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
   });
 
   @override
@@ -116,7 +116,7 @@ class SafeVelocityCard extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                formatCurrency(safeVelocity.safeDailyAmount, symbol: currencySymbol),
+                formatCurrencyWhole(safeVelocity.safeDailyAmount, symbol: currencySymbol),
                 style: AppTypography.hero(color: text),
               ),
               const SizedBox(width: 6),
@@ -146,7 +146,7 @@ class SafeVelocityCard extends StatelessWidget {
                   children: [
                     const TextSpan(text: 'Committed bills: '),
                     TextSpan(
-                      text: formatCurrency(safeVelocity.committedUpcomingItems, symbol: currencySymbol),
+                      text: formatCurrencyWhole(safeVelocity.committedUpcomingItems, symbol: currencySymbol),
                       style: AppTypography.mono(fontSize: 11.5, fontWeight: FontWeight.w700, color: text),
                     ),
                   ],
@@ -158,7 +158,7 @@ class SafeVelocityCard extends StatelessWidget {
                   children: [
                     const TextSpan(text: 'Burn pace: '),
                     TextSpan(
-                      text: '${formatCurrency(safeVelocity.burnRatePerDay, symbol: currencySymbol)}/day',
+                      text: '${formatCurrencyWhole(safeVelocity.burnRatePerDay, symbol: currencySymbol)}/day',
                       style: AppTypography.mono(fontSize: 11.5, fontWeight: FontWeight.w700, color: text),
                     ),
                   ],
@@ -200,7 +200,7 @@ class DetailedKpiGrid extends StatelessWidget {
     required this.lowestBalance,
     required this.lowestDate,
     required this.safetyFloor,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
   });
 
   @override
@@ -220,7 +220,7 @@ class DetailedKpiGrid extends StatelessWidget {
                 badgeText: isSalaryCredited ? 'Credited' : null,
                 badgeIcon: isSalaryCredited ? Icons.check_circle_rounded : null,
                 badgeColor: AppColors.green,
-                amount: formatCurrency(incomeAmount, symbol: currencySymbol),
+                amount: formatCurrencyWhole(incomeAmount, symbol: currencySymbol),
                 subtext: isSalaryCredited && salaryCreditedDate != null
                     ? 'Credited on ${formatDisplayDate(salaryCreditedDate, includeWeekday: false)}'
                     : 'Credited on day $incomeCreditDay',
@@ -232,7 +232,7 @@ class DetailedKpiGrid extends StatelessWidget {
               child: _buildKpiCard(
                 context,
                 title: 'Total expenses',
-                amount: formatCurrency(totalExpenses, symbol: currencySymbol),
+                amount: formatCurrencyWhole(totalExpenses, symbol: currencySymbol),
                 subtext: 'Across $expenseOccurrencesCount occurrences',
                 isDark: isDark,
               ),
@@ -248,8 +248,8 @@ class DetailedKpiGrid extends StatelessWidget {
               child: _buildKpiCard(
                 context,
                 title: "Today's balance",
-                amount: formatCurrency(todayBalance, symbol: currencySymbol),
-                subtext: 'Month-end: ${formatCurrency(endingBalance, symbol: currencySymbol)}',
+                amount: formatCurrencyWhole(todayBalance, symbol: currencySymbol),
+                subtext: 'Month-end: ${formatCurrencyWhole(endingBalance, symbol: currencySymbol)}',
                 isDark: isDark,
               ),
             ),
@@ -261,7 +261,7 @@ class DetailedKpiGrid extends StatelessWidget {
                 badgeText: isBreached ? 'Breach' : null,
                 badgeIcon: isBreached ? Icons.warning_amber_rounded : null,
                 badgeColor: AppColors.red,
-                amount: formatCurrency(lowestBalance, symbol: currencySymbol),
+                amount: formatCurrencyWhole(lowestBalance, symbol: currencySymbol),
                 amountColor: isBreached ? AppColors.red : null,
                 subtext: lowestDate.isNotEmpty ? 'On ${formatDisplayDate(lowestDate, includeWeekday: true)}' : 'N/A',
                 isDark: isDark,

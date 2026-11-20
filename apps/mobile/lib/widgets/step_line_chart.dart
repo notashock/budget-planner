@@ -26,7 +26,7 @@ class StepLineChartWidget extends StatefulWidget {
     this.selectedDay,
     this.onSelectDay,
     this.onOpenReview,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
   });
 
   @override
@@ -320,7 +320,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
               ),
               const SizedBox(height: 3),
               Text(
-                formatCurrency(tDay.closingBalance, symbol: widget.currencySymbol),
+                formatCurrencyWhole(tDay.closingBalance, symbol: widget.currencySymbol),
                 style: AppTypography.mono(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,

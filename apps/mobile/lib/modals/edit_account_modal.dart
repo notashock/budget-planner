@@ -165,7 +165,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                 controller: _openingCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Opening balance (₹)'),
+                decoration: InputDecoration(labelText: 'Opening balance ($moneySymbol)'),
               ),
               Builder(builder: (_) {
                 final shift = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0) - _originalOpening;
@@ -184,8 +184,8 @@ class _EditAccountModalState extends State<EditAccountModal> {
               TextField(
                 controller: _minBalCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Minimum Safety Floor / Balance (₹)',
+                decoration: InputDecoration(
+                  labelText: 'Minimum Safety Floor / Balance ($moneySymbol)',
                 ),
               ),
               const SizedBox(height: 12),

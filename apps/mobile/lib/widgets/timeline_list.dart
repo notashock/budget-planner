@@ -21,7 +21,7 @@ class TimelineListWidget extends StatefulWidget {
     this.selectedDay,
     this.currentDay,
     this.onSelectDay,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
     this.onEventTap,
   });
 

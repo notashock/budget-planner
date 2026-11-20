@@ -319,7 +319,7 @@ class _PlanScreenState extends State<PlanScreen> {
     required Color border,
     required Color text,
     required Color textSecondary,
-    String currencySymbol = '₹',
+    String currencySymbol = kDefaultCurrencySymbol,
   }) {
     final activeBg = isDark ? Colors.white : Colors.black;
     final activeText = isDark ? Colors.black : Colors.white;
@@ -359,7 +359,7 @@ class _PlanScreenState extends State<PlanScreen> {
             if (amount != null) ...[
               const SizedBox(width: 5),
               Text(
-                '• ${formatCurrency(amount, symbol: currencySymbol)}',
+                '• ${formatCurrencyWhole(amount, symbol: currencySymbol)}',
                 style: AppTypography.mono(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -424,11 +424,11 @@ class _PlanScreenState extends State<PlanScreen> {
                         ),
                         if (safetyFloor > 0)
                           TextSpan(
-                            text: '• Min: ${formatCurrency(safetyFloor, symbol: currencySymbol)} ',
+                            text: '• Min: ${formatCurrencyWhole(safetyFloor, symbol: currencySymbol)} ',
                             style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
                           ),
                         TextSpan(
-                          text: '• End: ${formatCurrency(endingBalance, symbol: currencySymbol)}',
+                          text: '• End: ${formatCurrencyWhole(endingBalance, symbol: currencySymbol)}',
                           style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
                         ),
                       ],

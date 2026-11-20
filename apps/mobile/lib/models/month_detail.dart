@@ -1,3 +1,4 @@
+import '../engine/currency.dart' show kDefaultCurrencySymbol;
 import 'account.dart';
 import 'json_read.dart';
 import 'transaction.dart';
@@ -28,7 +29,7 @@ class MonthInfo {
     this.openingBalance = 0,
     this.incomeAmount = 0,
     this.safetyFloor = 0,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
     this.isSalaryCredited = false,
     this.salaryCreditedDate,
     this.incomeCreditDate,
@@ -60,7 +61,7 @@ class MonthInfo {
       openingBalance: r.optMoney('openingBalance') ?? 0,
       incomeAmount: r.optMoney('incomeAmount') ?? 0,
       safetyFloor: r.optMoney('safetyFloor') ?? 0,
-      currencySymbol: r.optString('currencySymbol') ?? '₹',
+      currencySymbol: r.optString('currencySymbol') ?? kDefaultCurrencySymbol,
       isSalaryCredited: r.flag('isSalaryCredited'),
       salaryCreditedDate: r.optDate('salaryCreditedDate'),
       incomeCreditDate: r.optDate('incomeCreditDate'),

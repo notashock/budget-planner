@@ -816,7 +816,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: _activeType == EntryType.income ? 'Income (₹) *' : 'Amount (₹) *',
+                  labelText: _activeType == EntryType.income ? 'Income ($moneySymbol) *' : 'Amount ($moneySymbol) *',
                 ),
               ),
               if (_activeType != EntryType.goal) ...[

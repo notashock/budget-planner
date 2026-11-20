@@ -87,19 +87,19 @@ class _CreateMonthModalState extends State<CreateMonthModal> {
             TextField(
               controller: _openingCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Opening Balance (₹)'),
+              decoration: InputDecoration(labelText: 'Opening Balance ($moneySymbol)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _incomeCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Salary / Income (₹)'),
+              decoration: InputDecoration(labelText: 'Monthly Salary / Income ($moneySymbol)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _floorCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Safety Floor Threshold (₹)'),
+              decoration: InputDecoration(labelText: 'Safety Floor Threshold ($moneySymbol)'),
             ),
             const SizedBox(height: 8),
             CheckboxListTile(
