@@ -383,6 +383,19 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Dynamic colour (opt-in):** "Device colours" in the More menu (`dynamic_color` 1.7.0; 1.9.0 needs a newer Kotlin Gradle plugin). Only the accent changes: the 33 hard-coded black/white accent spots now read `colorScheme.primary` / `onPrimary`. Neutrals and good/bad/warn never change.
 - **On the phone:** dark, light, and device colours on (the wallpaper accent on the FAB and the selected chip, money colours unchanged). The app's settings were put back afterwards.
 
+**Status, Phase 3 stack PR 4 (3.2 edge-to-edge, predictive back, 48 dp):**
+- **Edge-to-edge:** `SystemUiMode.edgeToEdge` with transparent status and navigation bars whose icons follow the theme, so the grey status band seen on the phone is gone. Every top-level screen already sits in a SafeArea.
+- **Predictive back:** `android:enableOnBackInvokedCallback="true"`, plus `PredictiveBackPageTransitionsBuilder` for Android page transitions. The entry sheet's PopScope keeps its discard check.
+- **48 dp targets:** `test/tap_targets_test.dart` runs Android's `androidTapTargetGuideline` on the header and the four tabs at 393 dp with the recorded month. It found 10 small targets:
+  - the header month and floor pills (30–33 dp);
+  - Plan's Month Review (24 dp);
+  - the Transactions tabs (34 dp);
+  - five Accounts icon buttons (40 dp).
+
+  `MinTap` gives a small control a 48 dp tap area without changing how it looks. The header's padding was cut so its height is unchanged.
+- **Realistic test layout:** `test/helpers/real_fonts.dart` (`loadAppFonts()`) loads the bundled fonts before pumping. With the 1-em test font, Plan "overflowed" at 393 dp where the phone shows no overflow. With real fonts, it doesn't.
+- **Not covered by the tap test yet:** the sheets (entry form chips are 32 dp; that's 3.6).
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

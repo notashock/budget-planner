@@ -269,9 +269,6 @@ class AccountsScreen extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
             tooltip: 'Edit $name',
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
             icon: const Icon(Icons.edit_outlined, size: 16),
             color: textMuted,
             onPressed: () {
@@ -287,9 +284,6 @@ class AccountsScreen extends StatelessWidget {
           IconButton(
             key: ValueKey('delete-account-${acc.id}'),
             tooltip: 'Archive $name',
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
             icon: const Icon(Icons.delete_outline, size: 16),
             color: textMuted,
             onPressed: () async {
@@ -372,9 +366,6 @@ class AccountsScreen extends StatelessWidget {
               IconButton(
                 key: ValueKey('delete-transfer-${tr.id}'),
                 tooltip: 'Delete transfer',
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
                 icon: const Icon(Icons.delete_outline, size: 16),
                 color: textMuted,
                 onPressed: () async {
