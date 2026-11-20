@@ -200,12 +200,20 @@ export function simulate(
 
   // Check if an actual salary transaction exists or if salary is explicitly marked credited
   const isSalaryMarkedCredited = Boolean(settings.isSalaryCredited || month.isSalaryCredited);
+  // The server marks a credited salary with origin 'salary' and the name
+  // 'Monthly Salary' (see monthLifecycle / salaryCycleJob), so those count as
+  // the salary too; otherwise it would be added again on top of the expected
+  // salary event.
+  const SALARY_NAMES = new Set(['monthly salary', 'expected monthly salary']);
+  const isSettledTx = (tx) => tx.status !== 'cancelled' && tx.status !== 'planned';
   const salaryTx = (transactions || []).find((tx) => {
     if (tx.isSalary) return true;
     if (settings.salaryTransactionId && String(tx._id || tx.id) === String(settings.salaryTransactionId)) return true;
     if (month?.salaryTransactionId && String(tx._id || tx.id) === String(month.salaryTransactionId)) return true;
     if (tx.isIncome && String(tx.note || '').toLowerCase() === 'monthly salary') return true;
     if (tx.isIncome && String(tx.tag || '').toLowerCase() === 'salary' && incomeAmount > 0 && Math.round(Number(tx.amount)) === incomeAmount) return true;
+    if (tx.isIncome && isSettledTx(tx) && tx.origin === 'salary') return true;
+    if (tx.isIncome && isSettledTx(tx) && SALARY_NAMES.has(String(tx.name || '').trim().toLowerCase())) return true;
     return false;
   });
 
