@@ -7,13 +7,13 @@ import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
-import '../widgets/load_error_banner.dart';
 import '../modals/month_modals.dart';
 import '../modals/month_review_modal.dart';
 import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import '../widgets/tab_states.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -36,18 +36,9 @@ class _PlanScreenState extends State<PlanScreen> {
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    if (budget.isLoading && budget.simulation == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // A failed load is never shown as "no month": that is only for a real 404.
-    if (budget.monthInfo == null && budget.loadError != null && !budget.monthMissing) {
-      return LoadErrorView(error: budget.loadError!);
-    }
-
     final month = budget.monthInfo;
     if (month == null) {
-      return Center(
+      return ScrollableEmpty(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -108,9 +99,7 @@ class _PlanScreenState extends State<PlanScreen> {
     salaryCreditDay ??= month.incomeCreditDay;
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => budget.refresh(),
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
           child: Column(
@@ -198,7 +187,6 @@ class _PlanScreenState extends State<PlanScreen> {
             ],
           ),
         ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
