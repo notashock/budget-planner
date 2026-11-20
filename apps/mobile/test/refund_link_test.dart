@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/services/entry_memory.dart';
+import 'package:budget_mobile/services/outbox.dart';
 
 class FakeBudget extends BudgetProvider {
   FakeBudget({this.extra = const []});
@@ -38,7 +39,10 @@ class FakeBudget extends BudgetProvider {
   Future<Map<String, dynamic>> getPersonFunds() async => {'funds': []};
 
   @override
-  Future<void> addTransaction(Map<String, dynamic> tx) async => created.add(tx);
+  Future<WriteResult> addTransaction(Map<String, dynamic> tx) async {
+    created.add(tx);
+    return WriteResult.saved;
+  }
 }
 
 Future<FakeBudget> pumpSheet(WidgetTester tester, {Map<String, dynamic>? item, List<Map<String, dynamic>> extra = const []}) async {

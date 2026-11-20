@@ -134,13 +134,14 @@ class ApiService {
     String method,
     String path, {
     Map<String, dynamic>? body,
+    String? idempotencyKey,
   }) async {
     final verb = method.toUpperCase();
     if (verb != 'GET' && !_writeMethods.contains(verb)) {
       throw ApiException('Unsupported HTTP method $method', 0, ApiErrorKind.rejected);
     }
     final isWrite = _writeMethods.contains(verb);
-    final idempotencyKey = isWrite && path.startsWith(_v1) ? newIdempotencyKey() : null;
+    idempotencyKey ??= isWrite && path.startsWith(_v1) ? newIdempotencyKey() : null;
     final safeToResend = !isWrite || idempotencyKey != null;
 
     try {
@@ -352,9 +353,25 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> createTransaction(int year, int month, Map<String, dynamic> tx) async {
-    final data = await _request('POST', '$_v1/periods/$year/$month/transactions', body: tx);
+    final data = await _request('POST', createTransactionPath(year, month), body: tx);
     return Map<String, dynamic>.from(data);
   }
+
+  static String createTransactionPath(int year, int month) => '$_v1/periods/$year/$month/transactions';
+  static String payTransactionPath(String id) => '$_v1/transactions/$id/pay';
+
+  /// Body of POST [payTransactionPath].
+  static Map<String, dynamic> payBody({String? accountId, num? amount, String? date}) => {
+        'accountId': ?accountId,
+        'amount': ?amount,
+        'date': ?date,
+      };
+
+  /// Sends a write captured in the outbox (ADR 0071) with the key it was
+  /// captured with, so a replay of a write that already reached the server
+  /// is answered from the server's idempotency store, not run again.
+  Future<dynamic> sendCapturedWrite(String path, Map<String, dynamic> body, String idempotencyKey) =>
+      _request('POST', path, body: body, idempotencyKey: idempotencyKey);
 
   Future<Map<String, dynamic>> updateTransaction(String id, Map<String, dynamic> updates) async {
     final data = await _request('PATCH', '$_v1/transactions/$id', body: updates);
@@ -362,11 +379,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> payTransaction(String id, {String? accountId, num? amount, String? date}) async {
-    final body = <String, dynamic>{};
-    if (accountId != null) body['accountId'] = accountId;
-    if (amount != null) body['amount'] = amount;
-    if (date != null) body['date'] = date;
-    final data = await _request('POST', '$_v1/transactions/$id/pay', body: body);
+    final data = await _request('POST', payTransactionPath(id), body: payBody(accountId: accountId, amount: amount, date: date));
     return Map<String, dynamic>.from(data);
   }
 

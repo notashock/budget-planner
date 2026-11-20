@@ -295,6 +295,20 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Not measured yet:** the exit timings need a profile build on a real device.
 - **Next PRs:** 2.7 outbox + 2.8 optimistic insert (with ADR 0071); then 2.2/2.3/2.9 rebuild and list work, and the ~236 KB month payload.
 
+**Status, second Phase 2 PR (2.7 + 2.8, ADR 0071):**
+- **2.7 outbox:**
+  - **What's captured:** spends, refunds, income and mark-paid are stored on the phone before they're sent, each with an Idempotency-Key made once (`lib/services/outbox.dart`). Every retry, replay and restart uses that key.
+  - **When kept entries are sent:** after the next good load and every 30 s.
+  - **If the server refuses one:** the entry is kept with the reason until the user sends or discards it.
+  - **Server:** keeps idempotency keys for 7 days instead of 24 h. The phone asks before sending an entry older than 6 days.
+  - **Ownership:** entries belong to their user and survive sign-out.
+  - **Airplane-mode exit test:** passes as a unit test against a fake server that keeps keys and drops replies: 3 spends, reconnect, exactly 3 rows.
+- **Also fixed:** a cold start without signal showed the sign-in screen, because `/auth/me` failed. The app now starts as the last known user; a 401 still signs out.
+- **2.8 optimistic:** a new spend or income closes the entry sheet at once. A strip under the header shows `Saving "Tea" ₹20…` / `N waiting to sync` / `N not saved` and opens a list with Sync now, Send and Discard. A refusal comes back as a snackbar.
+  - **Deviation from T6:** the waiting entry shows in that strip, not as a row in the Transactions list, and totals don't move until the server has it (ADR 0052).
+- **Not captured (wait for the server, as before):** planned bills, goals, transfers, cards, accounts, held/lent.
+- **Next:** 2.2/2.3/2.9 rebuild and list work, and the ~236 KB month payload.
+
 ### Phase 3 — UI / UX (weeks 6–9)
 
 | # | Task |

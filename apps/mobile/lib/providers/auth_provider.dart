@@ -25,14 +25,29 @@ class AuthProvider with ChangeNotifier {
       await _api.init();
       final token = await StorageService.getToken();
       if (token != null && token.isNotEmpty) {
-        final me = await _api.getMe();
-        if (me != null && me['user'] != null) {
-          _user = me['user'] as Map<String, dynamic>;
-          _settings = me['settings'] is Map ? me['settings'] as Map<String, dynamic> : null;
-          _isAuthenticated = true;
-        } else {
-          _isAuthenticated = false;
-          await StorageService.setToken(null);
+        try {
+          final me = await _api.getMe();
+          if (me != null && me['user'] != null) {
+            _user = me['user'] as Map<String, dynamic>;
+            _settings = me['settings'] is Map ? me['settings'] as Map<String, dynamic> : null;
+            _isAuthenticated = true;
+            await StorageService.setUser(_user);
+          } else {
+            _isAuthenticated = false;
+            await StorageService.setToken(null);
+          }
+        } on ApiException catch (e) {
+          // Offline or a server hiccup is not a sign-out: start with the user
+          // last seen here, so saved data and captured entries stay usable
+          // (ADR 0071). A rejected token (401) still signs out.
+          final known = e.kind == ApiErrorKind.unauthorized ? null : await StorageService.getUser();
+          if (known == null) {
+            _isAuthenticated = false;
+            if (e.kind == ApiErrorKind.unauthorized) await StorageService.setToken(null);
+          } else {
+            _user = known;
+            _isAuthenticated = true;
+          }
         }
       } else {
         _isAuthenticated = false;
@@ -53,6 +68,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final res = await _api.login(email, password);
       _user = res['user'] as Map<String, dynamic>;
+      await StorageService.setUser(_user);
       _isAuthenticated = true;
       _isLoading = false;
       notifyListeners();
@@ -73,6 +89,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final res = await _api.register(email, password);
       _user = res['user'] as Map<String, dynamic>;
+      await StorageService.setUser(_user);
       _isAuthenticated = true;
       _isLoading = false;
       notifyListeners();

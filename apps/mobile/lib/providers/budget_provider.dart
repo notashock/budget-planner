@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/outbox.dart';
 import '../services/storage_service.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
@@ -246,6 +249,8 @@ class BudgetProvider with ChangeNotifier {
     _loadError = null;
     _lastLoadedAt = DateTime.now();
     _cachedAt = null;
+    // The server answered: a good moment to send what waits.
+    if (_hasSendable) scheduleMicrotask(syncNow);
   }
 
   Future<void> loadInitialData() async {
@@ -255,6 +260,7 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await _restoreOutbox();
       final restored = await _restoreCache();
       if (restored) notifyListeners();
       final settings = await _api.getSettings();
@@ -602,17 +608,39 @@ class BudgetProvider with ChangeNotifier {
   });
 
   // Unified Transactions
-  Future<void> addTransaction(Map<String, dynamic> tx) => _write(() async {
-      await _api.createTransaction(_currentYear, _currentMonth, tx);
-  });
+  /// A spend, refund or income. Captured on the phone first (ADR 0071): it
+  /// returns [WriteResult.queued] when the server can't be reached, and
+  /// throws only when the server refuses it.
+  Future<WriteResult> addTransaction(Map<String, dynamic> tx) {
+    final isIncome = tx['isIncome'] == true || tx['type'] == 'income';
+    final amount = num.tryParse('${tx['amount']}')?.round().abs() ?? 0;
+    return _capture(
+      kind: isIncome ? OutboxKind.income : OutboxKind.spend,
+      path: ApiService.createTransactionPath(_currentYear, _currentMonth),
+      body: tx,
+      label: '${tx['description'] ?? tx['name'] ?? tx['category'] ?? (isIncome ? 'Income' : 'Spend')}',
+      amount: amount,
+    );
+  }
 
   Future<void> updateTransaction(String id, Map<String, dynamic> updates) => _write(() async {
       await _api.updateTransaction(id, updates);
   });
 
-  Future<void> payTransaction(String id, {String? accountId, num? amount, String? date}) => _write(() async {
-      await _api.payTransaction(id, accountId: accountId, amount: amount, date: date);
-  });
+  /// Marks a planned transaction paid; captured like [addTransaction].
+  Future<WriteResult> payTransaction(String id, {String? accountId, num? amount, String? date}) {
+    Transaction? tx;
+    for (final t in transactionModels) {
+      if (t.id == id) tx = t;
+    }
+    return _capture(
+      kind: OutboxKind.markPaid,
+      path: ApiService.payTransactionPath(id),
+      body: ApiService.payBody(accountId: accountId, amount: amount, date: date),
+      label: tx?.name ?? 'Payment',
+      amount: (amount ?? tx?.plannedAmount ?? tx?.amount ?? 0).round().abs(),
+    );
+  }
 
   Future<void> cancelTransaction(String id, {String? goalAction}) => _write(() async {
       await _api.cancelTransaction(id, goalAction: goalAction);
@@ -671,13 +699,16 @@ class BudgetProvider with ChangeNotifier {
   });
 
   // Legacy item aliases for backwards compatibility
-  Future<void> addItem(Map<String, dynamic> item) => addTransaction({
-    ...item,
-    'status': item['isPaid'] == true ? 'successful' : 'planned',
-    'origin': 'planned',
-    'plannedAmount': item['plannedAmount'] ?? item['amount'],
-    'plannedDate': item['plannedDate'] ?? item['date'],
-  });
+  // A planned bill is not captured offline (ADR 0071): it waits for the server.
+  Future<void> addItem(Map<String, dynamic> item) => _write(() async {
+        await _api.createTransaction(_currentYear, _currentMonth, {
+          ...item,
+          'status': item['isPaid'] == true ? 'successful' : 'planned',
+          'origin': 'planned',
+          'plannedAmount': item['plannedAmount'] ?? item['amount'],
+          'plannedDate': item['plannedDate'] ?? item['date'],
+        });
+      });
 
   Future<void> updateItem(String id, Map<String, dynamic> updates) => updateTransaction(id, updates);
 
@@ -758,4 +789,200 @@ class BudgetProvider with ChangeNotifier {
   Future<void> deleteTransfer(String id) => _write(() async {
       await _api.deleteTransfer(id);
   });
+
+  // ---- Outbox (upgrade plan 2.7 / 2.8, ADR 0071) ----
+  // Spends, income and mark-paid are saved on the phone before they are sent
+  // (write-ahead), then sent with the key they were captured with. While one
+  // is on its way it shows as "Saving…"; when the server can't be reached it
+  // stays as "waiting to sync" and is sent after the next good load, or every
+  // [syncRetryInterval]. Balances never change on the phone (ADR 0052): they
+  // update when the server has the entry.
+
+  List<OutboxEntry> _outbox = [];
+  bool _outboxLoaded = false;
+  String? _owner;
+  final Set<String> _sendingKeys = {};
+  bool _syncing = false;
+  Timer? _retryTimer;
+  final StreamController<String> _notices = StreamController<String>.broadcast();
+
+  /// How often waiting entries are retried while the app runs.
+  Duration syncRetryInterval = const Duration(seconds: 30);
+
+  /// Messages for a snackbar: background sends the server refused.
+  Stream<String> get notices => _notices.stream;
+
+  /// This user's captured entries, oldest first.
+  List<OutboxEntry> get pendingEntries => List.unmodifiable(_outbox.where((e) => e.owner == _owner));
+
+  /// The entry is being sent right now.
+  bool isSending(String key) => _sendingKeys.contains(key);
+
+  bool get _hasSendable {
+    final now = DateTime.now();
+    return _outbox.any(
+        (e) => e.owner == _owner && e.error == null && !e.isStale(now) && !_sendingKeys.contains(e.key));
+  }
+
+  Future<void> _restoreOutbox() async {
+    _owner = await StorageService.getUserId();
+    if (_outboxLoaded) return;
+    _outbox = await OutboxStore.read();
+    _outboxLoaded = true;
+  }
+
+  Future<void> _saveOutbox() => OutboxStore.write(_outbox);
+
+  void _replace(String key, OutboxEntry? entry) {
+    final i = _outbox.indexWhere((e) => e.key == key);
+    if (i < 0) return;
+    if (entry == null) {
+      _outbox.removeAt(i);
+    } else {
+      _outbox[i] = entry;
+    }
+  }
+
+  /// Wait and send again later, or give up? 401 waits for a new sign-in; 409
+  /// in progress means the first attempt is still running on the server.
+  static bool _worthRetrying(ApiException e) =>
+      e.isTransient ||
+      e.kind == ApiErrorKind.unauthorized ||
+      (e.statusCode == 409 && e.code == 'IDEMPOTENCY_IN_PROGRESS');
+
+  Future<WriteResult> _capture({
+    required OutboxKind kind,
+    required String path,
+    required Map<String, dynamic> body,
+    required String label,
+    required int amount,
+  }) async {
+    final key = newIdempotencyKey();
+    // Saving from the first moment, so a form can't submit twice meanwhile;
+    // _write takes over the count without a gap.
+    _pendingWrites++;
+    notifyListeners();
+    final String? owner;
+    try {
+      await _restoreOutbox();
+      owner = _owner;
+      if (owner != null) {
+        _outbox.add(OutboxEntry(
+          key: key,
+          kind: kind,
+          path: path,
+          body: body,
+          label: label,
+          amount: amount,
+          createdAt: DateTime.now(),
+          owner: owner,
+        ));
+        _sendingKeys.add(key);
+        notifyListeners();
+        await _saveOutbox();
+      }
+    } finally {
+      _pendingWrites--;
+    }
+    if (owner == null) {
+      // No known user to own it (signed in before this version): a plain write.
+      await _write(() => _api.sendCapturedWrite(path, body, key));
+      return WriteResult.saved;
+    }
+
+    var result = WriteResult.queued;
+    try {
+      await _write(() async {
+        try {
+          await _api.sendCapturedWrite(path, body, key);
+          result = WriteResult.saved;
+          _replace(key, null);
+        } on ApiException catch (e) {
+          if (_worthRetrying(e)) return; // stays in the outbox
+          _replace(key, null); // refused: nothing to send again
+          rethrow;
+        } finally {
+          _sendingKeys.remove(key);
+          await _saveOutbox();
+        }
+      }, reload: () async {
+        if (result == WriteResult.saved) await refresh();
+      });
+    } finally {
+      _armRetry();
+      notifyListeners();
+    }
+    return result;
+  }
+
+  /// Sends this user's waiting entries, oldest first. Stops at the first one
+  /// the server can't take yet; a refused one is kept with its reason.
+  /// [include] also sends entries that were refused before or are old.
+  Future<void> syncNow({Set<String> include = const {}}) async {
+    if (_syncing) return;
+    _syncing = true;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    var sent = false;
+    try {
+      final now = DateTime.now();
+      final due = _outbox
+          .where((e) =>
+              e.owner == _owner &&
+              !_sendingKeys.contains(e.key) &&
+              (include.contains(e.key) || (e.error == null && !e.isStale(now))))
+          .toList();
+      for (final entry in due) {
+        _sendingKeys.add(entry.key);
+        notifyListeners();
+        try {
+          await _write(() => _api.sendCapturedWrite(entry.path, entry.body, entry.key), reload: () async {});
+          _replace(entry.key, null);
+          sent = true;
+        } on ApiException catch (e) {
+          if (_worthRetrying(e)) break;
+          _replace(entry.key, entry.withError(e.message));
+          _notices.add('Couldn’t save “${entry.label}”: ${e.message}');
+        } finally {
+          _sendingKeys.remove(entry.key);
+          await _saveOutbox();
+        }
+      }
+    } finally {
+      _syncing = false;
+      notifyListeners();
+    }
+    if (sent) await refresh();
+    _armRetry();
+  }
+
+  /// Sends one entry now, even if it was refused before or is old.
+  Future<void> retryEntry(String key) {
+    final i = _outbox.indexWhere((e) => e.key == key);
+    if (i >= 0) _outbox[i] = _outbox[i].withError(null);
+    return syncNow(include: {key});
+  }
+
+  /// Drops an entry without sending it.
+  Future<void> discardEntry(String key) async {
+    if (_sendingKeys.contains(key)) return;
+    _replace(key, null);
+    notifyListeners();
+    await _saveOutbox();
+  }
+
+  void _armRetry() {
+    if (_retryTimer != null || !_hasSendable) return;
+    _retryTimer = Timer(syncRetryInterval, () {
+      _retryTimer = null;
+      syncNow();
+    });
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    _notices.close();
+    super.dispose();
+  }
 }
