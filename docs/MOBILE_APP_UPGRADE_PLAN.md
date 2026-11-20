@@ -430,6 +430,15 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **First run:** "Create <Month>" on the empty Plan landed in PR #18.
 - **Test:** `test/onboarding_test.dart`. The device check is at the end of Phase 3.
 
+**Status, Phase 3 stack PR 8 (3.7 swipe actions):**
+- **`SwipeRow` (`lib/widgets/swipe_row.dart`) on Transactions:**
+  - **Swipe right on a planned row:** mark paid in full, from the account it was planned on (`defaultPayFrom`, now shared with the mark-paid sheet), dated today.
+  - **Swipe left on an editable row:** opens the entry sheet (`canEditTransaction` / `openEditTransaction`, now shared with the detail sheet). Transfers, held/lent rows and cancelled rows aren't editable.
+- **Undo by not sending:** there's no "unpay", so a swiped row is hidden while the 4-second Undo snackbar shows, and the payment is sent only when it closes without Undo. If the app is killed in that window, nothing was sent and the row comes back. A queued (offline) payment says so.
+- **TalkBack:** both actions are also custom semantics actions, since screen-reader users can't swipe.
+- **Not adopted:** the release branch's swipeable card; this is plain `Dismissible`, restyled to Material 3.
+- **Tests:** `test/swipe_actions_test.dart` (the Undo test fails if Undo still sends).
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

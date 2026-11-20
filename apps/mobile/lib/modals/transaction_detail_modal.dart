@@ -242,17 +242,7 @@ class TransactionDetailModal extends StatelessWidget {
                     final rootContext = navigator.context;
                     final t = v.editable!;
                     navigator.pop();
-                    showModalBottomSheet(
-                      context: rootContext,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => UnifiedEntryModal(
-                        initialType: t.isPlanned
-                            ? EntryType.item
-                            : (t.kind == TxKind.income ? EntryType.income : EntryType.transaction),
-                        initialTransaction: t,
-                      ),
-                    );
+                    openEditTransaction(rootContext, t);
                   },
                 ),
               ),
@@ -419,7 +409,7 @@ class _DetailView {
         },
     };
     final cancelled = t.status == TxStatus.cancelled;
-    final canEdit = !cancelled && !t.isPassThrough && t.kind != TxKind.transfer;
+    final canEdit = canEditTransaction(t);
     return _DetailView(
       kindLabel: kindLabel,
       flow: t.flow,
@@ -463,3 +453,21 @@ class _DetailView {
         isPlanned: !e.isPaid,
       );
 }
+
+/// Transfers are deleted and logged again, held/lent rows are edited from the
+/// person, and a cancelled row is final: only the rest can be edited.
+bool canEditTransaction(Transaction t) =>
+    t.status != TxStatus.cancelled && !t.isPassThrough && t.kind != TxKind.transfer;
+
+/// The entry sheet, filled from [t] (detail sheet and swipe-to-edit).
+Future<void> openEditTransaction(BuildContext context, Transaction t) => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UnifiedEntryModal(
+        initialType: t.isPlanned
+            ? EntryType.item
+            : (t.kind == TxKind.income ? EntryType.income : EntryType.transaction),
+        initialTransaction: t,
+      ),
+    );
