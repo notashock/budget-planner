@@ -10,6 +10,7 @@ import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
+import '../widgets/min_tap.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -216,6 +217,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           onTap: () =>
                               setState(() => _activeTab = 'successful'),
                           child: Container(
+                            constraints: const BoxConstraints(minHeight: MinTap.size),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'successful'
@@ -271,6 +273,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         child: GestureDetector(
                           onTap: () => setState(() => _activeTab = 'planned'),
                           child: Container(
+                            constraints: const BoxConstraints(minHeight: MinTap.size),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'planned'

@@ -1,5 +1,6 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
@@ -21,6 +22,9 @@ import 'widgets/app_lock_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Draw behind the status and navigation bars (upgrade plan 3.2); SafeArea
+  // and the bottom bar keep content clear of them.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   AppTypography.useBundledFonts();
 
   final themeProvider = ThemeProvider();
@@ -95,9 +99,14 @@ class _BudgetMobileAppState extends State<BudgetMobileApp>
         // App lock sits above the navigator, so it also covers open sheets and
         // dialogs. The app underneath stays mounted (state kept) but offstage:
         // not painted and not read by screen readers.
-        builder: (context, child) => AppLockGate(
-          signedIn: authProvider.isAuthenticated,
-          child: child ?? const SizedBox.shrink(),
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          // Transparent bars over the app's own background, icons readable
+          // in either theme.
+          value: _systemBars(Theme.of(context).brightness),
+          child: AppLockGate(
+            signedIn: authProvider.isAuthenticated,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
         home: authProvider.isLoading
             ? const Scaffold(body: Center(child: CircularProgressIndicator()))
@@ -205,4 +214,16 @@ class _AppShellState extends State<AppShell> {
       ),
     );
   }
+}
+
+SystemUiOverlayStyle _systemBars(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+    statusBarBrightness: brightness, // iOS
+    systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+  );
 }

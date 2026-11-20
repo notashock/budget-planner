@@ -5,6 +5,7 @@ import '../models/simulation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import 'min_tap.dart';
 
 class StepLineChartWidget extends StatefulWidget {
   final SimulationResult simulation;
@@ -81,7 +82,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                   InkWell(
                     onTap: widget.onOpenReview,
                     borderRadius: BorderRadius.circular(6),
-                    child: Container(
+                    child: MinTap(child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
@@ -102,7 +103,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                           ),
                         ],
                       ),
-                    ),
+                    )),
                   ),
               ],
             ),

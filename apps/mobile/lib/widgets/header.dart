@@ -11,6 +11,7 @@ import 'app_lock_settings_sheet.dart';
 import '../providers/app_lock_provider.dart';
 import '../modals/month_modals.dart';
 import '../modals/salary_safeline_modal.dart';
+import 'min_tap.dart';
 
 class HeaderWidget extends StatelessWidget {
   const HeaderWidget({super.key});
@@ -45,7 +46,7 @@ class HeaderWidget extends StatelessWidget {
     final int floor = budget.monthInfo?.safetyFloor ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBg : AppColors.lightBg,
         border: Border(
@@ -72,7 +73,7 @@ class HeaderWidget extends StatelessWidget {
                   color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                 ),
               ),
-              child: Container(
+              child: MinTap(child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,
@@ -115,7 +116,7 @@ class HeaderWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
+              )),
               onSelected: (val) {
                 if (val == '__new__') {
                   showModalBottomSheet(
@@ -211,7 +212,7 @@ class HeaderWidget extends StatelessWidget {
                 );
               },
               borderRadius: BorderRadius.circular(6),
-              child: Container(
+              child: MinTap(child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: isDark
@@ -253,7 +254,7 @@ class HeaderWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
+              )),
             ),
           ),
           const Spacer(),
