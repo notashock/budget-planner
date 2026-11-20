@@ -60,12 +60,12 @@ class AccountsScreen extends StatelessWidget {
                         style: AppTypography.inter(fontSize: 13, color: textMuted),
                       );
                     }
-                    return Text(formatCurrency(today), style: AppTypography.hero(color: text));
+                    return Text(formatCurrencyWhole(today), style: AppTypography.hero(color: text));
                   }),
                   if ((budget.simulation?.heldReserve ?? 0) > 0) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Includes ${formatCurrency(budget.simulation!.heldReserve)} you hold for others',
+                      'Includes ${formatCurrencyWhole(budget.simulation!.heldReserve)} you hold for others',
                       style: TextStyle(fontSize: 12, color: textMuted),
                     ),
                   ],
@@ -416,7 +416,7 @@ class AccountsScreen extends StatelessWidget {
               TextField(
                 controller: balCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Opening Balance (₹)'),
+                decoration: InputDecoration(labelText: 'Opening Balance ($moneySymbol)'),
               ),
               if (isBank) ...[
                 const SizedBox(height: 8),

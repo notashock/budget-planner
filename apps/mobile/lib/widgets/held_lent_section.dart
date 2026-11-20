@@ -78,7 +78,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
               children: [
                 Text(label.toUpperCase(), style: AppTypography.sectionHeader(color: muted)),
                 const SizedBox(height: 4),
-                Text(formatCurrency(amount), style: AppTypography.cardTitle(color: text)),
+                Text(formatCurrencyWhole(amount), style: AppTypography.cardTitle(color: text)),
                 const SizedBox(height: 2),
                 Text(note, style: TextStyle(fontSize: 11, color: muted)),
               ],
@@ -142,7 +142,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
                   style: TextStyle(fontSize: 12, color: muted),
                 ),
                 trailing: Text(
-                  formatCurrency(out < 0 ? 0 : out),
+                  formatCurrencyWhole(out < 0 ? 0 : out),
                   style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? AppColors.primary : text)),
                 ),
                 onTap: settled

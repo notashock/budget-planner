@@ -367,6 +367,15 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
   - **3.2/3.3:** the "New Entry" button covers the timeline's filter chips;
   - **to check:** "Today's balance" includes a salary the timeline still lists as planned.
 
+**Status, Phase 3 stack PR 2 (3.4 money and dates):**
+- **Rules:** these mirror the web engine (`formatCurrency` / `formatCurrencyWhole`, the chart's `formatChartTick`):
+  - lists and the ledger keep paise (₹1,250.00);
+  - headline figures and totals are whole rupees: summary cards, safe-to-spend, the chart's day balance, card and held/lent figures, the Accounts total;
+  - `MoneyDigits.auto` drops paise only when there are none.
+- **Compact figures:** chart axes and the floor pill use the Indian system: the full figure under ₹10,000, then k, L and Cr (was k and m).
+- **Symbol:** no hard-coded `₹` is left in widgets. Amounts and input labels follow the loaded month's `currencySymbol` (`moneySymbol`, set on each load), and defaults use `kDefaultCurrencySymbol`.
+- **Dates:** the Indian day-month order ("Fri, 18 Sep"). The web app still uses "Fri, Sep 18" (follow-up for web).
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

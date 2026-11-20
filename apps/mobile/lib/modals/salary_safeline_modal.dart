@@ -204,7 +204,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 enabled: !isModalLocked,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Expected Monthly Salary (₹)',
+                  labelText: 'Expected Monthly Salary ($moneySymbol)',
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
@@ -234,7 +234,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 enabled: !isModalLocked,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Safety Floor Threshold (₹)',
+                  labelText: 'Safety Floor Threshold ($moneySymbol)',
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),

@@ -119,7 +119,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tx = widget.transaction;
     final name = tx.name.isEmpty ? 'Planned Transaction' : tx.name;
-    final currency = budget.monthInfo?.currencySymbol ?? '₹';
+    final currency = budget.monthInfo?.currencySymbol ?? kDefaultCurrencySymbol;
     final plannedRaw = tx.displayAmount;
 
     return Padding(

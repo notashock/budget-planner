@@ -428,6 +428,7 @@ class BudgetProvider with ChangeNotifier {
       _goals = goals;
       _evaluatedGoals = goals;
       _monthInfo = monthInfo;
+      moneySymbol = monthInfo?.currencySymbol ?? kDefaultCurrencySymbol;
     }
     _bankAccounts = banks;
     _wallets = wallets;

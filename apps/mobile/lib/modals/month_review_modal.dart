@@ -10,7 +10,7 @@ void showMonthReviewModal(
   required MonthInfo month,
   required SimulationResult simulation,
   required int safetyFloor,
-  String currencySymbol = '₹',
+  String currencySymbol = kDefaultCurrencySymbol,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final bg = isDark ? const Color(0xFF101013) : Colors.white;

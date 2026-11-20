@@ -204,9 +204,9 @@ class _AddCardModalState extends State<AddCardModal> {
       TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *')),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: TextField(controller: _limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Credit limit (₹)'))),
+        Expanded(child: TextField(controller: _limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Credit limit ($moneySymbol)'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: _isEdit ? 'Owed when added (₹)' : 'Owed now (₹)'))),
+        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: _isEdit ? 'Owed when added ($moneySymbol)' : 'Owed now ($moneySymbol)'))),
       ]),
       if (owedShift != 0)
         Padding(
@@ -332,7 +332,7 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
         controller: _amount,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(labelText: 'Bill amount (₹)'),
+        decoration: InputDecoration(labelText: 'Bill amount ($moneySymbol)'),
       ),
       const SizedBox(height: 10),
       TextField(
@@ -439,7 +439,7 @@ class _PayBillModalState extends State<PayBillModal> {
           controller: _custom,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Amount (₹)'),
+          decoration: InputDecoration(labelText: 'Amount ($moneySymbol)'),
         ),
       ],
       const SizedBox(height: 12),
