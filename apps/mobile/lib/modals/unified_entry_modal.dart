@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../models/goal.dart';
@@ -440,7 +441,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final month = budget.monthInfo;
     final salaryAmt = month?.incomeAmount ?? 0;

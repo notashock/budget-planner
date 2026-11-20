@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../services/outbox.dart';
 import '../engine/engine.dart';
 import '../models/transaction.dart';
@@ -114,7 +115,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tx = widget.transaction;
     final name = tx.name.isEmpty ? 'Planned Transaction' : tx.name;

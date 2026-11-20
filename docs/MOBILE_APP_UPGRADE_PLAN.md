@@ -325,6 +325,14 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **2.3 (split `UnifiedEntryModal`)** is not in this PR. It's a 1,500-line sheet with many tests around it, so it gets its own PR.
 - **Not measured:** the Phase 2 exit timings (profile build on a device) are still open.
 
+**Status, fourth Phase 2 PR (2.3, entry sheet rebuilds):**
+- **P6 was already fixed:** keystrokes don't rebuild the sheet. The amount and description fields own their controllers, and the assists and the floor notice listen to those controllers directly (entry-forms work).
+- **What still rebuilt it:** `context.watch<BudgetProvider>()`. Since 2.8, every "Saving…" or sync change redrew the whole open sheet.
+- **The fix:** `context.budgetView()` (`lib/providers/budget_view.dart`) reads the provider and rebuilds only on `viewState`. It's now used by the entry sheet, mark-paid, card, held/lent and salary sheets, the cards section, the floor notice and the tabs. The detail sheet also selects `isSaving`, which disables its buttons; the sync strip still watches everything.
+- **Test:** `test/entry_sheet_rebuilds_test.dart` counts the sheet's rebuilds. It expects 0 for typing and for an entry kept offline, and at least 1 for new month data. With the old `watch` it fails (1 rebuild from save progress).
+- **Per-tab split deferred to 3.6:** splitting the sheet into per-tab widgets is a maintainability refactor, not a performance one. 3.6 (one-row date + account chips, entry-forms plan §5.1) rebuilds this sheet's layout, so the split happens there instead of moving the code twice.
+- **Phase 2 is done in code.** The exit timings still need a profile build on a mid-range device.
+
 ### Phase 3 — UI / UX (weeks 6–9)
 
 | # | Task |

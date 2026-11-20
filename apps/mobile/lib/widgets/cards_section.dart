@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../theme/app_colors.dart';
@@ -71,7 +72,7 @@ class _CardsSectionState extends State<CardsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
