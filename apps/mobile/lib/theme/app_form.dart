@@ -71,7 +71,21 @@ class AppForm {
       shape: RoundedRectangleBorder(borderRadius: radius),
       side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      // The colour must be set here: a theme labelStyle replaces Material's
+      // default label style, colour included, and a chip label with no colour
+      // paints white (unselected chips were blank on the phone).
+      // Selected chips sit on a filled (indigo) background: white text there.
+      labelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          if (states.contains(WidgetState.disabled)) {
+            return isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+          }
+          return isDark ? AppColors.darkText : AppColors.lightText;
+        }),
+      ),
     );
   }
 }
