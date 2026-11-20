@@ -21,11 +21,11 @@ String _shortDate(String? iso) {
 Color _bandColor(BuildContext context, String? band) {
   switch (band) {
     case 'over':
-      return context.palette.bad;
+      return context.palette.badInk;
     case 'tight':
-      return context.palette.warn;
+      return context.palette.warnInk;
     default:
-      return context.palette.good;
+      return context.palette.goodInk;
   }
 }
 
@@ -103,7 +103,7 @@ class _CardsSectionState extends State<CardsSection> {
         Text('Swipes count on the day and are set aside from Safe-to-Spend. Paying the bill isn\'t counted again.',
             style: TextStyle(fontSize: 12, color: muted)),
         const SizedBox(height: 10),
-        if (_error != null) Text(_error!, style: TextStyle(color: context.palette.bad, fontSize: 12)),
+        if (_error != null) Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 12)),
         if (_cards.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -170,7 +170,7 @@ class _CardsSectionState extends State<CardsSection> {
                         value: util,
                         minHeight: 6,
                         backgroundColor: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                        color: util > 0.8 ? context.palette.bad : (util > 0.5 ? context.palette.warn : text),
+                        color: util > 0.8 ? context.palette.badInk : (util > 0.5 ? context.palette.warnInk : text),
                       ),
                     ),
                   ],
@@ -193,7 +193,7 @@ class _CardsSectionState extends State<CardsSection> {
                             draft != null
                                 ? 'Bill ready: ${formatCurrencyWhole(draft.billAmount)}, due ${_shortDate(bill.dueDate)}'
                                 : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrencyWhole(bill.remaining)} by ${_shortDate(bill.dueDate)}',
-                            style: TextStyle(fontSize: 12, color: overdue ? context.palette.bad : text),
+                            style: TextStyle(fontSize: 12, color: overdue ? context.palette.badInk : text),
                           ),
                         ),
                         TextButton(

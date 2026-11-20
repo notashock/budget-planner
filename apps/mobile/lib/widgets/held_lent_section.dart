@@ -112,7 +112,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: TextStyle(color: context.palette.bad, fontSize: 12)),
+          Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 12)),
         ],
         const SizedBox(height: 10),
         if (visible.isEmpty)

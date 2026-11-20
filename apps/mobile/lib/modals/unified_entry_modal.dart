@@ -571,7 +571,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   child: Text(
                     '$_sessionCount added · ${formatCurrency(_sessionTotal)}',
                     key: const ValueKey('entry-session'),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.good),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.goodInk),
                   ),
                 ),
 
@@ -623,7 +623,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
-                              color: context.palette.good,
+                              color: context.palette.goodInk,
                             ),
                           ),
                         ],
@@ -760,7 +760,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       ),
                     ),
                     value: _isFixed,
-                    activeTrackColor: context.palette.good,
+                    activeTrackColor: context.palette.goodInk,
                     onChanged: (val) => setState(() => _isFixed = val),
                   ),
                 ),
@@ -902,7 +902,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                             Icon(
                               goalRec.feasible ? Icons.auto_awesome : Icons.warning_amber_rounded,
                               size: 18,
-                              color: goalRec.feasible ? context.palette.good : context.palette.bad,
+                              color: goalRec.feasible ? context.palette.goodInk : context.palette.badInk,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -916,7 +916,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      color: goalRec.feasible ? context.palette.good : context.palette.bad,
+                                      color: goalRec.feasible ? context.palette.goodInk : context.palette.badInk,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -1150,7 +1150,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _activeType == EntryType.income
-                        ? context.palette.good
+                        ? context.palette.goodInk
                         : (Theme.of(context).colorScheme.primary),
                     foregroundColor: _activeType == EntryType.income
                         ? Colors.white
@@ -1319,7 +1319,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (type == EntryType.income ? context.palette.good : (Theme.of(context).colorScheme.primary))
+              ? (type == EntryType.income ? context.palette.goodInk : (Theme.of(context).colorScheme.primary))
               : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
           borderRadius: BorderRadius.circular(6),
         ),

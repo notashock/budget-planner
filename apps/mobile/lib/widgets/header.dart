@@ -232,7 +232,7 @@ class HeaderWidget extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: floor > 0 ? context.palette.good : context.palette.warn,
+                        color: floor > 0 ? context.palette.goodInk : context.palette.warnInk,
                         shape: BoxShape.circle,
                       ),
                     ),

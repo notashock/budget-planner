@@ -396,6 +396,22 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Realistic test layout:** `test/helpers/real_fonts.dart` (`loadAppFonts()`) loads the bundled fonts before pumping. With the 1-em test font, Plan "overflowed" at 393 dp where the phone shows no overflow. With real fonts, it doesn't.
 - **Not covered by the tap test yet:** the sheets (entry form chips are 32 dp; that's 3.6).
 
+**Status, Phase 3 stack PR 5 (3.3 accessibility):**
+- **Labels:** `test/accessibility_test.dart` runs `labeledTapTargetGuideline` on the header and the four tabs. It found the Goals add button (icon only, now with tooltip "Add goal") and the Plan chart (now a spoken summary of the lowest balance, month-end and floor, plus "Tap a day to see its balance").
+- **Contrast, checked from the colours:** Flutter's pixel-sampling `textContrastGuideline` was unreliable here. It under-reads thin 10–11 px Inter (5.1:1 measured 3.3) and mixes borders and swatches into a label's box (5:1 measured 1.6). Instead, the test computes WCAG ratios:
+  - every text token on every surface and tint, both themes, must reach ≥ 4.5;
+  - a scan of `lib/` fails if status text uses the bright fill colours.
+- **What the maths found:**
+  - light-mode green, red and amber are 2.0–3.7:1 as text. 99 foreground uses moved to the `*Ink` colours (4.6–6.3 in light, 8–13 in dark); fills, tints and chart lines stay bright;
+  - `--text-muted` failed AA (4.4 on the light subtle surface, 3.7–4.1 in dark). It was changed in **both** `apps/web/src/styles/tokens.css` and mobile, to #67676f (light) and #8a8a93 (dark);
+  - the badge tints were raw hex values and now come from the palette.
+- **200 % text at 393 dp (real fonts):** these rows now reflow with `Wrap` and keep their one-line look at 1×:
+  - Plan's safe-velocity header, card title rows, chart header and legend;
+  - Accounts' name and balance (the balance moves under the name).
+
+  Timeline pills and Transactions' date line ellipsize instead of overflowing. A 1× layout test keeps the reflowed rows on one line, after the phone showed an early version stretching "Month Review" and the legend.
+- **On the phone:** checked up to the legend and badge fix. The "Month Review" fix is covered by the 1× test and waits for the end-of-Phase-3 device pass (no TalkBack or large-text run on the phone yet).
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

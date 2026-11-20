@@ -227,8 +227,16 @@ class AccountsScreen extends StatelessWidget {
             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           ),
           const SizedBox(width: 12),
+          // Name and balance side by side; with large system text the balance
+          // moves under the name instead of overflowing (upgrade plan 3.3).
           Expanded(
-            child: Column(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -248,7 +256,6 @@ class AccountsScreen extends StatelessWidget {
                   ),
               ],
             ),
-          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -265,6 +272,9 @@ class AccountsScreen extends StatelessWidget {
                 style: AppTypography.inter(fontSize: 9.5, color: textMuted),
               ),
             ],
+          ),
+              ],
+            ),
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -359,7 +369,7 @@ class AccountsScreen extends StatelessWidget {
                 style: AppTypography.mono(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: context.palette.warn,
+                  color: context.palette.warnInk,
                 ),
               ),
               const SizedBox(width: 4),

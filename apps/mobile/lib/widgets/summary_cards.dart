@@ -32,18 +32,18 @@ class SafeVelocityCard extends StatelessWidget {
     switch (safeVelocity.status.toLowerCase()) {
       case 'critical':
       case 'breached':
-        badgeColor = context.palette.bad;
-        badgeBg = isDark ? const Color(0x33EF4444) : const Color(0x1AEF4444);
+        badgeColor = context.palette.badInk;
+        badgeBg = context.palette.badSubtle;
         badgeLabel = 'critical';
         break;
       case 'tight':
-        badgeColor = context.palette.warn;
-        badgeBg = isDark ? const Color(0x33F59E0B) : const Color(0x1AF59E0B);
+        badgeColor = context.palette.warnInk;
+        badgeBg = context.palette.warnSubtle;
         badgeLabel = 'tight';
         break;
       default:
-        badgeColor = context.palette.good;
-        badgeBg = isDark ? const Color(0x3310B981) : const Color(0x1A10B981);
+        badgeColor = context.palette.goodInk;
+        badgeBg = context.palette.goodSubtle;
         badgeLabel = 'healthy';
         break;
     }
@@ -59,10 +59,16 @@ class SafeVelocityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Row: Label + Status Badge + Days Left Pill
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          SizedBox(width: double.infinity, child: Wrap(
+  spacing: 8,
+  runSpacing: 4,
+  crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
             children: [
-              Row(
+              Wrap(
+  spacing: 8,
+  runSpacing: 4,
+  crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     'Dynamic Safe Velocity',
@@ -72,7 +78,6 @@ class SafeVelocityCard extends StatelessWidget {
                       color: textSecondary,
                     ),
                   ),
-                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -108,7 +113,7 @@ class SafeVelocityCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          )),
           const SizedBox(height: 12),
 
           // Hero Row: Large Tabular Amount + / day suffix
@@ -220,7 +225,7 @@ class DetailedKpiGrid extends StatelessWidget {
                 title: 'Monthly income',
                 badgeText: isSalaryCredited ? 'Credited' : null,
                 badgeIcon: isSalaryCredited ? Icons.check_circle_rounded : null,
-                badgeColor: context.palette.good,
+                badgeColor: context.palette.goodInk,
                 amount: formatCurrencyWhole(incomeAmount, symbol: currencySymbol),
                 subtext: isSalaryCredited && salaryCreditedDate != null
                     ? 'Credited on ${formatDisplayDate(salaryCreditedDate, includeWeekday: false)}'
@@ -261,9 +266,9 @@ class DetailedKpiGrid extends StatelessWidget {
                 title: 'Lowest balance',
                 badgeText: isBreached ? 'Breach' : null,
                 badgeIcon: isBreached ? Icons.warning_amber_rounded : null,
-                badgeColor: context.palette.bad,
+                badgeColor: context.palette.badInk,
                 amount: formatCurrencyWhole(lowestBalance, symbol: currencySymbol),
-                amountColor: isBreached ? context.palette.bad : null,
+                amountColor: isBreached ? context.palette.badInk : null,
                 subtext: lowestDate.isNotEmpty ? 'On ${formatDisplayDate(lowestDate, includeWeekday: true)}' : 'N/A',
                 isDark: isDark,
                 isBreached: isBreached,
@@ -304,8 +309,11 @@ class DetailedKpiGrid extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          SizedBox(width: double.infinity, child: Wrap(
+  spacing: 8,
+  runSpacing: 4,
+  crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
             children: [
               Text(
                 title,
@@ -342,7 +350,7 @@ class DetailedKpiGrid extends StatelessWidget {
                   ),
                 ),
             ],
-          ),
+          )),
           const SizedBox(height: 6),
           Text(
             amount,
