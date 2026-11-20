@@ -321,7 +321,8 @@ export function UnifiedEntryModal({
         const targetAccountId = initialItem.accountId || initialItem.bankAccountId?._id || initialItem.bankAccountId || initialItem.walletId?._id || initialItem.walletId;
         if (targetAccountId) {
           const isWallet = (wallets || []).some((w) => (w._id || w.id) === targetAccountId);
-          setAccountType(isWallet ? 'wallet' : 'bank');
+          const isCard = !isWallet && (creditCards || []).some((c) => String(c._id || c.id) === String(targetAccountId));
+          setAccountType(isCard ? 'credit_card' : (isWallet ? 'wallet' : 'bank'));
           setAccountId(targetAccountId);
         } else {
           const initAcctType = (initialItem.accountType === 'wallet' || initialItem.walletId) ? 'wallet' : 'bank';

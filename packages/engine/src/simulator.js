@@ -1480,10 +1480,14 @@ export function simulate(
       // If tx.accountType is explicitly 'wallet', it only matches this wallet
       // If tx.accountType is explicitly 'bank', it only matches this bank
       // If tx.accountType is unassigned, fallback to designated salary bank if no account matches
+      // Server rows carry the account only as accountId (bridged to bankAccountId),
+      // whatever its type, so a wallet spend may have no walletId. Any other row
+      // with an account id (bank, cash, or a type the server could not resolve)
+      // matches that account strictly, as it did when every row said 'bank'.
       let isTxAcct = false;
       if (tx.accountType === 'wallet') {
-        isTxAcct = matchesThisAcc(txWall);
-      } else if (tx.accountType === 'bank') {
+        isTxAcct = matchesThisAcc(txWall || txBank);
+      } else if (tx.accountType === 'bank' || (tx.accountId && (!tx.accountType || tx.accountType === 'cash' || tx.accountType === 'credit_card'))) {
         isTxAcct = matchesThisAcc(txBank);
       } else {
         const isWalletMatch = matchesThisAcc(txWall);
