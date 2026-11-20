@@ -5,6 +5,7 @@ import { validateUserAccount } from '../services/accountValidation.js';
 import { LedgerService } from './ledgerService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
+import { loadAccountTypeMap, attachAccountTypes } from '../utils/accountTypes.js';
 
 // Clients have sent the account ids under several names over time
 function sourceIdFrom(body) {
@@ -75,11 +76,14 @@ export const TransferService = {
   async listTransfers(userId, { monthId = null } = {}) {
     const conditions = [eq(s.transfers.userId, userId)];
     if (monthId) conditions.push(eq(s.transfers.monthId, monthId));
-    const rows = await db.query.transfers.findMany({
-      where: and(...conditions),
-      orderBy: [asc(s.transfers.date), asc(s.transfers.createdAt)]
-    });
-    return serialize(rows);
+    const [rows, accountTypes] = await Promise.all([
+      db.query.transfers.findMany({
+        where: and(...conditions),
+        orderBy: [asc(s.transfers.date), asc(s.transfers.createdAt)]
+      }),
+      loadAccountTypeMap(userId)
+    ]);
+    return serialize(attachAccountTypes(rows, accountTypes));
   },
 
   /** Returns `{ transfer, transaction }`. Both accounts must belong to the user. */

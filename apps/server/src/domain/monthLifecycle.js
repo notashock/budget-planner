@@ -10,6 +10,7 @@ import { PersonFundService } from './personFundService.js';
 import { CardService } from './cardService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
+import { loadAccountTypeMap, attachAccountTypes } from '../utils/accountTypes.js';
 import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
 import { MonthTransitions } from './monthTransitions.js';
 
@@ -154,7 +155,7 @@ export const MonthLifecycle = {
       }
     }
 
-    const [items, rawTransactions, transfers, userSettings] = await Promise.all([
+    const [rawItems, untypedTransactions, rawTransfers, userSettings, accountTypes] = await Promise.all([
       db.query.items.findMany({
         where: and(eq(s.items.userId, userId), eq(s.items.monthId, month.id)),
         orderBy: [asc(s.items.priority), asc(s.items.createdAt)]
@@ -169,8 +170,13 @@ export const MonthLifecycle = {
       }),
       db.query.settings.findFirst({
         where: eq(s.settings.userId, userId)
-      })
+      }),
+      loadAccountTypeMap(userId)
     ]);
+    // Real account types for the accountType / sourceType / destinationType fields
+    const items = attachAccountTypes(rawItems, accountTypes);
+    const rawTransactions = attachAccountTypes(untypedTransactions, accountTypes);
+    const transfers = attachAccountTypes(rawTransfers, accountTypes);
 
     const now = new Date();
     const dueWindowDays = userSettings?.dueWindowDays || 3;
@@ -199,6 +205,7 @@ export const MonthLifecycle = {
         note: '',
         isIncome: Boolean(it.isIncome),
         accountId: it.accountId,
+        accountType: it.accountType,
         legacyItemId: it.id,
         plannedItemId: it.isPaid ? it.id : null,
         createdAt: it.createdAt,
