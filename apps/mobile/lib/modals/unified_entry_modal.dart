@@ -23,6 +23,7 @@ import 'held_lent_modal.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
+import '../widgets/entry_summary_chips.dart';
 
 enum EntryType { transaction, income, item, goal, transfer }
 
@@ -834,13 +835,40 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               const SizedBox(height: 12),
 
               // Date Picker or Recurring Day
-              if (isRecurring)
+              if (isRecurring) ...[
                 TextField(
                   controller: _dayCtrl,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Day of Month (1-31)'),
+                ),
+                const SizedBox(height: 12),
+              ],
+              // Spend, Income and Plan: date and account as one row of chips
+              // (entry-forms plan 5.1). Move has two accounts and Goal a target
+              // date, so they keep their full fields.
+              if (_usesSummaryChips)
+                EntrySummaryChips(
+                  showDate: !isRecurring,
+                  date: _selectedDate,
+                  onDate: (d) => setState(() {
+                    _selectedDate = d;
+                    _dayCtrl.text = '${d.day}';
+                  }),
+                  accountLabel: _activeType == EntryType.income ? 'Deposited to' : 'Paid from',
+                  accountType: _accountType,
+                  accountId: _selectedAccountId,
+                  banks: budget.bankAccountModels,
+                  wallets: budget.walletModels,
+                  cards: _activeType == EntryType.transaction || _activeType == EntryType.item
+                      ? budget.cardAccountModels
+                      : const [],
+                  accountRequired: _activeType == EntryType.income,
+                  onAccount: (type, id) => setState(() {
+                    _accountType = type;
+                    _selectedAccountId = id;
+                  }),
                 )
-              else
+              else if (!isRecurring)
                 AppDatePickerField(
                   label: _activeType == EntryType.goal
                       ? 'Target Date'
@@ -954,24 +982,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 const SizedBox(height: 12),
               ],
 
-              // Account Selector (Bank Account / Wallet)
-              if (_activeType != EntryType.goal && _activeType != EntryType.transfer) ...[
-                AccountSelector(
-                  label: _activeType == EntryType.income ? 'Deposited To Account' : 'Payment Account',
-                  accountType: _accountType,
-                  selectedAccountId: _selectedAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.cardAccountModels : const [],
-                  isRequired: _activeType == EntryType.income,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _accountType = newType;
-                      _selectedAccountId = newId;
-                    });
-                  },
-                ),
-              ] else if (_activeType == EntryType.transfer) ...[
+              // Account: Spend / Income / Plan use the summary chip above
+              if (_activeType == EntryType.transfer) ...[
                 AccountSelector(
                   label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
@@ -1295,6 +1307,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       (_activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item);
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
+
+  bool get _usesSummaryChips =>
+      _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item;
 
   SimulatedCard? _selectedCard(BudgetProvider budget) {
     for (final c in budget.simulatedCards) {
