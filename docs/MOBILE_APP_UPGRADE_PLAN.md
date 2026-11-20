@@ -425,6 +425,11 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Tests:** a failed first load shows the error, not the empty text, on all three tabs (these fail without the wrapper); the skeleton shows before the first answer; pulling an empty tab reloads the month.
 - **Device check:** at the end of Phase 3.
 
+**Status, Phase 3 stack PR 7 (3.8 onboarding):**
+- **Server address:** the sign-in screen's prominent "Configure Backend Host / ADB URL" button is now an "Advanced" link. It reveals which server the app signs in to and a "Change server" button; the same dialog stays in the More menu once signed in.
+- **First run:** "Create <Month>" on the empty Plan landed in PR #18.
+- **Test:** `test/onboarding_test.dart`. The device check is at the end of Phase 3.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |
