@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../engine/currency.dart';
 import '../models/simulation.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 
 /// Rebuild of SafeVelocityCard matching apps/web/src/components/SummaryCards.jsx
@@ -31,17 +32,17 @@ class SafeVelocityCard extends StatelessWidget {
     switch (safeVelocity.status.toLowerCase()) {
       case 'critical':
       case 'breached':
-        badgeColor = AppColors.red;
+        badgeColor = context.palette.bad;
         badgeBg = isDark ? const Color(0x33EF4444) : const Color(0x1AEF4444);
         badgeLabel = 'critical';
         break;
       case 'tight':
-        badgeColor = AppColors.amber;
+        badgeColor = context.palette.warn;
         badgeBg = isDark ? const Color(0x33F59E0B) : const Color(0x1AF59E0B);
         badgeLabel = 'tight';
         break;
       default:
-        badgeColor = AppColors.green;
+        badgeColor = context.palette.good;
         badgeBg = isDark ? const Color(0x3310B981) : const Color(0x1A10B981);
         badgeLabel = 'healthy';
         break;
@@ -219,7 +220,7 @@ class DetailedKpiGrid extends StatelessWidget {
                 title: 'Monthly income',
                 badgeText: isSalaryCredited ? 'Credited' : null,
                 badgeIcon: isSalaryCredited ? Icons.check_circle_rounded : null,
-                badgeColor: AppColors.green,
+                badgeColor: context.palette.good,
                 amount: formatCurrencyWhole(incomeAmount, symbol: currencySymbol),
                 subtext: isSalaryCredited && salaryCreditedDate != null
                     ? 'Credited on ${formatDisplayDate(salaryCreditedDate, includeWeekday: false)}'
@@ -260,9 +261,9 @@ class DetailedKpiGrid extends StatelessWidget {
                 title: 'Lowest balance',
                 badgeText: isBreached ? 'Breach' : null,
                 badgeIcon: isBreached ? Icons.warning_amber_rounded : null,
-                badgeColor: AppColors.red,
+                badgeColor: context.palette.bad,
                 amount: formatCurrencyWhole(lowestBalance, symbol: currencySymbol),
-                amountColor: isBreached ? AppColors.red : null,
+                amountColor: isBreached ? context.palette.bad : null,
                 subtext: lowestDate.isNotEmpty ? 'On ${formatDisplayDate(lowestDate, includeWeekday: true)}' : 'N/A',
                 isDark: isDark,
                 isBreached: isBreached,
@@ -288,7 +289,7 @@ class DetailedKpiGrid extends StatelessWidget {
   }) {
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final border = isBreached
-        ? AppColors.red.withAlpha(120)
+        ? context.palette.bad.withAlpha(120)
         : (isDark ? AppColors.darkBorder : AppColors.lightBorder);
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 
 /// Quiet strip shown above the tabs when the last load failed but earlier data
@@ -24,6 +25,7 @@ class LoadErrorBanner extends StatelessWidget {
       if (error != null || savedFrom == null) return const SizedBox.shrink();
       // Cold start from the device cache (upgrade plan 2.6), reload under way.
       return _strip(
+        context,
         icon: const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
         label: 'Showing saved data from ${formatLoadedAt(savedFrom)} · updating',
         textColor: textColor,
@@ -35,7 +37,8 @@ class LoadErrorBanner extends StatelessWidget {
         ? 'Offline · showing data$since'
         : "Couldn't refresh · showing data$since";
     return _strip(
-      icon: Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: AppColors.amber),
+        context,
+      icon: Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: context.palette.warn),
       label: label,
       textColor: textColor,
       action: TextButton(
@@ -45,11 +48,11 @@ class LoadErrorBanner extends StatelessWidget {
     );
   }
 
-  Widget _strip({required Widget icon, required String label, required Color textColor, Widget? action}) {
+  Widget _strip(BuildContext context, {required Widget icon, required String label, required Color textColor, Widget? action}) {
     return Semantics(
       liveRegion: true,
       child: Material(
-        color: AppColors.amberSubtle,
+        color: context.palette.warnSubtle,
         child: Padding(
           padding: action == null ? const EdgeInsets.fromLTRB(14, 12, 14, 12) : const EdgeInsets.fromLTRB(14, 4, 4, 4),
           child: Row(

@@ -12,6 +12,7 @@ import '../modals/month_modals.dart';
 import '../modals/month_review_modal.dart';
 import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 
 class PlanScreen extends StatefulWidget {
@@ -199,8 +200,8 @@ class _PlanScreenState extends State<PlanScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: isDark ? Colors.white : Colors.black,
-        foregroundColor: isDark ? Colors.black : Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 2,
         icon: const Icon(Icons.add, size: 18),
         label: Text('New Entry', style: AppTypography.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
@@ -321,8 +322,8 @@ class _PlanScreenState extends State<PlanScreen> {
     required Color textSecondary,
     String currencySymbol = kDefaultCurrencySymbol,
   }) {
-    final activeBg = isDark ? Colors.white : Colors.black;
-    final activeText = isDark ? Colors.black : Colors.white;
+    final activeBg = Theme.of(context).colorScheme.primary;
+    final activeText = Theme.of(context).colorScheme.onPrimary;
     final inactiveBg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
 
     return InkWell(
@@ -337,7 +338,7 @@ class _PlanScreenState extends State<PlanScreen> {
           color: isSelected ? activeBg : inactiveBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? activeBg : (hasBreach ? AppColors.red.withAlpha(120) : border),
+            color: isSelected ? activeBg : (hasBreach ? context.palette.bad.withAlpha(120) : border),
             width: 1,
           ),
         ),
@@ -363,7 +364,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: AppTypography.mono(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? activeText : (hasBreach ? AppColors.red : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
+                  color: isSelected ? activeText : (hasBreach ? context.palette.bad : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
                 ),
               ),
             ],
@@ -372,7 +373,7 @@ class _PlanScreenState extends State<PlanScreen> {
               Icon(
                 Icons.warning_amber_rounded,
                 size: 9,
-                color: isSelected ? activeText : AppColors.red,
+                color: isSelected ? activeText : context.palette.bad,
               ),
             ],
           ],

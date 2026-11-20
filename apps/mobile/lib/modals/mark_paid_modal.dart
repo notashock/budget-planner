@@ -7,6 +7,7 @@ import '../engine/engine.dart';
 import '../models/transaction.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
@@ -237,7 +238,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(color: context.palette.indigo, width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
@@ -273,7 +274,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
               // Confirm Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.green,
+                  backgroundColor: context.palette.good,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,

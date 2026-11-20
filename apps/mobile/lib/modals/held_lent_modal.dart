@@ -6,6 +6,7 @@ import '../engine/engine.dart';
 import '../models/person_fund.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
@@ -338,15 +339,15 @@ class _HeldLentFormState extends State<HeldLentForm> {
                 FloorBreachNotice(amountController: _amountCtrl, accountId: _accountId),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
+                Text(_error!, style: TextStyle(color: context.palette.bad, fontSize: 13)),
               ],
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? Colors.white : Colors.black,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),

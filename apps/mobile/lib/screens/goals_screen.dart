@@ -4,6 +4,7 @@ import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../models/goal.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/unified_entry_modal.dart';
 import '../widgets/confirm_dialog.dart';
@@ -59,7 +60,7 @@ class GoalsScreen extends StatelessWidget {
                 final feasible = rec?.feasible ?? false;
 
                 final prioColor = switch (g.priority) {
-                  GoalPriority.high => AppColors.red,
+                  GoalPriority.high => context.palette.bad,
                   GoalPriority.low => Colors.blue,
                   GoalPriority.medium => textMuted,
                 };
@@ -87,7 +88,7 @@ class GoalsScreen extends StatelessWidget {
                     color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: feasible ? AppColors.green.withAlpha(70) : border,
+                      color: feasible ? context.palette.good.withAlpha(70) : border,
                     ),
                   ),
                   child: Column(
@@ -139,11 +140,11 @@ class GoalsScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: feasible
-                              ? AppColors.green.withAlpha(18)
+                              ? context.palette.good.withAlpha(18)
                               : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: feasible ? AppColors.green.withAlpha(60) : border,
+                            color: feasible ? context.palette.good.withAlpha(60) : border,
                             width: 0.8,
                           ),
                         ),
@@ -152,7 +153,7 @@ class GoalsScreen extends StatelessWidget {
                             Icon(
                               feasible ? Icons.auto_awesome : Icons.info_outline,
                               size: 15,
-                              color: feasible ? AppColors.green : textMuted,
+                              color: feasible ? context.palette.good : textMuted,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -161,7 +162,7 @@ class GoalsScreen extends StatelessWidget {
                                 style: AppTypography.inter(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w500,
-                                  color: feasible ? AppColors.green : textSecondary,
+                                  color: feasible ? context.palette.good : textSecondary,
                                 ),
                               ),
                             ),
@@ -233,8 +234,8 @@ class GoalsScreen extends StatelessWidget {
               },
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: isDark ? Colors.white : Colors.black,
-        foregroundColor: isDark ? Colors.black : Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         child: const Icon(Icons.add),
         onPressed: () {
           showModalBottomSheet(

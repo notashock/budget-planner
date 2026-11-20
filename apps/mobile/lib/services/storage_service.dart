@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class StorageService {
   static const String keyToken = 'budget_auth_token';
   static const String keyTheme = 'budget_theme';
+  static const String keyDeviceColors = 'budget_device_colors';
   static const String keyBaseUrl = 'budget_base_url';
   static const String keyMonthCache = 'budget_month_cache_v1';
   static const String keyUser = 'budget_user';
@@ -134,6 +135,17 @@ class StorageService {
   static Future<void> setThemeMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyTheme, mode);
+  }
+
+  /// Use the phone's own accent colour (Material You) instead of the app's.
+  static Future<bool> getDeviceColors() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyDeviceColors) ?? false;
+  }
+
+  static Future<void> setDeviceColors(bool on) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyDeviceColors, on);
   }
 
   static Future<String> getBaseUrl() async {

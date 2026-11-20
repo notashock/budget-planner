@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import 'server_settings_dialog.dart';
 import 'app_lock_settings_sheet.dart';
 import '../providers/app_lock_provider.dart';
@@ -230,7 +231,7 @@ class HeaderWidget extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: floor > 0 ? AppColors.green : AppColors.amber,
+                        color: floor > 0 ? context.palette.good : context.palette.warn,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -271,6 +272,8 @@ class HeaderWidget extends StatelessWidget {
               switch (action) {
                 case _HeaderAction.theme:
                   theme.cycleTheme();
+                case _HeaderAction.deviceColors:
+                  theme.setDeviceColors(!theme.deviceColors);
                 case _HeaderAction.appLock:
                   AppLockSettingsSheet.show(context);
                 case _HeaderAction.server:
@@ -303,12 +306,14 @@ class HeaderWidget extends StatelessWidget {
                   children: [
                     Icon(icon, size: 20),
                     const SizedBox(width: 12),
-                    Text(label),
+                    Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               );
               return [
                 item(_HeaderAction.theme, themeIcon, themeLabel),
+                item(_HeaderAction.deviceColors, Icons.palette_outlined,
+                    theme.deviceColors ? 'Device colours: On' : 'Device colours: Off'),
                 item(
                   _HeaderAction.appLock,
                   lockOn ? Icons.lock : Icons.lock_open_outlined,
@@ -330,4 +335,4 @@ class HeaderWidget extends StatelessWidget {
   }
 }
 
-enum _HeaderAction { theme, appLock, server, signOut }
+enum _HeaderAction { theme, deviceColors, appLock, server, signOut }

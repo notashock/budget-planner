@@ -3,6 +3,7 @@ import '../engine/currency.dart';
 import '../models/account.dart';
 import '../providers/budget_view.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 
 /// Result of checking an outflow against an account's safety floor.
 class FloorCheck {
@@ -94,14 +95,14 @@ class FloorBreachNotice extends StatelessWidget {
           margin: const EdgeInsets.only(top: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.red.withAlpha(20),
+            color: context.palette.bad.withAlpha(20),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.red.withAlpha(70)),
+            border: Border.all(color: context.palette.bad.withAlpha(70)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.red),
+              Icon(Icons.warning_amber_rounded, size: 16, color: context.palette.bad),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

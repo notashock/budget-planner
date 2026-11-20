@@ -3,6 +3,7 @@ import '../models/month_detail.dart';
 import '../engine/currency.dart';
 import '../models/simulation.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 
 void showMonthReviewModal(
@@ -100,16 +101,16 @@ void showMonthReviewModal(
                     children: [
                       _buildReviewRow('Opening Balance', formatCurrency(simulation.openingBalance, symbol: currencySymbol), text, textMuted),
                       const SizedBox(height: 8),
-                      _buildReviewRow('Total Income', '+${formatCurrency(simulation.totalIncome, symbol: currencySymbol)}', AppColors.green, textMuted),
+                      _buildReviewRow('Total Income', '+${formatCurrency(simulation.totalIncome, symbol: currencySymbol)}', context.palette.good, textMuted),
                       const SizedBox(height: 8),
-                      _buildReviewRow('Total Outflow', '-${formatCurrency(totalOutflow, symbol: currencySymbol)}', AppColors.red, textMuted),
+                      _buildReviewRow('Total Outflow', '-${formatCurrency(totalOutflow, symbol: currencySymbol)}', context.palette.bad, textMuted),
                       const SizedBox(height: 8),
                       Divider(color: border, height: 1),
                       const SizedBox(height: 8),
                       _buildReviewRow(
                         'Net Trajectory',
                         '${netCashflow >= 0 ? '+' : ''}${formatCurrency(netCashflow, symbol: currencySymbol)}',
-                        netCashflow >= 0 ? AppColors.green : AppColors.red,
+                        netCashflow >= 0 ? context.palette.good : context.palette.bad,
                         text,
                         isBold: true,
                       ),
@@ -124,7 +125,7 @@ void showMonthReviewModal(
                   decoration: BoxDecoration(
                     color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isBreached ? AppColors.red.withAlpha(120) : border),
+                    border: Border.all(color: isBreached ? context.palette.bad.withAlpha(120) : border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,21 +146,21 @@ void showMonthReviewModal(
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.red.withAlpha(25),
+                                color: context.palette.bad.withAlpha(25),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.red.withAlpha(80)),
+                                border: Border.all(color: context.palette.bad.withAlpha(80)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.warning_amber_rounded, size: 10, color: AppColors.red),
+                                  Icon(Icons.warning_amber_rounded, size: 10, color: context.palette.bad),
                                   const SizedBox(width: 3),
                                   Text(
                                     'BREACHED',
                                     style: AppTypography.inter(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.red,
+                                      color: context.palette.bad,
                                     ),
                                   ),
                                 ],
@@ -173,7 +174,7 @@ void showMonthReviewModal(
                       _buildReviewRow(
                         'Lowest Balance',
                         formatCurrency(simulation.lowestBalance, symbol: currencySymbol),
-                        isBreached ? AppColors.red : text,
+                        isBreached ? context.palette.bad : text,
                         textMuted,
                       ),
                       const SizedBox(height: 8),
@@ -201,8 +202,8 @@ void showMonthReviewModal(
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.white : Colors.black,
-                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 0,

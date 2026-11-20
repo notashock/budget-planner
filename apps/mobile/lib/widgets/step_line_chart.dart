@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../engine/currency.dart';
 import '../models/simulation.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 
 class StepLineChartWidget extends StatefulWidget {
@@ -120,7 +121,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                 ),
                 const SizedBox(width: 14),
                 _buildLegendItem(
-                  color: AppColors.red,
+                  color: context.palette.bad,
                   label: 'Safety Floor',
                   isDashed: true,
                   textStyle: AppTypography.inter(fontSize: 10, color: textMuted),
@@ -128,7 +129,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                 if (widget.currentDay != null) ...[
                   const SizedBox(width: 14),
                   _buildLegendItem(
-                    color: AppColors.amber,
+                    color: context.palette.warn,
                     label: 'Today',
                     isDashed: false,
                     isDot: true,
@@ -138,7 +139,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                 if (widget.salaryCreditDay != null) ...[
                   const SizedBox(width: 14),
                   _buildLegendItem(
-                    color: AppColors.green,
+                    color: context.palette.good,
                     label: 'Salary Credit',
                     isDashed: true,
                     textStyle: AppTypography.inter(fontSize: 10, color: textMuted),
@@ -291,7 +292,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
             color: isDark ? const Color(0xFF18181B) : Colors.white,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: isBreached ? AppColors.red : border,
+              color: isBreached ? context.palette.bad : border,
               width: 1,
             ),
             boxShadow: [
@@ -324,7 +325,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                 style: AppTypography.mono(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isBreached ? AppColors.red : text,
+                  color: isBreached ? context.palette.bad : text,
                 ),
               ),
               if (tDay.events.isNotEmpty)
@@ -340,9 +341,9 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                   decoration: BoxDecoration(
-                    color: AppColors.green.withAlpha(25),
+                    color: context.palette.good.withAlpha(25),
                     borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: AppColors.green.withAlpha(120), width: 0.8),
+                    border: Border.all(color: context.palette.good.withAlpha(120), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -350,8 +351,8 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                       Container(
                         width: 4,
                         height: 4,
-                        decoration: const BoxDecoration(
-                          color: AppColors.green,
+                        decoration: BoxDecoration(
+                          color: context.palette.good,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -361,7 +362,7 @@ class _StepLineChartWidgetState extends State<StepLineChartWidget> {
                         style: AppTypography.inter(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.green,
+                          color: context.palette.good,
                         ),
                       ),
                     ],
@@ -383,6 +384,7 @@ class _FritschCarlsonChartPainter extends CustomPainter {
   final int? salaryCreditDay;
   final int? activeScrubDay;
   final bool isDark;
+  AppPalette get palette => isDark ? AppPalette.dark : AppPalette.light;
   final String currencySymbol;
 
   _FritschCarlsonChartPainter({
@@ -473,7 +475,7 @@ class _FritschCarlsonChartPainter extends CustomPainter {
       canvas,
       Offset(paddingLeft, floorY),
       Offset(size.width - paddingRight, floorY),
-      AppColors.red.withAlpha(160),
+      palette.bad.withAlpha(160),
       dashWidth: 4,
       dashSpace: 3,
     );
@@ -485,7 +487,7 @@ class _FritschCarlsonChartPainter extends CustomPainter {
         Offset(todayX, paddingTop),
         Offset(todayX, size.height - paddingBottom),
         Paint()
-          ..color = AppColors.amber.withAlpha(80)
+          ..color = palette.warn.withAlpha(80)
           ..strokeWidth = 1.2,
       );
     }
@@ -497,12 +499,12 @@ class _FritschCarlsonChartPainter extends CustomPainter {
         canvas,
         Offset(salX, paddingTop),
         Offset(salX, size.height - paddingBottom),
-        AppColors.green.withAlpha(190),
+        palette.good.withAlpha(190),
         dashWidth: 3,
         dashSpace: 3,
       );
       // Pin dot at the top of the salary vertical line
-      canvas.drawCircle(Offset(salX, paddingTop + 2), 3.5, Paint()..color = AppColors.green);
+      canvas.drawCircle(Offset(salX, paddingTop + 2), 3.5, Paint()..color = palette.good);
       canvas.drawCircle(Offset(salX, paddingTop + 2), 1.5, Paint()..color = Colors.white);
     }
 

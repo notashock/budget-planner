@@ -43,7 +43,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: isDark ? Colors.white : Colors.black,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
       content: Column(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
 import '../modals/unified_entry_modal.dart';
@@ -62,7 +63,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: const Text('Return to Logged'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: context.palette.bad),
               onPressed: () => Navigator.pop(ctx, 'drop'),
               child: const Text(
                 'Mark as Dropped',
@@ -108,7 +109,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: const Text('Keep'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: context.palette.bad),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text(
                 'Cancel Commitment',
@@ -241,7 +242,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   Icons.check_circle_outline,
                                   size: 15,
                                   color: _activeTab == 'successful'
-                                      ? AppColors.green
+                                      ? context.palette.good
                                       : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
@@ -296,7 +297,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   Icons.schedule,
                                   size: 15,
                                   color: _activeTab == 'planned'
-                                      ? AppColors.amber
+                                      ? context.palette.warn
                                       : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
@@ -404,7 +405,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
+        backgroundColor: context.palette.indigo,
         foregroundColor: Colors.white,
         elevation: 3,
         icon: const Icon(Icons.add, size: 18),
@@ -440,7 +441,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: active ? AppColors.primary : border,
+            color: active ? context.palette.indigo : border,
             width: active ? 1.2 : 0.8,
           ),
         ),
@@ -449,7 +450,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           style: AppTypography.inter(
             fontSize: 11,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppColors.primary : text,
+            color: active ? context.palette.indigo : text,
           ),
         ),
       ),
@@ -511,7 +512,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final badge = tx.sourceLabel == category ? null : tx.sourceLabel;
         final badgeColor = tx.origin == TxOrigin.goal
             ? Colors.purple
-            : AppColors.amber;
+            : context.palette.warn;
 
         return InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -536,18 +537,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: isIn
-                      ? AppColors.green.withAlpha(30)
+                      ? context.palette.good.withAlpha(30)
                       : (isMove
                             ? textMuted.withAlpha(30)
-                            : AppColors.primary.withAlpha(20)),
+                            : context.palette.indigo.withAlpha(20)),
                   child: Icon(
                     isIn
                         ? Icons.arrow_downward
                         : (isMove ? Icons.swap_horiz : Icons.arrow_upward),
                     size: 16,
                     color: isIn
-                        ? AppColors.green
-                        : (isMove ? textSecondary : AppColors.primary),
+                        ? context.palette.good
+                        : (isMove ? textSecondary : context.palette.indigo),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -641,7 +642,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: isIn
-                        ? AppColors.green
+                        ? context.palette.good
                         : (isMove ? textSecondary : text),
                   ),
                 ),
@@ -707,11 +708,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         IconData badgeIcon = Icons.schedule;
 
         if (isOverdue) {
-          badgeColor = AppColors.red;
+          badgeColor = context.palette.bad;
           badgeLabel = 'Overdue';
           badgeIcon = Icons.error_outline;
         } else if (isDue) {
-          badgeColor = AppColors.amber;
+          badgeColor = context.palette.warn;
           badgeLabel = 'Due Soon';
           badgeIcon = Icons.access_time_filled;
         }
@@ -723,8 +724,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isOverdue
-                  ? AppColors.red.withAlpha(100)
-                  : (isDue ? AppColors.amber.withAlpha(100) : border),
+                  ? context.palette.bad.withAlpha(100)
+                  : (isDue ? context.palette.warn.withAlpha(100) : border),
               width: (isOverdue || isDue) ? 1.2 : 0.8,
             ),
           ),
@@ -865,7 +866,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.green,
+                      backgroundColor: context.palette.good,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
