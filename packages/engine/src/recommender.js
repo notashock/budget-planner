@@ -2,6 +2,21 @@ import { getDaysInMonth, formatDate, clampDayToMonth } from './calendar.js';
 import { simulate } from './simulator.js';
 
 /**
+ * Goal statuses the engine evaluates for a purchase-date recommendation.
+ * `logged` is the open state a goal is created in (ADR 0064); `active` is what
+ * Reactivate sets after a deferral; `evaluating` / `ready` are legacy names.
+ * A goal with no status is treated as open. `deferred`, `achieved` and
+ * `dropped` are parked or closed and are passed through untouched.
+ */
+const EVALUABLE_GOAL_STATUSES = new Set(['logged', 'active', 'evaluating', 'ready', 'scheduled']);
+
+/** Whole currency units with Indian digit grouping, for user-facing explanations. */
+function money(minor, symbol = '₹', scale = 100) {
+  const major = Math.round((Number(minor) || 0) / (Number(scale) || 100));
+  return `${major < 0 ? '-' : ''}${symbol}${Math.abs(major).toLocaleString('en-IN')}`;
+}
+
+/**
  * Goal Date Estimation Pipeline
  * 
  * Dynamically estimates the optimal future date to execute a purchase goal within
@@ -55,6 +70,8 @@ export function recommendPurchaseDate(
   const cost = Math.abs(Math.round(purchaseAmount || 0));
 
   const resolvedFundingSource = fundingSource || settings.fundingSource || null;
+  const currencySymbol = settings.currencySymbol || '₹';
+  const scale = settings.scale || 100;
 
   // Pipeline Step 1: Candidate date window restricted strictly to future dates relative to present
   let currentDay = 1;
@@ -260,7 +277,7 @@ export function recommendPurchaseDate(
       projectedLowestBalance: chosen.projectedLowestBalance,
       savingsBuffer: chosen.savingsBuffer,
       lowestDate: chosen.lowestDate,
-      explanation: `Purchasing on ${chosen.date} preserves a safety buffer of ${chosen.savingsBuffer} minor units after clearing scheduled monthly obligations and accounting for spending pace.`,
+      explanation: `Purchasing on ${chosen.date} preserves a safety buffer of ${money(chosen.savingsBuffer, currencySymbol, scale)} after clearing scheduled monthly obligations and accounting for spending pace.`,
       pipelineDetails: {
         currentDay,
         burnRatePerDay: effectiveBurnRate,
@@ -273,7 +290,7 @@ export function recommendPurchaseDate(
 
   // Pipeline Step 6: Infeasible
   const deficit = Math.abs(highestBuffer);
-  let explanation = `Price is too high for this month. Purchasing would breach your safety floor by ${deficit} minor units. Wait for next month.`;
+  let explanation = `Price is too high for this month. Purchasing would breach your safety floor by ${money(deficit, currencySymbol, scale)}. Wait for next month.`;
   if (accountDeficitFound && highestBuffer >= 0 && resolvedFundingSource) {
     explanation = `Selected funding account (${resolvedFundingSource.name || 'account'}) does not have sufficient balance to cover this purchase while respecting its minimum required balance. Transfer funds into this account or select a different funding source.`;
   }
@@ -375,7 +392,7 @@ export function evaluateGoalsWithReservation({
   for (const item of indexedGoals) {
     const g = item.goal;
     const goalObj = typeof g.toObject === 'function' ? g.toObject() : (g._doc ? { ...g._doc } : { ...g });
-    const isEvaluable = !goalObj.status || goalObj.status === 'active' || goalObj.status === 'evaluating' || goalObj.status === 'ready' || goalObj.status === 'scheduled';
+    const isEvaluable = !goalObj.status || EVALUABLE_GOAL_STATUSES.has(String(goalObj.status).toLowerCase());
 
     if (!isEvaluable) {
       evaluated.push({

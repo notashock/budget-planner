@@ -77,7 +77,7 @@ A scheduled future commitment created in `planned` status (`origin = planned`) w
 _Avoid_: Planned item, scheduled item, upcoming bill.
 
 **Goal**:
-A separate target purchase entity with statuses `logged`, `scheduled`, `achieved`, and `dropped`. When scheduled, it creates a 1-to-1 linked planned transaction (`origin = goal`).
+A separate target purchase entity. It is created `logged` and can be `scheduled`, `achieved`, or `dropped` (ADR 0064); deferral and reactivation add `deferred` and `active` (see **Goal Lifecycle Status**). When scheduled, it creates a 1-to-1 linked planned transaction (`origin = goal`).
 _Avoid_: Purchase goal item, wishlist item, target item.
 
 **Goal Transaction**:
@@ -113,7 +113,7 @@ The remaining unplanned allowance (Safe Velocity daily rate) calculated as dynam
 _Avoid_: Daily budget, rigid daily burn quota.
 
 **Goal Lifecycle Status**:
-The state of a purchase goal within a budget month: `active` (evaluating recommendation dynamically against cash flows), `scheduled` (promoted to a planned one-time budget item), or `deferred` (pushed to the following budget month).
+The state of a purchase goal within a budget month. Open goals get a safe purchase-date recommendation, evaluated against cash flows in strict priority order: `logged` (the state a new goal is created in, and the state a cancelled goal transaction can return it to) and `active` (set when a deferred goal is reactivated). `scheduled` means it has been turned into a linked planned transaction. `deferred` means it was pushed to the following budget month, by hand or by auto-deferral; it is not evaluated until reactivated. `achieved` and `dropped` are closed. Legacy rows may still say `evaluating` (treated as `active`) or `ready` (treated as `scheduled`).
 _Avoid_: Evaluating, pending, queued, purchased.
 
 **Priority Tier**:

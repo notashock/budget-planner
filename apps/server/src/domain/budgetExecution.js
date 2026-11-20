@@ -904,7 +904,9 @@ export const BudgetExecution = {
         where: and(
           eq(s.goals.userId, userId),
           eq(s.goals.monthId, month.id),
-          inArray(s.goals.status, ['active', 'evaluating'])
+          // Open goals: `logged` is how a goal is created (ADR 0064), `active`
+          // is what reactivation sets, `evaluating` is a legacy name.
+          inArray(s.goals.status, ['logged', 'active', 'evaluating'])
         )
       });
 

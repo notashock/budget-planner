@@ -47,8 +47,10 @@ void main() {
   group('Goals', () {
     testWidgets('a goal the engine has not evaluated says so, not "floor breach risk"', (tester) async {
       final fb = FixtureBudget();
-      final budget = (await tester.runAsync(fb.load))!;
-      expect(budget.goalModels.single.recommendation, isNull, reason: 'recorded goal is logged, never evaluated');
+      // The server now evaluates logged goals, so drop the recorded recommendation
+      // to cover a goal the engine has not evaluated (yet).
+      final budget = (await tester.runAsync(() => fb.load(edit: (f) => goal(f).remove('recommendation'))))!;
+      expect(budget.goalModels.single.recommendation, isNull);
       await pump(tester, budget, const GoalsScreen());
 
       expect(find.text('No safe purchase date checked yet.'), findsOneWidget);
