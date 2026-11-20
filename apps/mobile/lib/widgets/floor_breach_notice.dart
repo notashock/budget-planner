@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../engine/currency.dart';
 import '../models/account.dart';
-import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../theme/app_colors.dart';
 
 /// Result of checking an outflow against an account's safety floor.
@@ -57,7 +56,7 @@ class FloorBreachNotice extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: amountController,
       builder: (context, value, _) {
-        final budget = context.watch<BudgetProvider>();
+        final budget = context.budgetView();
         Account? account;
         for (final a in [...budget.bankAccountModels, ...budget.walletModels]) {
           if (a.id == accountId) {

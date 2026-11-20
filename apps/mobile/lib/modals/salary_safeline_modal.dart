@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
@@ -96,7 +97,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = budget.salaryStatus;
     final banks = budget.bankAccountModels;

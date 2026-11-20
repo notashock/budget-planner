@@ -74,7 +74,8 @@ class TransactionDetailModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.read<BudgetProvider>();
+    context.select<BudgetProvider, Object>((b) => (b.viewState, b.isSaving));
     final event = timelineEvent;
     Transaction? tx = transaction;
     if (tx == null && event?.transactionId != null) {

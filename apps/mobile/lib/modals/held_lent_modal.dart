@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/person_fund.dart';
 import '../theme/app_form.dart';
@@ -212,7 +213,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final selected = _selected;

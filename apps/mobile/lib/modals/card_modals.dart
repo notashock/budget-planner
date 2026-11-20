@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../theme/app_form.dart';
@@ -197,7 +198,7 @@ class _AddCardModalState extends State<AddCardModal> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final owedShift = _isEdit ? toMinorUnits(num.tryParse(_owed.text) ?? 0) - _originalOwed : 0;
     return _Sheet(title: _isEdit ? 'Edit card' : 'Add a credit card', children: [
       TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *')),
@@ -421,7 +422,7 @@ class _PayBillModalState extends State<PayBillModal> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final hasMinimum = (widget.bill.minimumDue ?? 0) > 0;
     return _Sheet(title: 'Pay ${widget.card.account.name} bill', children: [
       const Text('Paying moves money from your bank to the card. It isn\'t counted as spending again.', style: TextStyle(fontSize: 12)),
