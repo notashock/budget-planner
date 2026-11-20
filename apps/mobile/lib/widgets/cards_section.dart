@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../modals/card_modals.dart';
 
-int _int(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round();
-
-String _shortDate(dynamic iso) {
-  final s = iso?.toString() ?? '';
+String _shortDate(String? iso) {
+  final s = iso ?? '';
   final parts = s.split('-');
   if (parts.length != 3) return s.isEmpty ? '—' : s;
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -38,7 +37,7 @@ class CardsSection extends StatefulWidget {
 }
 
 class _CardsSectionState extends State<CardsSection> {
-  List<Map<String, dynamic>> _cards = [];
+  List<CreditCardSummary> _cards = [];
   String? _error;
 
   @override
@@ -49,10 +48,10 @@ class _CardsSectionState extends State<CardsSection> {
 
   Future<void> _load() async {
     try {
-      final list = await Provider.of<BudgetProvider>(context, listen: false).getCards();
+      final list = await Provider.of<BudgetProvider>(context, listen: false).getCardSummaries();
       if (!mounted) return;
       setState(() {
-        _cards = list.map((c) => Map<String, dynamic>.from(c as Map)).toList();
+        _cards = list;
         _error = null;
       });
     } catch (_) {
@@ -79,11 +78,11 @@ class _CardsSectionState extends State<CardsSection> {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
 
-    final scores = <String, Map<String, dynamic>>{};
-    for (final c in budget.creditCards) {
-      final m = Map<String, dynamic>.from(c as Map);
-      if (m['payability'] is Map) scores[m['id'].toString()] = Map<String, dynamic>.from(m['payability'] as Map);
-    }
+    // The payability score comes with the month simulation, the bills with /cards.
+    final scores = <String, CardPayability>{
+      for (final c in budget.simulatedCards)
+        if (c.payability != null) c.account.id: c.payability!,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +90,7 @@ class _CardsSectionState extends State<CardsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Credit cards', style: AppTypography.cardTitle(color: text)),
+            Expanded(child: Text('Credit cards', style: AppTypography.cardTitle(color: text))),
             TextButton.icon(
               icon: const Icon(Icons.add, size: 15),
               label: Text('Add card', style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -110,21 +109,20 @@ class _CardsSectionState extends State<CardsSection> {
           )
         else
           ..._cards.map((card) {
-            final id = card['id'].toString();
-            final owed = _int(card['outstanding']);
-            final limit = _int(card['creditLimit']);
+            final account = card.account;
+            final id = account.id;
+            final owed = card.outstanding;
+            final limit = account.creditLimit ?? 0;
             final util = limit > 0 ? (owed / limit).clamp(0.0, 1.0) : null;
-            final bill = card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
-            final statements = card['statements'] is List ? card['statements'] as List : [];
-            Map<String, dynamic>? draft;
-            for (final st in statements) {
-              final m = Map<String, dynamic>.from(st as Map);
-              if (bill != null && m['id'] == bill['statementId'] && m['isDraft'] == true) draft = m;
-            }
+            final bill = card.openBill;
+            // A new bill is confirmed first. (The old code looked for `isDraft` on
+            // the statement, which only the open bill carries, so Confirm never showed.)
+            final draft = card.draftToConfirm;
             final score = scores[id];
-            final overdue = bill?['isOverdue'] == true;
+            final overdue = bill?.isOverdue ?? false;
 
             return Container(
+              key: ValueKey('card-$id'),
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: surface, border: Border.all(color: border), borderRadius: BorderRadius.circular(10)),
@@ -134,13 +132,23 @@ class _CardsSectionState extends State<CardsSection> {
                   Row(children: [
                     const Icon(Icons.credit_card, size: 18),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(card['name']?.toString() ?? 'Card', style: TextStyle(fontWeight: FontWeight.w600, color: text))),
-                    Text('Bill day ${card['statementDay']} · due day ${card['dueDay']}', style: TextStyle(fontSize: 11, color: muted)),
+                    Expanded(
+                      child: Text(account.name.isEmpty ? 'Card' : account.name,
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600, color: text)),
+                    ),
+                    Flexible(
+                      child: Text(
+                        'Bill day ${account.statementDay ?? '—'} · due day ${account.dueDay ?? '—'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: muted),
+                      ),
+                    ),
                     IconButton(
                       key: ValueKey('edit-card-$id'),
                       tooltip: 'Edit card',
                       icon: const Icon(Icons.edit_outlined, size: 16),
-                      onPressed: () => _sheet(AddCardModal(card: Map<String, dynamic>.from(card as Map))),
+                      onPressed: () => _sheet(AddCardModal(card: card)),
                     ),
                   ]),
                   const SizedBox(height: 10),
@@ -166,7 +174,7 @@ class _CardsSectionState extends State<CardsSection> {
                   ],
                   const SizedBox(height: 10),
                   Text(
-                    'This cycle ${formatCurrency(_int(card['unbilledSoFar']))} · next bill ${_shortDate(card['cycleEnd'])} · due ${_shortDate(card['cycleDueDate'])}',
+                    'This cycle ${formatCurrency(card.unbilledSoFar)} · next bill ${_shortDate(card.cycleEnd)} · due ${_shortDate(card.cycleDueDate)}',
                     style: TextStyle(fontSize: 12, color: muted),
                   ),
                   if (bill != null) ...[
@@ -181,12 +189,13 @@ class _CardsSectionState extends State<CardsSection> {
                         Expanded(
                           child: Text(
                             draft != null
-                                ? 'Bill ready: ${formatCurrency(_int(bill['amount']))}, due ${_shortDate(bill['dueDate'])}'
-                                : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrency(_int(bill['remaining']))} by ${_shortDate(bill['dueDate'])}',
+                                ? 'Bill ready: ${formatCurrency(draft.billAmount)}, due ${_shortDate(bill.dueDate)}'
+                                : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrency(bill.remaining)} by ${_shortDate(bill.dueDate)}',
                             style: TextStyle(fontSize: 12, color: overdue ? AppColors.red : text),
                           ),
                         ),
                         TextButton(
+                          key: ValueKey('card-bill-action-$id'),
                           onPressed: () => draft != null
                               ? _sheet(ConfirmBillModal(card: card, statement: draft))
                               : _sheet(PayBillModal(card: card, bill: bill)),
@@ -203,21 +212,21 @@ class _CardsSectionState extends State<CardsSection> {
                         height: 44,
                         child: Stack(alignment: Alignment.center, children: [
                           CircularProgressIndicator(
-                            value: _int(score['score']) / 100,
+                            value: score.score / 100,
                             strokeWidth: 5,
                             backgroundColor: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                            color: _bandColor(score['band']?.toString()),
+                            color: _bandColor(score.band),
                           ),
-                          Text('${_int(score['score'])}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: text)),
+                          Text('${score.score}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: text)),
                         ]),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Payability: ${score['bandLabel'] ?? ''}',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _bandColor(score['band']?.toString()))),
+                          Text('Payability: ${score.bandLabel}',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _bandColor(score.band))),
                           const SizedBox(height: 2),
-                          Text(score['statement']?.toString() ?? '', style: TextStyle(fontSize: 12, color: muted, height: 1.4)),
+                          Text(score.statement, style: TextStyle(fontSize: 12, color: muted, height: 1.4)),
                         ]),
                       ),
                     ]),

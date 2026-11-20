@@ -1,13 +1,15 @@
+import 'package:budget_mobile/models/account.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:budget_mobile/modals/card_modals.dart';
 
 void main() {
+  Account bank(Map<String, dynamic> j) => Account.fromJson(j, fallbackKind: AccountKind.bank);
   final banks = [
-    {'_id': 'b1', 'name': 'Main', 'isPrimary': true},
-    {'_id': 'b2', 'name': 'Second'},
+    bank({'_id': 'b1', 'name': 'Main', 'isPrimary': true}),
+    bank({'_id': 'b2', 'name': 'Second'}),
   ];
   final wallets = [
-    {'_id': 'w1', 'name': 'Cash'},
+    Account.fromJson({'_id': 'w1', 'name': 'Cash'}, fallbackKind: AccountKind.wallet),
   ];
 
   group('payFromAccountType', () {

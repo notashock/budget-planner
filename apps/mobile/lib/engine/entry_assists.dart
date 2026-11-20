@@ -1,7 +1,12 @@
 // Smart assists for the entry sheet: a spend that pays a planned bill, income
 // that is salary already in the plan, money that is someone else's.
 //
-// Mirrors apps/web/src/utils/entryAssists.js; keep the two in step.
+// Mirrors apps/web/src/utils/entryAssists.js; keep the two in step (same rules,
+// typed inputs here).
+
+import '../models/month_detail.dart';
+import '../models/person_fund.dart';
+import '../models/transaction.dart';
 
 List<String> _words(String text) =>
     text.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((w) => w.length > 2).toList();
@@ -12,12 +17,10 @@ int? _day(String? iso) {
   return d == null ? null : DateTime.utc(d.year, d.month, d.day).millisecondsSinceEpoch ~/ 86400000;
 }
 
-int _minor(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round().abs();
-
 /// The unpaid planned bill a spend most likely pays, or null: overdue or due within
 /// [windowDays], and either within 10% of the amount or sharing a word with its name.
-Map<String, dynamic>? findBillMatch(
-  List<dynamic> bills, {
+Transaction? findBillMatch(
+  List<Transaction> bills, {
   required int amount,
   String description = '',
   required String today,
@@ -27,18 +30,15 @@ Map<String, dynamic>? findBillMatch(
   final descWords = _words(description).toSet();
   if (amount <= 0 && descWords.isEmpty) return null;
   final todayDay = _day(today);
-  Map<String, dynamic>? best;
+  Transaction? best;
   double bestScore = double.infinity;
-  for (final raw in bills) {
-    if (raw is! Map) continue;
-    final bill = Map<String, dynamic>.from(raw);
-    final status = bill['status']?.toString();
-    if (bill['isPaid'] == true || status == 'successful' || status == 'cancelled') continue;
-    final planned = _minor(bill['plannedAmount'] ?? bill['amount']);
-    final due = _day((bill['plannedDate'] ?? bill['date'])?.toString());
+  for (final bill in bills) {
+    if (!bill.isPlanned) continue;
+    final planned = bill.displayAmount;
+    final due = _day(bill.dueDate);
     if (todayDay != null && due != null && due - todayDay > windowDays) continue;
     final amountClose = amount > 0 && planned > 0 && (planned - amount).abs() <= planned * tolerance;
-    final nameHit = _words('${bill['name'] ?? bill['title'] ?? ''}').any(descWords.contains);
+    final nameHit = _words(bill.name).any(descWords.contains);
     if (!amountClose && !nameHit) continue;
     final double score = (nameHit ? 0.0 : 1.0) + (amount > 0 && planned > 0 ? (planned - amount).abs() / planned : 1.0);
     if (score < bestScore) {
@@ -49,26 +49,37 @@ Map<String, dynamic>? findBillMatch(
   return best;
 }
 
-/// The scheduled salary ({amount, date}) when an income entry looks like it, else null.
-Map<String, dynamic>? detectDuplicateSalary({String description = '', int amount = 0, Map<String, dynamic>? month}) {
-  final salary = _minor(month?['incomeAmount']);
+/// The scheduled salary when an income entry looks like it, else null.
+({int amount, String? date})? detectDuplicateSalary({String description = '', int amount = 0, MonthInfo? month}) {
+  final salary = (month?.incomeAmount ?? 0).abs();
   if (salary == 0) return null;
   final saysSalary = RegExp(r'\b(salary|payroll|paycheck|pay ?slip|wages?)\b', caseSensitive: false).hasMatch(description);
   final sameAmount = amount > 0 && (amount - salary).abs() <= salary * 0.05;
   if (!saysSalary && !sameAmount) return null;
-  return {'amount': salary, 'date': month?['incomeCreditDate']?.toString()};
+  return (amount: salary, date: month?.incomeCreditDate);
 }
 
-/// Someone else's money? {action: hold|repaid|lend|return, fund?, personName} or null.
-Map<String, dynamic>? detectPersonHint({String description = '', required String flow, List<dynamic> funds = const []}) {
+/// What [detectPersonHint] suggests: which held/lent action, for whom.
+class PersonHint {
+  /// 'hold' | 'repaid' | 'lend' | 'return'
+  final String action;
+
+  /// The person's existing record, when the description names them.
+  final PersonFund? fund;
+  final String personName;
+
+  const PersonHint({required this.action, this.fund, this.personName = ''});
+}
+
+/// Someone else's money? The held/lent action to suggest, or null.
+PersonHint? detectPersonHint({String description = '', required String flow, List<PersonFund> funds = const []}) {
   if (description.trim().isEmpty) return null;
   final lower = description.toLowerCase();
-  Map<String, dynamic>? fund;
+  PersonFund? fund;
   for (final f in funds) {
-    if (f is! Map) continue;
-    final name = '${f['personName'] ?? ''}'.toLowerCase().trim();
+    final name = f.personName.toLowerCase().trim();
     if (name.length > 1 && RegExp('\\b${RegExp.escape(name)}\\b').hasMatch(lower)) {
-      fund = Map<String, dynamic>.from(f);
+      fund = f;
       break;
     }
   }
@@ -78,17 +89,13 @@ Map<String, dynamic>? detectPersonHint({String description = '', required String
 
   String action;
   if (flow == 'in') {
-    action = fund != null ? (fund['direction'] == 'lent' ? 'repaid' : 'hold') : (lendWords ? 'repaid' : 'hold');
+    action = fund != null ? (fund.direction == FundDirection.lent ? 'repaid' : 'hold') : (lendWords ? 'repaid' : 'hold');
   } else {
-    final outstanding = _minor(fund?['outstanding']);
+    final outstanding = (fund?.outstanding ?? 0).abs();
     action = fund != null
-        ? (fund['direction'] == 'held' && outstanding > 0 ? 'return' : 'lend')
+        ? (fund.direction == FundDirection.held && outstanding > 0 ? 'return' : 'lend')
         : (holdWords ? 'return' : 'lend');
   }
   final named = RegExp(r'\b(?:from|to|for)\s+([A-Z][a-z]+)').firstMatch(description);
-  return {
-    'action': action,
-    'fund': fund,
-    'personName': fund?['personName']?.toString() ?? named?.group(1) ?? '',
-  };
+  return PersonHint(action: action, fund: fund, personName: fund?.personName ?? named?.group(1) ?? '');
 }

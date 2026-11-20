@@ -7,6 +7,8 @@ import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
 import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
+import '../models/transaction.dart';
+import '../models/transaction_lists.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -20,8 +22,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   String _activeTab = 'successful';
 
   // Filters within active tab
-  String _successfulFilter = 'all'; // 'all' | 'expense' | 'income'
-  String _plannedFilter = 'all'; // 'all' | 'due' | 'overdue' | 'goal'
+  RecordedFilter _successfulFilter = RecordedFilter.all;
+  PlannedFilter _plannedFilter = PlannedFilter.all;
 
   String _normalizeSpendingCategory(String? cat) {
     if (cat == null || cat.trim().isEmpty) return 'General';
@@ -33,10 +35,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return cat.trim();
   }
 
-  Future<void> _handleCancelPlanned(BuildContext context, Map<String, dynamic> tx) async {
+  Future<void> _handleCancelPlanned(
+    BuildContext context,
+    Transaction tx,
+  ) async {
     final budget = context.read<BudgetProvider>();
-    final txId = (tx['id'] ?? tx['_id']).toString();
-    final isGoal = tx['origin'] == 'goal' || tx['goalId'] != null;
+    final txId = tx.id;
+    final isGoal = tx.isFromGoal;
 
     if (isGoal) {
       // Goal cancellation prompt: Return to Logged vs Mark as Dropped
@@ -59,7 +64,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
               onPressed: () => Navigator.pop(ctx, 'drop'),
-              child: const Text('Mark as Dropped', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Mark as Dropped',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -72,17 +80,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(action == 'keep_logged'
-                  ? 'Commitment cancelled; Goal returned to logged'
-                  : 'Commitment cancelled; Goal dropped'),
+              content: Text(
+                action == 'keep_logged'
+                    ? 'Commitment cancelled; Goal returned to logged'
+                    : 'Commitment cancelled; Goal dropped',
+              ),
             ),
           );
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to cancel: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
         }
       }
     } else {
@@ -91,7 +101,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Cancel Planned Commitment'),
-          content: Text('Are you sure you want to cancel "${tx['name']}"?'),
+          content: Text('Are you sure you want to cancel "${tx.name}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -100,7 +110,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Cancel Commitment', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Cancel Commitment',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -116,16 +129,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           }
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to cancel: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
           }
         }
       }
     }
   }
 
-  void _openMarkPaidModal(BuildContext context, Map<String, dynamic> tx) {
+  void _openMarkPaidModal(BuildContext context, Transaction tx) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -140,52 +153,37 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
-      builder: (_) => UnifiedEntryModal(initialType: _activeTab == 'planned' ? EntryType.item : EntryType.transaction),
+      builder: (_) => UnifiedEntryModal(
+        initialType: _activeTab == 'planned'
+            ? EntryType.item
+            : EntryType.transaction,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    // Only the lists and currency: other provider changes do not rebuild this screen.
+    final lists = context.select<BudgetProvider, TransactionLists>(
+      (b) => b.transactionLists,
+    );
+    final currency = context.select<BudgetProvider, String>(
+      (b) => b.monthInfo?.currencySymbol ?? '₹',
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final currency = budget.activeMonth?['currencySymbol']?.toString() ?? '₹';
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final textMuted = isDark
+        ? AppColors.darkTextMuted
+        : AppColors.lightTextMuted;
 
-    final allTransactions = budget.transactions.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
-
-    // Partition into successful and planned
-    final successfulList = allTransactions.where((t) => t['status'] == 'successful').toList();
-    final plannedList = allTransactions.where((t) => t['status'] == 'planned').toList();
-
-    // Sort successful by date desc
-    successfulList.sort((a, b) => (b['date']?.toString() ?? '').compareTo(a['date']?.toString() ?? ''));
-
-    // Sort planned by plannedDate asc (due earliest first)
-    plannedList.sort((a, b) {
-      final da = (a['plannedDate'] ?? a['date'])?.toString() ?? '';
-      final db = (b['plannedDate'] ?? b['date'])?.toString() ?? '';
-      return da.compareTo(db);
-    });
-
-    // Apply secondary filters
-    final displayedSuccessful = successfulList.where((t) {
-      final isPassThrough = const ['held_in', 'held_return', 'lent_out', 'lent_repaid'].contains(t['origin']);
-      if (_successfulFilter == 'expense') return !isPassThrough && t['isIncome'] != true && t['type'] != 'income';
-      if (_successfulFilter == 'income') return !isPassThrough && (t['isIncome'] == true || t['type'] == 'income');
-      return true;
-    }).toList();
-
-    final displayedPlanned = plannedList.where((t) {
-      if (_plannedFilter == 'due') return t['derivedStatus'] == 'due';
-      if (_plannedFilter == 'overdue') return t['derivedStatus'] == 'overdue';
-      if (_plannedFilter == 'goal') return t['origin'] == 'goal' || t['goalId'] != null;
-      return true;
-    }).toList();
+    final displayedSuccessful = lists.recordedWhere(_successfulFilter);
+    final displayedPlanned = lists.plannedWhere(_plannedFilter);
 
     return Scaffold(
       backgroundColor: bg,
@@ -204,7 +202,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 Container(
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+                    color: isDark
+                        ? AppColors.darkSurfaceSubtle
+                        : AppColors.lightSurfaceSubtle,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: border),
                   ),
@@ -212,12 +212,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => setState(() => _activeTab = 'successful'),
+                          onTap: () =>
+                              setState(() => _activeTab = 'successful'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'successful'
-                                  ? (isDark ? AppColors.darkSurface : Colors.white)
+                                  ? (isDark
+                                        ? AppColors.darkSurface
+                                        : Colors.white)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: _activeTab == 'successful'
@@ -237,15 +240,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 Icon(
                                   Icons.check_circle_outline,
                                   size: 15,
-                                  color: _activeTab == 'successful' ? AppColors.green : textSecondary,
+                                  color: _activeTab == 'successful'
+                                      ? AppColors.green
+                                      : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'Successful (${successfulList.length})',
-                                  style: AppTypography.inter(
-                                    fontSize: 12.5,
-                                    fontWeight: _activeTab == 'successful' ? FontWeight.w700 : FontWeight.w500,
-                                    color: _activeTab == 'successful' ? text : textSecondary,
+                                Flexible(
+                                  child: Text(
+                                    'Successful (${lists.recorded.length})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: _activeTab == 'successful'
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: _activeTab == 'successful'
+                                          ? text
+                                          : textSecondary,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -260,7 +273,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'planned'
-                                  ? (isDark ? AppColors.darkSurface : Colors.white)
+                                  ? (isDark
+                                        ? AppColors.darkSurface
+                                        : Colors.white)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: _activeTab == 'planned'
@@ -280,15 +295,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 Icon(
                                   Icons.schedule,
                                   size: 15,
-                                  color: _activeTab == 'planned' ? AppColors.amber : textSecondary,
+                                  color: _activeTab == 'planned'
+                                      ? AppColors.amber
+                                      : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'Planned (${plannedList.length})',
-                                  style: AppTypography.inter(
-                                    fontSize: 12.5,
-                                    fontWeight: _activeTab == 'planned' ? FontWeight.w700 : FontWeight.w500,
-                                    color: _activeTab == 'planned' ? text : textSecondary,
+                                Flexible(
+                                  child: Text(
+                                    'Planned (${lists.planned.length})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: _activeTab == 'planned'
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: _activeTab == 'planned'
+                                          ? text
+                                          : textSecondary,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -307,62 +332,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   child: Row(
                     children: _activeTab == 'successful'
                         ? [
-                            _buildSubFilterChip('all', 'All (${successfulList.length})', _successfulFilter,
-                                (val) => setState(() => _successfulFilter = val), isDark, border, text),
-                            const SizedBox(width: 6),
-                            _buildSubFilterChip(
-                              'expense',
-                              'Expenses (${successfulList.where((t) => t['isIncome'] != true && t['type'] != 'income').length})',
-                              _successfulFilter,
-                              (val) => setState(() => _successfulFilter = val),
-                              isDark,
-                              border,
-                              text,
-                            ),
-                            const SizedBox(width: 6),
-                            _buildSubFilterChip(
-                              'income',
-                              'Incomes (${successfulList.where((t) => t['isIncome'] == true || t['type'] == 'income').length})',
-                              _successfulFilter,
-                              (val) => setState(() => _successfulFilter = val),
-                              isDark,
-                              border,
-                              text,
-                            ),
+                            for (final (f, label) in const [
+                              (RecordedFilter.all, 'All'),
+                              (RecordedFilter.expense, 'Expenses'),
+                              (RecordedFilter.income, 'Incomes'),
+                            ]) ...[
+                              _buildSubFilterChip<RecordedFilter>(
+                                f,
+                                '$label (${lists.recordedWhere(f).length})',
+                                _successfulFilter,
+                                (val) =>
+                                    setState(() => _successfulFilter = val),
+                                isDark,
+                                border,
+                                text,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                           ]
                         : [
-                            _buildSubFilterChip('all', 'All (${plannedList.length})', _plannedFilter,
-                                (val) => setState(() => _plannedFilter = val), isDark, border, text),
-                            const SizedBox(width: 6),
-                            _buildSubFilterChip(
-                              'due',
-                              'Due Soon (${plannedList.where((t) => t['derivedStatus'] == 'due').length})',
-                              _plannedFilter,
-                              (val) => setState(() => _plannedFilter = val),
-                              isDark,
-                              border,
-                              text,
-                            ),
-                            const SizedBox(width: 6),
-                            _buildSubFilterChip(
-                              'overdue',
-                              'Overdue (${plannedList.where((t) => t['derivedStatus'] == 'overdue').length})',
-                              _plannedFilter,
-                              (val) => setState(() => _plannedFilter = val),
-                              isDark,
-                              border,
-                              text,
-                            ),
-                            const SizedBox(width: 6),
-                            _buildSubFilterChip(
-                              'goal',
-                              'From Goals (${plannedList.where((t) => t['origin'] == 'goal' || t['goalId'] != null).length})',
-                              _plannedFilter,
-                              (val) => setState(() => _plannedFilter = val),
-                              isDark,
-                              border,
-                              text,
-                            ),
+                            for (final (f, label) in const [
+                              (PlannedFilter.all, 'All'),
+                              (PlannedFilter.due, 'Due Soon'),
+                              (PlannedFilter.overdue, 'Overdue'),
+                              (PlannedFilter.goal, 'From Goals'),
+                            ]) ...[
+                              _buildSubFilterChip<PlannedFilter>(
+                                f,
+                                '$label (${lists.plannedWhere(f).length})',
+                                _plannedFilter,
+                                (val) => setState(() => _plannedFilter = val),
+                                isDark,
+                                border,
+                                text,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                           ],
                   ),
                 ),
@@ -373,8 +378,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           // Main Transactions List
           Expanded(
             child: _activeTab == 'successful'
-                ? _buildSuccessfulView(context, displayedSuccessful, isDark, surface, border, text, textSecondary, textMuted, currency)
-                : _buildPlannedView(context, displayedPlanned, isDark, surface, border, text, textSecondary, textMuted, currency),
+                ? _buildSuccessfulView(
+                    context,
+                    displayedSuccessful,
+                    isDark,
+                    surface,
+                    border,
+                    text,
+                    textSecondary,
+                    textMuted,
+                    currency,
+                  )
+                : _buildPlannedView(
+                    context,
+                    displayedPlanned,
+                    isDark,
+                    surface,
+                    border,
+                    text,
+                    textSecondary,
+                    textMuted,
+                    currency,
+                  ),
           ),
         ],
       ),
@@ -392,26 +417,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildSubFilterChip(
-    String key,
+  Widget _buildSubFilterChip<T>(
+    T key,
     String label,
-    String current,
-    ValueChanged<String> onSelected,
+    T current,
+    ValueChanged<T> onSelected,
     bool isDark,
     Color border,
     Color text,
   ) {
     final active = key == current;
     return GestureDetector(
+      key: ValueKey('filter-$key'),
       onTap: () => onSelected(key),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: active
-              ? (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle)
+              ? (isDark
+                    ? AppColors.darkSurfaceSubtle
+                    : AppColors.lightSurfaceSubtle)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: active ? AppColors.primary : border, width: active ? 1.2 : 0.8),
+          border: Border.all(
+            color: active ? AppColors.primary : border,
+            width: active ? 1.2 : 0.8,
+          ),
         ),
         child: Text(
           label,
@@ -427,7 +458,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _buildSuccessfulView(
     BuildContext context,
-    List<Map<String, dynamic>> items,
+    List<Transaction> items,
     bool isDark,
     Color surface,
     Color border,
@@ -445,7 +476,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             const SizedBox(height: 12),
             Text(
               'No successful transactions recorded',
-              style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textSecondary),
+              style: AppTypography.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textSecondary,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -463,13 +498,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {
         final tx = items[idx];
-        final name = tx['name']?.toString() ?? 'Transaction';
-        // Held & Lent money coming in shows as a credit, though it is never income
-        final isIncome = tx['isIncome'] == true || tx['type'] == 'income' || tx['origin'] == 'held_in' || tx['origin'] == 'lent_repaid';
-        final num amount = tx['amount'] ?? 0;
-        final date = tx['date']?.toString() ?? '';
-        final category = _normalizeSpendingCategory(tx['category']?.toString());
-        final origin = tx['origin']?.toString() ?? 'spot';
+        final name = tx.name.isEmpty ? 'Transaction' : tx.name;
+        // Money in: income, refunds and held/lent money coming back (never income).
+        // Transfers move money between the user's own accounts: no sign.
+        final flow = tx.flow;
+        final isIn = flow == MoneyFlow.moneyIn;
+        final isMove = flow == MoneyFlow.moved;
+        final sign = isIn ? '+' : (isMove ? '' : '-');
+        final date = tx.date;
+        final category = _normalizeSpendingCategory(tx.category);
+        // No badge when it would repeat the category (a transfer's category is "Transfer").
+        final badge = tx.sourceLabel == category ? null : tx.sourceLabel;
+        final badgeColor = tx.origin == TxOrigin.goal
+            ? Colors.purple
+            : AppColors.amber;
 
         return InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -478,7 +520,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              builder: (_) => TransactionDetailModal(transactionData: tx),
+              builder: (_) => TransactionDetailModal(transaction: tx),
             );
           },
           child: Container(
@@ -493,11 +535,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 // Category Icon circle
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: isIncome ? AppColors.green.withAlpha(30) : AppColors.primary.withAlpha(20),
+                  backgroundColor: isIn
+                      ? AppColors.green.withAlpha(30)
+                      : (isMove
+                            ? textMuted.withAlpha(30)
+                            : AppColors.primary.withAlpha(20)),
                   child: Icon(
-                    isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                    isIn
+                        ? Icons.arrow_downward
+                        : (isMove ? Icons.swap_horiz : Icons.arrow_upward),
                     size: 16,
-                    color: isIncome ? AppColors.green : AppColors.primary,
+                    color: isIn
+                        ? AppColors.green
+                        : (isMove ? textSecondary : AppColors.primary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -509,38 +559,71 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     children: [
                       Text(
                         name,
-                        style: AppTypography.inter(fontSize: 13.5, fontWeight: FontWeight.w600, color: text),
+                        style: AppTypography.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: text,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Text(date, style: AppTypography.inter(fontSize: 11, color: textMuted)),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: border, width: 0.5),
+                          Text(
+                            date,
+                            style: AppTypography.inter(
+                              fontSize: 11,
+                              color: textMuted,
                             ),
-                            child: Text(category, style: AppTypography.inter(fontSize: 10, color: textSecondary)),
                           ),
-                          if (origin != 'spot') ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          const SizedBox(width: 6),
+                          // Long categories shrink with an ellipsis instead of overflowing the row.
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1.5,
+                              ),
                               decoration: BoxDecoration(
-                                color: (origin == 'goal' ? Colors.purple : AppColors.amber).withAlpha(25),
+                                color: isDark
+                                    ? AppColors.darkSurfaceSubtle
+                                    : AppColors.lightSurfaceSubtle,
                                 borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: border, width: 0.5),
                               ),
                               child: Text(
-                                origin == 'goal' ? 'Goal' : 'Planned',
+                                category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: AppTypography.inter(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: origin == 'goal' ? Colors.purple : AppColors.amber,
+                                  fontSize: 10,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (badge != null) ...[
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: badgeColor.withAlpha(25),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  badge,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: badgeColor,
+                                  ),
                                 ),
                               ),
                             ),
@@ -553,11 +636,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
                 // Amount
                 Text(
-                  '${isIncome ? '+' : '-'}${formatCurrency(amount, symbol: currency)}',
+                  '$sign${formatCurrency(tx.displayAmount, symbol: currency)}',
                   style: AppTypography.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: isIncome ? AppColors.green : text,
+                    color: isIn
+                        ? AppColors.green
+                        : (isMove ? textSecondary : text),
                   ),
                 ),
               ],
@@ -570,7 +655,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _buildPlannedView(
     BuildContext context,
-    List<Map<String, dynamic>> items,
+    List<Transaction> items,
     bool isDark,
     Color surface,
     Color border,
@@ -588,7 +673,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             const SizedBox(height: 12),
             Text(
               'No planned commitments',
-              style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textSecondary),
+              style: AppTypography.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textSecondary,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -606,22 +695,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {
         final tx = items[idx];
-        final name = tx['name']?.toString() ?? 'Planned Commitment';
-        final num plannedAmount = tx['plannedAmount'] ?? tx['amount'] ?? 0;
-        final date = (tx['plannedDate'] ?? tx['date'])?.toString() ?? '';
-        final category = _normalizeSpendingCategory(tx['category']?.toString());
-        final derivedStatus = tx['derivedStatus']?.toString() ?? 'planned';
-        final origin = tx['origin']?.toString() ?? 'planned';
+        final name = tx.name.isEmpty ? 'Planned Commitment' : tx.name;
+        final plannedAmount = tx.displayAmount;
+        final date = tx.dueDate;
+        final category = _normalizeSpendingCategory(tx.category);
+        final isOverdue = tx.schedule == TxSchedule.overdue;
+        final isDue = tx.schedule == TxSchedule.due;
 
         Color badgeColor = textSecondary;
         String badgeLabel = 'Planned';
         IconData badgeIcon = Icons.schedule;
 
-        if (derivedStatus == 'overdue') {
+        if (isOverdue) {
           badgeColor = AppColors.red;
           badgeLabel = 'Overdue';
           badgeIcon = Icons.error_outline;
-        } else if (derivedStatus == 'due') {
+        } else if (isDue) {
           badgeColor = AppColors.amber;
           badgeLabel = 'Due Soon';
           badgeIcon = Icons.access_time_filled;
@@ -633,10 +722,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             color: surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: derivedStatus == 'overdue'
+              color: isOverdue
                   ? AppColors.red.withAlpha(100)
-                  : (derivedStatus == 'due' ? AppColors.amber.withAlpha(100) : border),
-              width: derivedStatus == 'planned' ? 0.8 : 1.2,
+                  : (isDue ? AppColors.amber.withAlpha(100) : border),
+              width: (isOverdue || isDue) ? 1.2 : 0.8,
             ),
           ),
           child: Column(
@@ -649,14 +738,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   Expanded(
                     child: Text(
                       name,
-                      style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w700, color: text),
+                      style: AppTypography.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: text,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(
                     formatCurrency(plannedAmount, symbol: currency),
-                    style: AppTypography.inter(fontSize: 14.5, fontWeight: FontWeight.w700, color: text),
+                    style: AppTypography.inter(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: text,
+                    ),
                   ),
                 ],
               ),
@@ -667,11 +764,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   // Due / Overdue badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: badgeColor.withAlpha(20),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: badgeColor.withAlpha(80), width: 0.6),
+                      border: Border.all(
+                        color: badgeColor.withAlpha(80),
+                        width: 0.6,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -680,24 +783,38 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         const SizedBox(width: 4),
                         Text(
                           badgeLabel,
-                          style: AppTypography.inter(fontSize: 10.5, fontWeight: FontWeight.w700, color: badgeColor),
+                          style: AppTypography.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: badgeColor,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 6),
 
-                  if (origin == 'goal') ...[
+                  if (tx.isFromGoal) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.purple.withAlpha(20),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.purple.withAlpha(80), width: 0.6),
+                        border: Border.all(
+                          color: Colors.purple.withAlpha(80),
+                          width: 0.6,
+                        ),
                       ),
                       child: Text(
                         'Goal',
-                        style: AppTypography.inter(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.purple),
+                        style: AppTypography.inter(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.purple,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -708,7 +825,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     style: AppTypography.inter(fontSize: 11, color: textMuted),
                   ),
                   const SizedBox(width: 6),
-                  Text('• $category', style: AppTypography.inter(fontSize: 11, color: textSecondary)),
+                  Text(
+                    '• $category',
+                    style: AppTypography.inter(
+                      fontSize: 11,
+                      color: textSecondary,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -719,14 +842,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       side: BorderSide(color: border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                     icon: Icon(Icons.close, size: 13, color: textMuted),
                     label: Text(
                       'Cancel',
-                      style: AppTypography.inter(fontSize: 11.5, fontWeight: FontWeight.w600, color: textSecondary),
+                      style: AppTypography.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: textSecondary,
+                      ),
                     ),
                     onPressed: () => _handleCancelPlanned(context, tx),
                   ),
@@ -736,13 +868,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       backgroundColor: AppColors.green,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                     icon: const Icon(Icons.check_circle_outline, size: 14),
                     label: Text(
                       'Mark as Paid',
-                      style: AppTypography.inter(fontSize: 11.5, fontWeight: FontWeight.w700),
+                      style: AppTypography.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     onPressed: () => _openMarkPaidModal(context, tx),
                   ),

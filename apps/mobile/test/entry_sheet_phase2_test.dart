@@ -57,7 +57,8 @@ void main() {
     expect(find.text('Pay a card'), findsNothing);
 
     await pumpSheet(tester, FakeBudget(cards: [
-      {'id': 'c1', 'name': 'Visa', 'outstanding': 500000, 'openBill': {'remaining': 300000, 'minimumDue': 50000}},
+      // openBill as the server sends it (test/fixtures/api/month_detail.json, simulation.cards)
+      {'id': 'c1', 'name': 'Visa', 'outstanding': 500000, 'openBill': {'statementId': 's1', 'amount': 300000, 'remaining': 300000, 'minimumDue': 50000, 'dueDate': '2026-11-28'}},
     ]), type: EntryType.transfer);
     expect(find.text('Pay a card'), findsOneWidget);
   });
@@ -73,7 +74,8 @@ void main() {
 
   testWidgets('Move > Pay a card lists the cards and bill amounts', (tester) async {
     await pumpSheet(tester, FakeBudget(cards: [
-      {'id': 'c1', 'name': 'Visa', 'outstanding': 500000, 'openBill': {'remaining': 300000, 'minimumDue': 50000}},
+      // openBill as the server sends it (test/fixtures/api/month_detail.json, simulation.cards)
+      {'id': 'c1', 'name': 'Visa', 'outstanding': 500000, 'openBill': {'statementId': 's1', 'amount': 300000, 'remaining': 300000, 'minimumDue': 50000, 'dueDate': '2026-11-28'}},
     ]), type: EntryType.transfer);
     await tester.tap(find.text('Pay a card'));
     await tester.pumpAndSettle();

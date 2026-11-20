@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:budget_mobile/models/transaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,7 +57,10 @@ Future<FakeBudget> pumpSheet(WidgetTester tester, {Map<String, dynamic>? item, L
                 onPressed: () => showModalBottomSheet(
                   context: ctx,
                   isScrollControlled: true,
-                  builder: (_) => UnifiedEntryModal(initialItem: item),
+                  // Editing opens on a recorded transaction (status: successful).
+                  builder: (_) => UnifiedEntryModal(
+                    initialTransaction: item == null ? null : Transaction.fromJson({'status': 'successful', ...item}),
+                  ),
                 ),
                 child: const Text('open'),
               ),

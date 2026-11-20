@@ -105,6 +105,73 @@ jobs:
           retention-days: 2
 
   # =========================================================================
+  # 4b. MOBILE (FLUTTER): ENCODING GUARD, ANALYZE, TEST, RELEASE BUILD
+  # =========================================================================
+  # `flutter analyze` silently skips a UTF-16 .dart file, so a broken
+  # main.dart once passed analysis. The encoding guard and the release build
+  # are what catch that class of break. Not a deploy gate: Vercel ships the
+  # web app and server only.
+  mobile:
+    name: Mobile (Flutter) Analyze, Test & Release Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject source files that are not UTF-8
+        working-directory: .
+        run: |
+          python3 - <<'PY'
+          import subprocess, sys
+          exts = ('.dart', '.kt', '.kts', '.gradle', '.xml', '.yaml', '.yml', '.json', '.swift', '.js', '.jsx', '.md')
+          files = subprocess.run(['git', 'ls-files'], capture_output=True, text=True, check=True).stdout.splitlines()
+          bad = []
+          for path in files:
+              if not path.endswith(exts):
+                  continue
+              data = open(path, 'rb').read()
+              if b'\x00' in data:
+                  bad.append(f'{path}: contains NUL bytes (UTF-16/32?)')
+                  continue
+              try:
+                  data.decode('utf-8')
+              except UnicodeDecodeError as e:
+                  bad.append(f'{path}: not valid UTF-8 ({e})')
+          if bad:
+              print('Source files must be UTF-8:')
+              print('\n'.join(bad))
+              sys.exit(1)
+          print('All source files are UTF-8.')
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.6
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit & widget tests
+        run: flutter test
+
+      - name: Release APK build
+        # Signs with the debug key unless ANDROID_KEYSTORE_* secrets are set
+        # (see android/app/build.gradle.kts). This step checks that the app
+        # compiles; it does not produce a Play upload.
+        run: flutter build apk --release
+
+  # =========================================================================
   # 5. SERVER BOOT & HEALTH CHECK E2E PROBE
   # =========================================================================
   e2e-health:

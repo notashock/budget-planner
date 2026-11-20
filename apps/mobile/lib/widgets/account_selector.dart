@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
 
 /// Segmented Bank Account / Wallet Selector for Mobile Modals
 class AccountSelector extends StatelessWidget {
   final String label;
   final String accountType; // 'bank' | 'wallet'
   final String? selectedAccountId;
-  final List<dynamic> bankAccounts;
-  final List<dynamic> wallets;
+  final List<Account> bankAccounts;
+  final List<Account> wallets;
   final void Function(String newType, String? newAccountId) onChanged;
   final bool isRequired;
   /// Credit cards, offered only where spending can go on a card (ADR 0070)
-  final List<dynamic> creditCards;
+  final List<Account> creditCards;
 
   const AccountSelector({
     super.key,
@@ -36,9 +37,9 @@ class AccountSelector extends StatelessWidget {
     final hasWallets = wallets.isNotEmpty;
 
     final currentAccounts = isCard ? creditCards : (isBank ? bankAccounts : wallets);
-    final validAccountId = currentAccounts.any((a) => (a['_id'] ?? a['id'])?.toString() == selectedAccountId)
+    final validAccountId = currentAccounts.any((a) => a.id == selectedAccountId)
         ? selectedAccountId
-        : (currentAccounts.isNotEmpty ? (currentAccounts.first['_id'] ?? currentAccounts.first['id'])?.toString() : null);
+        : (currentAccounts.isNotEmpty ? currentAccounts.first.id : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +78,7 @@ class AccountSelector extends StatelessWidget {
                     isDark: isDark,
                     onTap: () {
                       if (!isBank) {
-                        final defaultId = hasBanks ? (bankAccounts.first['_id'] ?? bankAccounts.first['id'])?.toString() : null;
+                        final defaultId = hasBanks ? bankAccounts.first.id : null;
                         onChanged('bank', defaultId);
                       }
                     },
@@ -90,7 +91,7 @@ class AccountSelector extends StatelessWidget {
                     isDark: isDark,
                     onTap: () {
                       if (!isWallet) {
-                        final defaultId = hasWallets ? (wallets.first['_id'] ?? wallets.first['id'])?.toString() : null;
+                        final defaultId = hasWallets ? wallets.first.id : null;
                         onChanged('wallet', defaultId);
                       }
                     },
@@ -104,7 +105,7 @@ class AccountSelector extends StatelessWidget {
                       isDark: isDark,
                       onTap: () {
                         if (!isCard) {
-                          onChanged('credit_card', (creditCards.first['_id'] ?? creditCards.first['id'])?.toString());
+                          onChanged('credit_card', creditCards.first.id);
                         }
                       },
                     ),
@@ -174,14 +175,16 @@ class AccountSelector extends StatelessWidget {
             ),
             isExpanded: true,
             items: currentAccounts.map<DropdownMenuItem<String>>((a) {
-              final id = (a['_id'] ?? a['id']).toString();
-              final name = a['name']?.toString() ?? 'Account';
+              final id = a.id;
+              final name = a.name.isEmpty ? 'Account' : a.name;
+              // Today's balance (or what a card owes); never the opening balance.
+              final owed = a.owed;
               final bal = isCard
-                  ? 'owes ${formatCurrency(a['outstanding'] ?? 0)}'
-                  : formatCurrency(a['openingBalance'] ?? a['balance'] ?? 0);
+                  ? (owed == null ? '' : 'owes ${formatCurrency(owed)}')
+                  : (a.currentBalance == null ? '' : formatCurrency(a.currentBalance!));
               final subtitle = isBank
-                  ? (a['accountNumberMasked'] != null ? '••${a['accountNumberMasked']}' : '')
-                  : (a['walletType'] != null ? '${a['walletType']}' : '');
+                  ? (a.accountNumberMasked != null ? '••${a.accountNumberMasked}' : '')
+                  : (a.walletType ?? '');
 
               return DropdownMenuItem<String>(
                 value: id,
