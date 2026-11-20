@@ -2,38 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/account_selector.dart';
 import '../widgets/app_date_picker.dart';
 
-int _int(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round();
-
 String _ymd(DateTime d) {
   String pad(int n) => n.toString().padLeft(2, '0');
   return '${d.year}-${pad(d.month)}-${pad(d.day)}';
 }
 
-String? _accountIdOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
-
 /// The account type ('bank' | 'wallet') a card bill is paid from. The account
 /// selector lists one type at a time, so the sheet must open on the right one.
-String payFromAccountType(String? accountId, List<dynamic> bankAccounts, List<dynamic> wallets) {
-  if (accountId != null && wallets.any((w) => _accountIdOf(w) == accountId)) return 'wallet';
+String payFromAccountType(String? accountId, List<Account> bankAccounts, List<Account> wallets) {
+  if (accountId != null && wallets.any((w) => w.id == accountId)) return 'wallet';
   if (accountId == null && bankAccounts.isEmpty && wallets.isNotEmpty) return 'wallet';
   return 'bank';
 }
 
 /// Default pay-from account: the primary bank, else the first bank, else the first wallet.
-String? defaultPayFromAccountId(List<dynamic> bankAccounts, List<dynamic> wallets) {
+String? defaultPayFromAccountId(List<Account> bankAccounts, List<Account> wallets) {
   if (bankAccounts.isNotEmpty) {
     for (final b in bankAccounts) {
-      if (b is Map && b['isPrimary'] == true) return _accountIdOf(b);
+      if (b.isPrimary) return b.id;
     }
-    return _accountIdOf(bankAccounts.first);
+    return bankAccounts.first.id;
   }
-  return wallets.isNotEmpty ? _accountIdOf(wallets.first) : null;
+  return wallets.isNotEmpty ? wallets.first.id : null;
 }
 
 /// Shared bottom-sheet frame for the card sheets.
@@ -95,7 +92,7 @@ Widget _primaryButton(BuildContext context, String label, VoidCallback? onPresse
 /// Add a credit card. The bill generation day and due day are the user's own.
 class AddCardModal extends StatefulWidget {
   /// Editing: the card to change. Null adds a new card.
-  final Map<String, dynamic>? card;
+  final CreditCardSummary? card;
   const AddCardModal({super.key, this.card});
 
   @override
@@ -121,23 +118,23 @@ class _AddCardModalState extends State<AddCardModal> {
   void initState() {
     super.initState();
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    final card = widget.card;
+    final banks = budget.bankAccountModels;
+    final wallets = budget.walletModels;
+    final card = widget.card?.account;
     if (card != null) {
-      String major(dynamic v) {
-        final n = (num.tryParse('${v ?? 0}') ?? 0).round();
-        return n == 0 ? '' : (n / 100).toStringAsFixed(n % 100 == 0 ? 0 : 2);
-      }
-      _name.text = card['name']?.toString() ?? '';
-      _limit.text = major(card['creditLimit']);
-      _originalOwed = (-(num.tryParse('${card['openingBalance'] ?? 0}') ?? 0)).round().clamp(0, 1 << 52).toInt();
+      String major(int? n) => n == null || n == 0 ? '' : (n / 100).toStringAsFixed(n % 100 == 0 ? 0 : 2);
+      _name.text = card.name;
+      _limit.text = major(card.creditLimit);
+      // A card's opening balance is minus what it owed when added.
+      _originalOwed = (-card.openingBalance).clamp(0, 1 << 52).toInt();
       _owed.text = major(_originalOwed);
-      _billDay.text = card['statementDay'] != null ? '${card['statementDay']}' : '';
-      _dueDay.text = card['dueDay'] != null ? '${card['dueDay']}' : '';
-      _payFrom = card['payFromAccountId']?.toString() ?? defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+      _billDay.text = card.statementDay != null ? '${card.statementDay}' : '';
+      _dueDay.text = card.dueDay != null ? '${card.dueDay}' : '';
+      _payFrom = card.payFromAccountId ?? defaultPayFromAccountId(banks, wallets);
     } else {
-      _payFrom = defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
+      _payFrom = defaultPayFromAccountId(banks, wallets);
     }
-    _payType = payFromAccountType(_payFrom, budget.bankAccounts, budget.wallets);
+    _payType = payFromAccountType(_payFrom, banks, wallets);
   }
 
   Future<void> _remove() async {
@@ -147,7 +144,7 @@ class _AddCardModalState extends State<AddCardModal> {
     });
     final navigator = Navigator.of(context);
     try {
-      await Provider.of<BudgetProvider>(context, listen: false).archiveCard((widget.card!['id'] ?? widget.card!['_id']).toString());
+      await Provider.of<BudgetProvider>(context, listen: false).archiveCard(widget.card!.account.id);
       navigator.pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -186,7 +183,7 @@ class _AddCardModalState extends State<AddCardModal> {
         'payFromAccountId': _payFrom,
       };
       if (_isEdit) {
-        await budget.updateCard((widget.card!['id'] ?? widget.card!['_id']).toString(), body);
+        await budget.updateCard(widget.card!.account.id, body);
       } else {
         await budget.createCard(body);
       }
@@ -230,8 +227,8 @@ class _AddCardModalState extends State<AddCardModal> {
         label: 'Pay the bill from',
         accountType: _payType,
         selectedAccountId: _payFrom,
-        bankAccounts: budget.bankAccounts,
-        wallets: budget.wallets,
+        bankAccounts: budget.bankAccountModels,
+        wallets: budget.walletModels,
         onChanged: (t, id) => setState(() {
           _payType = t;
           _payFrom = id;
@@ -253,7 +250,7 @@ class _AddCardModalState extends State<AddCardModal> {
           )
         else
           Row(children: [
-            Expanded(child: Text('Remove ${widget.card!['name'] ?? 'this card'}? Its history is kept.', style: const TextStyle(fontSize: 13))),
+            Expanded(child: Text('Remove ${widget.card!.account.name.isEmpty ? 'this card' : widget.card!.account.name}? Its history is kept.', style: const TextStyle(fontSize: 13))),
             TextButton(onPressed: () => setState(() => _confirmRemove = false), child: const Text('Keep')),
             TextButton(
               onPressed: _saving ? null : _remove,
@@ -268,8 +265,8 @@ class _AddCardModalState extends State<AddCardModal> {
 
 /// Confirm a generated bill, editing it to match the bank's statement.
 class ConfirmBillModal extends StatefulWidget {
-  final Map<String, dynamic> card;
-  final Map<String, dynamic> statement;
+  final CreditCardSummary card;
+  final CardStatement statement;
   const ConfirmBillModal({super.key, required this.card, required this.statement});
 
   @override
@@ -286,7 +283,10 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
   @override
   void initState() {
     super.initState();
-    _amount = TextEditingController(text: (_int(widget.statement['amount']) / 100).toString());
+    // Start from the bill as worked out (statements have no 'amount' field: the
+    // old code read one and opened at 0, which would log the whole bill as credit).
+    final amount = widget.statement.billAmount;
+    _amount = TextEditingController(text: (amount / 100).toStringAsFixed(amount % 100 == 0 ? 0 : 2));
   }
 
   @override
@@ -296,7 +296,7 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
     super.dispose();
   }
 
-  int get _diff => toMinorUnits(num.tryParse(_amount.text) ?? 0) - _int(widget.statement['computedAmount']);
+  int get _diff => toMinorUnits(num.tryParse(_amount.text) ?? 0) - widget.statement.computedAmount;
 
   Future<void> _save() async {
     setState(() {
@@ -305,7 +305,7 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
     });
     final navigator = Navigator.of(context);
     try {
-      await Provider.of<BudgetProvider>(context, listen: false).confirmCardStatement(widget.statement['id'].toString(), {
+      await Provider.of<BudgetProvider>(context, listen: false).confirmCardStatement(widget.statement.id, {
         'statementAmount': toMinorUnits(num.tryParse(_amount.text) ?? 0),
         if (_minimum.text.trim().isNotEmpty) 'minimumDue': toMinorUnits(num.tryParse(_minimum.text) ?? 0),
         'logChargesDifference': _diff != 0 && _logDiff,
@@ -321,9 +321,9 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
   @override
   Widget build(BuildContext context) {
     final diff = _diff;
-    return _Sheet(title: 'Confirm ${widget.card['name']} bill', children: [
+    return _Sheet(title: 'Confirm ${widget.card.account.name} bill', children: [
       Text(
-        'The app worked out ${formatCurrency(_int(widget.statement['computedAmount']))} from your card entries. Change it if your bank\'s statement says otherwise.',
+        'The app worked out ${formatCurrency(widget.statement.computedAmount)} from your card entries. Change it if your bank\'s statement says otherwise.',
         style: const TextStyle(fontSize: 12),
       ),
       const SizedBox(height: 12),
@@ -358,8 +358,8 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
 
 /// Pay a bill: full, minimum or another amount, from a bank account or wallet.
 class PayBillModal extends StatefulWidget {
-  final Map<String, dynamic> card;
-  final Map<String, dynamic> bill;
+  final CreditCardSummary card;
+  final CardBill bill;
   const PayBillModal({super.key, required this.card, required this.bill});
 
   @override
@@ -379,9 +379,9 @@ class _PayBillModalState extends State<PayBillModal> {
   void initState() {
     super.initState();
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    _payFrom = widget.card['payFromAccountId']?.toString() ??
-        defaultPayFromAccountId(budget.bankAccounts, budget.wallets);
-    _payType = payFromAccountType(_payFrom, budget.bankAccounts, budget.wallets);
+    _payFrom = widget.card.account.payFromAccountId ??
+        defaultPayFromAccountId(budget.bankAccountModels, budget.walletModels);
+    _payType = payFromAccountType(_payFrom, budget.bankAccountModels, budget.walletModels);
   }
 
   @override
@@ -391,9 +391,9 @@ class _PayBillModalState extends State<PayBillModal> {
   }
 
   int get _amount {
-    final remaining = _int(widget.bill['remaining']);
+    final remaining = widget.bill.remaining;
     if (_choice == 'full') return remaining;
-    if (_choice == 'minimum') return _int(widget.bill['minimumDue']).clamp(0, remaining);
+    if (_choice == 'minimum') return (widget.bill.minimumDue ?? 0).clamp(0, remaining);
     return toMinorUnits(num.tryParse(_custom.text) ?? 0);
   }
 
@@ -406,7 +406,7 @@ class _PayBillModalState extends State<PayBillModal> {
     });
     final navigator = Navigator.of(context);
     try {
-      await Provider.of<BudgetProvider>(context, listen: false).payCardStatement(widget.bill['statementId'].toString(), {
+      await Provider.of<BudgetProvider>(context, listen: false).payCardStatement(widget.bill.statementId, {
         'amount': _amount,
         'fromAccountId': _payFrom,
         'date': _ymd(_date),
@@ -422,12 +422,12 @@ class _PayBillModalState extends State<PayBillModal> {
   @override
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
-    final hasMinimum = _int(widget.bill['minimumDue']) > 0;
-    return _Sheet(title: 'Pay ${widget.card['name']} bill', children: [
+    final hasMinimum = (widget.bill.minimumDue ?? 0) > 0;
+    return _Sheet(title: 'Pay ${widget.card.account.name} bill', children: [
       const Text('Paying moves money from your bank to the card. It isn\'t counted as spending again.', style: TextStyle(fontSize: 12)),
       const SizedBox(height: 12),
       Wrap(spacing: 6, children: [
-        ChoiceChip(label: Text('Full ${formatCurrency(_int(widget.bill['remaining']))}'), selected: _choice == 'full', onSelected: (_) => setState(() => _choice = 'full')),
+        ChoiceChip(label: Text('Full ${formatCurrency(widget.bill.remaining)}'), selected: _choice == 'full', onSelected: (_) => setState(() => _choice = 'full')),
         if (hasMinimum)
           ChoiceChip(label: const Text('Minimum'), selected: _choice == 'minimum', onSelected: (_) => setState(() => _choice = 'minimum')),
         ChoiceChip(label: const Text('Other amount'), selected: _choice == 'custom', onSelected: (_) => setState(() => _choice = 'custom')),
@@ -446,8 +446,8 @@ class _PayBillModalState extends State<PayBillModal> {
         label: 'From account',
         accountType: _payType,
         selectedAccountId: _payFrom,
-        bankAccounts: budget.bankAccounts,
-        wallets: budget.wallets,
+        bankAccounts: budget.bankAccountModels,
+        wallets: budget.walletModels,
         isRequired: true,
         onChanged: (t, id) => setState(() {
           _payType = t;

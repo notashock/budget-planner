@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../engine/currency.dart';
+import '../models/account.dart';
 import '../models/simulation.dart';
+import '../models/transaction.dart';
+import '../models/transfer.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -9,21 +12,31 @@ import '../widgets/confirm_dialog.dart';
 import 'mark_paid_modal.dart';
 import 'unified_entry_modal.dart';
 
+/// Details of one money movement, with what can be done to it.
+///
+/// Opened with a [transaction] (Transactions tab), a [transfer] (Accounts tab)
+/// or a [timelineEvent] (Plan timeline). A timeline event is resolved to its
+/// transaction through `transactionId`, so it gets the same labels and actions;
+/// only events with no transaction behind them (the planned salary) are shown
+/// from the event alone, read-only.
 class TransactionDetailModal extends StatelessWidget {
-  final Map<String, dynamic>? transactionData;
+  final Transaction? transaction;
+  final Transfer? transfer;
   final TimelineEvent? timelineEvent;
   final String currencySymbol;
 
   const TransactionDetailModal({
     super.key,
-    this.transactionData,
+    this.transaction,
+    this.transfer,
     this.timelineEvent,
     this.currencySymbol = '₹',
   });
 
   static void show(
     BuildContext context, {
-    Map<String, dynamic>? transactionData,
+    Transaction? transaction,
+    Transfer? transfer,
     TimelineEvent? timelineEvent,
     String currencySymbol = '₹',
   }) {
@@ -32,133 +45,70 @@ class TransactionDetailModal extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => TransactionDetailModal(
-        transactionData: transactionData,
+        transaction: transaction,
+        transfer: transfer,
         timelineEvent: timelineEvent,
         currencySymbol: currencySymbol,
       ),
     );
   }
 
+  static String _accountLabel(Account? a) {
+    if (a == null) return 'No account';
+    final kind = switch (a.kind) {
+      AccountKind.bank => 'Bank',
+      AccountKind.wallet => 'Wallet',
+      AccountKind.cash => 'Cash',
+      AccountKind.creditCard => 'Card',
+    };
+    return '${a.name} ($kind)';
+  }
+
+  static String _dateLabel(String iso) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final parts = iso.split('-');
+    if (parts.length != 3) return iso;
+    final m = int.tryParse(parts[1]) ?? 0;
+    return '${int.tryParse(parts[2]) ?? parts[2]} ${m >= 1 && m <= 12 ? months[m - 1] : m} ${parts[0]}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
+    final event = timelineEvent;
+    Transaction? tx = transaction;
+    if (tx == null && event?.transactionId != null) {
+      for (final t in budget.transactionModels) {
+        if (t.id == event!.transactionId) {
+          tx = t;
+          break;
+        }
+      }
+    }
+    final view = tx != null
+        ? _DetailView.ofTransaction(tx, budget)
+        : transfer != null
+            ? _DetailView.ofTransfer(transfer!, budget)
+            : _DetailView.ofEvent(event!);
+    return _build(context, budget, view, runningBalance: event?.runningBalance);
+  }
+
+  Widget _build(BuildContext context, BudgetProvider budget, _DetailView v, {int? runningBalance}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    // Resolve unified properties across either TimelineEvent or Map
-    final isFromEvent = timelineEvent != null;
-    final Map<String, dynamic> raw = isFromEvent
-        ? timelineEvent!.raw
-        : (transactionData ?? {});
-
-    final id = isFromEvent
-        ? (timelineEvent!.id.isNotEmpty ? timelineEvent!.id : (raw['_id'] ?? raw['id'])?.toString())
-        : (raw['_id'] ?? raw['id'] ?? raw['itemId'] ?? raw['transactionId'])?.toString();
-
-    final String title = isFromEvent
-        ? ((timelineEvent!.description != null && timelineEvent!.description!.isNotEmpty)
-            ? timelineEvent!.description!
-            : timelineEvent!.name)
-        : (raw['title'] ?? raw['name'] ?? raw['description'] ?? raw['note'] ?? 'Transaction').toString();
-
-    final num amountNum = isFromEvent
-        ? timelineEvent!.amount
-        : (num.tryParse('${raw['amount']}') ?? 0);
-
-    final bool isTransfer = (raw['type'] == 'transfer' || raw['itemType'] == 'transfer' || raw['isTransfer'] == true);
-    final num trAmt = (num.tryParse('${raw['transferAmount']}') ?? 0);
-    final num effectiveAmt = (isTransfer && amountNum == 0 && trAmt > 0) ? trAmt : amountNum.abs();
-
-    final bool isIncome = !isTransfer && (isFromEvent
-        ? timelineEvent!.amount > 0
-        : (raw['isIncome'] == true || raw['type'] == 'income'));
-
-    final int day = isFromEvent
-        ? timelineEvent!.day
-        : (num.tryParse('${raw['day']}') ?? 1).toInt();
-
-    final String? dateStr = isFromEvent
-        ? (timelineEvent!.date.isNotEmpty ? timelineEvent!.date : null)
-        : raw['date']?.toString();
-
-    final String category = isFromEvent
-        ? (timelineEvent!.category ?? 'General')
-        : (raw['category'] ?? raw['tag'] ?? (isIncome ? 'Income' : 'General')).toString();
-
-    final bool isPaid = isFromEvent
-        ? timelineEvent!.isPaid
-        : (raw['status'] == 'successful' || raw['isActual'] == true || raw['isPaid'] == true);
-
-    final bool isPlanned = !isPaid && raw['isScheduledSalary'] != true;
-
-    // Date formatting (Force calendar date format instead of day xx)
-    String formattedDateLabel = '';
-    final activeYear = budget.currentYear;
-    final activeMonth = budget.currentMonth;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    if (dateStr != null && dateStr.isNotEmpty) {
-      final parts = dateStr.split('-');
-      if (parts.length >= 3) {
-        final y = int.tryParse(parts[0]) ?? activeYear;
-        final m = int.tryParse(parts[1]) ?? activeMonth;
-        final d = int.tryParse(parts[2]) ?? day;
-        final mName = (m >= 1 && m <= 12) ? months[m - 1] : '$m';
-        formattedDateLabel = '$d $mName $y';
-      } else {
-        formattedDateLabel = dateStr;
-      }
-    } else {
-      final mName = (activeMonth >= 1 && activeMonth <= 12) ? months[activeMonth - 1] : '$activeMonth';
-      formattedDateLabel = '$day $mName $activeYear';
-    }
-
-    // Resolve transfer source & destination accounts
-    String? sourceAccountLabel;
-    String? destAccountLabel;
-    String accountLabel = 'All Accounts / Primary';
-    final accounts = budget.allAccounts;
-
-    if (isTransfer) {
-      final sId = (raw['sourceBankAccountId'] ?? raw['sourceWalletId'] ?? raw['sourceAccountId'] ?? raw['fromAccountId'])?.toString();
-      final dId = (raw['destinationBankAccountId'] ?? raw['destinationWalletId'] ?? raw['destinationAccountId'] ?? raw['toAccountId'])?.toString();
-
-      sourceAccountLabel = raw['fromAccountName']?.toString();
-      destAccountLabel = raw['toAccountName']?.toString();
-
-      if (sourceAccountLabel == null || sourceAccountLabel.isEmpty) {
-        for (final a in accounts) {
-          if ((a['_id'] ?? a['id'])?.toString() == sId) {
-            sourceAccountLabel = '${a['name']} (${a['type'] == 'bank' ? 'Bank' : 'Wallet'})';
-            break;
-          }
-        }
-      }
-      if (destAccountLabel == null || destAccountLabel.isEmpty) {
-        for (final a in accounts) {
-          if ((a['_id'] ?? a['id'])?.toString() == dId) {
-            destAccountLabel = '${a['name']} (${a['type'] == 'bank' ? 'Bank' : 'Wallet'})';
-            break;
-          }
-        }
-      }
-      sourceAccountLabel ??= 'Source Account';
-      destAccountLabel ??= 'Destination Account';
-    } else {
-      final accId = (raw['bankAccountId'] ?? raw['walletId'] ?? raw['accountId'] ?? raw['sourceBankAccountId'] ?? raw['sourceWalletId'])?.toString();
-      if (accId != null) {
-        for (final a in accounts) {
-          if ((a['_id'] ?? a['id'])?.toString() == accId) {
-            final isBank = a['type'] == 'bank';
-            accountLabel = '${a['name']} (${isBank ? 'Bank' : 'Wallet'})';
-            break;
-          }
-        }
-      }
-    }
+    final accent = switch (v.flow) {
+      MoneyFlow.moved => AppColors.amber,
+      MoneyFlow.moneyIn => AppColors.green,
+      MoneyFlow.moneyOut => AppColors.red,
+    };
+    final sign = switch (v.flow) {
+      MoneyFlow.moved => '',
+      MoneyFlow.moneyIn => '+',
+      MoneyFlow.moneyOut => '-',
+    };
 
     return Container(
       decoration: BoxDecoration(
@@ -177,10 +127,7 @@ class TransactionDetailModal extends StatelessWidget {
               child: Container(
                 width: 38,
                 height: 4,
-                decoration: BoxDecoration(
-                  color: border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: border, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 16),
@@ -189,42 +136,44 @@ class TransactionDetailModal extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                  decoration: BoxDecoration(
-                    color: isTransfer
-                        ? AppColors.amber.withAlpha(25)
-                        : (isIncome ? AppColors.green.withAlpha(25) : AppColors.red.withAlpha(20)),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: isTransfer
-                          ? AppColors.amber.withAlpha(90)
-                          : (isIncome ? AppColors.green.withAlpha(90) : AppColors.red.withAlpha(80)),
-                      width: 0.8,
+                Flexible(
+                  child: Container(
+                    key: const ValueKey('detail-kind'),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: accent.withAlpha(25),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accent.withAlpha(90), width: 0.8),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isTransfer ? Icons.swap_horiz : (isIncome ? Icons.arrow_downward : Icons.arrow_upward),
-                        size: 13,
-                        color: isTransfer ? AppColors.amber : (isIncome ? AppColors.green : AppColors.red),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isTransfer ? 'INTER-ACCOUNT TRANSFER' : (isIncome ? 'INCOME INFLOW' : 'EXPENSE OUTFLOW'),
-                        style: AppTypography.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: isTransfer ? AppColors.amber : (isIncome ? AppColors.green : AppColors.red),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          v.flow == MoneyFlow.moved
+                              ? Icons.swap_horiz
+                              : (v.flow == MoneyFlow.moneyIn ? Icons.arrow_downward : Icons.arrow_upward),
+                          size: 13,
+                          color: accent,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            v.kindLabel,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Close',
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -237,70 +186,48 @@ class TransactionDetailModal extends StatelessWidget {
 
             // Large Amount Display
             Text(
-              '${isIncome ? '+' : (isTransfer ? '' : '-')}${formatCurrency(effectiveAmt, symbol: currencySymbol)}',
+              '$sign${formatCurrency(v.amount, symbol: currencySymbol)}',
+              key: const ValueKey('detail-amount'),
               style: AppTypography.mono(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: isTransfer ? AppColors.amber : (isIncome ? AppColors.green : (isDark ? AppColors.darkText : AppColors.lightText)),
+                color: v.flow == MoneyFlow.moneyOut ? (isDark ? AppColors.darkText : AppColors.lightText) : accent,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              title,
-              style: AppTypography.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: text,
-              ),
+              v.title,
+              style: AppTypography.inter(fontSize: 16, fontWeight: FontWeight.w600, color: text),
             ),
             const SizedBox(height: 16),
             Divider(color: border, height: 1),
             const SizedBox(height: 14),
 
-            // Metadata Grid / List
-            _buildDetailRow(
-              isIncome ? 'Credit Date' : 'Date',
-              formattedDateLabel,
-              text,
-              textSecondary,
-            ),
+            _buildDetailRow(v.flow == MoneyFlow.moneyIn ? 'Credit Date' : 'Date', v.dateLabel, text, textSecondary),
             const SizedBox(height: 10),
-            if (isTransfer) ...[
-              _buildDetailRow('Source Account', sourceAccountLabel ?? 'Source', text, textSecondary),
+            if (v.flow == MoneyFlow.moved) ...[
+              _buildDetailRow('Source Account', v.sourceLabel, text, textSecondary),
               const SizedBox(height: 10),
-              _buildDetailRow('Destination Account', destAccountLabel ?? 'Destination', text, textSecondary),
+              _buildDetailRow('Destination Account', v.destinationLabel, text, textSecondary),
               const SizedBox(height: 10),
             ] else ...[
-              _buildDetailRow('Category', category, text, textSecondary),
+              _buildDetailRow('Category', v.category, text, textSecondary),
               const SizedBox(height: 10),
-              _buildDetailRow('Account', accountLabel, text, textSecondary),
+              _buildDetailRow('Account', v.accountLabel, text, textSecondary),
               const SizedBox(height: 10),
             ],
-            _buildDetailRow(
-              'Status',
-              isPaid ? 'Successful (Paid)' : 'Planned Commitment',
-              isPaid ? AppColors.green : AppColors.amber,
-              textSecondary,
-            ),
+            _buildDetailRow('Status', v.statusLabel, v.isPlanned ? AppColors.amber : AppColors.green, textSecondary),
 
-            if (isFromEvent && timelineEvent!.runningBalance != 0) ...[
+            if (runningBalance != null && runningBalance != 0) ...[
               const SizedBox(height: 10),
-              _buildDetailRow(
-                'Running Balance',
-                formatCurrency(timelineEvent!.runningBalance, symbol: currencySymbol),
-                text,
-                textSecondary,
-              ),
+              _buildDetailRow('Running Balance', formatCurrency(runningBalance, symbol: currencySymbol), text, textSecondary),
             ],
 
             const SizedBox(height: 22),
 
-            // Edit (spends, income and planned bills; transfers and held/lent money are
-            // deleted and logged again instead)
-            if (id != null &&
-                !isTransfer &&
-                raw['isScheduledSalary'] != true &&
-                !const ['held_in', 'held_return', 'lent_out', 'lent_repaid'].contains(raw['origin'])) ...[
+            // Edit (spends, refunds, income and planned bills; transfers and held/lent
+            // money are deleted and logged again instead)
+            if (v.editable != null) ...[
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -311,21 +238,17 @@ class TransactionDetailModal extends StatelessWidget {
                   onPressed: () {
                     final navigator = Navigator.of(context);
                     final rootContext = navigator.context;
+                    final t = v.editable!;
                     navigator.pop();
                     showModalBottomSheet(
                       context: rootContext,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (_) => UnifiedEntryModal(
-                        initialType: isPlanned ? EntryType.item : (isIncome ? EntryType.income : EntryType.transaction),
-                        // Timeline events can keep the id, amount and title outside `raw`
-                        initialItem: {
-                          ...raw,
-                          '_id': raw['_id'] ?? raw['id'] ?? id,
-                          if (raw['amount'] == null) 'amount': effectiveAmt.round(),
-                          if (raw['title'] == null && raw['name'] == null) 'title': title,
-                          if (raw['date'] == null && dateStr != null) 'date': dateStr,
-                        },
+                        initialType: t.isPlanned
+                            ? EntryType.item
+                            : (t.kind == TxKind.income ? EntryType.income : EntryType.transaction),
+                        initialTransaction: t,
                       ),
                     );
                   },
@@ -337,9 +260,10 @@ class TransactionDetailModal extends StatelessWidget {
             // Actions (Mark Paid / Cancel / Delete)
             Row(
               children: [
-                if (isPlanned && id != null) ...[
+                if (v.payable != null) ...[
                   Expanded(
                     child: ElevatedButton.icon(
+                      key: const ValueKey('detail-mark-paid'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.green,
                         foregroundColor: Colors.white,
@@ -355,7 +279,7 @@ class TransactionDetailModal extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (_) => MarkPaidModal(transaction: raw),
+                          builder: (_) => MarkPaidModal(transaction: v.payable!),
                         );
                       },
                     ),
@@ -363,10 +287,10 @@ class TransactionDetailModal extends StatelessWidget {
                   const SizedBox(width: 8),
                 ],
 
-                // Delete / Cancel Action
-                if (id != null && raw['isScheduledSalary'] != true)
+                if (v.remove != null)
                   Expanded(
                     child: ElevatedButton.icon(
+                      key: const ValueKey('detail-remove'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.red.withAlpha(25),
                         foregroundColor: AppColors.red,
@@ -379,34 +303,32 @@ class TransactionDetailModal extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.delete_outline, size: 16),
                       label: Text(
-                        isPlanned ? 'Cancel Commitment' : 'Delete Transaction',
+                        v.isPlanned ? 'Cancel Commitment' : 'Delete Transaction',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onPressed: budget.isSaving ? null : () async {
-                        final navigator = Navigator.of(context);
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        final confirmed = await confirmDestructive(
-                          context,
-                          title: isPlanned ? 'Cancel this commitment?' : (isTransfer ? 'Delete this transfer?' : 'Delete this transaction?'),
-                          message: isPlanned
-                              ? 'It will be removed from your plan.'
-                              : 'Account balances will be recalculated. This can\'t be undone.',
-                          confirmLabel: isPlanned ? 'Cancel commitment' : 'Delete',
-                        );
-                        if (!confirmed) return;
-                        try {
-                          if (isTransfer) {
-                            await budget.deleteTransfer(id);
-                          } else if (isPlanned) {
-                            await budget.cancelTransaction(id);
-                          } else {
-                            await budget.deleteTransaction(id);
-                          }
-                          navigator.pop();
-                        } catch (e) {
-                          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
-                        }
-                      },
+                      onPressed: budget.isSaving
+                          ? null
+                          : () async {
+                              final navigator = Navigator.of(context);
+                              final scaffoldMessenger = ScaffoldMessenger.of(context);
+                              final confirmed = await confirmDestructive(
+                                context,
+                                title: v.isPlanned
+                                    ? 'Cancel this commitment?'
+                                    : (v.flow == MoneyFlow.moved ? 'Delete this transfer?' : 'Delete this transaction?'),
+                                message: v.isPlanned
+                                    ? 'It will be removed from your plan.'
+                                    : 'Account balances will be recalculated. This can\'t be undone.',
+                                confirmLabel: v.isPlanned ? 'Cancel commitment' : 'Delete',
+                              );
+                              if (!confirmed) return;
+                              try {
+                                await v.remove!(budget);
+                                navigator.pop();
+                              } catch (e) {
+                                scaffoldMessenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+                              }
+                            },
                     ),
                   ),
               ],
@@ -422,6 +344,7 @@ class TransactionDetailModal extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w500, color: labelColor)),
+        const SizedBox(width: 12),
         Flexible(
           child: Text(
             value,
@@ -433,4 +356,108 @@ class TransactionDetailModal extends StatelessWidget {
       ],
     );
   }
+}
+
+/// What the sheet shows, worked out once from whichever input it was given.
+class _DetailView {
+  final String kindLabel;
+  final MoneyFlow flow;
+  final int amount;
+  final String title;
+  final String dateLabel;
+  final String category;
+  final String accountLabel;
+  final String sourceLabel;
+  final String destinationLabel;
+  final String statusLabel;
+  final bool isPlanned;
+
+  /// Set when the transaction can be edited in the entry sheet.
+  final Transaction? editable;
+
+  /// Set when it is a planned bill that can be marked paid.
+  final Transaction? payable;
+
+  /// Deletes (or, for a planned bill, cancels) it; null when there is nothing to remove.
+  final Future<void> Function(BudgetProvider budget)? remove;
+
+  const _DetailView({
+    required this.kindLabel,
+    required this.flow,
+    required this.amount,
+    required this.title,
+    required this.dateLabel,
+    this.category = 'General',
+    this.accountLabel = 'No account',
+    this.sourceLabel = 'Source Account',
+    this.destinationLabel = 'Destination Account',
+    required this.statusLabel,
+    this.isPlanned = false,
+    this.editable,
+    this.payable,
+    this.remove,
+  });
+
+  factory _DetailView.ofTransaction(Transaction t, BudgetProvider budget) {
+    final kindLabel = switch (t.kind) {
+      TxKind.expense => 'EXPENSE OUTFLOW',
+      TxKind.refund => 'REFUND',
+      TxKind.income => 'INCOME INFLOW',
+      TxKind.transfer => 'INTER-ACCOUNT TRANSFER',
+      TxKind.passThroughIn => 'HELD / LENT MONEY IN',
+      TxKind.passThroughOut => 'HELD / LENT MONEY OUT',
+    };
+    final status = switch (t.status) {
+      TxStatus.cancelled => 'Cancelled',
+      TxStatus.successful => 'Successful (Paid)',
+      TxStatus.planned => switch (t.schedule) {
+          TxSchedule.overdue => 'Planned · Overdue',
+          TxSchedule.due => 'Planned · Due soon',
+          _ => 'Planned Commitment',
+        },
+    };
+    final cancelled = t.status == TxStatus.cancelled;
+    final canEdit = !cancelled && !t.isPassThrough && t.kind != TxKind.transfer;
+    return _DetailView(
+      kindLabel: kindLabel,
+      flow: t.flow,
+      amount: t.displayAmount,
+      title: t.name.isEmpty ? (t.note.isEmpty ? 'Transaction' : t.note) : t.name,
+      dateLabel: TransactionDetailModal._dateLabel(t.isPlanned ? t.dueDate : t.date),
+      category: t.category,
+      accountLabel: TransactionDetailModal._accountLabel(budget.accountById(t.accountId)),
+      sourceLabel: TransactionDetailModal._accountLabel(budget.accountById(t.accountId)),
+      destinationLabel: TransactionDetailModal._accountLabel(budget.accountById(t.destinationAccountId)),
+      statusLabel: status,
+      isPlanned: t.isPlanned,
+      editable: canEdit ? t : null,
+      payable: t.isPlanned ? t : null,
+      // The server removes a transfer's linked transfer record with its transaction.
+      remove: cancelled ? null : (b) => t.isPlanned ? b.cancelTransaction(t.id) : b.deleteTransaction(t.id),
+    );
+  }
+
+  factory _DetailView.ofTransfer(Transfer tr, BudgetProvider budget) => _DetailView(
+        kindLabel: 'INTER-ACCOUNT TRANSFER',
+        flow: MoneyFlow.moved,
+        amount: tr.amount,
+        title: tr.note.isEmpty ? 'Transfer' : tr.note,
+        dateLabel: TransactionDetailModal._dateLabel(tr.date),
+        sourceLabel: TransactionDetailModal._accountLabel(budget.accountById(tr.sourceAccountId)),
+        destinationLabel: TransactionDetailModal._accountLabel(budget.accountById(tr.destinationAccountId)),
+        statusLabel: 'Successful (Paid)',
+        remove: (b) => b.deleteTransfer(tr.id),
+      );
+
+  /// An event with no transaction behind it (e.g. the planned salary): read-only.
+  factory _DetailView.ofEvent(TimelineEvent e) => _DetailView(
+        kindLabel: e.amount >= 0 ? 'INCOME INFLOW' : 'EXPENSE OUTFLOW',
+        flow: e.amount >= 0 ? MoneyFlow.moneyIn : MoneyFlow.moneyOut,
+        amount: e.amount.abs(),
+        title: (e.description != null && e.description!.isNotEmpty) ? e.description! : e.name,
+        dateLabel: e.date.isNotEmpty ? TransactionDetailModal._dateLabel(e.date) : 'Day ${e.day}',
+        category: e.category ?? 'General',
+        statusLabel: e.isPaid ? 'Successful (Paid)' : 'Planned Commitment',
+        isPlanned: !e.isPaid,
+      );
 }

@@ -143,7 +143,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MarkPaidModal(transaction: tx.raw),
+      builder: (_) => MarkPaidModal(transaction: tx),
     );
   }
 
@@ -520,7 +520,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              builder: (_) => TransactionDetailModal(transactionData: tx.raw),
+              builder: (_) => TransactionDetailModal(transaction: tx),
             );
           },
           child: Container(

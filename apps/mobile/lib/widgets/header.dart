@@ -27,7 +27,7 @@ class HeaderWidget extends StatelessWidget {
     final monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final currentMonthLabel = '${monthsShort[(currentMonth - 1).clamp(0, 11)]} $currentYear';
 
-    final int floor = (num.tryParse('${budget.activeMonth?['safetyFloor'] ?? 0}') ?? 0).round();
+    final int floor = budget.monthInfo?.safetyFloor ?? 0;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

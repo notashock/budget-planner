@@ -277,7 +277,7 @@ class AccountsScreen extends StatelessWidget {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (_) => EditAccountModal(account: acc.raw, isBank: isBank),
+                builder: (_) => EditAccountModal(account: acc, isBank: isBank),
               );
             },
           ),
@@ -322,14 +322,7 @@ class AccountsScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
-          TransactionDetailModal.show(context, transactionData: {
-            ...tr.raw,
-            'isTransfer': true,
-            'type': 'transfer',
-            'amount': tr.amount,
-            'transferAmount': tr.amount,
-            'title': 'Transfer: $fromName → $toName',
-          });
+          TransactionDetailModal.show(context, transfer: tr);
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),

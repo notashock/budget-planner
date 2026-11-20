@@ -13,7 +13,8 @@ class FakeBudget extends BudgetProvider {
 
   @override
   List<dynamic> get bankAccounts => [
-        {'_id': 'b1', 'name': 'Main Bank', 'isPrimary': true, 'openingBalance': 1000000, 'minimumBalance': 200000},
+        // The server always sends today's balance (currentBalance); the sheet never uses openingBalance as today's.
+        {'_id': 'b1', 'name': 'Main Bank', 'isPrimary': true, 'openingBalance': 1000000, 'currentBalance': 1000000, 'minimumBalance': 200000},
       ];
 
   @override

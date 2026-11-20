@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/month_detail.dart';
 import '../engine/currency.dart';
 import '../models/simulation.dart';
 import '../theme/app_colors.dart';
@@ -6,7 +7,7 @@ import '../theme/app_typography.dart';
 
 void showMonthReviewModal(
   BuildContext context, {
-  required Map<String, dynamic> month,
+  required MonthInfo month,
   required SimulationResult simulation,
   required int safetyFloor,
   String currencySymbol = '₹',
@@ -72,7 +73,7 @@ void showMonthReviewModal(
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${month['month'] ?? 1}/${month['year'] ?? 2026} Performance',
+                          '${month.month}/${month.year} Performance',
                           style: AppTypography.cardTitle(color: text),
                         ),
                       ],

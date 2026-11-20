@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
+import '../models/account.dart';
+import '../models/goal.dart';
+import '../models/month_detail.dart';
+import '../models/person_fund.dart';
+import '../models/transaction.dart';
 import '../engine/category_suggest.dart';
 import '../engine/entry_assists.dart';
 import 'mark_paid_modal.dart';
@@ -30,11 +35,19 @@ String resolveEntryName(String typed, String category, String typeTitle) {
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
 
-  /// Editing: the record to change (a transaction, planned bill or goal). The type
-  /// is locked while editing, as on web.
-  final Map<String, dynamic>? initialItem;
+  /// Editing: the transaction or planned bill to change. The type is locked
+  /// while editing, as on web.
+  final Transaction? initialTransaction;
 
-  const UnifiedEntryModal({super.key, this.initialType = EntryType.transaction, this.initialItem});
+  /// Editing: the purchase goal to change.
+  final Goal? initialGoal;
+
+  const UnifiedEntryModal({
+    super.key,
+    this.initialType = EntryType.transaction,
+    this.initialTransaction,
+    this.initialGoal,
+  });
 
   @override
   State<UnifiedEntryModal> createState() => _UnifiedEntryModalState();
@@ -103,7 +116,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   late final BudgetProvider _budgetRef;
 
   // Smart assists: people (for the held/lent hint), dismissed hints, the person preset
-  List<dynamic> _personFunds = const [];
+  List<PersonFund> _personFunds = const [];
   final Set<String> _dismissedAssists = {};
   String? _personAction;
   String? _personFundId;
@@ -119,38 +132,34 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
     _budgetRef = budget;
-    if (widget.initialItem == null) {
-      budget.getPersonFunds().then((res) {
-        if (!mounted) return;
-        final list = res['funds'];
-        if (list is List) setState(() => _personFunds = list);
-      }).catchError((_) {});
+    if (!_isEditing) {
+      // Only for the held/lent hint, which is a nicety: no people means no hint.
+      budget.getPersonFundsTyped().then((res) {
+        if (mounted) setState(() => _personFunds = res.funds);
+      }).catchError((Object _) {});
     }
-    if (budget.bankAccounts.isNotEmpty) {
+    final banks = budget.bankAccountModels;
+    final wallets = budget.walletModels;
+    if (banks.isNotEmpty) {
       _accountType = 'bank';
-      final primary = budget.bankAccounts.firstWhere((b) => b['isPrimary'] == true, orElse: () => budget.bankAccounts.first);
-      _selectedAccountId = (primary['_id'] ?? primary['id'])?.toString();
-    } else if (budget.wallets.isNotEmpty) {
+      _selectedAccountId = banks.firstWhere((b) => b.isPrimary, orElse: () => banks.first).id;
+    } else if (wallets.isNotEmpty) {
       _accountType = 'wallet';
-      final primary = budget.wallets.firstWhere((w) => w['isPrimary'] == true, orElse: () => budget.wallets.first);
-      _selectedAccountId = (primary['_id'] ?? primary['id'])?.toString();
+      _selectedAccountId = wallets.firstWhere((w) => w.isPrimary, orElse: () => wallets.first).id;
     }
 
     _sourceAccountType = 'bank';
-    _sourceAccountId = budget.bankAccounts.isNotEmpty
-        ? (budget.bankAccounts.first['_id'] ?? budget.bankAccounts.first['id'])?.toString()
-        : (budget.wallets.isNotEmpty ? (budget.wallets.first['_id'] ?? budget.wallets.first['id'])?.toString() : null);
+    _sourceAccountId = banks.isNotEmpty ? banks.first.id : (wallets.isNotEmpty ? wallets.first.id : null);
 
-    _destAccountType = budget.wallets.isNotEmpty ? 'wallet' : 'bank';
-    _destAccountId = budget.wallets.isNotEmpty
-        ? (budget.wallets.first['_id'] ?? budget.wallets.first['id'])?.toString()
-        : (budget.bankAccounts.length > 1 ? (budget.bankAccounts[1]['_id'] ?? budget.bankAccounts[1]['id'])?.toString() : null);
+    _destAccountType = wallets.isNotEmpty ? 'wallet' : 'bank';
+    _destAccountId = wallets.isNotEmpty ? wallets.first.id : (banks.length > 1 ? banks[1].id : null);
 
     if (_activeType == EntryType.goal) {
       _fetchGoalRecommendation();
     }
 
-    if (widget.initialItem != null) _prefillFromItem(budget);
+    if (widget.initialTransaction != null) _prefillFromTransaction(budget, widget.initialTransaction!);
+    if (widget.initialGoal != null) _prefillFromGoal(widget.initialGoal!);
 
     // Remembered: the account used last time for this kind of entry
     EntryMemory.load().then((memory) {
@@ -161,9 +170,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       if (remembered == null) return;
       final type = remembered['accountType']!;
       final id = remembered['accountId']!;
-      final pool = type == 'wallet' ? budget.wallets : (type == 'credit_card' ? budget.creditCards : budget.bankAccounts);
+      final pool = type == 'wallet'
+          ? budget.walletModels
+          : (type == 'credit_card' ? budget.cardAccountModels : budget.bankAccountModels);
       final cardsAllowed = _activeType == EntryType.transaction || _activeType == EntryType.item;
-      if ((type == 'credit_card' && !cardsAllowed) || !pool.any((a) => (a['_id'] ?? a['id'])?.toString() == id)) return;
+      if ((type == 'credit_card' && !cardsAllowed) || !pool.any((a) => a.id == id)) return;
       setState(() {
         if (_activeType == EntryType.transfer) {
           if (type == 'credit_card') return;
@@ -177,88 +188,84 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     });
   }
 
-  bool get _isEditing => widget.initialItem != null;
+  bool get _isEditing => widget.initialTransaction != null || widget.initialGoal != null;
 
   /// Recorded spends a refund can be linked to, newest first.
-  List<Map<String, dynamic>> _refundTargets(BudgetProvider budget) {
-    const passThrough = ['held_in', 'held_return', 'lent_out', 'lent_repaid'];
+  List<Transaction> _refundTargets(BudgetProvider budget) {
     final editingId = _isEditing ? _editId : null;
-    final list = budget.transactions
-        .whereType<Map>()
-        .map((t) => Map<String, dynamic>.from(t))
-        .where((t) {
-          final id = (t['_id'] ?? t['id'])?.toString();
-          final amount = num.tryParse('${t['amount'] ?? 0}') ?? 0;
-          return id != null &&
-              id != editingId &&
-              t['status'] == 'successful' &&
-              amount > 0 &&
-              t['isIncome'] != true &&
-              t['origin'] != 'transfer' &&
-              t['origin'] != 'salary' &&
-              !passThrough.contains(t['origin']) &&
-              // A fully refunded spend can't take another refund
-              (_refundRemaining(budget, t) > 0 || id == _refundTargetId);
-        })
+    final list = budget.transactionModels
+        .where((t) =>
+            t.id != editingId &&
+            t.isSuccessful &&
+            t.kind == TxKind.expense &&
+            t.origin != TxOrigin.salary &&
+            // A fully refunded spend can't take another refund
+            (_refundRemaining(budget, t) > 0 || t.id == _refundTargetId))
         .toList()
-      ..sort((a, b) => '${b['date'] ?? ''}'.compareTo('${a['date'] ?? ''}'));
+      ..sort((a, b) => b.date.compareTo(a.date));
     return list.take(100).toList();
   }
 
   /// What is left to refund on a spend: its amount minus the refunds already
   /// linked to it (ADR 0062), leaving out the refund being edited. Never the
   /// spend's original amount on its own.
-  int _refundRemaining(BudgetProvider budget, Map<String, dynamic> spend) {
-    final spendId = (spend['_id'] ?? spend['id'])?.toString();
+  int _refundRemaining(BudgetProvider budget, Transaction spend) {
     final editingId = _isEditing ? _editId : null;
     var refunded = 0;
-    for (final t in budget.transactions.whereType<Map>()) {
-      if (spendId == null || t['refundTargetTransactionId']?.toString() != spendId) continue;
-      if (editingId != null && (t['_id'] ?? t['id'])?.toString() == editingId) continue;
-      final amount = num.tryParse('${t['amount'] ?? 0}') ?? 0;
-      if (amount < 0) refunded += amount.round().abs();
+    for (final t in budget.transactionModels) {
+      if (t.refundTargetTransactionId != spend.id) continue;
+      if (editingId != null && t.id == editingId) continue;
+      if (t.amount < 0) refunded += t.amount.abs();
     }
-    final left = _minorOf(spend['amount']) - refunded;
+    final left = spend.amount.abs() - refunded;
     return left > 0 ? left : 0;
   }
 
-  /// The spend this refund is (or will be) linked to, if it is in the list.
-  Map<String, dynamic>? _linkedSpend(BudgetProvider budget) {
-    final String? id = _isEditing ? (widget.initialItem?['refundTargetTransactionId']?.toString()) : _refundTargetId;
+  Transaction? _transactionById(BudgetProvider budget, String? id) {
     if (id == null) return null;
-    for (final t in budget.transactions.whereType<Map>()) {
-      if ((t['_id'] ?? t['id'])?.toString() == id) return Map<String, dynamic>.from(t);
+    for (final t in budget.transactionModels) {
+      if (t.id == id) return t;
     }
     return null;
   }
 
-  String _txLabel(Map<String, dynamic> t, {int? remaining}) {
-    final name = (t['title'] ?? t['name'] ?? t['description'] ?? t['category'] ?? 'Spend').toString();
-    final date = t['date']?.toString();
-    final paid = _minorOf(t['amount']);
+  /// The spend this refund is (or will be) linked to, if it is in the list.
+  Transaction? _linkedSpend(BudgetProvider budget) => _transactionById(
+        budget,
+        _isEditing ? widget.initialTransaction?.refundTargetTransactionId : _refundTargetId,
+      );
+
+  String _txLabel(Transaction t, {int? remaining}) {
+    final name = t.name.isNotEmpty ? t.name : (t.category.isNotEmpty ? t.category : 'Spend');
+    final paid = t.amount.abs();
     final amountText = remaining != null && remaining < paid
         ? '${formatCurrency(remaining)} left of ${formatCurrency(paid)}'
         : formatCurrency(paid);
-    return '$name · $amountText${date != null && date.length >= 10 ? ' · ${date.substring(0, 10)}' : ''}';
+    return '$name · $amountText · ${t.date}';
   }
+
+  /// 'bank' | 'wallet' | 'credit_card' for an account id, or null when not loaded.
+  String? _accountTypeOf(BudgetProvider budget, String? id) => switch (budget.accountById(id)?.kind) {
+        AccountKind.wallet => 'wallet',
+        AccountKind.creditCard => 'credit_card',
+        null => null,
+        _ => 'bank',
+      };
 
   /// "Refund for": pick the spend this refund gives money back for. Set when the
   /// refund is created; shown read-only when editing (the server doesn't change it).
   Widget _buildRefundLink(BudgetProvider budget) {
     final targets = _refundTargets(budget);
     if (_isEditing) {
-      final linkedId = widget.initialItem?['refundTargetTransactionId']?.toString();
-      Map<String, dynamic>? linked;
-      for (final t in budget.transactions.whereType<Map>()) {
-        if ((t['_id'] ?? t['id'])?.toString() == linkedId) linked = Map<String, dynamic>.from(t);
-      }
+      final linkedId = widget.initialTransaction?.refundTargetTransactionId;
+      final linked = _transactionById(budget, linkedId);
       return Text(
         linked != null ? 'Refund for ${_txLabel(linked)}' : (linkedId != null ? 'Linked to an earlier spend.' : 'Not linked to a spend.'),
         key: const ValueKey('refund-link-readonly'),
         style: const TextStyle(fontSize: 12),
       );
     }
-    final valid = targets.any((t) => (t['_id'] ?? t['id']).toString() == _refundTargetId);
+    final valid = targets.any((t) => t.id == _refundTargetId);
     return DropdownButtonFormField<String?>(
       key: const ValueKey('refund-for'),
       initialValue: valid ? _refundTargetId : null,
@@ -267,55 +274,48 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       items: [
         const DropdownMenuItem<String?>(value: null, child: Text('Not linked to a spend')),
         ...targets.map((t) => DropdownMenuItem<String?>(
-              value: (t['_id'] ?? t['id']).toString(),
+              value: t.id,
               child: Text(_txLabel(t, remaining: _refundRemaining(budget, t)), overflow: TextOverflow.ellipsis),
             )),
       ],
       onChanged: (id) => setState(() {
         _refundTargetId = id;
         if (id == null) return;
-        final target = targets.firstWhere((t) => (t['_id'] ?? t['id']).toString() == id);
+        final target = targets.firstWhere((t) => t.id == id);
         // Same category and account as the spend being refunded, unless already chosen
-        final cat = (target['category'] ?? '').toString();
+        final cat = target.category;
         if (!_categoryTouched && _quickCategories.contains(cat)) {
           _selectedCategory = cat;
           _isCustomCategory = false;
         }
-        final acc = _plainId(target['accountId']) ?? _plainId(target['bankAccountId']) ?? _plainId(target['walletId']);
-        if (acc != null) {
-          bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == acc);
-          if (inList(budget.bankAccounts) || inList(budget.wallets) || inList(budget.creditCards)) {
-            _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
-            _selectedAccountId = acc;
-          }
+        final accType = _accountTypeOf(budget, target.accountId);
+        if (accType != null) {
+          _accountType = accType;
+          _selectedAccountId = target.accountId;
         }
         if (_nameCtrl.text.trim().isEmpty) {
-          _nameCtrl.text = 'Refund: ${(target['title'] ?? target['name'] ?? 'spend')}';
+          _nameCtrl.text = 'Refund: ${target.name.isEmpty ? 'spend' : target.name}';
         }
       }),
     );
   }
 
-  String? _plainId(dynamic v) => v is Map ? (v['_id'] ?? v['id'])?.toString() : v?.toString();
+  String get _editId => widget.initialTransaction?.id ?? widget.initialGoal?.id ?? '';
 
-  String get _editId => (widget.initialItem?['_id'] ?? widget.initialItem?['id'] ?? '').toString();
-
-  /// Fill the form from the record being edited, so saving without changes
-  /// sends back what was there.
-  void _prefillFromItem(BudgetProvider budget) {
-    final item = widget.initialItem!;
-    final rawAmount = num.tryParse('${item['amount'] ?? item['targetAmount'] ?? item['plannedAmount'] ?? 0}') ?? 0;
-    final amt = rawAmount.abs();
+  void _setAmountText(int minor) {
+    final amt = minor.abs();
     if (amt > 0) _amountCtrl.text = (amt / 100).toStringAsFixed(amt % 100 == 0 ? 0 : 2);
-    _nameCtrl.text = (item['title'] ?? item['name'] ?? item['description'] ?? '').toString();
-    final parsed = DateTime.tryParse('${item['date'] ?? ''}');
+  }
+
+  /// Fill the form from the transaction being edited, so saving without changes
+  /// sends back what was there.
+  void _prefillFromTransaction(BudgetProvider budget, Transaction t) {
+    _setAmountText(t.isPlanned ? (t.plannedAmount ?? t.amount) : t.amount);
+    _nameCtrl.text = t.name;
+    final parsed = DateTime.tryParse(t.isPlanned ? t.dueDate : t.date);
     if (parsed != null) _selectedDate = parsed;
 
-    if (_activeType == EntryType.goal) {
-      _goalPriority = (num.tryParse('${item['priority'] ?? 1}') ?? 1).toInt();
-      return;
-    }
-    final cat = (item['category'] ?? item['tag'] ?? '').toString();
+    final cat = t.category;
     if (_activeType == EntryType.income) {
       if (cat.isNotEmpty) _incSource = cat;
     } else if (cat.isNotEmpty) {
@@ -327,18 +327,24 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       }
       _categoryTouched = true;
     }
-    if (_activeType == EntryType.transaction && rawAmount < 0) _txType = 'income';
+    if (_activeType == EntryType.transaction && t.amount < 0) _txType = 'income';
     if (_activeType == EntryType.item) {
-      _itemType = item['type'] == 'recurring' ? 'recurring' : 'one-time';
-      if (_itemType == 'recurring') _dayCtrl.text = '${item['dayOfMonth'] ?? 1}';
-      _isFixed = item['isFixed'] == true;
+      // Transactions store `recurrence`; the old check read the legacy item
+      // field `type == 'recurring'`, so a recurring bill reopened as one-time.
+      _itemType = t.recurrence != null ? 'recurring' : 'one-time';
+      if (_itemType == 'recurring') _dayCtrl.text = '${parsed?.day ?? 1}';
     }
-    final accId = _plainId(item['accountId']) ?? _plainId(item['bankAccountId']) ?? _plainId(item['walletId']);
-    if (accId != null && accId.isNotEmpty) {
-      bool inList(List<dynamic> l) => l.any((a) => _plainId(a) == accId);
-      _accountType = inList(budget.wallets) ? 'wallet' : (inList(budget.creditCards) ? 'credit_card' : 'bank');
-      _selectedAccountId = accId;
+    final accType = _accountTypeOf(budget, t.accountId);
+    if (t.accountId != null) {
+      _accountType = accType ?? 'bank';
+      _selectedAccountId = t.accountId;
     }
+  }
+
+  void _prefillFromGoal(Goal g) {
+    _setAmountText(g.targetAmount);
+    _nameCtrl.text = g.name;
+    _goalPriority = g.priority.rank;
   }
 
   // Save helpers: update when editing, create otherwise
@@ -421,26 +427,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   Widget build(BuildContext context) {
     final budget = context.watch<BudgetProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accounts = budget.allAccounts;
-
-    final rawMonth = budget.activeMonth;
-    final Map<String, dynamic> monthData = (rawMonth != null && rawMonth['month'] is Map)
-        ? Map<String, dynamic>.from(rawMonth['month'] as Map)
-        : (rawMonth ?? {});
-
-    final num salaryAmt = monthData['incomeAmount'] ?? 0;
-    String salaryBankName = 'Unassigned';
-    final rawSalaryBank = monthData['salaryBankAccountId'];
-    final targetBankId = (rawSalaryBank is Map) ? (rawSalaryBank['_id'] ?? rawSalaryBank['id']) : rawSalaryBank;
-    if (targetBankId != null) {
-      for (final a in accounts) {
-        if ((a['_id'] ?? a['id'])?.toString() == targetBankId.toString()) {
-          salaryBankName = a['name']?.toString() ?? 'Assigned Bank';
-          break;
-        }
-      }
-    }
-    final salaryDayLabel = monthData['incomeCreditDate']?.toString() ?? 'Day ${monthData['incomeCreditDay'] ?? 1}';
+    final month = budget.monthInfo;
+    final salaryAmt = month?.incomeAmount ?? 0;
+    final salaryBank = budget.accountById(month?.salaryAccountId);
+    final salaryBankName = month?.salaryAccountId == null
+        ? 'Unassigned'
+        : (salaryBank == null || salaryBank.name.isEmpty ? 'Assigned Bank' : salaryBank.name);
+    final salaryDayLabel = month?.incomeCreditDate ?? 'Day ${month?.incomeCreditDay ?? 1}';
 
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
 
@@ -536,13 +529,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       selected: _moveTarget == 'account',
                       onSelected: (_) => setState(() => _moveTarget = 'account'),
                     ),
-                    if (budget.creditCards.isNotEmpty)
+                    if (budget.simulatedCards.isNotEmpty)
                       ChoiceChip(
                         label: const Text('Pay a card'),
                         selected: _moveTarget == 'card',
                         onSelected: (_) => setState(() {
                           _moveTarget = 'card';
-                          _cardId ??= _idOf(budget.creditCards.first);
+                          _cardId ??= budget.simulatedCards.first.account.id;
                         }),
                       ),
                     ChoiceChip(
@@ -950,9 +943,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: _activeType == EntryType.income ? 'Deposited To Account' : 'Payment Account',
                   accountType: _accountType,
                   selectedAccountId: _selectedAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
-                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.creditCards : const [],
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
+                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.cardAccountModels : const [],
                   isRequired: _activeType == EntryType.income,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -966,8 +959,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
                   selectedAccountId: _sourceAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
                   isRequired: true,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -980,12 +973,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 if (_moveTarget == 'card') ...[
                   Text('Card to pay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                   const SizedBox(height: AppForm.fieldGap),
-                  ...budget.creditCards.map((c) {
-                    final card = Map<String, dynamic>.from(c as Map);
-                    final id = _idOf(card);
-                    final bill = card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
-                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
-                    final owed = (num.tryParse('${card['outstanding'] ?? 0}') ?? 0).round();
+                  ...budget.simulatedCards.map((card) {
+                    final id = card.account.id;
+                    final remaining = card.openBill?.remaining ?? 0;
+                    final owed = card.account.owed ?? 0;
                     final selected = id == _cardId;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -1007,7 +998,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(card['name']?.toString() ?? 'Card', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(card.account.name.isEmpty ? 'Card' : card.account.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                               Text(
                                 'Owes ${formatCurrency(owed)}${remaining > 0 ? ' · bill ${formatCurrency(remaining)}' : ''}',
                                 style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
@@ -1020,10 +1011,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   }),
                   Builder(builder: (_) {
                     final card = _selectedCard(budget);
-                    final bill = card != null && card['openBill'] is Map ? Map<String, dynamic>.from(card['openBill'] as Map) : null;
-                    final remaining = (num.tryParse('${bill?['remaining'] ?? 0}') ?? 0).round();
-                    final minimum = (num.tryParse('${bill?['minimumDue'] ?? 0}') ?? 0).round();
-                    final owed = (num.tryParse('${card?['outstanding'] ?? 0}') ?? 0).round();
+                    final remaining = card?.openBill?.remaining ?? 0;
+                    final minimum = card?.openBill?.minimumDue ?? 0;
+                    final owed = card?.account.owed ?? 0;
                     String major(int minor) => (minor / 100).toStringAsFixed(2);
                     return Wrap(
                       spacing: 6,
@@ -1043,8 +1033,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   label: 'Destination Account (To)',
                   accountType: _destAccountType,
                   selectedAccountId: _destAccountId,
-                  bankAccounts: budget.bankAccounts,
-                  wallets: budget.wallets,
+                  bankAccounts: budget.bankAccountModels,
+                  wallets: budget.walletModels,
                   isRequired: true,
                   onChanged: (newType, newId) {
                     setState(() {
@@ -1110,7 +1100,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               if (!_isEditing && (_activeType == EntryType.transaction || _activeType == EntryType.income))
                 AnimatedBuilder(
                   animation: Listenable.merge([_amountCtrl, _nameCtrl]),
-                  builder: (context, _) => _buildAssist(budget, monthData, isDark),
+                  builder: (context, _) => _buildAssist(budget, month, isDark),
                 ),
               // Safety floor: spending from, or moving money out of, a bank account or wallet
               if ((_activeType == EntryType.transaction && _txType == 'expense') || _activeType == EntryType.transfer)
@@ -1160,7 +1150,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                               : _activeType == EntryType.income
                               ? 'Log Income Inflow'
                               : (_activeType == EntryType.transfer
-                                  ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?['name'] ?? 'card'}' : 'Record transfer')
+                                  ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?.account.name ?? 'card'}' : 'Record transfer')
                                   : 'Add ${_titleForType(_activeType)}'),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
@@ -1176,7 +1166,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   }
 
   /// One assist at a time: planned bill > duplicate salary > someone else's money.
-  Widget _buildAssist(BudgetProvider budget, Map<String, dynamic> monthData, bool isDark) {
+  Widget _buildAssist(BudgetProvider budget, MonthInfo? month, bool isDark) {
     final amount = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
     final description = _nameCtrl.text;
     final navigator = Navigator.of(context);
@@ -1199,10 +1189,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     // A spend that pays a planned bill
     if (_activeType == EntryType.transaction && _txType == 'expense' && !_dismissedAssists.contains('bill')) {
-      final planned = budget.transactions.where((t) => t is Map && t['status'] == 'planned').toList();
+      final planned = budget.transactionModels.where((t) => t.isPlanned).toList();
       final bill = findBillMatch(planned, amount: amount, description: description, today: _formatDateYmd(DateTime.now()));
       if (bill != null) {
-        return banner('assist-bill', 'Paying ${bill['name'] ?? bill['title'] ?? 'a planned bill'} (${formatCurrency(_minorOf(bill['plannedAmount'] ?? bill['amount']))})?', [
+        return banner('assist-bill', 'Paying ${bill.name.isEmpty ? 'a planned bill' : bill.name} (${formatCurrency(bill.displayAmount)})?', [
           TextButton(onPressed: () => setState(() => _dismissedAssists.add('bill')), child: const Text('No')),
           FilledButton(
             onPressed: () {
@@ -1223,11 +1213,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     // Salary already in the plan
     if (_activeType == EntryType.income && !_dismissedAssists.contains('salary')) {
-      final salary = detectDuplicateSalary(description: description, amount: amount, month: monthData);
+      final salary = detectDuplicateSalary(description: description, amount: amount, month: month);
       if (salary != null) {
         return banner(
           'assist-salary',
-          'Your ${formatCurrency(salary['amount'] as int)} salary${salary['date'] != null ? ' on ${salary['date']}' : ''} is already in the plan. Logging it here counts it twice.',
+          'Your ${formatCurrency(salary.amount)} salary${salary.date != null ? ' on ${salary.date}' : ''} is already in the plan. Logging it here counts it twice.',
           [
             TextButton(onPressed: () => setState(() => _dismissedAssists.add('salary')), child: const Text("It's extra income")),
             FilledButton(
@@ -1254,8 +1244,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       final flow = _activeType == EntryType.income || _txType == 'income' ? 'in' : 'out';
       final hint = detectPersonHint(description: description, flow: flow, funds: _personFunds);
       if (hint != null) {
-        final action = hint['action'] as String;
-        final who = (hint['personName'] as String).isEmpty ? 'someone' : hint['personName'] as String;
+        final action = hint.action;
+        final who = hint.personName.isEmpty ? 'someone' : hint.personName;
         final possessive = who == 'someone' ? "someone's" : "$who's";
         final question = {
           'hold': 'Is this $possessive money to keep?',
@@ -1267,10 +1257,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           TextButton(onPressed: () => setState(() => _dismissedAssists.add('person')), child: const Text('No')),
           FilledButton(
             onPressed: () => setState(() {
-              final fund = hint['fund'] as Map<String, dynamic>?;
+              final fund = hint.fund;
               _personAction = action;
-              _personFundId = fund?['id']?.toString();
-              _personName = fund == null ? hint['personName'] as String : '';
+              _personFundId = fund?.id;
+              _personName = fund == null ? hint.personName : '';
               _sourceAccountId = _selectedAccountId ?? _sourceAccountId;
               _activeType = EntryType.transfer;
               _moveTarget = 'person';
@@ -1283,19 +1273,15 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     return const SizedBox.shrink();
   }
 
-  int _minorOf(dynamic v) => (num.tryParse('${v ?? 0}') ?? 0).round().abs();
-
   bool get _canAddAnother =>
       !_isEditing &&
       (_activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item);
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
 
-  String? _idOf(dynamic a) => (a is Map ? (a['_id'] ?? a['id']) : null)?.toString();
-
-  Map<String, dynamic>? _selectedCard(BudgetProvider budget) {
-    for (final c in budget.creditCards) {
-      if (_idOf(c) == _cardId) return Map<String, dynamic>.from(c as Map);
+  SimulatedCard? _selectedCard(BudgetProvider budget) {
+    for (final c in budget.simulatedCards) {
+      if (c.account.id == _cardId) return c;
     }
     return null;
   }
@@ -1401,7 +1387,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         final linked = isRefund ? _linkedSpend(budget) : null;
         if (linked != null && amt > _refundRemaining(budget, linked)) {
           final left = _refundRemaining(budget, linked);
-          final spendName = (linked['title'] ?? linked['name'] ?? 'this spend').toString();
+          final spendName = linked.name.isEmpty ? 'this spend' : linked.name;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(left > 0
                 ? 'Only ${formatCurrency(left)} of $spendName is left to refund.'
@@ -1479,7 +1465,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'date': dateStr,
           'note': _nameCtrl.text.trim().isNotEmpty
               ? _nameCtrl.text.trim()
-              : (toCard ? '${_selectedCard(budget)?['name'] ?? 'Card'} bill' : name),
+              : (toCard ? '${_selectedCard(budget)?.account.name ?? 'Card'} bill' : name),
         });
       }
 

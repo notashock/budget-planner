@@ -88,6 +88,8 @@ describe('mobile API contract fixtures', () => {
   const mm = String(month).padStart(2, '0');
   const day = (d) => `${year}-${mm}-${String(d).padStart(2, '0')}`;
   const today = Math.min(now.getDate(), 28);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const daysAgo = (n) => iso(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - n)));
 
   const responses = {};
   const get = async (name, url) => {
@@ -135,6 +137,19 @@ describe('mobile API contract fixtures', () => {
     await post(`/api/v1/periods/${year}/${month}/goals`, { name: 'Headphones', targetAmount: 800000, priority: 1, fundingAccountId: bank.id });
     await post('/api/v1/transfers', { sourceAccountId: bank.id, destinationAccountId: wallet.id, amount: 100000, date: day(today) });
     await post('/api/v1/person-funds', { personName: 'Ravi', direction: 'held', amount: 200000, date: day(today), accountId: bank.id });
+    await post('/api/v1/person-funds', { personName: 'Asha', direction: 'lent', amount: 50000, date: day(today), accountId: wallet.id });
+
+    // A second card whose cycle closed 5 days ago, with a swipe in it: the
+    // server drafts its bill, so /cards carries an openBill and statements.
+    const billDate = daysAgo(5);
+    const billCard = await post('/api/v1/accounts', {
+      name: 'Amex', type: 'credit_card', creditLimit: 5000000,
+      statementDay: Number(billDate.slice(8)), dueDay: 28, payFromAccountId: bank.id,
+      currentOutstanding: 0, openingBalanceDate: daysAgo(45)
+    });
+    await post('/api/v1/transactions', {
+      name: 'Flight', amount: 1200000, origin: 'spot', category: 'Travel', date: daysAgo(43), accountId: billCard.id
+    });
 
     await get('periods', '/api/v1/periods');
     await get('month_detail', `/api/v1/periods/${year}/${month}`);

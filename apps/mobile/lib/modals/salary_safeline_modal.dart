@@ -25,25 +25,25 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
   void initState() {
     super.initState();
     final budget = context.read<BudgetProvider>();
-    final active = budget.activeMonth;
+    final active = budget.monthInfo;
 
-    final incomeMajor = toMajorUnits(active?['incomeAmount'] ?? 0);
-    final floorMajor = toMajorUnits(active?['safetyFloor'] ?? 0);
+    final incomeMajor = toMajorUnits(active?.incomeAmount ?? 0);
+    final floorMajor = toMajorUnits(active?.safetyFloor ?? 0);
 
     _incomeCtrl = TextEditingController(text: incomeMajor > 0 ? '$incomeMajor' : '');
     _floorCtrl = TextEditingController(text: floorMajor > 0 ? '$floorMajor' : '');
-    _creditDayCtrl = TextEditingController(text: '${active?['incomeCreditDay'] ?? 1}');
-    _selectedBankId = active?['salaryBankAccountId']?.toString();
+    _creditDayCtrl = TextEditingController(text: '${active?.incomeCreditDay ?? 1}');
+    _selectedBankId = active?.salaryAccountId;
 
-    _isSalaryCredited = active?['isSalaryCredited'] == true;
-    final existingDate = (active?['salaryCreditedDate'] ?? active?['incomeCreditDate'])?.toString();
+    _isSalaryCredited = active?.isSalaryCredited ?? false;
+    final existingDate = active?.salaryCreditedDate ?? active?.incomeCreditDate;
     if (existingDate != null && existingDate.isNotEmpty) {
       _salaryCreditedDateStr = existingDate;
     } else {
       final now = DateTime.now();
-      final year = (num.tryParse('${active?['year']}') ?? now.year).toInt();
-      final month = (num.tryParse('${active?['month']}') ?? now.month).toInt();
-      final day = (num.tryParse('${active?['incomeCreditDay']}') ?? 1).toInt().clamp(1, 31);
+      final year = active?.year ?? now.year;
+      final month = active?.month ?? now.month;
+      final day = (active?.incomeCreditDay ?? 1).clamp(1, 31);
       String pad(int n) => n.toString().padLeft(2, '0');
       _salaryCreditedDateStr = '$year-${pad(month)}-${pad(day)}';
     }
@@ -60,9 +60,9 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
   Future<void> _pickSalaryDate() async {
     final now = DateTime.now();
     final budget = context.read<BudgetProvider>();
-    final active = budget.activeMonth;
-    final year = (num.tryParse('${active?['year']}') ?? now.year).toInt();
-    final month = (num.tryParse('${active?['month']}') ?? now.month).toInt();
+    final active = budget.monthInfo;
+    final year = active?.year ?? now.year;
+    final month = active?.month ?? now.month;
 
     DateTime initialDate = DateTime(year, month, int.tryParse(_creditDayCtrl.text) ?? 1);
     if (_salaryCreditedDateStr != null) {
@@ -99,10 +99,10 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
     final budget = context.watch<BudgetProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = budget.salaryStatus;
-    final banks = budget.bankAccounts;
-    final active = budget.activeMonth;
+    final banks = budget.bankAccountModels;
+    final active = budget.monthInfo;
 
-    final isAlreadyCredited = _isSalaryCredited || active?['isSalaryCredited'] == true;
+    final isAlreadyCredited = _isSalaryCredited || (active?.isSalaryCredited ?? false);
     final isModalLocked = status.isLocked || isAlreadyCredited;
 
     Color badgeColor;
@@ -211,17 +211,17 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                initialValue: _selectedBankId != null && banks.any((b) => (b['_id'] ?? b['id']) == _selectedBankId)
+                initialValue: _selectedBankId != null && banks.any((b) => b.id == _selectedBankId)
                     ? _selectedBankId
-                    : (banks.isNotEmpty ? (banks.first['_id'] ?? banks.first['id']) : null),
+                    : (banks.isNotEmpty ? banks.first.id : null),
                 decoration: InputDecoration(
                   labelText: 'Salary Bank Account',
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
                 items: banks.map<DropdownMenuItem<String>>((b) {
-                  final id = (b['_id'] ?? b['id']).toString();
-                  final name = b['name']?.toString() ?? 'Account';
+                  final id = b.id;
+                  final name = b.name.isEmpty ? 'Account' : b.name;
                   return DropdownMenuItem<String>(value: id, child: Text(name));
                 }).toList(),
                 onChanged: isModalLocked ? null : (v) => setState(() => _selectedBankId = v),

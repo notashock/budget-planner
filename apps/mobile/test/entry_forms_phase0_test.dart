@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
+import 'package:budget_mobile/models/account.dart';
 import 'package:budget_mobile/widgets/floor_breach_notice.dart';
 
 void main() {
@@ -16,7 +17,8 @@ void main() {
   });
 
   group('B8: safety-floor check', () {
-    final bank = {'_id': 'b1', 'name': 'Main', 'openingBalance': 1000000, 'minimumBalance': 500000};
+    Account account(Map<String, dynamic> json) => Account.fromJson(json, fallbackKind: AccountKind.bank);
+    final bank = account({'_id': 'b1', 'name': 'Main', 'currentBalance': 1000000, 'minimumBalance': 500000});
 
     test('flags an outflow that crosses the floor', () {
       expect(checkFloor(bank, 400000)!.breaches, isFalse);
@@ -32,9 +34,15 @@ void main() {
     });
 
     test('nothing to check without a floor, account or outflow', () {
-      expect(checkFloor({'name': 'Cash', 'openingBalance': 100}, 50), isNull);
+      expect(checkFloor(account({'_id': 'w', 'name': 'Cash', 'currentBalance': 100}), 50), isNull);
       expect(checkFloor(null, 50), isNull);
       expect(checkFloor(bank, 0), isNull);
+    });
+
+    test("no check against an opening balance posing as today's", () {
+      final noToday = account({'_id': 'b2', 'name': 'Old', 'openingBalance': 1000000, 'minimumBalance': 500000});
+      expect(checkFloor(noToday, 600000), isNull);
+      expect(checkFloor(noToday, 600000, simulatedBalance: 1000000)!.breaches, isTrue);
     });
   });
 }

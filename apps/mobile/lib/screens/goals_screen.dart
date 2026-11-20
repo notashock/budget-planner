@@ -204,7 +204,7 @@ class GoalsScreen extends StatelessWidget {
                               backgroundColor: Colors.transparent,
                               builder: (_) => UnifiedEntryModal(
                                 initialType: EntryType.goal,
-                                initialItem: g.raw,
+                                initialGoal: g,
                               ),
                             ),
                           ),

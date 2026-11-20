@@ -24,7 +24,7 @@ http.Response okJson(Object? data) => http.Response.bytes(
 class FixtureBudget {
   final Map<String, dynamic> fixtures = {
     for (final n in [
-      'periods', 'month_detail', 'goals', 'accounts_bank', 'accounts_wallet', 'transfers',
+      'periods', 'month_detail', 'goals', 'accounts_bank', 'accounts_wallet', 'transfers', 'cards', 'person_funds',
     ])
       n: fixture(n),
   };
@@ -49,6 +49,8 @@ class FixtureBudget {
         return okJson(fixtures[req.url.queryParameters['type'] == 'wallet' ? 'accounts_wallet' : 'accounts_bank']);
       }
       if (path == '/api/v1/transfers') return okJson(fixtures['transfers']);
+      if (path == '/api/v1/cards') return okJson(fixtures['cards']);
+      if (path == '/api/v1/person-funds') return okJson(fixtures['person_funds']);
       return okJson([]);
     });
     budget = BudgetProvider(api: api);

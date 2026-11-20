@@ -4,6 +4,7 @@ import '../engine/engine.dart';
 import '../models/account.dart';
 import '../models/goal.dart';
 import '../models/month_detail.dart';
+import '../models/person_fund.dart';
 import '../models/transaction.dart';
 import '../models/transfer.dart';
 import '../models/transaction_lists.dart';
@@ -78,13 +79,26 @@ class BudgetProvider with ChangeNotifier {
   Map<String, dynamic>? _activeMonthDetail;
   List<dynamic> _items = [];
   List<dynamic> _transactions = [];
-  List<Transaction> _transactionModels = const [];
-  TransactionLists _transactionLists = TransactionLists.empty;
   MonthInfo? _monthInfo;
-  List<Account> _bankAccountModels = const [];
-  List<Account> _walletModels = const [];
-  List<Goal> _goalModels = const [];
-  List<Transfer> _transferModels = const [];
+
+  // Typed views of the raw lists, parsed once per source list (upgrade plan
+  // 1.1). Derived from the raw getters, so a subclass that overrides those
+  // (test fakes) gets matching typed lists. A load validates every row first
+  // (_loadMonth / _applyMonthDetail) and seeds this cache.
+  final Map<String, (Object, Object)> _typedCache = {};
+
+  T _typed<T extends Object>(String key, Object source, T Function() parse) {
+    final hit = _typedCache[key];
+    if (hit != null && identical(hit.$1, source)) return hit.$2 as T;
+    final parsed = parse();
+    _typedCache[key] = (source, parsed);
+    return parsed;
+  }
+
+  void _seed(String key, Object source, Object parsed) => _typedCache[key] = (source, parsed);
+
+  List<T> _typedList<T>(String key, List<dynamic> source, T Function(Object?) parse) =>
+      _typed<List<T>>(key, source, () => List<T>.unmodifiable(source.map(parse)));
   List<dynamic> _goals = [];
   List<dynamic> _evaluatedGoals = [];
   List<dynamic> _bankAccounts = [];
@@ -123,32 +137,46 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> get transactions => _transactions;
 
   /// The month's transactions as typed models (upgrade plan 1.1).
-  List<Transaction> get transactionModels => _transactionModels;
+  List<Transaction> get transactionModels => _typedList('transactions', transactions, Transaction.fromJson);
 
   /// Sorted and filtered lists for the Transactions screen, built once per load.
-  TransactionLists get transactionLists => _transactionLists;
+  TransactionLists get transactionLists {
+    final models = transactionModels;
+    return _typed('transactionLists', models, () => TransactionLists.from(models));
+  }
 
   /// The selected month's header, typed; null when no month is loaded.
   MonthInfo? get monthInfo => _monthInfo;
-  List<Account> get bankAccountModels => _bankAccountModels;
-  List<Account> get walletModels => _walletModels;
+  List<Account> get bankAccountModels =>
+      _typedList('banks', bankAccounts, (a) => Account.fromJson(a, fallbackKind: AccountKind.bank));
+  List<Account> get walletModels =>
+      _typedList('wallets', wallets, (a) => Account.fromJson(a, fallbackKind: AccountKind.wallet));
+
+  /// Cards as the month simulation reports them (owed today, payability score).
+  List<SimulatedCard> get simulatedCards => _typedList('cards', creditCards, SimulatedCard.fromJson);
+
+  /// Cards as accounts, for account pickers.
+  List<Account> get cardAccountModels {
+    final cards = simulatedCards;
+    return _typed('cardAccounts', cards, () => List<Account>.unmodifiable(cards.map((c) => c.account)));
+  }
 
   /// Goals with the engine's recommendation, in the server's (priority) order.
-  List<Goal> get goalModels => _goalModels;
-  List<Transfer> get transferModels => _transferModels;
+  List<Goal> get goalModels => _typedList('goals', evaluatedGoals, Goal.fromJson);
+  List<Transfer> get transferModels => _typedList('transfers', transfers, Transfer.fromJson);
 
-  /// Name of a bank, wallet or card by id, for lists that only carry ids
-  /// (transfers); null when the account is not loaded.
-  String? accountName(String? id) {
+  /// A bank, wallet or card by id; null when it is not loaded.
+  Account? accountById(String? id) {
     if (id == null) return null;
-    for (final a in [..._bankAccountModels, ..._walletModels]) {
-      if (a.id == id) return a.name;
-    }
-    for (final c in _creditCards) {
-      if (c is Map && '${c['id'] ?? c['_id']}' == id) return c['name']?.toString();
+    for (final a in [...bankAccountModels, ...walletModels, ...cardAccountModels]) {
+      if (a.id == id) return a;
     }
     return null;
   }
+
+  /// Name of a bank, wallet or card by id, for lists that only carry ids
+  /// (transfers); null when the account is not loaded.
+  String? accountName(String? id) => accountById(id)?.name;
   List<dynamic> get goals => _goals;
   List<dynamic> get evaluatedGoals => _evaluatedGoals;
   List<dynamic> get bankAccounts => _bankAccounts;
@@ -326,8 +354,6 @@ class BudgetProvider with ChangeNotifier {
       _activeMonthDetail = null;
       _items = [];
       _transactions = [];
-      _transactionModels = const [];
-      _transactionLists = TransactionLists.empty;
       _goals = [];
       _evaluatedGoals = [];
       _monthInfo = null;
@@ -340,13 +366,13 @@ class BudgetProvider with ChangeNotifier {
       _evaluatedGoals = goals;
       _monthInfo = monthInfo;
     }
-    _goalModels = goalModels;
     _bankAccounts = banks;
     _wallets = wallets;
     _transfers = transfers;
-    _bankAccountModels = bankModels;
-    _walletModels = walletModels;
-    _transferModels = transferModels;
+    _seed('goals', _evaluatedGoals, goalModels);
+    _seed('banks', banks, bankModels);
+    _seed('wallets', wallets, walletModels);
+    _seed('transfers', transfers, transferModels);
     _recordLoadSuccess();
   }
 
@@ -360,11 +386,18 @@ class BudgetProvider with ChangeNotifier {
     SimulationResult? simulation;
     final accountSims = <String, SimulationResult>{};
     final rawTransactions = detail['transactions'] is List ? detail['transactions'] as List : const [];
+    final simCards = detail['simulation'] is Map ? (detail['simulation'] as Map)['cards'] : null;
+    final List<dynamic>? rawCards = (simCards is List && simCards.isNotEmpty)
+        ? simCards
+        : (detail['creditCards'] is List ? detail['creditCards'] as List : null);
     List<Transaction> transactionModels;
+    List<SimulatedCard>? cardModels;
     try {
       transactionModels = List.unmodifiable(rawTransactions.map(Transaction.fromJson));
+      cardModels = rawCards == null ? null : List.unmodifiable(rawCards.map(SimulatedCard.fromJson));
     } on FormatException catch (e) {
-      throw ApiException('A transaction from the server could not be read (${e.message}).', 200, ApiErrorKind.badResponse);
+      throw ApiException('A transaction or card from the server could not be read (${e.message}).', 200,
+          ApiErrorKind.badResponse);
     }
     try {
       if (detail['simulation'] is Map) {
@@ -384,13 +417,10 @@ class BudgetProvider with ChangeNotifier {
     _activeMonthDetail = _monthOf(detail);
     _items = detail['items'] is List ? detail['items'] as List : [];
     _transactions = rawTransactions;
-    _transactionModels = transactionModels;
-    _transactionLists = TransactionLists.from(transactionModels);
-    final simCards = detail['simulation'] is Map ? (detail['simulation'] as Map)['cards'] : null;
-    if (simCards is List && simCards.isNotEmpty) {
-      _creditCards = simCards;
-    } else if (detail['creditCards'] is List) {
-      _creditCards = detail['creditCards'] as List;
+    _seed('transactions', rawTransactions, transactionModels);
+    if (rawCards != null) {
+      _creditCards = rawCards;
+      _seed('cards', rawCards, cardModels!);
     }
     // Centralized Backend Simulation Deserialization (ADR 0052)
     _simulation = simulation;
@@ -492,6 +522,10 @@ class BudgetProvider with ChangeNotifier {
   // Credit cards
   Future<List<dynamic>> getCards() => _api.getCards();
 
+  /// GET /api/v1/cards, typed: each card with its open bill and statements.
+  Future<List<CreditCardSummary>> getCardSummaries() async =>
+      (await getCards()).map(CreditCardSummary.fromJson).toList();
+
   Future<void> createCard(Map<String, dynamic> body) => _write(() async {
       await _api.createCard(body);
   });
@@ -515,6 +549,9 @@ class BudgetProvider with ChangeNotifier {
 
   // Held & Lent money: someone's money with you, or yours with them (never income or expense)
   Future<Map<String, dynamic>> getPersonFunds() => _api.getPersonFunds();
+
+  /// GET /api/v1/person-funds, typed.
+  Future<PersonFunds> getPersonFundsTyped() async => PersonFunds.fromJson(await getPersonFunds());
 
   Future<Map<String, dynamic>> getPersonFund(String id) => _api.getPersonFund(id);
 

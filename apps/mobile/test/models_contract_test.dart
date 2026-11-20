@@ -26,7 +26,7 @@ void main() {
 
       expect(detail.month.safetyFloor, 500000);
       expect(detail.month.currencySymbol, isNotEmpty);
-      expect(detail.transactions, hasLength(7));
+      expect(detail.transactions, hasLength(8));
       expect(detail.bankAccounts.single.kind, AccountKind.bank);
       expect(detail.wallets.single.kind, AccountKind.wallet);
       expect(() => SimulationResult.fromJson(Map<String, dynamic>.from(raw['simulation'] as Map)), returnsNormally);
@@ -35,7 +35,8 @@ void main() {
     test('accounts, cards, goals, person funds, transfers and periods', () {
       final bank = (fixture('accounts_bank') as List).map((a) => Account.fromJson(a)).single;
       final wallet = (fixture('accounts_wallet') as List).map((a) => Account.fromJson(a)).single;
-      final card = (fixture('cards') as List).map(CreditCardSummary.fromJson).single;
+      final cards = (fixture('cards') as List).map(CreditCardSummary.fromJson).toList();
+      final card = cards.firstWhere((c) => c.account.name == 'Visa');
       final goal = (fixture('goals') as List).map(Goal.fromJson).single;
       final funds = PersonFunds.fromJson(fixture('person_funds'));
 
@@ -48,8 +49,10 @@ void main() {
       expect(card.account.creditLimit, 10000000);
       expect(goal.status, GoalStatus.logged);
       expect(goal.targetAmount, 800000);
-      expect(funds.funds.single.direction, FundDirection.held);
-      expect(funds.totalHeld, funds.funds.single.outstanding);
+      final held = funds.funds.firstWhere((f) => f.direction == FundDirection.held);
+      final lent = funds.funds.firstWhere((f) => f.direction == FundDirection.lent);
+      expect(funds.totalHeld, held.outstanding);
+      expect(funds.totalLent, lent.outstanding);
       expect(fixture('transfers') as List, isNotEmpty);
       expect(fixture('periods') as List, isNotEmpty);
     });
@@ -101,6 +104,7 @@ void main() {
       expect(byName['Shoes']!.kind, TxKind.expense, reason: 'a card swipe is spending');
       expect(byName['Inter-Account Transfer']!.kind, TxKind.transfer);
       expect(byName['Holding for Ravi']!.kind, TxKind.passThroughIn);
+      expect(byName['Lent to Asha']!.kind, TxKind.passThroughOut);
       expect(byName['Rent']!.isPlanned, isTrue);
     });
 
@@ -135,7 +139,7 @@ void main() {
       final dates = lists.recorded.map((t) => t.date).toList();
       expect(dates, [...dates]..sort((a, b) => b.compareTo(a)));
       expect(lists.planned.single.name, 'Rent');
-      expect(lists.recordedWhere(RecordedFilter.all), hasLength(6));
+      expect(lists.recordedWhere(RecordedFilter.all), hasLength(7));
     });
   });
 

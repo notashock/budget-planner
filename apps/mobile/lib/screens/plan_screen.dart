@@ -139,7 +139,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 onOpenReview: () {
                   showMonthReviewModal(
                     context,
-                    month: month.raw,
+                    month: month,
                     simulation: activeSimulation,
                     safetyFloor: activeSafetyFloor,
                     currencySymbol: currencySymbol,

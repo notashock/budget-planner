@@ -15,8 +15,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   useFakeFontHttp();
 
-  const bankId = '00000000-0000-4000-8000-000000000003';
-  const walletId = '00000000-0000-4000-8000-000000000008';
+  // Ids as recorded (they change when fixtures are re-recorded).
+  final bankId = (fixture('accounts_bank') as List).first['id'] as String;
+  final walletId = (fixture('accounts_wallet') as List).first['id'] as String;
 
   /// [wide]: Plan's chart, summary cards and timeline still overflow at phone
   /// width with test fonts (summary_cards.dart, step_line_chart.dart,
@@ -137,7 +138,7 @@ void main() {
           })))!;
       await pump(tester, budget, const AccountsScreen());
 
-      final tile = find.byKey(const ValueKey('account-$walletId'));
+      final tile = find.byKey(ValueKey('account-$walletId'));
       expect(find.descendant(of: tile, matching: find.text('Balance unavailable')), findsOneWidget);
       expect(find.text('₹9,999.00'), findsNothing);
     });
@@ -147,7 +148,7 @@ void main() {
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const AccountsScreen());
 
-      await tester.tap(find.byKey(const ValueKey('delete-account-$bankId')));
+      await tester.tap(find.byKey(ValueKey('delete-account-$bankId')));
       await tester.pumpAndSettle();
       expect(find.text('Archive Main?'), findsOneWidget);
       await tester.tap(find.text('Keep'));
