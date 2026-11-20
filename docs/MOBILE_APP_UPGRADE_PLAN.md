@@ -439,6 +439,22 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Not adopted:** the release branch's swipeable card; this is plain `Dismissible`, restyled to Material 3.
 - **Tests:** `test/swipe_actions_test.dart` (the Undo test fails if Undo still sends).
 
+**Status, Phase 3 stack PR 9 (3.6 entry sheet):**
+- **Entry-forms §5.1, compact row:** Spend, Income and Plan show date and account as one row of chips (`EntrySummaryChips`): `[📅 Today ▾] [🏦 Main · ₹63,550 ▾]`. They replace the full date field and the full account picker. The date chip opens the same calendar (`showAppDatePicker`, now shared); the account chip opens the existing picker in a small sheet.
+  - Income with no account shows "Choose account" in the warning colour.
+  - A recurring plan keeps its day-of-month field and drops the date chip.
+  - Move (two accounts) and Goal (target date) keep their full fields.
+  - The chips are a Row: the account name ellipsizes, so the pair stays on one line at 200 % text.
+- **Already done in earlier work:** the four tabs (Purchase Goal opens from Goals).
+- **Not done:**
+  - **B5's 5-second Undo on delete.** Delete still asks first. A real Undo needs the provider to hide a row across every screen until the window ends, which is a bigger change than this item.
+  - **Splitting `UnifiedEntryModal` into per-tab widgets** (moved here from 2.3). A Dart class can't span files, so the split means rebuilding each tab as its own widget over 20+ shared fields and callbacks: a large refactor of the most-used form with no user-visible change. Typing performance, the reason for 2.3, is fixed and tested (#17). Recommended as its own refactor PR, with screenshot tests first.
+- **Tests:** `test/entry_chips_test.dart`:
+  - one row with Today and the account and its balance;
+  - choosing a wallet updates the chip and the saved spend;
+  - recurring has no date chip;
+  - 200 % text fits.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

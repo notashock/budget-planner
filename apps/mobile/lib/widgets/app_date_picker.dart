@@ -26,7 +26,20 @@ class AppDatePickerField extends StatelessWidget {
     final diffDays = target.difference(today).inDays;
 
     final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final weekday = weekdays[d.weekday - 1];
     final month = months[d.month - 1];
 
@@ -41,47 +54,12 @@ class AppDatePickerField extends StatelessWidget {
   }
 
   Future<void> _showCalendarDialog(BuildContext context) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final now = DateTime.now();
-    final firstYear = minYear ?? (now.year - 2);
-    final lastYear = maxYear ?? (now.year + 3);
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(firstYear, 1, 1),
-      lastDate: DateTime(lastYear, 12, 31),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: isDark
-                ? const ColorScheme.dark(
-                    primary: AppColors.darkText,
-                    onPrimary: AppColors.darkBg,
-                    surface: AppColors.darkSurface,
-                    onSurface: AppColors.darkText,
-                  )
-                : const ColorScheme.light(
-                    primary: AppColors.lightText,
-                    onPrimary: AppColors.lightBg,
-                    surface: AppColors.lightSurface,
-                    onSurface: AppColors.lightText,
-                  ),
-            datePickerTheme: DatePickerThemeData(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                ),
-              ),
-            ),
-
-          ),
-          child: child!,
-        );
-      },
+    final picked = await showAppDatePicker(
+      context,
+      selectedDate,
+      minYear: minYear,
+      maxYear: maxYear,
     );
-
     if (picked != null) {
       onDateSelected(picked);
     }
@@ -93,7 +71,11 @@ class AppDatePickerField extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final currentDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final currentDate = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
 
     final isToday = currentDate == today;
     final isYesterday = currentDate == yesterday;
@@ -113,7 +95,9 @@ class AppDatePickerField extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
             Row(
@@ -129,7 +113,9 @@ class AppDatePickerField extends StatelessWidget {
                   label: 'Yesterday',
                   isSelected: isYesterday,
                   isDark: isDark,
-                  onTap: () => onDateSelected(DateTime.now().subtract(const Duration(days: 1))),
+                  onTap: () => onDateSelected(
+                    DateTime.now().subtract(const Duration(days: 1)),
+                  ),
                 ),
               ],
             ),
@@ -142,7 +128,9 @@ class AppDatePickerField extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
+              color: isDark
+                  ? AppColors.darkSurfaceSubtle
+                  : AppColors.lightSurfaceSubtle,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -153,7 +141,9 @@ class AppDatePickerField extends StatelessWidget {
                 Icon(
                   Icons.calendar_today_outlined,
                   size: 15,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -169,7 +159,9 @@ class AppDatePickerField extends StatelessWidget {
                 Icon(
                   Icons.chevron_right,
                   size: 18,
-                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : AppColors.lightTextMuted,
                 ),
               ],
             ),
@@ -208,10 +200,60 @@ class AppDatePickerField extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: isSelected
                 ? (isDark ? AppColors.darkBg : AppColors.lightBg)
-                : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                : (isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary),
           ),
         ),
       ),
     );
   }
+}
+
+/// The app's calendar dialog (styled with the app's tokens), for the date
+/// field below and the compact date chip of the entry sheet.
+Future<DateTime?> showAppDatePicker(
+  BuildContext context,
+  DateTime initial, {
+  int? minYear,
+  int? maxYear,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final now = DateTime.now();
+  final firstYear = minYear ?? (now.year - 2);
+  final lastYear = maxYear ?? (now.year + 3);
+  return showDatePicker(
+    context: context,
+    initialDate: initial,
+    firstDate: DateTime(firstYear, 1, 1),
+    lastDate: DateTime(lastYear, 12, 31),
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: isDark
+              ? const ColorScheme.dark(
+                  primary: AppColors.darkText,
+                  onPrimary: AppColors.darkBg,
+                  surface: AppColors.darkSurface,
+                  onSurface: AppColors.darkText,
+                )
+              : const ColorScheme.light(
+                  primary: AppColors.lightText,
+                  onPrimary: AppColors.lightBg,
+                  surface: AppColors.lightSurface,
+                  onSurface: AppColors.lightText,
+                ),
+          datePickerTheme: DatePickerThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              ),
+            ),
+          ),
+        ),
+        child: child!,
+      );
+    },
+  );
 }
