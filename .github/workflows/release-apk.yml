@@ -1,0 +1,115 @@
+name: Release Android APK
+
+# Manual only: Actions -> "Release Android APK" -> Run workflow.
+# Builds the release APK from the chosen branch and publishes it as a GitHub
+# release (a pre-release by default) with the APK and its SHA-256 attached.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version, e.g. 1.0.0-pre.2 (tag becomes v<version>)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release (test build)'
+        required: true
+        type: boolean
+        default: true
+      api_base_url:
+        description: 'Server the app talks to (must be https)'
+        required: true
+        type: string
+        default: 'https://budget-planner-mu-plum.vercel.app'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      VERSION: ${{ inputs.version }}
+      TAG: v${{ inputs.version }}
+      API_BASE_URL: ${{ inputs.api_base_url }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check inputs and that the tag is new
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "Version must look like 1.2.3 or 1.2.3-pre.1"; exit 1; }
+          [[ "$API_BASE_URL" == https://* ]] || { echo "Release builds only allow https servers"; exit 1; }
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "Release $TAG already exists"; exit 1; fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.6
+          channel: stable
+          cache: true
+
+      # Optional: sign with the release key when these repository secrets exist
+      # (read by android/app/build.gradle.kts). Without them the APK is signed
+      # with the debug key: fine for side-loading tests, not for Google Play.
+      - name: Release keystore (if configured)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "SIGNING=debug key (no ANDROID_KEYSTORE_BASE64 secret)" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+            echo "SIGNING=release key"
+          } >> "$GITHUB_ENV"
+
+      - run: flutter pub get
+
+      - name: Build release APK
+        # Build number above the manually published 1.0.0-pre.1 (build 2), and
+        # rising with every run, so a newer APK installs over an older one.
+        run: |
+          flutter build apk --release \
+            --build-name="$VERSION" \
+            --build-number=$(( GITHUB_RUN_NUMBER + 10 )) \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+          cp build/app/outputs/flutter-apk/app-release.apk "budget-planner-$VERSION.apk"
+          sha256sum "budget-planner-$VERSION.apk" > "budget-planner-$VERSION.apk.sha256"
+
+      - name: Publish GitHub release
+        run: |
+          cat > notes.md <<EOF
+          Android build of Budget Planner from \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`.
+
+          - Version: \`$VERSION\` (build $(( GITHUB_RUN_NUMBER + 10 )))
+          - Server: \`$API_BASE_URL\` (changeable in the app's server settings)
+          - Signed with: $SIGNING
+
+          Install by side-loading the APK. Check it against the attached SHA-256.
+          EOF
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "Budget Planner Android $VERSION" \
+            --notes-file notes.md \
+            ${{ inputs.prerelease && '--prerelease' || '' }} \
+            "budget-planner-$VERSION.apk" "budget-planner-$VERSION.apk.sha256"
