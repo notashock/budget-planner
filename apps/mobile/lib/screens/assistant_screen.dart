@@ -29,7 +29,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.read<BudgetProvider>();
+    context.select<BudgetProvider, Object>((b) => b.viewState);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(

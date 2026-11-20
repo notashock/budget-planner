@@ -117,6 +117,22 @@ class BudgetProvider with ChangeNotifier {
   // Getters
   bool get isLoading => _loadingOps > 0;
 
+  // Bumped whenever loaded month data is replaced (upgrade plan 2.2).
+  int _dataVersion = 0;
+
+  /// What the tab screens and the header draw from, as one comparable value:
+  /// `context.select((b) => b.viewState)` rebuilds them when data, the month,
+  /// loading or the load error change, and not for a save in flight or the
+  /// sync strip (all five tabs stay alive in an IndexedStack).
+  ({int data, int year, int month, bool loading, bool missing, BudgetLoadError? error}) get viewState => (
+        data: _dataVersion,
+        year: _currentYear,
+        month: _currentMonth,
+        loading: isLoading,
+        missing: _monthMissing,
+        error: _loadError,
+      );
+
   /// Message of the last failure, load or write-then-reload.
   String? get error => _error;
 
@@ -268,6 +284,7 @@ class BudgetProvider with ChangeNotifier {
       if (generation != _loadGeneration) return;
       _userSettings = settings;
       _months = monthsList;
+      _dataVersion++;
 
       // A restored cache only stands in until the server answers: the start
       // month is chosen from today, as without a cache.
@@ -379,6 +396,7 @@ class BudgetProvider with ChangeNotifier {
     required List<dynamic> transfers,
   }) {
     final missing = detail == null;
+    _dataVersion++;
     final MonthInfo? monthInfo;
     final List<Account> bankModels;
     final List<Account> walletModels;

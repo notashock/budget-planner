@@ -18,7 +18,8 @@ class AccountsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.read<BudgetProvider>();
+    context.select<BudgetProvider, Object>((b) => b.viewState);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
