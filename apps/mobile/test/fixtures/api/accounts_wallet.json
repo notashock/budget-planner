@@ -1,0 +1,28 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000008",
+    "userId": "00000000-0000-4000-8000-000000000002",
+    "name": "UPI",
+    "type": "wallet",
+    "subtype": "digital",
+    "institution": "",
+    "accountNumberMasked": "",
+    "openingBalance": 250000,
+    "openingBalanceDate": null,
+    "currentBalance": 332000,
+    "minimumBalance": 0,
+    "isPrimary": false,
+    "isArchived": false,
+    "color": "#09090b",
+    "creditLimit": null,
+    "statementDay": null,
+    "dueDay": null,
+    "payFromAccountId": null,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z",
+    "_id": "00000000-0000-4000-8000-000000000008",
+    "accountType": "digital",
+    "walletType": "digital",
+    "walletId": "00000000-0000-4000-8000-000000000008"
+  }
+]
