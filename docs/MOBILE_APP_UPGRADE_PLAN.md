@@ -412,6 +412,19 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
   Timeline pills and Transactions' date line ellipsize instead of overflowing. A 1× layout test keeps the reflowed rows on one line, after the phone showed an early version stretching "Month Review" and the legend.
 - **On the phone:** checked up to the legend and badge fix. The "Month Review" fix is covered by the 1× test and waits for the end-of-Phase-3 device pass (no TalkBack or large-text run on the phone yet).
 
+**Status, Phase 3 stack PR 6 (3.5 pull-to-refresh, skeletons, error tiers):**
+- **The bug:** only Plan had pull-to-refresh, a loading state and the full-screen error. Transactions, Goals and Accounts fell through to their empty states, so a failed or unfinished first load read as "No successful transactions recorded", "No purchase goals" or "No bank accounts configured".
+- **`TabStates` (`lib/widgets/tab_states.dart`) wraps the four data tabs in the shell:**
+  - a skeleton during the first load (TalkBack reads "Loading");
+  - the full-screen error with Try again when a load failed with nothing to show (T7 tier c);
+  - otherwise the tab with pull-to-refresh.
+
+  T7 tiers a (the offline strip) and b (the save snackbar and sync strip) already existed.
+- **Plan:** its own spinner, error view and refresh moved into the wrapper.
+- **Pulling short tabs:** empty states and short lists can be pulled (`ScrollableEmpty`, `AlwaysScrollableScrollPhysics`).
+- **Tests:** a failed first load shows the error, not the empty text, on all three tabs (these fail without the wrapper); the skeleton shows before the first answer; pulling an empty tab reloads the month.
+- **Device check:** at the end of Phase 3.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

@@ -19,6 +19,7 @@ import 'widgets/header.dart';
 import 'widgets/load_error_banner.dart';
 import 'widgets/sync_strip.dart';
 import 'widgets/app_lock_gate.dart';
+import 'widgets/tab_states.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -128,11 +129,13 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
+  // Loading, failed-load and pull-to-refresh are the same on every data tab
+  // (upgrade plan 3.5); the assistant has no month data of its own.
   final List<Widget> _screens = const [
-    PlanScreen(),
-    TransactionsScreen(),
-    GoalsScreen(),
-    AccountsScreen(),
+    TabStates(child: PlanScreen()),
+    TabStates(child: TransactionsScreen()),
+    TabStates(child: GoalsScreen()),
+    TabStates(child: AccountsScreen()),
     AssistantScreen(),
   ];
 

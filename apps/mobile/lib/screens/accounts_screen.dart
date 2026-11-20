@@ -33,6 +33,7 @@ class AccountsScreen extends StatelessWidget {
 
     return Scaffold(
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

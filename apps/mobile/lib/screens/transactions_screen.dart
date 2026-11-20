@@ -11,6 +11,7 @@ import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
 import '../widgets/min_tap.dart';
+import '../widgets/tab_states.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -472,7 +473,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -497,6 +498,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -673,7 +675,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -698,6 +700,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
