@@ -216,6 +216,11 @@ Each phase is a set of small PRs. A phase is done only when its **exit criteria*
 
 **Exit:** tests for each error tier (404 vs offline vs 500 vs bad JSON); double-tap Save creates one transaction (server test + widget test); token never in SharedPreferences after first launch.
 
+**Status (2026-11-19):** first Phase 1 PR covers 1.2–1.8.
+- 1.6 was **rewritten, not copied**: the release-branch middleware shared keys across users, let two in-flight duplicates both run, and cached error responses. The new one scopes keys per user, reserves the key before the handler runs (a duplicate gets 409), stores only 2xx responses, and returns 422 when a key is reused with a different body.
+- 1.5 retries: a GET once on offline, timeout or 5xx; a keyed write once on the same failures plus 409 in-progress; an unkeyed write only after a dropped connection.
+- Still open, each as its own PR: **1.1** typed models (start with Transactions), **1.9** biometric lock and privacy blur, **1.10** contract fixtures recorded from a running server (they belong with 1.1, where the models parse them).
+
 ### Phase 2 — Performance & offline capture (weeks 4–6)
 
 | # | Task | Fixes / target |

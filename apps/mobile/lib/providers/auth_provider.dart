@@ -89,11 +89,28 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await _api.logout();
+    try {
+      await _api.logout();
+    } catch (_) {
+      // The token is cleared locally either way (ApiService.logout); an
+      // offline or expired session must still sign out.
+    } finally {
+      _user = null;
+      _settings = null;
+      _isAuthenticated = false;
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// The server rejected the token (401): sign out locally, no server call.
+  Future<void> sessionExpired() async {
+    if (!_isAuthenticated) return;
+    await StorageService.setToken(null);
     _user = null;
     _settings = null;
     _isAuthenticated = false;
-    _isLoading = false;
+    _error = 'Your session expired. Please sign in again.';
     notifyListeners();
   }
 

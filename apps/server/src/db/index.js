@@ -291,6 +291,36 @@ export async function syncCreditCardSchema() {
   }
 }
 
+/**
+ * Idempotent writes (middleware/idempotency.js): one row per (user, Idempotency-Key).
+ * Idempotent, so it is safe on every boot.
+ */
+export async function syncIdempotencySchema() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "idempotency_keys" (
+        "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "key" text NOT NULL,
+        "fingerprint" text NOT NULL,
+        "state" text DEFAULT 'pending' NOT NULL,
+        "status_code" integer,
+        "content_type" text,
+        "response_body" text,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        PRIMARY KEY ("user_id", "key")
+      );
+      CREATE INDEX IF NOT EXISTS "idx_idempotency_keys_created" ON "idempotency_keys" ("created_at");
+    `);
+    try {
+      await pool.query(`ALTER TABLE "idempotency_keys" ADD CONSTRAINT "chk_idempotency_state" CHECK (state IN ('pending', 'done'))`);
+    } catch (e) {
+      if (e.code !== '42710') console.warn('Constraint check note:', e.message);
+    }
+  } catch (err) {
+    console.warn('Could not run syncIdempotencySchema:', err.message);
+  }
+}
+
 export async function syncDatabaseNormalFormsAndConstraints() {
   try {
     // 1. De-duplicate any existing rows in month_account_openings before creating unique index
@@ -360,7 +390,8 @@ export const CORE_APP_TABLES = [
   'salary_templates',
   'settings',
   'person_funds',
-  'card_statements'
+  'card_statements',
+  'idempotency_keys'
 ];
 
 export async function runMigrations() {
@@ -393,6 +424,7 @@ export async function runMigrations() {
     await syncTransferSchema();
     await syncPersonFundsSchema();
     await syncCreditCardSchema();
+    await syncIdempotencySchema();
     await syncPlannedItemsToTransactions();
     await syncDatabaseNormalFormsAndConstraints();
     await migrateLedgerAndMaterializedBalances();
@@ -484,6 +516,16 @@ export async function ensureDatabaseInitialized() {
         if (!ccRes.rows[0]?.has_card_columns) {
           console.log('[DevOps Auto-Init] Adding credit card schema (card_statements)...');
           await syncCreditCardSchema();
+        }
+        const ikRes = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'idempotency_keys'
+          ) AS has_idempotency_keys;
+        `);
+        if (!ikRes.rows[0]?.has_idempotency_keys) {
+          console.log('[DevOps Auto-Init] Adding idempotency_keys table...');
+          await syncIdempotencySchema();
         }
       }
 

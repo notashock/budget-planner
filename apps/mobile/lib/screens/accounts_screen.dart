@@ -48,10 +48,16 @@ class AccountsScreen extends StatelessWidget {
                     style: AppTypography.sectionHeader(color: textMuted),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    formatCurrency(budget.simulation?.todaysBalance ?? budget.totalAccountsBalance),
-                    style: AppTypography.hero(color: text),
-                  ),
+                  Builder(builder: (context) {
+                    final today = budget.simulation?.todaysBalance ?? budget.totalAccountsBalance;
+                    if (today == null) {
+                      return Text(
+                        'Balance unavailable — pull to refresh on the Plan tab',
+                        style: AppTypography.inter(fontSize: 13, color: textMuted),
+                      );
+                    }
+                    return Text(formatCurrency(today), style: AppTypography.hero(color: text));
+                  }),
                   if ((budget.simulation?.heldReserve ?? 0) > 0) ...[
                     const SizedBox(height: 4),
                     Text(

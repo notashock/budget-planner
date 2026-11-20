@@ -12,6 +12,7 @@ import 'screens/goals_screen.dart';
 import 'screens/accounts_screen.dart';
 import 'screens/assistant_screen.dart';
 import 'widgets/header.dart';
+import 'widgets/load_error_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,11 +86,22 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // A 401 on any load means the token is no longer valid: back to sign-in.
+    final sessionExpired = context.select<BudgetProvider, bool>(
+      (b) => b.loadError?.isSessionExpired ?? false,
+    );
+    if (sessionExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<AuthProvider>().sessionExpired();
+      });
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             const HeaderWidget(),
+            const LoadErrorBanner(),
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
