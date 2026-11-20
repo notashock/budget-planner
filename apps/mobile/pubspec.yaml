@@ -64,6 +64,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Inter and JetBrains Mono (OFL), loaded by google_fonts from here instead
+  # of downloaded at runtime (upgrade plan 2.5).
+  assets:
+    - google_fonts/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

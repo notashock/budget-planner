@@ -15,38 +15,64 @@ class LoadErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final error = context.select<BudgetProvider, BudgetLoadError?>((b) => b.loadError);
-    if (error == null || !error.hasData || error.isSessionExpired) return const SizedBox.shrink();
+    final savedFrom = context.select<BudgetProvider, DateTime?>((b) => b.showingSavedDataFrom);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final since = error.lastLoadedAt == null ? '' : ' from ${DateFormat.jm().format(error.lastLoadedAt!)}';
+
+    if (error == null || !error.hasData || error.isSessionExpired) {
+      if (error != null || savedFrom == null) return const SizedBox.shrink();
+      // Cold start from the device cache (upgrade plan 2.6), reload under way.
+      return _strip(
+        icon: const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+        label: 'Showing saved data from ${formatLoadedAt(savedFrom)} · updating',
+        textColor: textColor,
+      );
+    }
+
+    final since = error.lastLoadedAt == null ? '' : ' from ${formatLoadedAt(error.lastLoadedAt!)}';
     final label = error.isOffline
         ? 'Offline · showing data$since'
         : "Couldn't refresh · showing data$since";
+    return _strip(
+      icon: Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: AppColors.amber),
+      label: label,
+      textColor: textColor,
+      action: TextButton(
+        onPressed: () => context.read<BudgetProvider>().refresh(),
+        child: const Text('Retry'),
+      ),
+    );
+  }
 
+  Widget _strip({required Widget icon, required String label, required Color textColor, Widget? action}) {
     return Semantics(
       liveRegion: true,
       child: Material(
         color: AppColors.amberSubtle,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+          padding: action == null ? const EdgeInsets.fromLTRB(14, 12, 14, 12) : const EdgeInsets.fromLTRB(14, 4, 4, 4),
           child: Row(
             children: [
-              Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: AppColors.amber),
+              icon,
               const SizedBox(width: 8),
               Expanded(
                 child: Text(label, style: AppTypography.inter(fontSize: 12, color: textColor)),
               ),
-              TextButton(
-                onPressed: () => context.read<BudgetProvider>().refresh(),
-                child: const Text('Retry'),
-              ),
+              ?action,
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// "10:42 AM" for today, "18 Nov, 10:42 AM" for an earlier day.
+String formatLoadedAt(DateTime at, {DateTime? now}) {
+  final today = now ?? DateTime.now();
+  final sameDay = at.year == today.year && at.month == today.month && at.day == today.day;
+  return sameDay ? DateFormat.jm().format(at) : DateFormat('d MMM,').add_jm().format(at);
 }
 
 /// Full-screen state when a load failed and there is nothing to show.

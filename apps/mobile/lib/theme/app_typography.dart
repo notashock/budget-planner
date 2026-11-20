@@ -1,10 +1,24 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Exact typography tokens matching apps/web/src/index.css:
 /// - Inter for UI headings, titles, labels, badges, body text
 /// - JetBrains Mono for tabular numbers, currency amounts, dates, and metric values
 class AppTypography {
+  /// Fonts ship in the app (`google_fonts/`, upgrade plan 2.5): no network
+  /// fetch on first launch and no font swap on a slow connection. A weight
+  /// that is not bundled throws in debug instead of being downloaded.
+  static void useBundledFonts() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    LicenseRegistry.addLicense(() async* {
+      for (final (family, file) in [('Inter', 'OFL-Inter.txt'), ('JetBrains Mono', 'OFL-JetBrainsMono.txt')]) {
+        yield LicenseEntryWithLineBreaks([family], await rootBundle.loadString('google_fonts/$file'));
+      }
+    });
+  }
+
   // Sans-serif / Inter styles
   static TextStyle inter({
     double fontSize = 13.0,

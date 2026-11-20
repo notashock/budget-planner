@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../models/goal.dart';
@@ -244,6 +245,7 @@ class BudgetProvider with ChangeNotifier {
     _error = null;
     _loadError = null;
     _lastLoadedAt = DateTime.now();
+    _cachedAt = null;
   }
 
   Future<void> loadInitialData() async {
@@ -253,13 +255,17 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final restored = await _restoreCache();
+      if (restored) notifyListeners();
       final settings = await _api.getSettings();
       final monthsList = await _api.getMonths();
       if (generation != _loadGeneration) return;
       _userSettings = settings;
       _months = monthsList;
 
-      final hasCurrent = _months.any((m) =>
+      // A restored cache only stands in until the server answers: the start
+      // month is chosen from today, as without a cache.
+      final hasCurrent = !restored && _months.any((m) =>
           m is Map &&
           '${m['year']}' == '$_currentYear' &&
           '${m['month']}' == '$_currentMonth');
@@ -270,6 +276,7 @@ class BudgetProvider with ChangeNotifier {
           _currentMonth = pick.month;
         }
       }
+      _homeMonth = (year: _currentYear, month: _currentMonth);
 
       await _loadMonth(generation);
     } catch (e) {
@@ -310,37 +317,69 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  /// Loads month detail, accounts and transfers, and applies them only if no
-  /// newer load started meanwhile. A 404 on the month means it does not exist;
-  /// any other failure is rethrown and leaves the current data in place.
+  /// Loads month detail and goals, and applies them only if no newer load
+  /// started meanwhile. A 404 on the month means it does not exist; any other
+  /// failure is rethrown and leaves the current data in place.
+  ///
+  /// Two requests, in parallel (upgrade plan 2.1): month detail already carries
+  /// the active banks, wallets and the month's transfers. Only a missing month
+  /// needs the accounts fetched on their own.
   Future<void> _loadMonth(int generation) async {
+    final year = _currentYear, month = _currentMonth;
+    final owner = await StorageService.getToken();
+    final detailFuture = _api.getMonthDetail(year, month);
+    // Month detail carries no goals: they have their own (evaluated) list.
+    final goalsFuture = _api.getGoals(year, month);
+    // Not awaited when the month is missing; keep its 404 from going uncaught.
+    goalsFuture.then((_) {}, onError: (Object _) {});
+
     Map<String, dynamic>? detail;
-    var missing = false;
     try {
-      detail = await _api.getMonthDetail(_currentYear, _currentMonth);
+      detail = await detailFuture;
     } on ApiException catch (e) {
       if (e.kind != ApiErrorKind.notFound) rethrow;
-      missing = true;
     }
+    final missing = detail == null;
 
-    final banks = await _api.getBankAccounts();
-    final wallets = await _api.getWallets();
-    final monthId = missing ? null : _monthOf(detail!)?['_id']?.toString() ?? _monthOf(detail)?['id']?.toString();
-    final transfers = await _api.getTransfers(monthId);
-    // Month detail carries no goals: they have their own (evaluated) list.
-    final goals = missing ? const <dynamic>[] : await _api.getGoals(_currentYear, _currentMonth);
+    final List<dynamic> banks, wallets, transfers, goals;
+    if (missing) {
+      final accounts = await Future.wait([_api.getBankAccounts(), _api.getWallets()]);
+      banks = accounts[0];
+      wallets = accounts[1];
+      transfers = const [];
+      goals = const [];
+    } else {
+      banks = _listIn(detail, 'bankAccounts');
+      wallets = _listIn(detail, 'wallets');
+      transfers = _listIn(detail, 'transfers');
+      goals = await goalsFuture;
+    }
 
     if (generation != _loadGeneration) return;
 
-    // Read everything before applying anything: one unreadable row leaves the
-    // whole previous state in place and is reported (loadError).
+    _apply(detail, goals: goals, banks: banks, wallets: wallets, transfers: transfers);
+    _recordLoadSuccess();
+    if (detail != null) _saveCache(year, month, detail, goals, owner);
+  }
+
+  /// Applies one month's data. Reads everything before applying anything: one
+  /// unreadable row leaves the whole previous state in place and throws
+  /// [ApiException] (badResponse). A null [detail] means the month does not exist.
+  void _apply(
+    Map<String, dynamic>? detail, {
+    required List<dynamic> goals,
+    required List<dynamic> banks,
+    required List<dynamic> wallets,
+    required List<dynamic> transfers,
+  }) {
+    final missing = detail == null;
     final MonthInfo? monthInfo;
     final List<Account> bankModels;
     final List<Account> walletModels;
     final List<Goal> goalModels;
     final List<Transfer> transferModels;
     try {
-      monthInfo = missing ? null : MonthInfo.fromJson(_monthOf(detail!));
+      monthInfo = missing ? null : MonthInfo.fromJson(_monthOf(detail));
       bankModels = List.unmodifiable(banks.map((a) => Account.fromJson(a, fallbackKind: AccountKind.bank)));
       walletModels = List.unmodifiable(wallets.map((a) => Account.fromJson(a, fallbackKind: AccountKind.wallet)));
       goalModels = List.unmodifiable(goals.map(Goal.fromJson));
@@ -361,7 +400,7 @@ class BudgetProvider with ChangeNotifier {
       _accountSimulations = {};
     } else {
       _monthMissing = false;
-      _applyMonthDetail(detail!);
+      _applyMonthDetail(detail);
       _goals = goals;
       _evaluatedGoals = goals;
       _monthInfo = monthInfo;
@@ -373,11 +412,75 @@ class BudgetProvider with ChangeNotifier {
     _seed('banks', banks, bankModels);
     _seed('wallets', wallets, walletModels);
     _seed('transfers', transfers, transferModels);
-    _recordLoadSuccess();
+  }
+
+  // ---- Read cache (upgrade plan 2.6) ----
+  // The last month loaded from the server is kept on the device, so a cold
+  // start shows it at once (marked with its time) while the reload runs, and
+  // an offline start still has something to show. Balances are never computed
+  // here: these are the server's own figures from that moment (ADR 0052).
+
+  DateTime? _cachedAt;
+
+  // The month a cold start opens; only it is cached, so browsing other months
+  // does not change what the next start shows first.
+  ({int year, int month})? _homeMonth;
+
+  /// Set while the data on screen came from the device cache and the server
+  /// has not answered yet: when that data was loaded from the server.
+  DateTime? get showingSavedDataFrom => _cachedAt;
+
+  /// Shows the cached month if nothing is loaded yet. Returns whether it did.
+  Future<bool> _restoreCache() async {
+    if (_hasMonthData) return false;
+    final saved = await StorageService.readMonthCache();
+    if (saved == null || _hasMonthData) return false;
+    try {
+      final detail = Map<String, dynamic>.from(saved['detail'] as Map);
+      final savedAt = DateTime.parse(saved['savedAt'] as String);
+      final year = saved['year'] as int, month = saved['month'] as int;
+      _apply(
+        detail,
+        goals: saved['goals'] as List,
+        banks: _listIn(detail, 'bankAccounts'),
+        wallets: _listIn(detail, 'wallets'),
+        transfers: _listIn(detail, 'transfers'),
+      );
+      _currentYear = year;
+      _currentMonth = month;
+      _lastLoadedAt = savedAt;
+      _cachedAt = savedAt;
+      return true;
+    } catch (_) {
+      // Unreadable (an older app version wrote it): drop it, load as usual.
+      await StorageService.clearMonthCache();
+      return false;
+    }
+  }
+
+  /// Saves the month just loaded, unless the user signed out (or another
+  /// user signed in) while it loaded: [owner] is the token the load started with.
+  void _saveCache(int year, int month, Map<String, dynamic> detail, List<dynamic> goals, String? owner) {
+    if (owner == null || _homeMonth != (year: year, month: month)) return;
+    StorageService.writeMonthCache({
+      'year': year,
+      'month': month,
+      'savedAt': DateTime.now().toIso8601String(),
+      'detail': detail,
+      'goals': goals,
+    }, owner: owner);
   }
 
   Map<String, dynamic>? _monthOf(Map<String, dynamic> detail) =>
       detail['month'] is Map ? Map<String, dynamic>.from(detail['month'] as Map) : detail;
+
+  /// A list the month detail must carry; a missing one is an unreadable
+  /// response, not an empty list (an empty account list would look real).
+  static List<dynamic> _listIn(Map<String, dynamic> detail, String key) {
+    final value = detail[key];
+    if (value is List) return value;
+    throw ApiException('Month data from the server has no $key list.', 200, ApiErrorKind.badResponse);
+  }
 
   /// Throws [ApiException] (badResponse) if the simulation or any transaction
   /// cannot be read; nothing is applied then, so a stale or half-read month is

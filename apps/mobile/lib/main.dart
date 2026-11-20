@@ -6,6 +6,7 @@ import 'providers/budget_provider.dart';
 import 'providers/app_lock_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
 import 'screens/auth_screen.dart';
 import 'screens/plan_screen.dart';
 import 'screens/transactions_screen.dart';
@@ -18,6 +19,7 @@ import 'widgets/app_lock_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppTypography.useBundledFonts();
 
   final themeProvider = ThemeProvider();
   await themeProvider.init();

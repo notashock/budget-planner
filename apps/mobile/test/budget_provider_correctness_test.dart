@@ -30,7 +30,9 @@ void main() {
         'transactions': [
           {'id': 't1', 'name': name, 'status': 'successful', 'amount': 2000000, 'date': '2026-11-01'},
         ],
-        'goals': [],
+        'bankAccounts': banks,
+        'wallets': [],
+        'transfers': [],
         'simulation': {
           'openingBalance': 1000000,
           'todaysBalance': todaysBalance,
@@ -73,6 +75,9 @@ void main() {
       expect(budget.monthMissing, isTrue);
       expect(budget.activeMonth, isNull);
       expect(budget.loadError, isNull);
+      // Month detail is not there to carry them, so the accounts load on their own.
+      expect(budget.bankAccountModels.map((a) => a.id), ['b1']);
+      expect(budget.transferModels, isEmpty);
     });
 
     test('a 500 after a good load keeps the data and records the failure', () async {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +8,7 @@ class StorageService {
   static const String keyToken = 'budget_auth_token';
   static const String keyTheme = 'budget_theme';
   static const String keyBaseUrl = 'budget_base_url';
+  static const String keyMonthCache = 'budget_month_cache_v1';
 
   /// Server used until the user picks one in server settings. Set per build:
   /// `flutter build apk --dart-define=API_BASE_URL=https://api.example.com`.
@@ -58,6 +61,34 @@ class StorageService {
     _tokenLoaded = true;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey(keyToken)) await prefs.remove(keyToken);
+    // A new session (sign-in, sign-out, expiry) never sees the last one's month.
+    await prefs.remove(keyMonthCache);
+  }
+
+  /// The last month loaded from the server (see BudgetProvider), or null.
+  static Future<Map<String, dynamic>?> readMonthCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(keyMonthCache);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Saves [data] only if [owner] is still the signed-in token.
+  static Future<void> writeMonthCache(Map<String, dynamic> data, {required String owner}) async {
+    final encoded = jsonEncode(data);
+    if (await getToken() != owner) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(keyMonthCache, encoded);
+  }
+
+  static Future<void> clearMonthCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(keyMonthCache);
   }
 
   /// Forgets the in-memory token so the next read goes to storage.
