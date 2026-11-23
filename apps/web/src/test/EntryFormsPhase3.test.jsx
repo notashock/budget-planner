@@ -105,7 +105,7 @@ describe('Phase 3: remembered defaults', () => {
     renderEntry({ onLogTransaction, initialPreset: null });
     rememberAccount('log', 'wallet', 'w1');
     fireEvent.change(amountInput(), { target: { value: '120' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log expense debit/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     // Saved from the default (Main Bank), so that is what is remembered now
     await waitFor(() => expect(lastAccountFor('log')).toEqual({ accountType: 'bank', accountId: 'b1' }));
@@ -127,7 +127,7 @@ describe('Phase 3: Save & add another', () => {
     renderEntry({ onLogTransaction, onClose });
     fireEvent.change(amountInput(), { target: { value: '250' } });
     fireEvent.change(descriptionInput(), { target: { value: 'Coffee' } });
-    fireEvent.click(screen.getByRole('button', { name: /Save & add another/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add & log another/ }));
 
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 25000, title: 'Coffee', category: 'Food' }),
@@ -153,7 +153,7 @@ describe('Phase 3: Save & add another', () => {
       initialMode: 'log',
       initialItem: { _id: 't9', id: 't9', origin: 'spot', status: 'successful', title: 'Tea', amount: 2000, date: '2026-11-10', category: 'Food', accountId: 'b1' }
     });
-    expect(screen.queryByRole('button', { name: /Save & add another/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add & log another/ })).not.toBeInTheDocument();
   });
 });
 
@@ -205,5 +205,34 @@ describe('Phase 3: toast with Undo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(onUndo).toHaveBeenCalled());
     await waitFor(() => expect(onDismiss).toHaveBeenCalled());
+  });
+});
+
+describe('Phase E: sheet top bar', () => {
+  it('shows Cancel, a title that follows the tab, and Add, with no close cross', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({ id: 't1' });
+    renderEntry({ onLogTransaction });
+    expect(screen.getByRole('heading', { name: 'New spend' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Income' }));
+    expect(screen.getByRole('heading', { name: 'New income' })).toBeInTheDocument();
+  });
+
+  it('Add in the top bar submits the form', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({ id: 't1' });
+    renderEntry({ onLogTransaction });
+    fireEvent.change(amountInput(), { target: { value: '120' } });
+    fireEvent.change(descriptionInput(), { target: { value: 'Coffee' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onLogTransaction).toHaveBeenCalledWith(expect.objectContaining({ amount: 12000, title: 'Coffee' })));
+  });
+
+  it('says Edit and Save when editing', () => {
+    renderEntry({
+      initialMode: 'log',
+      initialItem: { _id: 't9', id: 't9', origin: 'spot', status: 'successful', title: 'Tea', amount: 2000, date: '2026-11-10', category: 'Food', accountId: 'b1' }
+    });
+    expect(screen.getByRole('heading', { name: 'Edit spend' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 });

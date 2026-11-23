@@ -277,7 +277,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const addBankBtn = screen.getByRole('button', { name: /\+ Add Bank Account/i });
       expect(addBankBtn).toBeInTheDocument();
 
-      const logSubmitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const logSubmitBtn = screen.getByRole('button', { name: 'Add' });
       expect(logSubmitBtn).toBeDisabled();
 
       // Switch to Plan mode
@@ -285,7 +285,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       fireEvent.click(planTabBtn);
 
       expect(screen.getByText(/Bank Account Required/i)).toBeInTheDocument();
-      const planSubmitBtn = screen.getByRole('button', { name: /Save planned/i });
+      const planSubmitBtn = screen.getByRole('button', { name: 'Add' });
       expect(planSubmitBtn).toBeDisabled();
     });
 
@@ -308,7 +308,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '45.50' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockLogTx).toHaveBeenCalledWith(
@@ -357,7 +357,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '5.00' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockLogTx).toHaveBeenCalledWith(
@@ -393,7 +393,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '120.00' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Save planned/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       await waitFor(() => {
@@ -434,7 +434,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '500' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Record Transfer/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockCreateTransfer).toHaveBeenCalledWith(
@@ -518,7 +518,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       fireEvent.click(freelanceBtn);
 
       // Submit income
-      const submitBtn = screen.getByRole('button', { name: /Record Income/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(handleLogTransaction).toHaveBeenCalledWith(
