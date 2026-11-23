@@ -298,9 +298,9 @@ export function StepLineChart({
     + (lowPoint ? `${hasToday ? 'Lowest point from today' : 'Lowest point'} ${formatCurrency(lowPoint.balance, currencySymbol)} on ${fmtDate(lowPoint.date, lowPoint.day, true)}, ` : '')
     + (safetyFloor > 0
       ? (lowUnderFloor
-        ? `${formatCurrency(safetyFloor - lowPoint.balance, currencySymbol)} below the safety floor.`
-        : `above the safety floor of ${formatCurrency(safetyFloor, currencySymbol)}.`)
-      : 'no safety floor set.')
+        ? `${formatCurrency(safetyFloor - lowPoint.balance, currencySymbol)} below the amount you keep aside.`
+        : `above the amount you keep aside, ${formatCurrency(safetyFloor, currencySymbol)}.`)
+      : 'no minimum set.')
     + ' Use the left and right arrow keys to move between days.';
 
   // ---- Interaction ----
@@ -665,7 +665,7 @@ export function StepLineChart({
               </dd>
             </div>
             <div className="di-stat">
-              <dt>{safetyFloor > 0 ? 'Room above floor' : 'Safety floor'}</dt>
+              <dt>{safetyFloor > 0 ? 'Left above minimum' : 'Keep at least'}</dt>
               <dd className={`tabular-nums ${safetyFloor > 0 && insight.headroom < 0 ? 'di-down' : ''}`}>
                 {safetyFloor > 0 ? formatCurrency(insight.headroom, currencySymbol) : 'Not set'}
               </dd>

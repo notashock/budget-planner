@@ -21,6 +21,7 @@ describe("Header verdict matches the Plan page", () => {
       <Header
         months={[month]}
         currentMonth={month}
+        activeTab="transactions"
         simulation={sim()}
         verdict={{ key: 'tight', label: 'Tight month', headroom: { amount: 5000 }, scope: 'ICICI Current' }}
       />
@@ -35,11 +36,16 @@ describe("Header verdict matches the Plan page", () => {
   it("falls back to the engine's all-accounts verdict, using the engine floor and the upcoming low", () => {
     // The month record says a 1,000 floor, but the engine's unified floor is 6,000 and the
     // upcoming low (5,500) is under it, so the header must say "Below floor", not "safe".
-    render(<Header months={[month]} currentMonth={month} simulation={sim({ safetyFloor: 600000, lowestUpcomingBalance: 550000 })} />);
+    render(<Header months={[month]} currentMonth={month} activeTab="goals" simulation={sim({ safetyFloor: 600000, lowestUpcomingBalance: 550000 })} />);
     expect(screen.getByRole('status')).toHaveTextContent('Below floor');
 
     expect(getUnifiedVerdict(sim({ safetyFloor: 500000 })).key).toBe('tight');
     expect(getUnifiedVerdict(sim()).key).toBe('good');
     expect(getUnifiedVerdict(null)).toBeNull();
+  });
+
+  it('leaves the verdict to the Plan page hero when Plan is open, so it is not shown twice', () => {
+    render(<Header months={[month]} currentMonth={month} activeTab="plan" simulation={sim()} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
