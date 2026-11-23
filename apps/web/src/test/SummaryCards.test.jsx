@@ -46,7 +46,7 @@ describe('SummaryCards components', () => {
         />
       );
 
-      expect(screen.getByText("Where today's balance goes")).toBeInTheDocument();
+      expect(screen.getByText("After today's bills")).toBeInTheDocument();
       // 20,400 = 5,000 bills + 10,000 floor + 5,400 free
       expect(screen.getByText('Upcoming bills')).toBeInTheDocument();
       expect(screen.getByText('₹5,000')).toBeInTheDocument();

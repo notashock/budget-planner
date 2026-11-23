@@ -32,8 +32,10 @@ leave over it). The code fix is already done and tested locally.
   - pills and the Accounts page use the ledger balance (`apps/web/src/utils/liveBalance.js`)
   - no more ₹0 month openings (`apps/server/src/services/accountMigration.js`)
   - the irregular view uses ledger balances (`packages/engine/src/incomeEngine.js` and its test)
-- One-off cleanup script: delete `month_account_openings` rows with amount 0 that the backfill created for months
-  with `opening_balance = 0`. Dry-run first and print the affected users and months.
+- One-off repair script `apps/server/src/scripts/repair_zero_month_openings.js`. It resets each ₹0 opening row
+  the backfill wrote to the ledger balance at the month's start. Rows are updated, not deleted, because with no
+  row the forecast falls back to the creation-time opening. Genuine zeros are left alone. It runs as a dry run by
+  default; `--apply` writes a JSON backup first, and `--user-id=` limits it to one user.
 - Rename the hero's "Where today's balance goes" to "After today's bills" so it no longer looks like it contradicts
   the pills.
 
@@ -43,7 +45,8 @@ leave over it). The code fix is already done and tested locally.
 - Web (261), engine (154) and server tests pass. The server tests run on the throwaway Postgres (port 54329), not
   the dev database.
 
-**Risk:** the cleanup deletes rows, so keep a backup of the affected rows before deleting anything.
+**Risk:** the repair changes stored balances. Run the dry run against production, check the list, then use
+`--apply`, which writes the backup before it changes anything.
 
 ---
 
@@ -60,6 +63,10 @@ leave over it). The code fix is already done and tested locally.
   `accountService.js:195`) and a one-time migration script for existing users.
 - Remove the three calls from the GET paths.
 - `migration-status` becomes a pure read, and the web app checks it once per session instead of on every load.
+- When a month has no opening row, compute each account's opening from the ledger at the month's start (the same
+  query as `repair_zero_month_openings.js`). Today it falls back to the account's creation-time opening, which
+  ignores earlier transactions. Found in Phase 0: with a ₹10 October bill, "After today's bills" showed ₹335
+  against a ledger of ₹355 − ₹30 = ₹325.
 
 **Done when**
 - A test proves that a GET on month detail and on both transaction lists leaves the database unchanged
