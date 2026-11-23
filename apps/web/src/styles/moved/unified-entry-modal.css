@@ -627,3 +627,61 @@
     flex: 1 1 0;
   }
 }
+
+/* Sheet top bar (Phase E): Cancel · title · Add, replacing the ✕ and the footer buttons */
+.sheet-topbar {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) minmax(72px, auto);
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sheet-topbar-title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-base, 15px);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-topbar-btn {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--fs-base, 15px);
+  color: var(--brand, var(--primary));
+  cursor: pointer;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.sheet-topbar-btn.is-primary {
+  justify-self: end;
+  font-weight: 700;
+}
+
+.sheet-topbar-btn.is-positive {
+  color: var(--success, var(--brand));
+}
+
+.sheet-topbar-btn:disabled {
+  color: var(--text-tertiary, var(--text-secondary));
+  cursor: default;
+}
+
+.sheet-topbar-btn:focus-visible {
+  outline: 2px solid var(--brand, var(--primary));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Footer now holds only the paid toggle and "Add & log another" */
+.modal-footer-row .entry-add-another {
+  margin-left: auto;
+}

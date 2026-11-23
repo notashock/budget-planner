@@ -56,7 +56,7 @@ describe('B2: editing a planned item keeps its category', () => {
         month={{ year: 2026, month: 11 }}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Update Planned Item/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^(Save|Add)$/ }));
     await waitFor(() => expect(onSaveItem).toHaveBeenCalled());
     expect(onSaveItem.mock.calls[0][0]).toMatchObject({ category: 'Utilities', tag: 'Utilities' });
   });

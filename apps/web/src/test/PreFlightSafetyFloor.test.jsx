@@ -55,7 +55,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     fireEvent.change(amountInput, { target: { value: '45000' } });
 
     // Submit form
-    const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+    const submitBtn = screen.getByRole('button', { name: 'Add' });
     fireEvent.click(submitBtn);
 
     // Verify pre-flight warning modal appears
@@ -115,7 +115,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '45000' } });
 
-    const transferSubmitBtn = screen.getByRole('button', { name: /Record Transfer/i });
+    const transferSubmitBtn = screen.getByRole('button', { name: 'Add' });
     fireEvent.click(transferSubmitBtn);
 
     // Pre-flight warning modal should appear
@@ -186,7 +186,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     fireEvent.change(amountInput, { target: { value: '250' } });
 
     // Submit form
-    const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+    const submitBtn = screen.getByRole('button', { name: 'Add' });
     fireEvent.click(submitBtn);
 
     // Verify pre-flight warning modal DOES NOT appear
@@ -244,7 +244,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '10500' } });
 
-    const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+    const submitBtn = screen.getByRole('button', { name: 'Add' });
     fireEvent.click(submitBtn);
 
     // Verify warning appears with correct projected balance (₹500.00)
@@ -311,7 +311,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '250' } });
 
-    const transferSubmitBtn = screen.getByRole('button', { name: /Record Transfer/i });
+    const transferSubmitBtn = screen.getByRole('button', { name: 'Add' });
     fireEvent.click(transferSubmitBtn);
 
     // Verify warning does NOT appear

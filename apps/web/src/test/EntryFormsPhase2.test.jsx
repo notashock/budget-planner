@@ -155,7 +155,7 @@ describe('Phase 2: no alert() in entry flows', () => {
     const onLogTransaction = vi.fn().mockRejectedValue(new Error('Server is down'));
     renderEntry({ onLogTransaction });
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '250' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log expense debit/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Server is down');
     expect(alertSpy).not.toHaveBeenCalled();
   });
@@ -163,7 +163,7 @@ describe('Phase 2: no alert() in entry flows', () => {
   it('asks for an account inline when there is none selected', async () => {
     renderEntry({ initialMode: 'income', bankAccounts: [{ id: '', _id: '', name: 'Ghost' }], wallets: [] });
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: /Record Income/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Choose the account/);
     expect(alertSpy).not.toHaveBeenCalled();
   });

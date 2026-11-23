@@ -1321,6 +1321,17 @@ export function UnifiedEntryModal({
     else if (mode === 'transfer') handleTransferSubmit(e);
   };
 
+  const sheetTitle = settleItem ? 'Mark paid'
+    : (mode === 'transfer' && moveTarget === 'person') ? 'Held & Lent'
+    : mode === 'log' ? `${initialItem ? 'Edit' : 'New'} ${isRefund ? 'refund' : 'spend'}`
+    : mode === 'income' ? `${initialItem ? 'Edit' : 'New'} income`
+    : mode === 'plan' ? (initialItem ? 'Edit plan' : (itemType === 'recurring' ? 'New recurring bill' : 'New plan'))
+    : initialItem ? 'Edit transfer' : (moveTarget === 'card' ? 'Pay a card' : 'Move money');
+  const showFormAction = !settleItem && !(mode === 'transfer' && moveTarget === 'person');
+  const sheetAction = isSubmitting
+    ? (initialItem ? 'Saving…' : 'Adding…')
+    : (initialItem ? 'Save' : (mode === 'transfer' && moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Add'));
+
   // Rendered on <body> so no parent stacking context can put it under the
   // header or bottom nav; its order comes from --z-modal.
   const modal = (
@@ -1342,6 +1353,22 @@ export function UnifiedEntryModal({
           {/* Mobile bottom-sheet grab zone & handle */}
           <div className="modal-drag-zone">
             <div className="modal-drag-handle" />
+          </div>
+
+          {/* Sheet top bar: Cancel, what this is, and the one action */}
+          <div className="sheet-topbar">
+            <button type="button" className="sheet-topbar-btn" onClick={() => requestClose()}>Cancel</button>
+            <h2 className="sheet-topbar-title">{sheetTitle}</h2>
+            {showFormAction ? (
+              <button
+                type="submit"
+                form="entry-sheet-form"
+                className={`sheet-topbar-btn is-primary ${mode === 'log' && isRefund ? 'is-positive' : ''}`}
+                disabled={(mode !== 'transfer' && hasZeroAccounts) || isSubmitting}
+              >
+                {sheetAction}
+              </button>
+            ) : <span className="sheet-topbar-btn" aria-hidden="true" />}
           </div>
 
           {/* Modal Header & Symmetrical Mode Switcher */}
@@ -1427,15 +1454,6 @@ export function UnifiedEntryModal({
               </div>
             )}
 
-            <button
-              type="button"
-              className="btn-icon modal-close-btn entry-btn-2"
-              onClick={() => requestClose()}
-              title="Close modal"
-              aria-label="Close"
-            >
-              <XIcon size={16} />
-            </button>
           </div>
 
           {confirmDiscard && (
@@ -1536,6 +1554,7 @@ export function UnifiedEntryModal({
             </div>
           ) : (
           <form className="entry-stack"
+            id="entry-sheet-form"
             ref={formRef}
             onSubmit={handleSubmitRouter}
             onKeyDown={(e) => {
@@ -2407,6 +2426,7 @@ export function UnifiedEntryModal({
             {/* ---------------------------------------------------------------------
                 SLOT 6: UNIFIED ACTION FOOTER (FIXED DOCKED FOOTER)
                --------------------------------------------------------------------- */}
+            {(mode === 'plan' || canAddAnother) && (
             <div className="modal-footer-row">
               {/* Left corner: a new bill that's already paid is a spend; editing keeps the paid toggle */}
               {mode === 'plan' && !initialItem ? (
@@ -2438,79 +2458,19 @@ export function UnifiedEntryModal({
                 <div />
               )}
 
-              {/* Right corner: Symmetrical Cancel & Submit Actions */}
-              <div className="entry-row-13">
-                <button type="button" className="btn-subtle" onClick={() => requestClose()}>
-                  Cancel
+              {canAddAnother && (
+                <button
+                  type="button"
+                  className="btn-subtle entry-add-another"
+                  onClick={submitAndAddAnother}
+                  disabled={hasZeroAccounts || isSubmitting}
+                  title="Ctrl + Enter (⌘ + Enter on Mac)"
+                >
+                  Add &amp; log another
                 </button>
-
-                {canAddAnother && (
-                  <button
-                    type="button"
-                    className="btn-subtle entry-add-another"
-                    onClick={submitAndAddAnother}
-                    disabled={hasZeroAccounts || isSubmitting}
-                    title="Ctrl + Enter (⌘ + Enter on Mac)"
-                  >
-                    Save &amp; add another
-                  </button>
-                )}
-
-                {mode === 'log' && (
-                  <button
-                    type="submit"
-                    className={`btn-primary entry-submit ${isRefund ? 'is-positive' : ''}`}
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Logging...')
-                      : (initialItem
-                          ? (isRefund ? 'Update credit inflow' : 'Update expense debit')
-                          : (isRefund ? 'Log credit inflow' : 'Log expense debit'))}
-                  </button>
-                )}
-
-                {mode === 'income' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-7"
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Recording...')
-                      : (initialItem ? 'Update Income Credit' : 'Record Income')}
-                  </button>
-                )}
-
-                {mode === 'plan' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-8"
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Saving...')
-                      : (initialItem
-                          ? 'Update Planned Item'
-                          : (itemType === 'recurring' ? 'Save recurring item' : 'Save planned item'))}
-                  </button>
-                )}
-
-                {mode === 'transfer' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-8"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Recording...')
-                      : (initialItem
-                          ? 'Update Transfer'
-                          : (moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Record Transfer'))}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
+            )}
           </form>
           )}
 
