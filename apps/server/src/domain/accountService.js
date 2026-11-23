@@ -1,5 +1,5 @@
 import { eq, and, desc, asc, count } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db, pool } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { LedgerService } from './ledgerService.js';
@@ -202,8 +202,8 @@ export const AccountService = {
   },
 
   /**
-   * Updates an account. A new opening balance is also written to the active
-   * month's opening snapshot and the ledger balance is recomputed from it.
+   * Updates an account. A new opening balance shifts each open month's stored start by the same
+   * difference, and the ledger balance is recomputed from it.
    */
   async updateAccount(userId, accountId, body = {}, { expectedType = null, notFoundMessage = 'Account not found' } = {}) {
     const account = await findOwnedAccount(userId, accountId, expectedType, notFoundMessage);
@@ -252,19 +252,16 @@ export const AccountService = {
       await LedgerService.recomputeAccountBalance(account.id);
       updated = await db.query.accounts.findFirst({ where: eq(s.accounts.id, account.id) });
     } else if (openingBalance !== undefined) {
-      const activeMonth = await db.query.months.findFirst({
-        where: and(eq(s.months.userId, userId), eq(s.months.isClosed, false)),
-        orderBy: [desc(s.months.year), desc(s.months.month)]
-      });
-      if (activeMonth) {
-        const existingOpening = await db.query.monthAccountOpenings.findFirst({
-          where: and(eq(s.monthAccountOpenings.monthId, activeMonth.id), eq(s.monthAccountOpenings.accountId, account.id))
-        });
-        if (existingOpening) {
-          await db.update(s.monthAccountOpenings).set({ amount: openingBalance }).where(eq(s.monthAccountOpenings.id, existingOpening.id));
-        } else {
-          await db.insert(s.monthAccountOpenings).values({ monthId: activeMonth.id, accountId: account.id, amount: openingBalance });
-        }
+      // A new opening moves every later balance by the same amount, so each open month's stored start
+      // moves by that difference too (writing the raw opening there made the month start wrong)
+      const shift = openingBalance - (Number(account.openingBalance) || 0);
+      if (shift) {
+        await pool.query(
+          `UPDATE "month_account_openings" o SET "amount" = o."amount" + $1
+           FROM "months" m
+           WHERE o."month_id" = m."id" AND m."user_id" = $2 AND m."is_closed" = false AND o."account_id" = $3`,
+          [shift, userId, account.id]
+        );
       }
       await LedgerService.recomputeAccountBalance(account.id);
       updated = await db.query.accounts.findFirst({ where: eq(s.accounts.id, account.id) });

@@ -88,4 +88,18 @@ describe('Ledger balance stays in sync', () => {
     expect(await stored(bankId)).toBe(60000);
     expect(await stored(otherId)).toBe(205); // the refund itself is untouched
   });
+
+  it('editing an opening balance shifts the month start by the difference, not to the opening', async () => {
+    const [june] = await db.select().from(s.months).where(and(eq(s.months.userId, userId), eq(s.months.year, 2031), eq(s.months.month, 6)));
+    const openingFor = async () => Number((await pool.query(
+      'SELECT amount FROM month_account_openings WHERE month_id = $1 AND account_id = $2', [june.id, bankId]
+    )).rows[0]?.amount);
+    await pool.query('DELETE FROM month_account_openings WHERE month_id = $1 AND account_id = $2', [june.id, bankId]);
+    await db.insert(s.monthAccountOpenings).values({ monthId: june.id, accountId: bankId, amount: 42000 });
+
+    const res = await request(app).patch(`/api/v1/accounts/${bankId}`).set(auth).send({ openingBalance: 12500 }); // was 10,000
+    expect(res.status).toBe(200);
+    expect(await openingFor()).toBe(44500);
+    expect(res.body.data.currentBalance).toBe(62500);
+  });
 });
