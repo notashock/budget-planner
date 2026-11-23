@@ -114,30 +114,10 @@ export function PlanScreen({
   // Filtered daily balances curve
   const activeDailyBalances = useMemo(() => {
     if (!isFilteringAccount) return dailyBalances;
-    if (accountSimulations?.[selectedAccountId]?.dailyBalances?.length) {
-      return accountSimulations[selectedAccountId].dailyBalances;
-    }
-    const sid = String(selectedAccountId || '');
-    const alt1 = String(selectedAccount?._id || '');
-    const alt2 = String(selectedAccount?.id || '');
-
-    let acctCurve =
-      simulation?.accountDailyBalances?.[selectedAccountId] ||
-      (selectedAccount?._id ? simulation?.accountDailyBalances?.[selectedAccount._id] : null) ||
-      (selectedAccount?.id ? simulation?.accountDailyBalances?.[selectedAccount.id] : null);
-
-    if (!acctCurve && simulation?.accountDailyBalances) {
-      const matchEntry = Object.entries(simulation.accountDailyBalances).find(
-        ([key]) => key === sid || (alt1 && key === alt1) || (alt2 && key === alt2)
-      );
-      if (matchEntry) {
-        acctCurve = matchEntry[1];
-      }
-    }
-
-    if (acctCurve && acctCurve.length) {
-      return acctCurve;
-    }
+    const acctCurve = [selectedAccountId, selectedAccount?._id, selectedAccount?.id]
+      .map((id) => (id ? accountSimulations?.[id]?.dailyBalances : null))
+      .find((curve) => curve?.length);
+    if (acctCurve) return acctCurve;
 
     // Isolated account curve fallback: when no transactions are recorded for this account,
     // draw an accurate flat curve at its opening balance instead of falling back to global daily balances
@@ -251,8 +231,8 @@ export function PlanScreen({
   const activeAccountSummary = simulation?.accounts?.[selectedAccountId] ||
     (selectedAccount?._id ? simulation?.accounts?.[selectedAccount._id] : null) ||
     (selectedAccount?.id ? simulation?.accounts?.[selectedAccount.id] : null) ||
-    (Array.isArray(simulation?.accountSummaries)
-      ? simulation.accountSummaries.find((a) => {
+    (simulation?.accounts
+      ? Object.values(simulation.accounts).find((a) => {
           const sid = String(selectedAccountId || '');
           const alt1 = String(selectedAccount?._id || '');
           const alt2 = String(selectedAccount?.id || '');
@@ -318,9 +298,6 @@ export function PlanScreen({
 
   // Unified sums across all registered bank accounts and wallets (deduplicated by ID)
   const accountsList = useMemo(() => {
-    if (Array.isArray(simulation?.accountSummaries) && simulation.accountSummaries.length > 0) {
-      return simulation.accountSummaries;
-    }
     const map = new Map();
     Object.values(simulation?.accounts || {}).forEach((a) => {
       if (a && a.id && !map.has(a.id)) {

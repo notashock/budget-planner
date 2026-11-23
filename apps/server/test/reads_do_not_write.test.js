@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { db, pool, runMigrations } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { MonthLifecycle } from '../src/domain/monthLifecycle.js';
 import { backfillUnassignedTransactions } from '../src/services/accountMigration.js';
 
@@ -87,7 +87,7 @@ describe('Reads do not write', () => {
 
     const moved = await db.query.transactions.findFirst({ where: eq(s.transactions.id, orphan.id) });
     expect(moved.accountId).toBe(mainId);
-    const onOld = await db.query.transactions.findFirst({ where: eq(s.transactions.name, 'Old account spend') });
+    const onOld = await db.query.transactions.findFirst({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.name, 'Old account spend')) });
     expect(onOld.accountId).toBe(oldId);
     const main = await db.query.accounts.findFirst({ where: eq(s.accounts.id, mainId) });
     expect(main.currentBalance).toBe(50000 - 1000 - 3000 - 700);

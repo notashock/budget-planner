@@ -1,7 +1,6 @@
 [
   {
     "id": "00000000-0000-4000-8000-000000000001",
-    "userId": "00000000-0000-4000-8000-000000000002",
     "year": 2026,
     "month": 11,
     "startDate": null,
@@ -12,17 +11,26 @@
     "safetyFloor": 500000,
     "unplannedAllowance": 0,
     "currencySymbol": "₹",
-    "salaryAccountId": "00000000-0000-4000-8000-000000000003",
+    "salaryAccountId": "00000000-0000-4000-8000-000000000002",
     "isSalaryCredited": false,
     "salaryCreditedDate": null,
     "isClosed": false,
     "closedAt": null,
     "closingBalances": null,
-    "createdAt": "2026-01-01T00:00:00.000Z",
-    "updatedAt": "2026-01-01T00:00:00.000Z",
-    "accountOpeningBalances": [],
+    "accountOpeningBalances": [
+      {
+        "accountId": "00000000-0000-4000-8000-000000000002",
+        "amount": 5000000,
+        "bankAccountId": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "accountId": "00000000-0000-4000-8000-000000000003",
+        "amount": 250000,
+        "bankAccountId": "00000000-0000-4000-8000-000000000003"
+      }
+    ],
     "_id": "00000000-0000-4000-8000-000000000001",
-    "salaryBankAccountId": "00000000-0000-4000-8000-000000000003",
+    "salaryBankAccountId": "00000000-0000-4000-8000-000000000002",
     "incomeCreditDay": 1
   }
 ]

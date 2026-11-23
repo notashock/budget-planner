@@ -1,44 +1,38 @@
 {
   "funds": [
     {
-      "id": "00000000-0000-4000-8000-000000000017",
-      "userId": "00000000-0000-4000-8000-000000000002",
+      "id": "00000000-0000-4000-8000-000000000016",
       "personName": "Asha",
       "direction": "lent",
       "note": "",
       "expectedSettleDate": null,
       "status": "open",
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "outstanding": 50000,
-      "settleAccountId": "00000000-0000-4000-8000-000000000010",
+      "settleAccountId": "00000000-0000-4000-8000-000000000003",
       "totalIn": 0,
       "totalOut": 50000,
       "plannedIn": 0,
       "plannedOut": 0,
-      "lastActivityDate": "2026-11-19",
+      "lastActivityDate": "2026-11-23",
       "entryCount": 1,
-      "_id": "00000000-0000-4000-8000-000000000017"
+      "_id": "00000000-0000-4000-8000-000000000016"
     },
     {
-      "id": "00000000-0000-4000-8000-000000000015",
-      "userId": "00000000-0000-4000-8000-000000000002",
+      "id": "00000000-0000-4000-8000-000000000014",
       "personName": "Ravi",
       "direction": "held",
       "note": "",
       "expectedSettleDate": null,
       "status": "open",
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "outstanding": 200000,
-      "settleAccountId": "00000000-0000-4000-8000-000000000003",
+      "settleAccountId": "00000000-0000-4000-8000-000000000002",
       "totalIn": 200000,
       "totalOut": 0,
       "plannedIn": 0,
       "plannedOut": 0,
-      "lastActivityDate": "2026-11-19",
+      "lastActivityDate": "2026-11-23",
       "entryCount": 1,
-      "_id": "00000000-0000-4000-8000-000000000015"
+      "_id": "00000000-0000-4000-8000-000000000014"
     }
   ],
   "totals": {

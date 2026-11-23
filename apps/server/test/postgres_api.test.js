@@ -90,7 +90,7 @@ describe('PostgreSQL Server API & Defensive Architecture Suite', () => {
 
     expect(settingsRes.status).toBe(200);
     expect(settingsRes.body.status).toBe('success');
-    expect(settingsRes.body.data.userId).toBe(testUserId);
+    expect(settingsRes.body.data.userId).toBeUndefined(); // internal, stripped from every response
     expect(settingsRes.body.data.currencySymbol).toBe('₹');
   });
 

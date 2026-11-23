@@ -83,27 +83,34 @@ archived account's history onto the primary bank, without recomputing that bank'
 
 ---
 
-## Phase 2: server sends only allowed fields
+## Phase 2: server sends only allowed fields (done)
 
 **Why:** the generic `serialize()` in `apps/server/src/utils/serializer.js` sends every database column plus
 aliases. Anything added to the database leaks to clients automatically.
 
-**Scope**
-- Add `toAccountDTO`, `toTransactionDTO`, `toMonthDTO`, `toGoalDTO` and `toSettingsDTO`. Each is an explicit allowlist.
-- Never sent: `userId`, `legacyItemId`, `createdAt` / `updatedAt` (unless a screen shows them), `heldByDay`,
-  `itemNetMap`.
-- Remove duplicates inside the same response (`allEvents` and the nested `simulation.accountSimulations` are
-  already gone, removed in #16):
-  - `simulation.accounts` map (keep the `accountSummaries` array)
-  - full events copied into day points (send event indexes instead)
-- Keep the alias fields the clients still read (`_id`, `days`, `todaysBalance`) until Phase 8,
-  each listed in one `LEGACY_ALIASES` block so they are easy to delete later.
-- Switch the web app to the canonical names: `id`, `accountId`, `todayBalance`, `day`, `category`, `name`.
+**What changed**
+- One edge filter instead of per-resource DTO functions: `serialize()` has 115 call sites, so
+  `apps/server/src/utils/publicFields.js` strips fields once in the response envelope, at any depth.
+- Never sent: `userId`, `passwordHash`, `createdAt`, `updatedAt`, `heldByDay`, `itemNetMap`, `originalDate`,
+  `username`. No web or mobile code reads them (mobile's only `createdAt` is its local outbox).
+- Simulation duplicates removed: `accountDailyBalances` (same curves as `accountSimulations[id].dailyBalances`),
+  `accountSummaries` (same as `simulation.accounts`, which the mobile app reads, so the map is the one kept) and
+  `intradayEvents` (the chart takes a day's events from `simulation.events`). The Plan page reads the kept copies.
+- Month detail for the dev month: 106 KB → 39 KB.
+- Mobile fixtures re-recorded. Before that, the old fixtures were checked against the live API with only the
+  removed keys ignored, and every other field was still served. The Dart model contract test passes on the new ones.
 
-**Done when**
-- `mobile_contract_fixtures.test.js` and `api_v1_parity.test.js` pass (installed phones keep working).
-- A snapshot test per DTO fails if a field is added without updating the allowlist.
-- The month detail response is under 50 KB for the seeded test month (it is 106 KB today).
+**Done when** (met)
+- `test/public_contract.test.js`: no removed field appears at any depth in auth, accounts, month detail or either
+  transaction list, and the account, transaction, user and month key sets are pinned, so a new column fails CI
+  until it is added on purpose.
+- `mobile_contract_fixtures.test.js` and `api_v1_parity.test.js` pass.
+
+**Left for later**
+- Aliases the web still reads (`_id`, `bankAccountId`, `tag`, `dayOfMonth`, `originalDay`, `todaysBalance`) stay
+  until the web moves to canonical names (Phase 8).
+- Full events copied into `days[].events` stay: the installed APK reads them (Phase 7).
+- Null fields are still sent, because some web code checks `=== null`.
 
 ---
 
