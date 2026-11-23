@@ -10,7 +10,7 @@ import { CardService } from './cardService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { loadAccountTypeMap, attachAccountTypes } from '../utils/accountTypes.js';
-import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
+import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 import { MonthTransitions } from './monthTransitions.js';
 
 // Re-exported for existing importers
@@ -586,13 +586,7 @@ export const MonthLifecycle = {
         where: and(
           eq(s.transactions.userId, userId),
           eq(s.transactions.monthId, month.id),
-          or(
-            eq(s.transactions.origin, 'salary'),
-            eq(s.transactions.category, 'Salary'),
-            eq(s.transactions.category, 'Income'),
-            eq(s.transactions.name, 'Monthly Salary'),
-            eq(s.transactions.name, 'Expected Monthly Salary')
-          )
+          salaryTxCondition()
         ),
         orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
       });

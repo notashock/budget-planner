@@ -4,6 +4,7 @@ import { db, connectionOptions } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { SalaryTemplateService } from './salaryTemplateService.js';
 import { isHistoricalPastMonth } from '../domain/monthLifecycle.js';
+import { salaryTxCondition } from '../domain/monthHelpers.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -76,13 +77,7 @@ export const SalaryCycleJob = {
           where: and(
             eq(s.transactions.userId, userId),
             eq(s.transactions.monthId, month.id),
-            or(
-              eq(s.transactions.origin, 'salary'),
-              eq(s.transactions.category, 'Salary'),
-              eq(s.transactions.category, 'Income'),
-              eq(s.transactions.name, 'Monthly Salary'),
-              eq(s.transactions.name, 'Expected Monthly Salary')
-            )
+            salaryTxCondition()
           ),
           orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
         });
@@ -114,13 +109,7 @@ export const SalaryCycleJob = {
           where: and(
             eq(s.transactions.userId, userId),
             eq(s.transactions.monthId, month.id),
-            or(
-              eq(s.transactions.origin, 'salary'),
-              eq(s.transactions.category, 'Salary'),
-              eq(s.transactions.category, 'Income'),
-              eq(s.transactions.name, 'Monthly Salary'),
-              eq(s.transactions.name, 'Expected Monthly Salary')
-            )
+            salaryTxCondition()
           ),
           orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
         });

@@ -1,8 +1,5 @@
 import { pool } from '../db/index.js';
 
-// Held & Lent (pass-through) origins: they move cash but are never income or expense
-const CASH_IN_PASS_THROUGH = ['held_in', 'lent_repaid'];
-const CASH_OUT_PASS_THROUGH = ['held_return', 'lent_out'];
 
 /**
  * LedgerService: Core Domain Service for Account Balances and Immutable Ledger Operations.
@@ -10,77 +7,12 @@ const CASH_OUT_PASS_THROUGH = ['held_return', 'lent_out'];
  */
 export const LedgerService = {
   /**
-   * Adjusts the materialized current_balance of an account by delta.
-   * Multiplier is 1 for applying, -1 for reverting.
+   * Kept for the callers that run after a transaction write. The trg_transactions_sync_balance
+   * trigger (migrate_ledger_and_materialized_balances.js) recomputes current_balance from the ledger
+   * on every insert, update and delete, so adding a delta here as well would count it twice.
    */
-  async adjustAccountBalance(accountId, deltaAmount, client = null) {
-    if (!accountId || deltaAmount === 0) return;
-    const executor = client || pool;
-    await executor.query(
-      `UPDATE "accounts" 
-       SET "current_balance" = "current_balance" + $1, "updated_at" = NOW() 
-       WHERE "id" = $2`,
-      [deltaAmount, accountId]
-    );
-  },
-
-  /**
-   * Applies the balance impact of a settled transaction to its linked accounts.
-   * multiplier: +1 when adding or marking paid, -1 when deleting or cancelling.
-   */
-  async applyTransactionBalance(tx, multiplier = 1, client = null) {
-    if (!tx || tx.status !== 'successful') return;
-
-    const amount = Number(tx.amount) || 0;
-    if (amount === 0) return;
-
-    if (tx.origin === 'transfer') {
-      // Paired transfer: deduct from source, credit destination
-      if (tx.accountId) {
-        await this.adjustAccountBalance(tx.accountId, -1 * multiplier * amount, client);
-      }
-      if (tx.destinationAccountId) {
-        await this.adjustAccountBalance(tx.destinationAccountId, 1 * multiplier * amount, client);
-      }
-    } else if (CASH_IN_PASS_THROUGH.includes(tx.origin)) {
-      // Held & Lent money coming in (held_in, lent_repaid): credit account, never income
-      if (tx.accountId) {
-        await this.adjustAccountBalance(tx.accountId, 1 * multiplier * Math.abs(amount), client);
-      }
-    } else if (CASH_OUT_PASS_THROUGH.includes(tx.origin)) {
-      // Held & Lent money going out (held_return, lent_out): debit account, never expense
-      if (tx.accountId) {
-        await this.adjustAccountBalance(tx.accountId, -1 * multiplier * Math.abs(amount), client);
-      }
-    } else if (tx.isIncome) {
-      // Income: credit account
-      if (tx.accountId) {
-        await this.adjustAccountBalance(tx.accountId, 1 * multiplier * amount, client);
-      }
-    } else {
-      // Expense / Debit: deduct from account
-      if (tx.accountId) {
-        await this.adjustAccountBalance(tx.accountId, -1 * multiplier * amount, client);
-      }
-    }
-  },
-
-  /**
-   * Calculates net balance impact for transaction edits (oldTx -> newTx).
-   */
-  async handleTransactionUpdateBalance(oldTx, newTx, client = null) {
-    if (!oldTx || !newTx) return;
-
-    // 1. Revert old transaction if it was successful
-    if (oldTx.status === 'successful') {
-      await this.applyTransactionBalance(oldTx, -1, client);
-    }
-
-    // 2. Apply new transaction if it is successful
-    if (newTx.status === 'successful') {
-      await this.applyTransactionBalance(newTx, 1, client);
-    }
-  },
+  async applyTransactionBalance() {},
+  async handleTransactionUpdateBalance() {},
 
   /**
    * Recalculates and updates the materialized current_balance for a single account from ledger truth.
