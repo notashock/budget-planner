@@ -1,0 +1,294 @@
+<title>Plan Page Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one phone-sized app column; on wide screens a facilitator panel sits beside it. */
+:root {
+  --bg: #eef0f3;
+  --screen: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #14171c;
+  --muted: #6b7380;
+  --line: #e2e5ea;
+  --accent: #2563d9;
+  --good: #1f8a4c;
+  --warn: #b26a00;
+  --bad: #c4352b;
+  --chart: #2563d9;
+  --chart-fill: rgba(37, 99, 217, 0.12);
+  --scrim: rgba(10, 14, 20, 0.35);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b0d10; --screen: #000000; --surface: #16191e; --fg: #f2f4f7; --muted: #98a0ad; --line: #2a2f37;
+  --accent: #5b8ff0; --good: #3fbf72; --warn: #e6a23c; --bad: #ef6a5f; --chart: #5b8ff0;
+  --chart-fill: rgba(91, 143, 240, 0.18); --scrim: rgba(0, 0, 0, 0.6); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0b0d10; --screen: #000000; --surface: #16191e; --fg: #f2f4f7; --muted: #98a0ad; --line: #2a2f37;
+  --accent: #5b8ff0; --good: #3fbf72; --warn: #e6a23c; --bad: #ef6a5f; --chart: #5b8ff0;
+  --chart-fill: rgba(91, 143, 240, 0.18); --scrim: rgba(0, 0, 0, 0.6); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 17px; line-height: 1.35;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px; }
+.amt { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+.stage { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.phone { width: 100%; max-width: 390px; background: var(--screen); border-radius: 36px; border: 1px solid var(--line);
+  overflow: hidden; position: relative; min-height: 760px; display: flex; flex-direction: column; }
+.app { flex: 1; padding: 20px 20px 96px; display: flex; flex-direction: column; gap: 22px; }
+
+/* Three text sizes: title 34, body 17, caption 13 */
+.top { display: flex; justify-content: space-between; align-items: baseline; }
+h1 { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.caption { font-size: 13px; color: var(--muted); }
+.month { font-size: 17px; color: var(--accent); }
+
+.pills { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+.pill { flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: 13px; }
+.pill b { font-weight: 600; margin-left: 4px; }
+.pill[aria-pressed="true"] { background: var(--fg); color: var(--screen); border-color: var(--fg); }
+
+.hero { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; }
+.big { font-size: 34px; font-weight: 700; }
+.hero .big { font-size: 56px; line-height: 1.05; letter-spacing: -0.02em; }
+.status { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.spark { width: 100%; height: 60px; display: block; margin-top: 8px; }
+
+.group h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px 4px; }
+.list { background: var(--surface); border-radius: 14px; overflow: hidden; }
+.row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); width: 100%; text-align: left; }
+.row:first-child { border-top: 0; }
+.row .when { font-size: 13px; color: var(--muted); display: block; }
+.row .when.overdue { color: var(--bad); }
+.check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; }
+.row.paid .name, .row.paid .amt { color: var(--muted); text-decoration: line-through; }
+.row.paid .check { background: var(--good); border-color: var(--good); }
+.row.paid .check::after { content: ""; width: 7px; height: 12px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.chev { color: var(--muted); }
+
+.tabs { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface);
+  border-top: 1px solid var(--line); padding: 8px 0 18px; }
+.tab { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tab[aria-current="page"] { color: var(--accent); }
+.tab svg { width: 22px; height: 22px; }
+.fab { position: absolute; right: 20px; bottom: 82px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff;
+  font-size: 30px; line-height: 56px; text-align: center; box-shadow: 0 6px 16px rgba(0,0,0,0.18); }
+
+.scrim { position: absolute; inset: 0; background: var(--scrim); display: flex; align-items: flex-end; z-index: 5; }
+.sheet { background: var(--screen); width: 100%; border-radius: 20px 20px 0 0; padding: 12px 20px 28px; max-height: 92%; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px; animation: up 0.22s ease-out; }
+@keyframes up { from { transform: translateY(24px); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+.grab { width: 36px; height: 5px; border-radius: 3px; background: var(--line); align-self: center; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; }
+.sheet-head h2 { font-size: 17px; font-weight: 600; margin: 0; }
+.done { color: var(--accent); font-weight: 600; }
+.chart { width: 100%; height: 220px; display: block; }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-radius: 14px; overflow: hidden; }
+.kv div { background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.toast { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); background: var(--fg); color: var(--screen);
+  font-size: 13px; padding: 8px 14px; border-radius: 999px; z-index: 6; white-space: nowrap; }
+.toast button { color: inherit; font-weight: 600; margin-left: 10px; text-decoration: underline; }
+
+.notes { max-width: 380px; display: flex; flex-direction: column; gap: 14px; font-size: 15px; min-width: 0; }
+.notes h2 { font-size: 17px; margin: 0; }
+.notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.notes p { margin: 0; color: var(--muted); }
+.reset { align-self: flex-start; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 14px; font-size: 15px; }
+</style>
+
+<div class="stage">
+  <div class="phone" id="phone">
+    <main class="app" aria-label="Plan">
+      <div class="top">
+        <h1>Plan</h1>
+        <span class="month">November ▾</span>
+      </div>
+
+      <div class="pills" role="group" aria-label="Accounts" id="pills"></div>
+
+      <button class="hero" id="hero" aria-label="Open the balance chart">
+        <span class="big amt" id="safe"></span>
+        <span class="caption"><span class="status"><span class="dot" id="dot"></span><span id="safeCaption"></span></span></span>
+        <svg class="spark" id="spark" viewBox="0 0 350 60" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </button>
+
+      <section class="group" aria-labelledby="dueTitle">
+        <h2 id="dueTitle">Due soon</h2>
+        <div class="list" id="due"></div>
+      </section>
+
+      <section class="group">
+        <div class="list">
+          <button class="row" id="worth" style="grid-template-columns: 1fr auto auto;">
+            <span>Net worth</span>
+            <span><span class="amt">₹33,500</span> <span class="caption" style="color: var(--good)">↑ ₹1,200</span></span>
+            <span class="chev" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <p class="caption" style="margin: 8px 4px 0">Updated 2 min ago</p>
+      </section>
+    </main>
+
+    <button class="fab" aria-label="New entry">+</button>
+    <nav class="tabs" aria-label="Tabs">
+      <a class="tab" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-5 4 3 8-8"/></svg>Plan</a>
+      <a class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Transactions</a>
+      <a class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Accounts</a>
+      <a class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Settings</a>
+    </nav>
+    <div id="layer"></div>
+  </div>
+
+  <aside class="notes" aria-label="For the person running the session">
+    <h2>Running a session</h2>
+    <p>Example data for Monday 23 November. Hand the phone over on this screen, read one task, and start a stopwatch. Stop it when they say the answer.</p>
+    <ol>
+      <li>Can you spend ₹500 today?</li>
+      <li>What's due this week?</li>
+      <li>What's in HDFC right now?</li>
+    </ol>
+    <p>Answers: no (₹420 is safe today). SIP ₹3,000 today, Electricity ₹1,200 overdue, Internet ₹1,000 on Saturday. HDFC has ₹34,000.</p>
+    <button class="reset" id="reset">Reset the prototype</button>
+  </aside>
+</div>
+
+<script>
+const ACCOUNTS = [
+  { id: 'all', name: 'All', balance: 35500, safe: 420, floor: 10000 },
+  { id: 'hdfc', name: 'HDFC', balance: 34000, safe: 380, floor: 10000 },
+  { id: 'paytm', name: 'Paytm', balance: 1500, safe: 40, floor: 0 }
+];
+// Daily closing balance for days 1-30; days after the 23rd are planned
+const CURVES = {
+  all:   [51000,51000,50200,50200,36000,36000,35400,35400,35400,34900,34900,34100,34100,34100,33800,33800,33800,33200,33200,33200,32900,32900,35500,35500,35500,35500,35500,29500,29500,29500],
+  hdfc:  [49000,49000,48200,48200,34000,34000,33600,33600,33600,33300,33300,32700,32700,32700,32500,32500,32500,32100,32100,32100,31900,31900,34000,34000,34000,34000,34000,28000,28000,28000],
+  paytm: [2000,2000,2000,2000,2000,2000,1800,1800,1800,1600,1600,1400,1400,1400,1300,1300,1300,1100,1100,1100,1000,1000,1500,1500,1500,1500,1500,1500,1500,1500]
+};
+const TODAY = 23;
+const START_DUE = [
+  { id: 'sip', name: 'SIP', when: 'Today', amount: 3000, account: 'hdfc' },
+  { id: 'elec', name: 'Electricity', when: 'Overdue', amount: 1200, account: 'hdfc' },
+  { id: 'net', name: 'Internet', when: 'Sat 28', amount: 1000, account: 'hdfc' }
+];
+const fmt = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+let state = { account: 'all', paid: {} };
+const $ = (id) => document.getElementById(id);
+
+function pathFor(values, w, h, pad) {
+  const min = Math.min(...values), max = Math.max(...values);
+  const x = (i) => pad + (i / (values.length - 1)) * (w - 2 * pad);
+  const y = (v) => pad + (1 - (v - min) / (max - min || 1)) * (h - 2 * pad);
+  return { d: values.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' '), x, y, min, max };
+}
+
+function render() {
+  const acc = ACCOUNTS.find((a) => a.id === state.account);
+  $('pills').innerHTML = ACCOUNTS.map((a) =>
+    `<button class="pill" aria-pressed="${a.id === state.account}" data-id="${a.id}">${a.name}<b class="amt">${fmt(a.balance)}</b></button>`).join('');
+  $('safe').textContent = fmt(acc.safe);
+  $('safeCaption').textContent = 'safe to spend today · 8 days left';
+  $('dot').style.background = acc.safe < 100 ? 'var(--warn)' : 'var(--good)';
+  $('hero').setAttribute('aria-label', `${fmt(acc.safe)} safe to spend today. Open the balance chart`);
+
+  const curve = CURVES[acc.id];
+  const p = pathFor(curve, 350, 60, 4);
+  // Past days in the accent colour, planned days in grey
+  $('spark').innerHTML =
+    `<path d="${p.d}" fill="none" stroke="var(--line)" stroke-width="2"/>` +
+    `<path d="${p.d.split(' L').slice(0, TODAY).join(' L')}" fill="none" stroke="var(--chart)" stroke-width="2"/>` +
+    `<circle cx="${p.x(TODAY - 1)}" cy="${p.y(curve[TODAY - 1])}" r="3.5" fill="var(--chart)"/>`;
+
+  const rows = START_DUE.filter((d) => acc.id === 'all' || d.account === acc.id);
+  $('due').innerHTML = rows.length ? rows.map((d) => `
+    <div class="row ${state.paid[d.id] ? 'paid' : ''}">
+      <span><span class="name">${d.name}</span><span class="when ${d.when === 'Overdue' ? 'overdue' : ''}">${d.when}</span></span>
+      <span class="amt">${fmt(d.amount)}</span>
+      <button class="check" data-pay="${d.id}" aria-pressed="${!!state.paid[d.id]}" aria-label="Mark ${d.name} paid"></button>
+    </div>`).join('') : '<div class="row"><span class="caption">Nothing due this week</span></div>';
+}
+
+function openSheet(title, body) {
+  $('layer').innerHTML = `<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="grab"></div><div class="sheet-head"><h2>${title}</h2><button class="done" id="close">Done</button></div>${body}</div></div>`;
+  $('close').focus();
+  $('close').onclick = closeSheet;
+  $('scrim').onclick = (e) => { if (e.target.id === 'scrim') closeSheet(); };
+}
+function closeSheet() { $('layer').innerHTML = ''; $('hero').focus(); }
+
+function chartSheet() {
+  const acc = ACCOUNTS.find((a) => a.id === state.account);
+  const curve = CURVES[acc.id];
+  const W = 350, H = 220, pad = 28;
+  const lo = Math.min(...curve, acc.floor), hi = Math.max(...curve);
+  const x = (i) => pad + (i / 29) * (W - 2 * pad);
+  const y = (v) => 10 + (1 - (v - lo) / (hi - lo || 1)) * (H - 40);
+  const d = curve.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const lowIdx = curve.indexOf(Math.min(...curve.slice(TODAY - 1)), TODAY - 1);
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily balance for November. Lowest ${fmt(curve[lowIdx])} on the ${lowIdx + 1}th">
+    <path d="${d} L${x(29)} ${H - 30} L${x(0)} ${H - 30} Z" fill="var(--chart-fill)"/>
+    <path d="${d}" fill="none" stroke="var(--chart)" stroke-width="2"/>
+    ${acc.floor ? `<line x1="${pad}" x2="${W - pad}" y1="${y(acc.floor)}" y2="${y(acc.floor)}" stroke="var(--warn)" stroke-dasharray="4 4"/>
+    <text x="${W - pad}" y="${y(acc.floor) - 5}" text-anchor="end" font-size="11" fill="var(--warn)">Keep at least ${fmt(acc.floor)}</text>` : ''}
+    <line x1="${x(TODAY - 1)}" x2="${x(TODAY - 1)}" y1="10" y2="${H - 30}" stroke="var(--muted)" stroke-width="1"/>
+    <circle cx="${x(lowIdx)}" cy="${y(curve[lowIdx])}" r="4" fill="var(--bad)"/>
+    <text x="${x(0)}" y="${H - 12}" font-size="11" fill="var(--muted)">1 Nov</text>
+    <text x="${x(TODAY - 1)}" y="${H - 12}" font-size="11" fill="var(--muted)" text-anchor="middle">Today</text>
+    <text x="${x(29)}" y="${H - 12}" font-size="11" fill="var(--muted)" text-anchor="end">30 Nov</text>
+  </svg>`;
+  openSheet(`${acc.name} · November`, `${svg}
+    <div class="kv">
+      <div><span class="caption">Left after bills</span><span class="amt">${fmt(curve[29])}</span></div>
+      <div><span class="caption">Lowest point</span><span class="amt">${fmt(curve[lowIdx])} on ${lowIdx + 1} Nov</span></div>
+      <div><span class="caption">Spent this month</span><span class="amt">${fmt(curve[0] - curve[TODAY - 2])}</span></div>
+      <div><span class="caption">Keep at least</span><span class="amt">${fmt(acc.floor)}</span></div>
+    </div>`);
+}
+
+function worthSheet() {
+  openSheet('Net worth', `<div class="list">
+    <div class="row" style="grid-template-columns:1fr auto"><span>Bank and wallets</span><span class="amt">₹35,500</span></div>
+    <div class="row" style="grid-template-columns:1fr auto"><span>Others owe you</span><span class="amt">₹500</span></div>
+    <div class="row" style="grid-template-columns:1fr auto"><span>Credit card</span><span class="amt">−₹2,500</span></div>
+    <div class="row" style="grid-template-columns:1fr auto"><b>Net worth</b><b class="amt">₹33,500</b></div>
+  </div><p class="caption">In the app this opens the Net worth section on Accounts.</p>`);
+}
+
+let toastTimer;
+function toast(text, undoId) {
+  clearTimeout(toastTimer);
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'toast'; t.setAttribute('role', 'status');
+  t.innerHTML = text + (undoId ? `<button data-undo="${undoId}">Undo</button>` : '');
+  $('phone').appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), 3500);
+}
+
+$('phone').addEventListener('click', (e) => {
+  const pill = e.target.closest('[data-id]');
+  if (pill) { state.account = pill.dataset.id; render(); return; }
+  const pay = e.target.closest('[data-pay]');
+  if (pay) {
+    const id = pay.dataset.pay; state.paid[id] = !state.paid[id]; render();
+    if (state.paid[id]) toast(`${START_DUE.find((d) => d.id === id).name} marked paid`, id);
+    return;
+  }
+  const undo = e.target.closest('[data-undo]');
+  if (undo) { state.paid[undo.dataset.undo] = false; render(); undo.parentElement.remove(); return; }
+  if (e.target.closest('#hero')) chartSheet();
+  else if (e.target.closest('#worth')) worthSheet();
+  else if (e.target.closest('.fab')) toast('New entry opens here');
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('layer').innerHTML) closeSheet(); });
+$('reset').onclick = () => { state = { account: 'all', paid: {} }; closeSheet(); render(); };
+render();
+</script>
