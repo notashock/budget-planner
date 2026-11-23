@@ -101,7 +101,7 @@ describe('Header Dropdown and Plan Form Account Balance Audit', () => {
     );
 
     // Should display Plan tab active
-    expect(screen.getByText('Dedicated Account *')).toBeInTheDocument();
+    expect(screen.getByText('Pay from')).toBeInTheDocument();
     // Account select should show HDFC Salary Bank
     expect(screen.getByText('HDFC Salary Bank')).toBeInTheDocument();
     // Balance displayed beside account should be ₹42,000.00 (not stale ₹50,000)

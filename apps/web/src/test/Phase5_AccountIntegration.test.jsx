@@ -252,8 +252,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       // Transfers live in the Move tab (accounts, cards and people)
       expect(screen.getByRole('button', { name: /^Move$/i })).toBeInTheDocument();
 
-      // Payment Account selector exists in Log mode
-      expect(screen.getByText(/Payment Account/)).toBeInTheDocument();
+      // The account row exists in Log mode
+      expect(screen.getByText('Paid from')).toBeInTheDocument();
     });
 
     it('displays Bank Account Required notice and disables submit when zero accounts exist', () => {
@@ -387,7 +387,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      const nameInput = screen.getByPlaceholderText(/e\.g\. Rent, Electricity/i);
+      const nameInput = screen.getByPlaceholderText(/Rent, electricity/i);
       fireEvent.change(nameInput, { target: { value: 'Electricity Bill' } });
 
       const amountInput = screen.getByPlaceholderText('0.00');
@@ -427,8 +427,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const transferTabBtn = screen.getByRole('button', { name: /^Move$/i });
       fireEvent.click(transferTabBtn);
 
-      expect(screen.getByText(/Source Account \(Outflow\)/i)).toBeInTheDocument();
-      expect(screen.getByText(/Destination Account \(Inflow\)/i)).toBeInTheDocument();
+      expect(screen.getByText('From')).toBeInTheDocument();
+      expect(screen.getByText('To')).toBeInTheDocument();
 
       // Fill in amount
       const amountInput = screen.getByPlaceholderText('0.00');
