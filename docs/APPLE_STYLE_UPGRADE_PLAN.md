@@ -37,19 +37,19 @@ in `docs/ENTRY_FORMS_UX_UPGRADE_PLAN.md`, which is mostly shipped.
 │ ...screen content...                  │
 │                                       │
 │ ┌───────────────────────────────────┐ │
-│ │ ₹420 safe today   │  Add spend…  ＋│ │ ← Today bar (blurred material), 56 px
+│ │ ＋  Add spend…                      │ │ ← Today bar (blurred material), 56 px
 │ └───────────────────────────────────┘ │
 │  Plan  Transactions  Goals  Accounts  │ ← tab bar, 4 tabs, no centre button
 └───────────────────────────────────────┘
 ```
 
 - **Tab bar:** Plan, Transactions, Goals, Accounts. The floating **+** goes away; adding moves to the Today bar.
-- **Today bar** sits above the tab bar on every tab, like the mini player:
-  - left side: safe to spend today. On Plan, where the hero already shows that number, it reads "Add spend…"
-    instead, so the number never appears twice on one screen.
+- **Today bar** sits above the tab bar on every tab, like the mini player. It holds only the Add field (decided
+  2026-11-23); safe to spend stays on the Plan page.
   - tap anywhere opens the entry sheet on Spend, with the amount field focused; long-press opens a menu with
     Spend, Income, Plan and Move.
-  - while there are unsynced entries, the left side reads "2 waiting to sync" (replacing the separate sync strip).
+  - while there are unsynced entries, it reads "2 waiting to sync" beside the field (replacing the separate sync
+    strip).
 - **Avatar** at the right of every large title opens the **You** sheet: theme, app lock, server, the Assistant,
   sign out. Assistant leaves the main navigation.
 - Android keeps its own behaviour: predictive back, edge to edge, 48 dp targets (mobile plan 3.2). This replaces only
@@ -262,7 +262,7 @@ One set of tokens in `apps/web/src/styles/tokens.css`, mirrored in `apps/mobile/
 | Token | Value |
 |---|---|
 | Type | 3 sizes per screen: **Large title** 34 (web 32), **Body** 17 (web 15), **Caption** 13 (web 12). The hero number is the one exception (56 mobile, 44 web). Every amount uses tabular figures. |
-| Colour | Neutrals with a slight cool tint; **one accent** for interactive elements; status colours (green, amber, red) only for status. Each has a light and a dark value that pass AA contrast. |
+| Colour | Neutrals with a slight cool tint; **one brand accent, deep blue** (`--brand` #2563D9 light, #6B9BF5 dark) for buttons, links, the selected tab and focus rings; status colours (green, amber, red) only for status. Blue keeps clear of all three status colours, so the existing emerald `--primary` is retired as an accent. Each colour has a light and a dark value that pass AA contrast. |
 | Materials | Blurred, translucent backgrounds only on things that float over content: compact header, Today bar, tab bar, web toolbar. |
 | Shape | Grouped lists 12 radius, sheets 20 (top corners on mobile), cards in shelves 16, pills fully round. |
 | Spacing | 16 side margins on phones, 24 on web; 8-point grid; 32 between sections. |
@@ -296,8 +296,9 @@ touches different files; F and G last.
 - **The account pills stay on phones only.** On web the sidebar's account list does the same job.
 - **Sheet top bar (Cancel / Add)** replaces the sticky footer from entry plan §5.1.
 
-## 9. Open questions for the owner
+## 9. Answered by the owner (2026-11-23)
 
-1. Is moving Assistant out of the main navigation acceptable, or should it stay a tab?
-2. Should the Today bar show safe to spend on every tab, or only the Add field?
-3. Accent colour: keep the current near-black, or pick a brand colour for buttons and links?
+1. **Assistant** moves out of the main navigation: the You sheet on phones, the foot of the sidebar on web.
+2. **Today bar** shows only the Add field. Safe to spend is on the Plan page and in the web toolbar's Today lozenge.
+3. **Accent:** a brand colour instead of near-black. Proposed deep blue (§6); swap the one token if another hue is
+   preferred before Phase A ships.
