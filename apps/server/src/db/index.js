@@ -465,6 +465,18 @@ export function isDatabaseInitialized() {
   return isInitialized;
 }
 
+// Account balances follow the ledger through this trigger; without it no write moves a balance.
+// Serverless deploys never run runMigrations on an existing database, so install it here.
+export async function ensureBalanceTrigger() {
+  const { rows } = await pool.query(
+    `SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_transactions_sync_balance') AS has_balance_trigger;`
+  );
+  if (!rows[0]?.has_balance_trigger) {
+    console.log('[DevOps Auto-Init] Installing the ledger balance trigger and recomputing balances...');
+    await migrateLedgerAndMaterializedBalances();
+  }
+}
+
 export async function ensureDatabaseInitialized() {
   if (isInitialized) {
     return;
@@ -527,6 +539,7 @@ export async function ensureDatabaseInitialized() {
           console.log('[DevOps Auto-Init] Adding idempotency_keys table...');
           await syncIdempotencySchema();
         }
+        await ensureBalanceTrigger();
       }
 
       isInitialized = true;

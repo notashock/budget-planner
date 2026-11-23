@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { db, pool, runMigrations } from '../src/db/index.js';
+import { db, pool, runMigrations, ensureBalanceTrigger } from '../src/db/index.js';
 import * as s from '../src/db/schema.js';
 import { and, eq } from 'drizzle-orm';
 import { MonthLifecycle } from '../src/domain/monthLifecycle.js';
@@ -59,6 +59,14 @@ describe('Ledger balance stays in sync', () => {
     expect(res.status).toBeLessThan(300);
     expect(await stored(bankId)).toBe(9850);
     await db.delete(s.transactions).where(eq(s.transactions.userId, userId));
+  });
+
+  it('serverless start-up installs the trigger on a database that lacks it', async () => {
+    // Production never runs runMigrations on an existing database, only ensureDatabaseInitialized
+    await pool.query('DROP TRIGGER IF EXISTS "trg_transactions_sync_balance" ON "transactions"');
+    await ensureBalanceTrigger();
+    const { rows } = await pool.query(`SELECT 1 FROM pg_trigger WHERE tgname = 'trg_transactions_sync_balance'`);
+    expect(rows).toHaveLength(1);
   });
 
   it('crediting salary adds the salary even when a refund is filed under "Salary"', async () => {
