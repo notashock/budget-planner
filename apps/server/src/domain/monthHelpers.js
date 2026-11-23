@@ -1,4 +1,4 @@
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { LedgerService } from './ledgerService.js';
@@ -62,3 +62,12 @@ export async function attachAccountOpeningsToMonth(month) {
     ]
   };
 }
+
+// The month's salary row (cycle job, credit-salary, month edit). Never matched by category alone:
+// a refund filed under "Salary" or "Income" must not be taken for the salary.
+export const salaryTxCondition = () => or(
+  eq(s.transactions.origin, 'salary'),
+  eq(s.transactions.name, 'Monthly Salary'),
+  eq(s.transactions.name, 'Expected Monthly Salary'),
+  and(eq(s.transactions.note, 'Monthly Salary'), eq(s.transactions.isIncome, true))
+);
