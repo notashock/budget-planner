@@ -610,3 +610,20 @@
 .settle-intro {
   margin: 0 0 var(--space-1);
 }
+
+/* Narrow sheets: the primary action gets its own full-width row, Cancel and
+   "Save & add another" share the row under it, so nothing runs off the edge */
+@container (max-width: 440px) {
+  .modal-footer-row .entry-row-13 {
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+  }
+  .modal-footer-row .entry-row-13 > .btn-primary {
+    order: -1;
+    flex: 1 1 100%;
+  }
+  .modal-footer-row .entry-row-13 > .btn-subtle {
+    flex: 1 1 0;
+  }
+}

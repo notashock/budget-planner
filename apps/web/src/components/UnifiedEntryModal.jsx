@@ -276,6 +276,8 @@ export function UnifiedEntryModal({
   const touchStartTime = useRef(0);
   const touchStartScrollTop = useRef(0);
   const isDraggingSheet = useRef(false);
+  // A touch that starts inside an open dropdown list scrolls that list, never the sheet
+  const touchInDropdown = useRef(false);
 
   // Initialize or reset state on open / initialItem change
   useEffect(() => {
@@ -661,12 +663,19 @@ export function UnifiedEntryModal({
     if (typeof window === 'undefined' || window.innerWidth >= 768) return;
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
-    touchStartScrollTop.current = contentRef.current ? contentRef.current.scrollTop : 0;
+    touchInDropdown.current = Boolean(e.target.closest?.('.app-dropdown-menu, .datepicker-popover, [role="listbox"]'));
+    // Drag the sheet down only when whatever is under the finger is scrolled to its top
+    let scroller = e.target;
+    while (scroller && scroller !== contentRef.current && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) {
+      scroller = scroller.parentElement;
+    }
+    touchStartScrollTop.current = (scroller || contentRef.current)?.scrollTop ?? 0;
     isDraggingSheet.current = false;
   };
 
   const handleTouchMove = (e) => {
     if (typeof window === 'undefined' || window.innerWidth >= 768 || !contentRef.current) return;
+    if (touchInDropdown.current) return;
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY.current;
 

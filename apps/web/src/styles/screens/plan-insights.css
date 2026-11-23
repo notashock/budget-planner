@@ -1236,6 +1236,13 @@
   flex-shrink: 0;
 }
 
+/* Menus in the header's right-hand actions open toward the screen, not off its edge */
+.screen-header-actions .app-dropdown-menu {
+  left: auto;
+  right: 0;
+  max-width: calc(100vw - 32px);
+}
+
 .screen-header-compact {
   position: fixed;
   top: var(--toolbar-h);

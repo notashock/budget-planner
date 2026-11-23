@@ -178,3 +178,32 @@ describe('Several refunds on one spend use what is left, not the original amount
     expect(await screen.findByRole('alert')).toHaveTextContent('Only ₹1,100.24 of Movie ticket is left to refund.');
   });
 });
+
+describe('Scrolling the link list on a phone', () => {
+  it('scrolls the list without dragging or expanding the entry sheet', () => {
+    const width = window.innerWidth;
+    window.innerWidth = 375;
+    try {
+      const { container } = renderEntry();
+      openRefund();
+      fireEvent.click(screen.getByRole('button', { name: /Refund for/ }));
+      const sheet = container.ownerDocument.querySelector('.modal-content');
+      const row = screen.getByText('Running shoes');
+
+      fireEvent.touchStart(row, { touches: [{ clientY: 400 }] });
+      fireEvent.touchMove(row, { touches: [{ clientY: 330 }] }); // swipe up: would expand the sheet
+      fireEvent.touchMove(row, { touches: [{ clientY: 480 }] }); // swipe down: would drag it shut
+      fireEvent.touchEnd(row, { changedTouches: [{ clientY: 480 }] });
+      expect(sheet).not.toHaveClass('is-expanded');
+      expect(sheet.style.transform || '').not.toMatch(/80px/);
+
+      // The handle still drags the sheet
+      const handle = container.ownerDocument.querySelector('.modal-drag-zone');
+      fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+      fireEvent.touchMove(handle, { touches: [{ clientY: 140 }] });
+      expect(sheet.style.transform).toMatch(/40px/);
+    } finally {
+      window.innerWidth = width;
+    }
+  });
+});
