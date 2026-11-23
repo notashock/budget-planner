@@ -262,7 +262,7 @@ One set of tokens in `apps/web/src/styles/tokens.css`, mirrored in `apps/mobile/
 | Token | Value |
 |---|---|
 | Type | 3 sizes per screen: **Large title** 34 (web 32), **Body** 17 (web 15), **Caption** 13 (web 12). The hero number is the one exception (56 mobile, 44 web). Every amount uses tabular figures. |
-| Colour | Neutrals with a slight cool tint; **one brand accent, deep blue** (`--brand` #2563D9 light, #6B9BF5 dark) for buttons, links, the selected tab and focus rings; status colours (green, amber, red) only for status. Blue keeps clear of all three status colours, so the existing emerald `--primary` is retired as an accent. Each colour has a light and a dark value that pass AA contrast. |
+| Colour | Neutrals with a slight cool tint; **one brand accent, indigo** (`--brand` #4F46E5 light, #8B85FF dark) for buttons, links, the selected tab and focus rings; status colours (green, amber, red) only for status. Indigo keeps clear of all three status colours, so the existing emerald `--primary` is retired as an accent. Each colour has a light and a dark value that pass AA contrast. |
 | Materials | Blurred, translucent backgrounds only on things that float over content: compact header, Today bar, tab bar, web toolbar. |
 | Shape | Grouped lists 12 radius, sheets 20 (top corners on mobile), cards in shelves 16, pills fully round. |
 | Spacing | 16 side margins on phones, 24 on web; 8-point grid; 32 between sections. |
@@ -300,5 +300,5 @@ touches different files; F and G last.
 
 1. **Assistant** moves out of the main navigation: the You sheet on phones, the foot of the sidebar on web.
 2. **Today bar** shows only the Add field. Safe to spend is on the Plan page and in the web toolbar's Today lozenge.
-3. **Accent:** a brand colour instead of near-black. Proposed deep blue (§6); swap the one token if another hue is
-   preferred before Phase A ships.
+3. **Accent:** a brand colour instead of near-black: **indigo** (§6), chosen over deep blue, teal, violet and orange. It is one token if another hue is
+   wanted later.
