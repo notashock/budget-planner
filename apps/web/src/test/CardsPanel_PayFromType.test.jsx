@@ -44,6 +44,8 @@ describe('CardsPanel pay-from account (wallet-paid card)', () => {
     api.updateCard.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
 
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
+
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
     const form = await screen.findByTestId('card-form');
     expect(within(form).getByText('Cash Wallet')).toBeInTheDocument();
@@ -57,6 +59,8 @@ describe('CardsPanel pay-from account (wallet-paid card)', () => {
     api.getCards.mockResolvedValue([walletPaidCard]);
     api.payCardStatement.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pay bill' }));
     const form = await screen.findByTestId('pay-bill-form');
