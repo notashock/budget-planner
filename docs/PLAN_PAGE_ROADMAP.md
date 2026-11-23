@@ -84,11 +84,11 @@ aliases. Anything added to the database leaks to clients automatically.
 - Add `toAccountDTO`, `toTransactionDTO`, `toMonthDTO`, `toGoalDTO` and `toSettingsDTO`. Each is an explicit allowlist.
 - Never sent: `userId`, `legacyItemId`, `createdAt` / `updatedAt` (unless a screen shows them), `heldByDay`,
   `itemNetMap`.
-- Remove duplicates inside the same response:
-  - nested `simulation.accountSimulations` (no client reads it)
+- Remove duplicates inside the same response (`allEvents` and the nested `simulation.accountSimulations` are
+  already gone, removed in #16):
   - `simulation.accounts` map (keep the `accountSummaries` array)
   - full events copied into day points (send event indexes instead)
-- Keep the alias fields the clients still read (`_id`, `allEvents`, `days`, `todaysBalance`) until Phase 8,
+- Keep the alias fields the clients still read (`_id`, `days`, `todaysBalance`) until Phase 8,
   each listed in one `LEGACY_ALIASES` block so they are easy to delete later.
 - Switch the web app to the canonical names: `id`, `accountId`, `todayBalance`, `day`, `category`, `name`.
 
@@ -220,7 +220,7 @@ netWorth = Σ bank and wallet ledger balances
 **Scope**
 - Delete the `LEGACY_ALIASES` block:
   - `_id`, `bankAccountId` / `walletId`, `todaysBalance`, `dayOfMonth`, `tag` / `label` / `description`
-  - `allEvents`, `days` / `dailyBalances` (keep one), `accountDailyBalances`
+  - `days` / `dailyBalances` (keep one), `accountDailyBalances`
 - Remove the old month detail endpoint, or slim it down to `/summary` plus `/timeline`.
 - Update the contract fixtures.
 

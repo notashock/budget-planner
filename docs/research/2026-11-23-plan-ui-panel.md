@@ -154,8 +154,8 @@ connection.
 
 | Duplicate | Bytes wasted | Who reads it |
 |---|---|---|
-| `simulation.allEvents` is identical to `simulation.events` | 7,172 | mobile reads `allEvents`, falls back to `events` |
-| `simulation.accountSimulations` is identical to top-level `accountSimulations` | 17,224 | nobody reads the nested copy |
+| ~~`simulation.allEvents` is identical to `simulation.events`~~ (removed on `master` in #16) | 7,172 | mobile reads `allEvents`, falls back to `events` |
+| ~~`simulation.accountSimulations` is identical to top-level `accountSimulations`~~ (removed on `master` in #16) | 17,224 | nobody reads the nested copy |
 | `simulation.accounts` (map) is the same as `simulation.accountSummaries` (array) | 2,005 | web reads `accountSummaries` |
 | `simulation.accountDailyBalances[id]` is identical to `accountSimulations[id].dailyBalances` (not for `unassigned`) | 19,643 | web, as a fallback only |
 | Full event objects copied into every day point (`intradayEvents`, `days[].events`) across 4 curves | 21,443 | web chart tooltip, mobile day list |
@@ -187,7 +187,9 @@ column** plus compatibility aliases. There is no per-endpoint allowlist.
 
 ## Result if all of the above is applied
 
-**105,812 → 20,653 bytes (−80%)** for the period response, measured by applying each step to the real payload:
+**105,812 → 20,653 bytes (−80%)** for the period response, measured by applying each step to the real payload.
+These numbers were measured before #16 landed on `master`; that PR has already removed the `allEvents` and nested
+`accountSimulations` copies (24.4 KB of the total).
 
 | Step | Saves |
 |---|---|
