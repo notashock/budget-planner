@@ -450,7 +450,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
   });
 
   describe('GoalsScreen funding account', () => {
-    it('renders funding account selector in GoalsScreen and includes account details in goal submission', () => {
+    it('renders funding account selector in GoalsScreen and includes account details in goal submission', async () => {
       const handleCreateGoal = vi.fn();
       render(
         <GoalsScreen
@@ -461,7 +461,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText(/Funding Account \*/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'New goal' }));
+      expect(await screen.findByText(/Funding Account \*/i)).toBeInTheDocument();
 
       fireEvent.change(screen.getByPlaceholderText(/e\.g\. Noise Cancelling Headphones, Laptop/i), {
         target: { value: 'MacBook Pro M3' }

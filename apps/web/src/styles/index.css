@@ -28,6 +28,7 @@
 @import './screens/plan-insights.css' layer(app);
 @import './screens/transactions-list.css' layer(app);
 @import './screens/accounts-list.css' layer(app);
+@import './screens/goals-list.css' layer(app);
 @import './components/balance-chart.css' layer(app);
 @import './components/ui.css' layer(app);
 @import './components/held-lent.css' layer(app);

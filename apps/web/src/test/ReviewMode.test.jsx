@@ -238,7 +238,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       }
     ];
 
-    it('replaces goal input form with Goal Scorecard and hides card action buttons', () => {
+    it('has no new-goal button and the goal page has no actions', () => {
       render(
         <GoalsScreen
           month={closedMonth}
@@ -251,8 +251,10 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
         />
       );
 
-      expect(screen.queryByText(/Set Target Purchase/i)).toBeNull();
-      expect(screen.getByText(/Goal Scorecard \(Archive\)/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New goal' })).toBeNull();
+      expect(screen.getByText(/Review Archive/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Headphones/ }));
+      expect(screen.queryByRole('button', { name: /More actions/i })).toBeNull();
       expect(screen.queryByRole('button', { name: /Schedule/i })).toBeNull();
       expect(screen.queryByRole('button', { name: /Delete/i })).toBeNull();
     });
