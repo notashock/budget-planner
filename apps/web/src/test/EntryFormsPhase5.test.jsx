@@ -167,6 +167,7 @@ describe('Phase 5: card bill differences', () => {
     api.getCards.mockResolvedValue([draftCard]);
     api.confirmCardStatement.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     expect(await screen.findByTestId('bill-difference')).toHaveTextContent(/Matches what the app worked out/);
     fireEvent.change(screen.getByLabelText(/Bill amount/), { target: { value: '2041.20' } });

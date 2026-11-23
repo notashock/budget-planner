@@ -18,8 +18,10 @@ v1PersonFundsRouter.get('/:id', route(async (req, res) => res.success(await Pers
 
 v1PersonFundsRouter.patch('/:id', route(async (req, res) => res.success(await PersonFundService.updateFund(req.userId, req.params.id, req.body))));
 
-// DELETE only when nothing was logged against the person
-v1PersonFundsRouter.delete('/:id', route(async (req, res) => res.success(await PersonFundService.deleteFund(req.userId, req.params.id))));
+// DELETE refuses a person with entries unless ?withEntries=true, which deletes those entries too
+v1PersonFundsRouter.delete('/:id', route(async (req, res) => res.success(
+  await PersonFundService.deleteFund(req.userId, req.params.id, { withEntries: req.query.withEntries === 'true' })
+)));
 
 // POST /api/v1/person-funds/:id/entries { flow: 'in'|'out', amount, date?, accountId?, note?, status?, allowExceed? }
 v1PersonFundsRouter.post('/:id/entries', route(async (req, res) => (

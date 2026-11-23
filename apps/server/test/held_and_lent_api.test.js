@@ -261,4 +261,41 @@ describe('Held & Lent money API', () => {
     const current = await db.query.months.findFirst({ where: eq(s.months.userId, userId) });
     expect(res.body.data.monthId).toBe(current.id);
   });
+
+  it('editing an entry settles or reopens the person', async () => {
+    const created = await request(app).post('/api/v1/person-funds').set(auth)
+      .send({ personName: 'Edit Test', direction: 'lent', amount: 30000, date: day1, accountId });
+    expect(created.status).toBe(201);
+    const fundId = created.body.data.id;
+    const back = await request(app).post(`/api/v1/person-funds/${fundId}/entries`).set(auth)
+      .send({ flow: 'in', amount: 20000, date: day1, accountId });
+    expect(back.status).toBe(201);
+    const repaidId = back.body.data.id;
+
+    const edit = await request(app).patch(`/api/v1/transactions/${repaidId}`).set(auth).send({ amount: 30000 });
+    expect(edit.status).toBe(200);
+    expect((await request(app).get(`/api/v1/person-funds/${fundId}`).set(auth)).body.data.status).toBe('settled');
+
+    await request(app).patch(`/api/v1/transactions/${repaidId}`).set(auth).send({ amount: 10000 });
+    const reopened = (await request(app).get(`/api/v1/person-funds/${fundId}`).set(auth)).body.data;
+    expect(reopened.status).toBe('open');
+    expect(reopened.outstanding).toBe(20000);
+  });
+
+  it('deletes a person with entries only when asked, and their balance moves back', async () => {
+    const startBal = await balance();
+    const created = await request(app).post('/api/v1/person-funds').set(auth)
+      .send({ personName: 'Delete Test', direction: 'lent', amount: 15000, date: day1, accountId });
+    const fundId = created.body.data.id;
+    expect(await balance()).toBe(startBal - 15000);
+
+    const refused = await request(app).delete(`/api/v1/person-funds/${fundId}`).set(auth);
+    expect(refused.status).toBe(400);
+
+    const del = await request(app).delete(`/api/v1/person-funds/${fundId}?withEntries=true`).set(auth);
+    expect(del.status).toBe(200);
+    expect((await request(app).get(`/api/v1/person-funds/${fundId}`).set(auth)).status).toBe(404);
+    expect(await db.query.transactions.findFirst({ where: eq(s.transactions.personFundId, fundId) })).toBeUndefined();
+    expect(await balance()).toBe(startBal);
+  });
 });

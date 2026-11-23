@@ -255,7 +255,7 @@ export const api = {
   getPersonFund: (id) => request(`${V1}/person-funds/${id}`),
   createPersonFund: (data) => request(`${V1}/person-funds`, { method: 'POST', body: JSON.stringify(data) }),
   updatePersonFund: (id, data) => request(`${V1}/person-funds/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deletePersonFund: (id) => request(`${V1}/person-funds/${id}`, { method: 'DELETE' }),
+  deletePersonFund: (id, { withEntries = false } = {}) => request(`${V1}/person-funds/${id}${withEntries ? '?withEntries=true' : ''}`, { method: 'DELETE' }),
   addPersonFundEntry: (id, data) => request(`${V1}/person-funds/${id}/entries`, { method: 'POST', body: JSON.stringify(data) }),
   reclassifyTransaction: (id, data) => request(`${V1}/transactions/${id}/reclassify`, { method: 'POST', body: JSON.stringify(data) }),
 

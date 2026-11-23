@@ -769,6 +769,11 @@ export const BudgetExecution = {
         }).where(eq(s.salaryTemplates.userId, userId));
       }
 
+      // Editing a held/lent entry can settle or reopen that person
+      if (tx.personFundId) {
+        await PersonFundService.refreshStatus(tx.personFundId);
+      }
+
       const month = updated.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, updated.monthId) }) : null;
       if (month) {
         if (updated.isIncome || (tx.amount > updated.amount)) {

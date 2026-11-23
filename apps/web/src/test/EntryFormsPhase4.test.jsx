@@ -181,6 +181,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
 
     it('warns when "Owed when added" changes', async () => {
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.change(await screen.findByLabelText(/Owed when added/), { target: { value: '1500' } });
       expect(screen.getByTestId('card-owed-warning')).toHaveTextContent(/\+/);
@@ -189,6 +190,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
     it('removes a card after confirming', async () => {
       api.archiveCard.mockResolvedValue({});
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Remove card' }));
       fireEvent.click(within(screen.getByTestId('card-remove-confirm')).getByRole('button', { name: 'Remove' }));
@@ -197,6 +199,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
 
     it('card forms have a close button', async () => {
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
       await waitFor(() => expect(screen.queryByTestId('card-form')).not.toBeInTheDocument());
