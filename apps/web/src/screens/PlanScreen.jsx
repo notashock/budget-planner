@@ -11,7 +11,6 @@ import {
 import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
 import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
-import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
@@ -899,9 +898,6 @@ export function PlanScreen({
             daysInMonth={activeSim?.daysInMonth ?? simulation?.daysInMonth ?? (activeDailyBalances.length || 30)}
             currencySymbol={month.currencySymbol}
           />
-        </ErrorBoundary>
-        <ErrorBoundary title="Category breakdown unavailable">
-          <CategoryBreakdown events={activeEvents} currencySymbol={month.currencySymbol} />
         </ErrorBoundary>
       </div>
 

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TransactionsScreen } from '../screens/TransactionsScreen.jsx';
+import { TransactionsScreen, groupByDay, dayLabel } from '../screens/TransactionsScreen.jsx';
+
+// Row actions live behind each row's ⋯ menu
+const openActions = (title) => fireEvent.click(screen.getByRole('button', { name: `Actions for ${title}` }));
 
 describe('TransactionsScreen', () => {
   const mockBankAccounts = [
@@ -174,10 +177,8 @@ describe('TransactionsScreen', () => {
     // Open Filter & Sort dropdown and switch to planned
     fireEvent.click(screen.getByTestId('tab-planned'));
 
-    // Click cancel button on goal transaction
-    const cancelButtons = screen.getAllByTitle('Cancel planned transaction');
-    // The goal transaction is the last one
-    fireEvent.click(cancelButtons[cancelButtons.length - 1]);
+    openActions('Sony Headphones Goal');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel commitment' }));
 
     // Goal cancellation prompt opens
     expect(screen.getByText('Cancel Scheduled Goal')).toBeInTheDocument();
@@ -333,7 +334,7 @@ describe('TransactionsScreen', () => {
     expect(bankMentions.length).toBeGreaterThanOrEqual(2);
 
     // Transfer mentions Source -> Destination
-    expect(screen.getAllByText('Paytm Cash').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/HDFC Salary → Paytm Cash/).length).toBeGreaterThanOrEqual(1);
 
     // 3. Amount conventions:
     // Debit: -₹2,500.00
@@ -343,16 +344,13 @@ describe('TransactionsScreen', () => {
     // Neutral Transfer: ₹5,000.00 (without + or -)
     expect(screen.getByText('₹5,000.00')).toBeInTheDocument();
 
-    // 4. Action buttons: Edit and Delete
-    const editBtns = screen.getAllByRole('button', { name: /Edit transaction/i });
-    expect(editBtns.length).toBe(3);
-    // Most recent is tx-transfer (2026-10-20), followed by tx-credit (2026-10-19) and tx-debit (2026-10-18)
-    fireEvent.click(editBtns[0]);
+    // 4. Edit and Delete sit in each row's ⋯ menu
+    openActions('ATM Cash Withdrawal');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit transaction' }));
     expect(handleEdit).toHaveBeenCalledWith(diverseTransactions[2]);
 
-    const deleteBtns = screen.getAllByRole('button', { name: /Delete transaction|Delete transfer/i });
-    expect(deleteBtns.length).toBe(3);
-    fireEvent.click(deleteBtns[0]);
+    openActions('ATM Cash Withdrawal');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete transaction' }));
     expect(handleDelete).toHaveBeenCalledWith('tx-transfer');
   });
 
@@ -382,8 +380,9 @@ describe('TransactionsScreen', () => {
 
     // Actions present on planned card: Mark Paid and Cancel (Edit is hidden until paid)
     expect(screen.getAllByRole('button', { name: /Mark Paid/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole('button', { name: /Cancel commitment/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByRole('button', { name: /Edit commitment/i })).not.toBeInTheDocument();
+    openActions('Broadband Bill');
+    expect(screen.getByRole('menuitem', { name: 'Cancel commitment' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Edit/i })).not.toBeInTheDocument();
   });
   it('renders the Transactions large title', () => {
     render(
@@ -431,48 +430,47 @@ describe('TransactionsScreen', () => {
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 
-  it('renders symmetrical 2-button action cluster on both planned and settled cards with edit button hidden on planned card', () => {
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onPay = vi.fn();
-
-    render(
-      <TransactionsScreen
-        transactions={mockTransactions}
-        currencySymbol="₹"
-        bankAccounts={mockBankAccounts}
-        wallets={mockWallets}
-        onEditTransaction={onEdit}
-        onDeleteTransaction={onDelete}
-        onPayTransaction={onPay}
-      />
-    );
-
-    // 1. Settled view (Coffee & Snacks)
-    const settledCard = screen.getByText('Coffee & Snacks').closest('.tx-card');
-    expect(settledCard).toBeInTheDocument();
-
-    // Settled card has Edit and Delete buttons (2 buttons)
-    const editButtons = screen.getAllByRole('button', { name: /Edit transaction/i });
-    expect(editButtons.length).toBeGreaterThan(0);
-    const settledDeleteButtons = screen.getAllByRole('button', { name: /Delete transaction/i });
-    expect(settledDeleteButtons.length).toBeGreaterThan(0);
-
-    // 2. Switch to Planned view
+  it('pins overdue planned items on top and groups the rest by day', () => {
+    render(<TransactionsScreen transactions={mockTransactions} currencySymbol="₹" bankAccounts={mockBankAccounts} wallets={mockWallets} />);
     fireEvent.click(screen.getByTestId('tab-planned'));
+    const headers = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(headers[0]).toBe('Overdue');
+    expect(headers.length).toBeGreaterThan(1);
+  });
 
-    // Planned card (Broadband Bill)
-    const plannedCard = screen.getByText('Broadband Bill').closest('.tx-card');
-    expect(plannedCard).toBeInTheDocument();
+  it('shows the month spending shelf and opens the category breakdown', () => {
+    render(
+      <TransactionsScreen transactions={mockTransactions} currencySymbol="₹" bankAccounts={mockBankAccounts}
+        wallets={mockWallets} month={{ year: 2026, month: 10 }} />
+    );
+    const shelf = screen.getByRole('button', { name: /Spending in October/ });
+    expect(shelf).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(shelf);
+    expect(shelf).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Spending by category')).toBeInTheDocument();
+  });
 
-    // Planned card has Mark as Paid button and Cancel/Delete button
-    const markPaidButtons = screen.getAllByRole('button', { name: /Mark Paid/i });
-    expect(markPaidButtons.length).toBeGreaterThan(0);
-    const cancelCommitmentButtons = screen.getAllByRole('button', { name: /Cancel commitment/i });
-    expect(cancelCommitmentButtons.length).toBeGreaterThan(0);
+  it('filters by account from the ⋯ filter menu and clears with the chip', () => {
+    render(<TransactionsScreen transactions={mockTransactions} currencySymbol="₹" bankAccounts={mockBankAccounts} wallets={mockWallets} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filter transactions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paytm Cash' }));
+    expect(screen.queryByText('Coffee & Snacks')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter Paytm Cash' }));
+    expect(screen.getByText('Coffee & Snacks')).toBeInTheDocument();
+  });
+});
 
-    // Edit button must be HIDDEN on planned cards until marked as paid!
-    expect(screen.queryByRole('button', { name: /Edit planned commitment/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Edit commitment/i })).not.toBeInTheDocument();
+describe('groupByDay', () => {
+  it('labels today and yesterday, keeps order, pins overdue first', () => {
+    const list = [
+      { id: 'a', date: '2026-11-23' },
+      { id: 'b', date: '2026-11-22' },
+      { id: 'c', date: '2026-11-22', derivedStatus: 'overdue' },
+      { id: 'd', date: '2026-11-05' },
+    ];
+    const groups = groupByDay(list, (t) => t.date, '2026-11-23', { pinOverdue: true });
+    expect(groups.map((g) => g.label)).toEqual(['Overdue', 'Today · Mon 23', 'Yesterday · Sun 22', 'Thu, Nov 5']);
+    expect(groups[2].items.map((t) => t.id)).toEqual(['b']);
+    expect(dayLabel('2026-11-24', '2026-11-23')).toBe('Tomorrow · Tue 24');
   });
 });

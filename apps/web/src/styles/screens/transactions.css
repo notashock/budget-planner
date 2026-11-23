@@ -72,31 +72,6 @@
 
 /* Grouped Chronological Sections */
 
-/* Ledger Transaction Row */
-.tx-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  gap: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
-}
-
-.tx-row:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-}
-
-.tx-row.row-overdue {
-  border-left: 3px solid var(--negative);
-}
-
-.tx-row.row-due {
-  border-left: 3px solid var(--warning);
-}
 
 /* Relevant signal tags */
 .tx-tag {

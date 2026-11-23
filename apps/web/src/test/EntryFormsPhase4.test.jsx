@@ -134,7 +134,8 @@ describe('Phase 4: held & lent entries are changed by logging again', () => {
       <TransactionsScreen transactions={[lent]} bankAccounts={[bank]} wallets={[wallet]} currencySymbol="₹"
         onRelogHeldLent={onRelogHeldLent} onDeleteTransaction={vi.fn()} />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Change held or lent entry' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Actions for / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change held or lent entry' }));
     const modal = await screen.findByTestId('relog-held-lent');
     expect(modal).toHaveTextContent(/can't be edited directly/);
     fireEvent.click(within(modal).getByRole('button', { name: 'Delete and log again' }));
