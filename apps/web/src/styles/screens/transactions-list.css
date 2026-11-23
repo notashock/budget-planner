@@ -107,6 +107,11 @@
   border-bottom: 1px solid var(--border);
 }
 .tx-list.planned .tx-row { grid-template-columns: 26px minmax(0, 1fr) auto 32px; }
+/* Each day's rows read as one inset group */
+.tx-day .tx-row { padding: 10px 8px 10px 14px; background: var(--surface); }
+.tx-day .tx-row:first-of-type { border-radius: 14px 14px 0 0; }
+.tx-day .tx-row:last-of-type { border-bottom: none; border-radius: 0 0 14px 14px; }
+.tx-day .tx-row:first-of-type:last-of-type { border-radius: 14px; }
 .tx-row-main { min-width: 0; }
 .tx-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .tx-row-title .tx-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); font-weight: 500; }
