@@ -303,7 +303,9 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
     const openings = await db.query.monthAccountOpenings.findMany({
       where: eq(s.monthAccountOpenings.monthId, m.id)
     });
-    if (openings.length === 0) {
+    // A month without a legacy total keeps no override, so the simulator uses each account's own
+    // opening balance; writing 0 here made the Plan page start the month from nothing.
+    if (openings.length === 0 && m.openingBalance) {
       await db.insert(s.monthAccountOpenings).values({
         monthId: m.id,
         accountId: primaryBank.id,

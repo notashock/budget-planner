@@ -7,6 +7,17 @@ import {
 } from '../src/index.js';
 
 describe('Irregular Income & Period Boundaries Engine Suite', () => {
+  it('uses ledger balances for the current balance when no as-of date is given', () => {
+    const accounts = [
+      { id: 'a', openingBalance: 50000, currentBalance: 35000 },
+      { id: 'b', openingBalance: 2000, currentBalance: 1500 }
+    ];
+    // No transactions loaded: replaying would wrongly report the 52,000 opening total
+    expect(calculateIrregularMetrics({ accounts }).currentBalance).toBe(36500);
+    // A historical as-of date still replays transactions
+    expect(calculateIrregularMetrics({ accounts, asOfDate: '2026-01-01' }).currentBalance).toBe(52000);
+  });
+
   it("does not add transactions that predate an account's opening balance to that balance", () => {
     const metrics = calculateIrregularMetrics({
       accounts: [
