@@ -1,0 +1,109 @@
+/* Accounts, Phase C: net worth, inset bank and wallet lists, and the account page. */
+.acct-hero { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 20px; }
+.acct-hero-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.acct-hero-value { font-size: clamp(32px, 8vw, 44px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.acct-hero-caption { margin: 0; font-size: var(--fs-caption); color: var(--text-muted); }
+.acct-hero .review-badge-tag { align-self: flex-start; margin-top: 6px; }
+
+.acct-add-menu .action-menu-trigger { background: var(--brand-subtle); color: var(--brand); }
+
+.acct-section { margin-bottom: 20px; }
+.acct-section-title {
+  margin: 0 0 6px;
+  padding: 0 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.acct-inset { margin: 0 0 20px; padding: 0; list-style: none; border-radius: 14px; background: var(--surface); overflow: hidden; }
+.acct-section .acct-inset { margin-bottom: 0; }
+.acct-inset > li + li { border-top: 1px solid var(--border); }
+.acct-empty { padding: 14px; color: var(--text-muted); font-size: var(--fs-body); }
+.acct-empty-add { padding: 0; border: none; background: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; }
+
+.acct-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.acct-row:hover { background: var(--surface-hover, rgba(127, 127, 127, 0.08)); }
+.acct-row:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.acct-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--brand-subtle);
+  color: var(--brand);
+}
+.acct-row-icon.wallet { background: rgba(16, 185, 129, 0.14); color: var(--positive); }
+.acct-row-main { display: flex; flex-direction: column; min-width: 0; }
+.acct-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); font-weight: 500; }
+.acct-row-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  text-transform: none;
+}
+.acct-row-caption-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-row.breached .acct-row-caption-text { color: var(--negative); }
+.acct-row-balance { font-weight: 600; white-space: nowrap; }
+.acct-row-chev { color: var(--text-muted); font-size: 18px; line-height: 1; }
+.acct-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--brand-subtle);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The account page */
+.acct-back {
+  margin: 0 0 4px -4px;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.acct-page .screen-header-actions { display: flex; align-items: center; gap: 8px; }
+.acct-page-caption { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; color: var(--text-muted); font-size: var(--fs-caption); text-transform: capitalize; }
+.acct-spark { margin-top: 10px; }
+.acct-spark .mh-spark { display: block; width: 100%; height: 48px; }
+.acct-spark-label { font-size: var(--fs-caption); color: var(--text-muted); }
+.acct-page .accounts-row-7 { margin-bottom: 16px; }
+.acct-page .accounts-grid { margin-bottom: 16px; }
+.acct-kv { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; font-size: var(--fs-body); }
+.acct-amount { font-weight: 600; white-space: nowrap; }
+.acct-amount.positive { color: var(--positive); }
+
+@media (min-width: 1024px) {
+  .acct-hero, .acct-section, .acct-inset, .acct-page { max-width: 760px; }
+}

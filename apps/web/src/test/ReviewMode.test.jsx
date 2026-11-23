@@ -203,7 +203,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
   });
 
   describe('AccountsScreen in Review Mode', () => {
-    it('displays snapshotted closing balance breakdown and hides mutation controls', () => {
+    it('shows month-end totals and an account page with the snapshot, without mutation controls', () => {
       render(
         <AccountsScreen
           month={closedMonth}
@@ -211,44 +211,19 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
           wallets={mockWallets}
           transfers={mockTransfers}
           isReviewMode={true}
-          onOpenTransferModal={vi.fn()}
-          onOpenAddBankModal={vi.fn()}
-          onOpenAddWalletModal={vi.fn()}
         />
       );
 
-      // Verify mutation buttons are hidden
-      expect(screen.queryByRole('button', { name: /Transfer Funds/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Add Bank/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Transfer from Account/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Transfer from Wallet/i })).toBeNull();
-      expect(screen.queryByTitle(/Edit Account/i)).toBeNull();
-      expect(screen.queryByTitle(/Archive Account/i)).toBeNull();
-
-      // Verify snapshotted breakdown
       expect(screen.getByText(/Month-end balances/i)).toBeInTheDocument();
-      expect(screen.getAllByText(/Closing Balance \(Snapshotted\)/i).length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /HDFC Salary Account/ }));
+      expect(screen.queryByRole('button', { name: /Transfer from Account/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /More actions/i })).toBeNull();
+      expect(screen.getByText(/Closing Balance \(Snapshotted\)/i)).toBeInTheDocument();
       expect(screen.getByText(/Total Inflow/i)).toBeInTheDocument();
       expect(screen.getByText(/Total Outflow/i)).toBeInTheDocument();
       expect(screen.getByText(/Net Movement/i)).toBeInTheDocument();
-    });
-
-    it('hides transfer delete button in transfers segment in review mode', () => {
-      render(
-        <AccountsScreen
-          month={closedMonth}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-          transfers={mockTransfers}
-          isReviewMode={true}
-        />
-      );
-
-      // Switch to transfers segment
-      const transfersTab = screen.getByRole('button', { name: /Transfers/i });
-      fireEvent.click(transfersTab);
-
-      expect(screen.queryByTitle(/Delete Transfer/i)).toBeNull();
     });
   });
 

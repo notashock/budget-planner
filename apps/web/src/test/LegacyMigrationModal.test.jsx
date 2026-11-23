@@ -216,7 +216,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       expect(screen.queryByText(/salary depository bank/i)).not.toBeInTheDocument();
 
       // Open Add Bank modal
-      const addBankBtn = screen.getByRole('button', { name: /add bank/i });
+      const addBankBtn = screen.getByRole('button', { name: /add a bank account/i });
       fireEvent.click(addBankBtn);
 
       // Migration suggestion card is removed from Add Bank modal

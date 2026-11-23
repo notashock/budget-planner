@@ -164,6 +164,7 @@ export const api = {
   getMonths: () => request(`${V1}/periods`),
   createMonth: (data) => request(`${V1}/periods`, { method: 'POST', body: JSON.stringify(data) }),
   getMonthDetail: (year, month) => request(`${V1}/periods/${year}/${month}`),
+  getMonthSummary: (year, month) => request(`${V1}/periods/${year}/${month}/summary`, { bypassCache: true }),
   updateMonth: (year, month, updates) => request(`${V1}/periods/${year}/${month}`, { method: 'PATCH', body: JSON.stringify(updates) }),
   creditSalary: (year, month, data = {}) => request(`${V1}/periods/${year}/${month}/credit-salary`, { method: 'POST', body: JSON.stringify(data) }),
   rolloverMonth: (year, month, carryBalance = true, rolloverUnpaidOneTimeItems = false) => request(`${V1}/periods/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance, rolloverUnpaidOneTimeItems }) }),

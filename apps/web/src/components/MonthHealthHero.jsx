@@ -5,7 +5,7 @@ import { formatCurrencyWhole, getMonthVerdict } from '@budget/engine';
 export { getMonthVerdict };
 
 /** Past days drawn in the accent colour, planned days muted; a dot marks today. */
-function Sparkline({ dailyBalances = [], currentDay = null }) {
+export function Sparkline({ dailyBalances = [], currentDay = null }) {
   const values = dailyBalances.map((d) => Number(d.balance) || 0);
   if (values.length < 2) return null;
   const W = 300, H = 48, P = 3;
