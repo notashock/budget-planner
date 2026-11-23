@@ -1321,6 +1321,7 @@ export default function App() {
               wallets={wallets}
               transfers={transfers}
               simulation={activeSimulation}
+              accountSimulations={serverAccountSimulations}
               currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
               isReviewMode={isReviewMode}
               onSaveBankAccount={handleSaveBankAccount}

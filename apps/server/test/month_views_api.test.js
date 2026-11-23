@@ -56,7 +56,8 @@ describe('Month summary and timeline', () => {
     const main = sum.accounts.find((a) => a.id === mainId);
     expect(main).toEqual({ id: mainId, name: 'Main', type: 'bank', balance: detail.accountSimulations[mainId].todayBalance, minimumBalance: 5000 });
     expect(sum.nextDue.map((t) => t.name)).toEqual(['Rent', 'Phone', 'Snacks']);
-    expect(sum.netWorth).toBeNull();
+    // Ledger balances only: planned items don't touch them, no cards or Held & Lent here
+    expect(sum.netWorth).toEqual({ total: 52000, cash: 52000, lent: 0, cardsOwed: 0, held: 0 });
     expect(sum.accounts[0]).not.toHaveProperty('_id'); // canonical names only
   });
 

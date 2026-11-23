@@ -26,13 +26,18 @@ export function PeoplePanel({
   month = null,
   simulation = null,
   isReviewMode = false,
-  onChanged
+  onChanged,
+  // Bumped by the Accounts ＋ menu to open a new entry
+  addRequest = 0
 }) {
   const [data, setData] = useState({ funds: [], totals: { held: 0, lent: 0 } });
   const [showSettled, setShowSettled] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [entries, setEntries] = useState({});
   const [form, setForm] = useState(null); // { action, fundId }
+  useEffect(() => {
+    if (addRequest) setForm({ action: 'hold', fundId: '' });
+  }, [addRequest]);
   const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {

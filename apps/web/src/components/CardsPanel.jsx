@@ -383,7 +383,9 @@ export function CardsPanel({
   isReviewMode = false,
   onChanged,
   // In the app, paying a bill opens the entry sheet's Move tab on this card (one payment form)
-  onPayBill
+  onPayBill,
+  // Bumped by the Accounts ＋ menu to open the add-card form
+  addRequest = 0
 }) {
   const [cards, setCards] = useState([]);
   const [modal, setModal] = useState(null); // { kind: 'add'|'edit'|'confirm'|'pay', card, statement?, bill? }
@@ -404,6 +406,10 @@ export function CardsPanel({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (addRequest) setModal({ kind: 'add' });
+  }, [addRequest]);
 
   const scoreById = useMemo(() => {
     const m = {};

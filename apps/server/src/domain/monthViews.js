@@ -1,4 +1,4 @@
-import { getUnifiedVerdict } from '@budget/engine';
+import { getUnifiedVerdict, getNetWorth } from '@budget/engine';
 import { NotFoundError } from '../utils/errors.js';
 
 // Small views of a month detail (roadmap phase 3): the Plan page loads the summary first and the chart's
@@ -6,7 +6,8 @@ import { NotFoundError } from '../utils/errors.js';
 
 const isCurrentMonth = (month, today) => today.startsWith(`${month.year}-${String(month.month).padStart(2, '0')}`);
 
-export function toSummary(detail, today) {
+// `extras` carries what the month detail lacks for net worth: card accounts and Held & Lent totals
+export function toSummary(detail, today, { cards = [], personFunds = {} } = {}) {
   const { month, simulation: sim, accountSimulations = {} } = detail;
   const current = isCurrentMonth(month, today);
   const verdict = getUnifiedVerdict(sim);
@@ -40,7 +41,7 @@ export function toSummary(detail, today) {
     safetyFloor: sim.safetyFloor ?? 0,
     accounts,
     nextDue,
-    netWorth: null // filled in by roadmap phase 6
+    netWorth: getNetWorth({ accounts: [...detail.bankAccounts, ...detail.wallets], cards, personFunds })
   };
 }
 

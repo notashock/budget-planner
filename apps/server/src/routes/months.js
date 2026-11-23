@@ -4,6 +4,8 @@ import { MonthLifecycle } from '../domain/monthLifecycle.js';
 import { route, yearMonth } from './routeHelpers.js';
 import { toSummary, toTimeline } from '../domain/monthViews.js';
 import { getTodayIso } from '../domain/monthHelpers.js';
+import { AccountService } from '../domain/accountService.js';
+import { PersonFundService } from '../domain/personFundService.js';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
@@ -21,9 +23,14 @@ export const monthHandlers = {
   detail: route(async (req, res) => res.success(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)))),
 
   // The Plan page's first numbers, then its chart on demand (?accountId= for one account)
-  summary: route(async (req, res) => res.success(
-    toSummary(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)), getTodayIso()), 200, {}, { aliases: false }
-  )),
+  summary: route(async (req, res) => {
+    const [detail, cards, funds] = await Promise.all([
+      MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)),
+      AccountService.listAccounts(req.userId, { type: 'credit_card' }),
+      PersonFundService.listFunds(req.userId)
+    ]);
+    res.success(toSummary(detail, getTodayIso(), { cards, personFunds: funds.totals }), 200, {}, { aliases: false });
+  }),
   timeline: route(async (req, res) => res.success(
     toTimeline(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)), req.query.accountId || null), 200, {}, { aliases: false }
   )),

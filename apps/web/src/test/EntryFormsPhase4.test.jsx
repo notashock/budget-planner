@@ -160,7 +160,9 @@ describe('Phase 4: held & lent entries are changed by logging again', () => {
 describe('Phase 4: edits that rewrite history say so', () => {
   it('editing a bank opening balance shows how much every balance shifts', () => {
     render(<AccountsScreen bankAccounts={[bank]} wallets={[wallet]} transfers={[]} simulation={null} currencySymbol="₹" />);
-    fireEvent.click(screen.getAllByTitle('Edit Account')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Main Bank/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'More actions for Main Bank' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit account' }));
     expect(screen.queryByTestId('opening-balance-warning')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Opening Balance/), { target: { value: '51000' } });
     expect(screen.getByTestId('opening-balance-warning')).toHaveTextContent(/Main Bank.*\+₹1,000\.00/);
