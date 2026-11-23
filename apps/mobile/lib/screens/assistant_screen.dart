@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 
@@ -29,7 +29,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(

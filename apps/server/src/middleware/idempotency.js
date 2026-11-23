@@ -15,14 +15,15 @@ import { resolveAuthUser } from './auth.js';
  * - Only 2xx responses are stored and replayed, byte for byte. Any other
  *   result releases the key, so a retry can run the write.
  * - The same key with a different method, path or body gets 422.
- * - Stored keys expire after 24 hours; a reservation left by a crashed
+ * - Stored keys expire after 7 days (the mobile outbox replays entries
+ *   captured offline with their original key, ADR 0071); a reservation left by a crashed
  *   request expires after 2 minutes.
  * - If the store fails, the request runs without idempotency (fail open), so
  *   a missing table never blocks writes.
  */
 
 export const IDEMPOTENCY_HEADER = 'idempotency-key';
-export const KEY_TTL_MS = 24 * 60 * 60 * 1000;
+export const KEY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const PENDING_TTL_MS = 2 * 60 * 1000;
 const MAX_KEY_LENGTH = 255;
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

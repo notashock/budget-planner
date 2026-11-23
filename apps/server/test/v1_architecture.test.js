@@ -142,6 +142,10 @@ describe('V1 Domain Architecture & Idempotence Verification Suite', () => {
     const data = periodRes.body.data || periodRes.body;
 
     expect(data.simulation).toBeDefined();
+    expect(Array.isArray(data.simulation.events)).toBe(true);
+    // Sent once each: no allEvents copy of events, no nested accountSimulations copy
+    expect(data.simulation.allEvents).toBeUndefined();
+    expect(data.simulation.accountSimulations).toBeUndefined();
     expect(data.accountSimulations).toBeDefined();
     expect(data.accountSimulations[bankAccountId]).toBeDefined();
     expect(data.accountSimulations[walletAccountId]).toBeDefined();

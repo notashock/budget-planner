@@ -249,6 +249,11 @@ export const MonthLifecycle = {
       cardContext
     });
 
+    // The engine's result also carries `allEvents` (the same array as `events`)
+    // and `accountSimulations` (sent once, at the top level). In JSON each would
+    // be a full second copy, so neither is sent (mobile upgrade plan, Phase 2).
+    const { allEvents: _sameAsEvents, accountSimulations: _sentAtTopLevel, ...simulationBody } = simulation;
+
     return {
       creditCards: cardContext.creditCards,
       month: serialize(month),
@@ -257,7 +262,7 @@ export const MonthLifecycle = {
       transfers: serialize(transfers),
       bankAccounts: serialize(bankAccounts),
       wallets: serialize(wallets),
-      simulation,
+      simulation: simulationBody,
       accountSimulations
     };
   },

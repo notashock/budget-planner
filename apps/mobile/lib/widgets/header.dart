@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../engine/engine.dart';
@@ -16,7 +16,7 @@ class HeaderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final theme = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

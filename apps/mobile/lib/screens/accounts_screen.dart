@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../models/transfer.dart';
@@ -18,7 +19,7 @@ class AccountsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final budget = context.watch<BudgetProvider>();
+    final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;

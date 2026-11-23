@@ -295,6 +295,44 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Not measured yet:** the exit timings need a profile build on a real device.
 - **Next PRs:** 2.7 outbox + 2.8 optimistic insert (with ADR 0071); then 2.2/2.3/2.9 rebuild and list work, and the ~236 KB month payload.
 
+**Status, second Phase 2 PR (2.7 + 2.8, ADR 0071):**
+- **2.7 outbox:**
+  - **What's captured:** spends, refunds, income and mark-paid are stored on the phone before they're sent, each with an Idempotency-Key made once (`lib/services/outbox.dart`). Every retry, replay and restart uses that key.
+  - **When kept entries are sent:** after the next good load and every 30 s.
+  - **If the server refuses one:** the entry is kept with the reason until the user sends or discards it.
+  - **Server:** keeps idempotency keys for 7 days instead of 24 h. The phone asks before sending an entry older than 6 days.
+  - **Ownership:** entries belong to their user and survive sign-out.
+  - **Airplane-mode exit test:** passes as a unit test against a fake server that keeps keys and drops replies: 3 spends, reconnect, exactly 3 rows.
+- **Also fixed:** a cold start without signal showed the sign-in screen, because `/auth/me` failed. The app now starts as the last known user; a 401 still signs out.
+- **2.8 optimistic:** a new spend or income closes the entry sheet at once. A strip under the header shows `Saving "Tea" ₹20…` / `N waiting to sync` / `N not saved` and opens a list with Sync now, Send and Discard. A refusal comes back as a snackbar.
+  - **Deviation from T6:** the waiting entry shows in that strip, not as a row in the Transactions list, and totals don't move until the server has it (ADR 0052).
+- **Not captured (wait for the server, as before):** planned bills, goals, transfers, cards, accounts, held/lent.
+- **Next:** 2.2/2.3/2.9 rebuild and list work, and the ~236 KB month payload.
+
+**Status, third Phase 2 PR (2.2, 2.9, payload):**
+- **2.2:**
+  - **Tab screens:** Plan, Accounts and Assistant (all alive in the `IndexedStack`) and the header now rebuild only when `BudgetProvider.viewState` changes: data version, month, loading, month missing, load error. A save in flight, `isSaving` and the sync strip no longer rebuild all five tabs.
+  - **Transactions and Goals:** these already selected their own memoized lists (Phase 1).
+  - **Sheets:** still `watch`; they're short-lived and on top.
+- **2.9:**
+  - **Chart:** the step chart has its own `RepaintBoundary`, so scrolling Plan doesn't repaint it.
+  - **Transactions lists:** these were already lazy (`ListView.separated`).
+  - **Plan timeline:** still a column inside the page's scroll view, since one month has well under a few hundred events. Move it to slivers if profiling shows jank.
+- **Payload:**
+  - **What was dropped:** month detail no longer sends `simulation.allEvents` (identical to `events`) or `simulation.accountSimulations` (sent once at the top level). The recorded month went from 65.6 KB to 48.1 KB (−27%). Real months save more, since events dominate.
+  - **Readers:** mobile already fell back to `events`, and the web reads the top-level `accountSimulations`.
+  - **Still duplicated:** `days` and `dailyBalances` are different shapes, both read by web or mobile, so both are kept for now.
+- **2.3 (split `UnifiedEntryModal`)** is not in this PR. It's a 1,500-line sheet with many tests around it, so it gets its own PR.
+- **Not measured:** the Phase 2 exit timings (profile build on a device) are still open.
+
+**Status, fourth Phase 2 PR (2.3, entry sheet rebuilds):**
+- **P6 was already fixed:** keystrokes don't rebuild the sheet. The amount and description fields own their controllers, and the assists and the floor notice listen to those controllers directly (entry-forms work).
+- **What still rebuilt it:** `context.watch<BudgetProvider>()`. Since 2.8, every "Saving…" or sync change redrew the whole open sheet.
+- **The fix:** `context.budgetView()` (`lib/providers/budget_view.dart`) reads the provider and rebuilds only on `viewState`. It's now used by the entry sheet, mark-paid, card, held/lent and salary sheets, the cards section, the floor notice and the tabs. The detail sheet also selects `isSaving`, which disables its buttons; the sync strip still watches everything.
+- **Test:** `test/entry_sheet_rebuilds_test.dart` counts the sheet's rebuilds. It expects 0 for typing and for an entry kept offline, and at least 1 for new month data. With the old `watch` it fails (1 rebuild from save progress).
+- **Per-tab split deferred to 3.6:** splitting the sheet into per-tab widgets is a maintainability refactor, not a performance one. 3.6 (one-row date + account chips, entry-forms plan §5.1) rebuilds this sheet's layout, so the split happens there instead of moving the code twice.
+- **Phase 2 is done in code.** The exit timings still need a profile build on a mid-range device.
+
 ### Phase 3 — UI / UX (weeks 6–9)
 
 | # | Task |

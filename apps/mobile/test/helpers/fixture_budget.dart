@@ -31,16 +31,26 @@ class FixtureBudget {
   final List<http.Request> requests = [];
   late final BudgetProvider budget;
 
-  Future<BudgetProvider> load({void Function(Map<String, dynamic> f)? edit}) async {
-    SharedPreferences.setMockInitialValues({});
+  /// Every request fails as if the phone had no connection.
+  bool offline = false;
+
+  /// Answers writes (default: an empty success).
+  Future<http.Response> Function(http.Request req)? onWrite;
+
+  late final MockClient client;
+
+  /// [prefs] seeds the device storage (e.g. a signed-in user).
+  Future<BudgetProvider> load({void Function(Map<String, dynamic> f)? edit, Map<String, Object> prefs = const {}}) async {
+    SharedPreferences.setMockInitialValues(prefs);
     edit?.call(fixtures);
     final api = ApiService()
       ..updateBaseUrl('http://api.test')
       ..retryDelay = Duration.zero;
-    api.client = MockClient((req) async {
+    api.client = client = MockClient((req) async {
       requests.add(req);
+      if (offline) throw const SocketException('offline (test)');
       final path = req.url.path;
-      if (req.method != 'GET') return okJson(<String, dynamic>{});
+      if (req.method != 'GET') return onWrite == null ? okJson(<String, dynamic>{}) : onWrite!(req);
       if (path == '/api/settings') return okJson(<String, dynamic>{});
       if (path == '/api/v1/periods') return okJson(fixtures['periods']);
       if (RegExp(r'^/api/v1/periods/\d+/\d+$').hasMatch(path)) {
