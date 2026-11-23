@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { simulate, formatCurrency } from '@budget/engine';
 import { Header } from './components/Header.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
+import { AppSidebar } from './components/AppSidebar.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
 import { TransactionsScreen } from './screens/TransactionsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
@@ -83,6 +84,8 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [wallets, setWallets] = useState([]);
+  // Shared by the sidebar's account list and the Plan account pills
+  const [planAccountId, setPlanAccountId] = useState('all');
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [transfers, setTransfers] = useState([]);
   // Credit cards with what is owed and the payability score, from the server simulation
@@ -1138,6 +1141,15 @@ export default function App() {
           <div className="top-activity-line" />
         </div>
       )}
+      <AppSidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        accounts={[...bankAccounts, ...wallets]}
+        simulation={activeSimulation}
+        month={currentMonth}
+        selectedAccountId={planAccountId}
+        onSelectAccount={setPlanAccountId}
+      />
       <Header
         user={user}
         months={months}
@@ -1156,6 +1168,7 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         verdict={activeTab === 'plan' ? planVerdict : null}
+        onNew={() => handleOpenUnifiedEntry('log')}
       />
 
       <div className="app-container app-box">
@@ -1237,6 +1250,8 @@ export default function App() {
                 accountSimulations={serverAccountSimulations}
                 bankAccounts={bankAccounts}
                 wallets={wallets}
+                selectedAccountId={planAccountId}
+                onSelectAccount={setPlanAccountId}
                 migrationEligible={migrationEligible}
                 isReviewMode={isReviewMode}
                 onOpenMigration={() => setMigrationModalOpen(true)}

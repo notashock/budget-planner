@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { formatCurrency, getSalaryWindowStatus, getUnifiedVerdict } from '@budget/engine';
+import { formatCurrency, formatCurrencyWhole, getSalaryWindowStatus, getUnifiedVerdict } from '@budget/engine';
 import {
   PlusIcon,
   ZapIcon,
@@ -7,32 +7,19 @@ import {
   SunIcon,
   MoonIcon,
   LogOutIcon,
-  LayoutDashboardIcon,
-  ListOrderedIcon,
-  TargetIcon,
   SparklesIcon,
-  WalletIcon,
   BuildingLibraryIcon,
   LockIcon,
   UserIcon,
   TrashIcon,
   MonitorIcon,
-  ChevronDownIcon,
-  CheckCircleIcon,
-  AlertTriangleIcon
+  ChevronDownIcon
 } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const NAV_TABS = [
-  { id: 'plan', label: 'Plan', Icon: LayoutDashboardIcon },
-  { id: 'transactions', label: 'Transactions', Icon: ListOrderedIcon },
-  { id: 'goals', label: 'Goals', Icon: TargetIcon },
-  { id: 'accounts', label: 'Accounts', Icon: WalletIcon }
 ];
 
 export function Header({
@@ -52,7 +39,8 @@ export function Header({
   onCycleTheme,
   activeTab = 'plan',
   verdict: pageVerdict = null,
-  onSelectTab
+  onSelectTab,
+  onNew
 }) {
   const [activeDropdown, setActiveDropdown] = useState(null); // 'month' | 'user' | null
   const headerRef = useRef(null);
@@ -89,6 +77,10 @@ export function Header({
   const verdictClass = verdict ? { good: 'safe', tight: 'tight', critical: 'breached' }[verdict.key] : 'safe';
   const headroomAmount = verdict?.headroom?.amount ?? 0;
   const verdictScope = pageVerdict?.scope || 'All accounts';
+  // Today lozenge: the same number the Plan hero leads with
+  const safeToday = simulation?.safeVelocity?.safeVelocityPerDay ?? simulation?.safeToSpendPerDay ?? 0;
+  const daysLeft = simulation?.safeVelocity?.daysLeft || simulation?.daysLeft || 1;
+  const showMonthPicker = activeTab === 'plan' || activeTab === 'transactions';
 
   const salaryLockStatus = useMemo(() => {
     return getSalaryWindowStatus(currentMonth);
@@ -129,13 +121,13 @@ export function Header({
       <div className="app-header-inner">
         {/* Zone 1: Identity & Month Context */}
         <div className="app-header-left">
-          <span className="app-brand">
+          <span className="app-brand app-brand--toolbar">
             <AnimatedLogo size={24} />
             <span className="app-brand-text">Budget Planner</span>
             <span className="beta-badge">beta</span>
           </span>
 
-          <div style={{ position: 'relative', zIndex: monthDropdownOpen ? 99999 : 'auto' }}>
+          {showMonthPicker && <div style={{ position: 'relative', zIndex: monthDropdownOpen ? 99999 : 'auto' }}>
             <button
               type="button"
               className="month-picker-btn"
@@ -295,7 +287,7 @@ export function Header({
                 )}
               </div>
             )}
-          </div>
+          </div>}
 
           {isReviewMode && activePlanningMonths.length > 0 && (
             <button
@@ -324,60 +316,33 @@ export function Header({
           )}
         </div>
 
-        {/* Zone 2: True Centered Desktop Segmented Navigation */}
+        {/* Zone 2: Today lozenge. On Plan the page's own hero shows the number */}
         <div className="app-header-center">
-          <nav className="desktop-header-nav" aria-label="Main Navigation">
-            {NAV_TABS.map((tab) => {
-              const Icon = tab.Icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`desktop-nav-pill ${isActive ? 'active' : ''}`}
-                  onClick={() => onSelectTab?.(tab.id)}
-                >
-                  <Icon size={14} color="currentColor" strokeWidth={isActive ? 2.2 : 1.7} />
-                  <span className="desktop-nav-pill-label">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {currentMonth && verdict && activeTab !== 'plan' && !isReviewMode && (
+            <button type="button" className="header-today" onClick={() => onSelectTab?.('plan')}>
+              <span
+                className={`header-today-lozenge ${verdictClass}`}
+                role="status"
+                title={`${verdictScope}: ${verdict.label}. ${headroomAmount < 0
+                  ? `${formatCurrency(Math.abs(headroomAmount), currencySymbol)} below the safety floor at the lowest point.`
+                  : `${formatCurrency(headroomAmount, currencySymbol)} above the safety floor at the lowest point.`}`}
+              >
+                <span className={`header-today-dot ${verdictClass}`} aria-hidden="true" />
+                <span className="tabular-nums">{formatCurrencyWhole(safeToday, currencySymbol)}</span>
+                <span className="header-today-caption">safe today · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left</span>
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* Zone 3: Symmetrical Status & Global Utilities */}
+        {/* Zone 3: New, then the You menu */}
         <div className="app-header-right">
-          {/* On Plan the page's own hero shows the verdict */}
-          {currentMonth && verdict && activeTab !== 'plan' && (
-            <div
-              className={`header-floor-pill ${verdictClass}`}
-              role="status"
-              title={`${verdictScope}: ${verdict.label}. ${headroomAmount < 0
-                ? `${formatCurrency(Math.abs(headroomAmount), currencySymbol)} below the safety floor at the lowest point.`
-                : `${formatCurrency(headroomAmount, currencySymbol)} above the safety floor at the lowest point.`}`}
-            >
-              <span className={`floor-indicator-glyph ${verdictClass}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                {verdict.key === 'good' ? <CheckCircleIcon size={11} /> : <AlertTriangleIcon size={11} />}
-              </span>
-              <span className="header-floor-text">{verdict.label}</span>
-            </div>
+          {onNew && !isReviewMode && (
+            <button type="button" className="btn btn-primary btn-sm header-new-btn" onClick={onNew}>
+              <PlusIcon size={13} color="currentColor" />
+              <span>New</span>
+            </button>
           )}
-
-          <button
-            type="button"
-            className="header-avatar-btn header-theme-btn"
-            onClick={onCycleTheme}
-            title={`Theme: ${themeMode === 'system' ? 'System (Auto)' : themeMode === 'dark' ? 'Dark' : 'Light'}. Click to cycle.`}
-            aria-label={`Theme: ${themeMode === 'system' ? 'System (Auto)' : themeMode === 'dark' ? 'Dark' : 'Light'}. Click to switch theme.`}
-          >
-            {themeMode === 'system' ? (
-              <MonitorIcon size={14} />
-            ) : themeMode === 'dark' ? (
-              <MoonIcon size={14} />
-            ) : (
-              <SunIcon size={14} />
-            )}
-          </button>
 
           {/* User Settings Dropdown */}
           {user && (
@@ -434,7 +399,18 @@ export function Header({
                     onClick={() => onSelectTab?.('assistant')}
                   >
                     <SparklesIcon size={13} />
-                    <span>AI assistant</span>
+                    <span>Assistant</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="app-dropdown-item"
+                    data-testid="cycle-theme-btn"
+                    style={{ fontSize: 'var(--fs-xs)' }}
+                    onClick={onCycleTheme}
+                  >
+                    {themeMode === 'system' ? <MonitorIcon size={13} /> : themeMode === 'dark' ? <MoonIcon size={13} /> : <SunIcon size={13} />}
+                    <span>Appearance: {themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light'}</span>
                   </button>
 
                   <div className="app-dropdown-divider" />

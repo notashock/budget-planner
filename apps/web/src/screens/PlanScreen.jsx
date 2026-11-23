@@ -16,7 +16,7 @@ import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon, EyeIcon } from '../components/Icons.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { liveBalance } from '../utils/liveBalance.js';
 import { CashAllocationBar } from '../components/CashAllocationBar.jsx';
@@ -41,11 +41,16 @@ export function PlanScreen({
   onTogglePaid = null,
   onPayTransaction = null,
   onEditTransaction = null,
-  onVerdictChange = null
+  onVerdictChange = null,
+  selectedAccountId: controlledAccountId,
+  onSelectAccount
 }) {
   const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [localAccountId, setLocalAccountId] = useState('all');
+  // App controls it so the sidebar's account list and these pills agree
+  const selectedAccountId = controlledAccountId ?? localAccountId;
+  const setSelectedAccountId = onSelectAccount ?? setLocalAccountId;
   // Chart, tiles and timeline sit one tap below the summary; remembered per browser
   const [detailsOpen, setDetailsOpen] = useState(() => {
     try { return localStorage.getItem('plan.detailsOpen') === '1'; } catch { return false; }
@@ -658,7 +663,7 @@ export function PlanScreen({
         </div>
       )}
 
-      <PageTitle title="Plan" />
+      <ScreenHeader title="Plan" />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper plan-stack-2">

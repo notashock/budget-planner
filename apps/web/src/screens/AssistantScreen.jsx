@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { api } from '../api.js';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { formatCurrency } from '@budget/engine';
 
 export function AssistantScreen({
@@ -90,7 +90,7 @@ export function AssistantScreen({
   if (!isEnabled) {
     return (
       <div className="screen-content">
-        <PageTitle title="AI assistant" subtitle="Optional help with drafting plans. Off unless you turn it on." />
+        <ScreenHeader title="AI assistant" />
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div className="card-header">
             <span className="card-title">Assistant is disabled</span>
@@ -118,7 +118,7 @@ export function AssistantScreen({
   return (
     <div className="screen-content">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <PageTitle title="AI assistant" subtitle="Optional help with drafting plans. Off unless you turn it on." />
+        <ScreenHeader title="AI assistant" />
         <button
           type="button"
           className="btn-subtle"

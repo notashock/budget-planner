@@ -15,7 +15,7 @@ const sim = (over = {}) => ({
   ...over
 });
 
-describe("Header verdict matches the Plan page", () => {
+describe("Toolbar Today lozenge matches the Plan page", () => {
   it("shows the verdict the Plan page reports for the scope being viewed", () => {
     render(
       <Header
@@ -27,7 +27,7 @@ describe("Header verdict matches the Plan page", () => {
       />
     );
     const pill = screen.getByRole('status');
-    expect(pill).toHaveTextContent('Tight month');
+    expect(pill).toHaveTextContent(/₹20\s*safe today · \d+ days? left/);
     expect(pill).toHaveClass('tight');
     expect(pill.getAttribute('title')).toMatch(/^ICICI Current: Tight month/);
     expect(screen.queryByText('Floor Safe')).not.toBeInTheDocument();
@@ -37,7 +37,8 @@ describe("Header verdict matches the Plan page", () => {
     // The month record says a 1,000 floor, but the engine's unified floor is 6,000 and the
     // upcoming low (5,500) is under it, so the header must say "Below floor", not "safe".
     render(<Header months={[month]} currentMonth={month} activeTab="goals" simulation={sim({ safetyFloor: 600000, lowestUpcomingBalance: 550000 })} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Below floor');
+    expect(screen.getByRole('status')).toHaveClass('breached');
+    expect(screen.getByRole('status').getAttribute('title')).toMatch(/^All accounts: Below floor/);
 
     expect(getUnifiedVerdict(sim({ safetyFloor: 500000 })).key).toBe('tight');
     expect(getUnifiedVerdict(sim()).key).toBe('good');

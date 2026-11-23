@@ -46,21 +46,16 @@
     font-weight: 600;
   }
 
-  .header-floor-pill {
-    padding: 2px 6px;
-    font-size: var(--fs-2xs);
+  .header-today-lozenge {
+    padding: 4px 9px;
     gap: 4px;
-    max-width: 125px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   
 
   /* Compact Container & Screen Paddings */
   .app-container {
-    padding: 10px 10px calc(68px + env(safe-area-inset-bottom, 0px)) 10px;
+    padding: 10px 10px calc(130px + env(safe-area-inset-bottom, 0px)) 10px; /* clears the Today bar + tab bar */
   }
 
   .screen-content {
@@ -312,13 +307,6 @@ main,
 
   
 
-  .bottom-nav {
-    width: calc(100vw - 24px) !important;
-    max-width: min(390px, calc(100vw - 24px)) !important;
-    left: 50%;
-    transform: translateX(-50%);
-    box-sizing: border-box;
-  }
 
   .summary-grid,
   .detailed-kpi-grid {
