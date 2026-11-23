@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
+import { LedgerService } from './ledgerService.js';
 
 export function pad(n) {
   return String(n).padStart(2, '0');
@@ -28,34 +29,36 @@ export function isHistoricalPastMonth(month, asOfDate = null) {
 }
 
 /**
- * Attaches accountOpeningBalances array to a month record
+ * Attaches accountOpeningBalances to a month record. Accounts with no stored opening for the month
+ * get their ledger balance at the month's start, so the plan doesn't start from an account's
+ * creation-time opening and miss everything posted since. Read-only: nothing here is saved.
  */
 export async function attachAccountOpeningsToMonth(month) {
   if (!month) return month;
 
-  // If an active current/future month was prematurely marked isClosed (without closedAt or closingBalances), auto-heal and unclose it.
-  // Historical past months must remain closed.
+  // A current/future month marked closed without closedAt/closingBalances is shown open; the stored
+  // flag is fixed by healPrematurelyClosedMonths at startup. Historical past months stay closed.
   if (month.isClosed && (!month.closedAt || !month.closingBalances) && !isHistoricalPastMonth(month)) {
-    try {
-      await db.update(s.months)
-        .set({ isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
-        .where(eq(s.months.id, month.id));
-      month.isClosed = false;
-      month.closedAt = null;
-      month.closingBalances = null;
-    } catch (_) {
-      month.isClosed = false;
-    }
+    month = { ...month, isClosed: false, closedAt: null, closingBalances: null };
   }
 
-  const openings = await db.query.monthAccountOpenings.findMany({
-    where: eq(s.monthAccountOpenings.monthId, month.id)
-  });
+  const [openings, accounts] = await Promise.all([
+    db.query.monthAccountOpenings.findMany({ where: eq(s.monthAccountOpenings.monthId, month.id) }),
+    db.query.accounts.findMany({
+      where: and(eq(s.accounts.userId, month.userId), eq(s.accounts.isArchived, false), ne(s.accounts.type, 'credit_card')),
+      columns: { id: true }
+    })
+  ]);
+  const stored = new Set(openings.map(o => o.accountId));
+  const missing = accounts.map(a => a.id).filter(id => !stored.has(id));
+  const startDate = month.startDate || `${month.year}-${pad(month.month)}-01`;
+  const ledger = await LedgerService.balancesAtMonthStart(month.userId, missing, startDate, month.id);
+
   return {
     ...month,
-    accountOpeningBalances: openings.map(o => ({
-      accountId: o.accountId,
-      amount: o.amount
-    }))
+    accountOpeningBalances: [
+      ...openings.map(o => ({ accountId: o.accountId, amount: o.amount })),
+      ...missing.map(accountId => ({ accountId, amount: ledger[accountId] ?? 0 }))
+    ]
   };
 }

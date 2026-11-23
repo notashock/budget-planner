@@ -52,26 +52,34 @@ leave over it). The code fix is already done and tested locally.
 
 ## Phase 1: GET requests stop writing to the database
 
-**Why:** this is how the ₹0 bug got in. Three GET handlers run `backfillUnassignedTransactions`:
+**Status:** done, see the PR for `fix/no-writes-on-read-phase1`.
 
-- month detail: `apps/server/src/domain/monthLifecycle.js:146` (it also sets `months.salaryAccountId`)
-- month transactions: `apps/server/src/domain/budgetExecution.js:83`
-- all transactions: `apps/server/src/domain/budgetExecution.js:1154`
+**Why:** this is how the ₹0 bug got in. Reads were writing in four places:
 
-**Scope**
-- Move the backfill into the places where the data actually changes: account creation (it already runs there, in
-  `accountService.js:195`) and a one-time migration script for existing users.
-- Remove the three calls from the GET paths.
-- `migration-status` becomes a pure read, and the web app checks it once per session instead of on every load.
-- When a month has no opening row, compute each account's opening from the ledger at the month's start (the same
-  query as `repair_zero_month_openings.js`). Today it falls back to the account's creation-time opening, which
-  ignores earlier transactions. Found in Phase 0: with a ₹10 October bill, "After today's bills" showed ₹335
-  against a ledger of ₹355 − ₹30 = ₹325.
+- month detail ran `backfillUnassignedTransactions` and saved a default `months.salaryAccountId`
+- the month transactions list and the all-transactions list each ran the same backfill
+- `attachAccountOpeningsToMonth` (every month read) re-saved months it decided were wrongly closed
 
-**Done when**
-- A test proves that a GET on month detail and on both transaction lists leaves the database unchanged
-  (row counts and `updated_at` the same before and after).
-- Existing users' unassigned transactions get assigned by the migration, not by browsing.
+The backfill also counted a transaction on an *archived* account as unassigned. So every month view moved an
+archived account's history onto the primary bank, without recomputing that bank's stored balance.
+
+**What changed**
+- All four writes are removed from reads. The salary-account default and the "not really closed" correction are
+  applied only to the response. The stored flag is still fixed at startup by `healPrematurelyClosedMonths`.
+- The backfill now leaves archived accounts' rows alone and recomputes the ledger balance of the account it fills.
+  It still runs when a bank account is created (`accountService.js`). New rows never need it, because every create
+  path defaults to the primary account.
+- One-time script `apps/server/src/scripts/backfill_unassigned_accounts.js` (dry run by default, `--apply`) for
+  legacy rows. It found none in the dev data.
+- A month with no stored opening for an account now starts that account at its ledger balance on the month's first
+  day (`LedgerService.balancesAtMonthStart`). Before, it started from the account's creation-time opening. With a
+  ₹10 October bill, "After today's bills" now reads ₹325 (₹355 ledger − ₹30 due today) instead of ₹335.
+- `migration-status` needed no change: it was already read-only and is checked once per app load.
+
+**Done when** (met)
+- `test/reads_do_not_write.test.js`: month detail and both transaction lists leave every stored row and its
+  `updated_at` unchanged, a month with no stored opening uses the ledger, and the backfill keeps archived history.
+  All three tests fail on the Phase 0 code and pass now.
 
 ---
 

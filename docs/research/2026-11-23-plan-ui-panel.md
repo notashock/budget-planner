@@ -144,7 +144,7 @@ comes from the real responses, not an estimate.
 | `GET /api/v1/periods/2026/11/transactions` | 7,684 | for 5 rows |
 | `GET /api/v1/accounts` | 1,336 | also embedded in the period response |
 | `GET /api/auth/me` | 670 | also embeds the whole settings object |
-| `GET /api/v1/periods`, `/goals`, `/migration-status` | ~950 | `migration-status` runs on every load |
+| `GET /api/v1/periods`, `/goals`, `/migration-status` | ~950 | `migration-status` is checked once per app load |
 
 **~116 KB for five transactions.** Event data is copied into several places, so the size grows with
 transactions × accounts. A real month with 100 entries and 4 accounts will be in the megabytes on a phone
@@ -179,9 +179,9 @@ column** plus compatibility aliases. There is no per-endpoint allowlist.
 
 ## Behaviour found along the way
 
-- **Reads that write.** `GET /periods/:y/:m` and the per-load `migration-status` check both run
-  `backfillUnassignedTransactions`, which writes to the database. That's how the ₹0 opening-balance bug got in.
-  A GET should never write. Move the backfill to a one-time migration.
+- **Reads that write.** `GET /periods/:y/:m` and both transaction lists ran `backfillUnassignedTransactions`,
+  which writes to the database. That's how the ₹0 opening-balance bug got in. A GET should never write.
+  (Corrected in phase 1: `migration-status` itself is read-only.)
 - `/cards` and `/person-funds` load twice when you open Accounts. This is most likely React StrictMode in dev,
   so check it against a production build before fixing anything.
 

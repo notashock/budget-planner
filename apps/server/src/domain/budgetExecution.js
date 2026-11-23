@@ -2,7 +2,6 @@ import { eq, and, or, asc, inArray, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { recommendPurchaseDate, deriveTransactionState, isPassThrough, getRefundableRemaining } from '@budget/engine';
-import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { serialize } from '../utils/serializer.js';
@@ -77,12 +76,6 @@ export const BudgetExecution = {
 
     if (!month) {
       throw new NotFoundError(`Month ${year}-${monthNum} not found`);
-    }
-
-    try {
-      await backfillUnassignedTransactions(userId);
-    } catch {
-      // non-fatal
     }
 
     const userSettings = await db.query.settings.findFirst({
@@ -1150,12 +1143,6 @@ export const BudgetExecution = {
    * Lists all transactions across dates/periods (for irregular earners or global ledger view).
    */
   async listAllTransactions(userId, query = {}) {
-    try {
-      await backfillUnassignedTransactions(userId);
-    } catch {
-      // non-fatal
-    }
-
     const userSettings = await db.query.settings.findFirst({
       where: eq(s.settings.userId, userId)
     });
