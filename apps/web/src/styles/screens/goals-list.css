@@ -1,0 +1,56 @@
+/* Goals, Phase D: Ready to buy shelf, grouped lists and the goal page (rows reuse accounts-list.css). */
+.acct-row.goal-row { grid-template-columns: minmax(0, 1fr) auto 12px; }
+.goal-row.goal-saving .acct-row-caption-text { color: var(--negative); }
+.acct-add-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--brand-subtle); color: var(--brand); }
+.goal-review-tag { display: inline-block; margin-bottom: 12px; }
+
+.goal-shelf {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 46%);
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+}
+.goal-shelf-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+.goal-shelf-card:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.goal-shelf-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.goal-shelf-amount { font-size: 20px; font-weight: 700; }
+.goal-shelf-caption { font-size: var(--fs-caption); color: var(--positive); }
+
+.goal-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: var(--fs-body);
+}
+.goal-verdict svg { flex: none; margin-top: 2px; }
+.goal-verdict-ready svg, .goal-verdict-scheduled svg { color: var(--positive); }
+.goal-verdict-saving svg { color: var(--negative); }
+.goal-page-action { width: 100%; padding: 12px; font-size: var(--fs-body); }
+
+@media (min-width: 1024px) {
+  .goal-shelf { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); overflow: visible; max-width: 760px; }
+  .goal-page-action { width: auto; min-width: 200px; }
+}
