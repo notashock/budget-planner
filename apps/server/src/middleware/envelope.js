@@ -18,7 +18,8 @@ export function responseEnvelope(req, res, next) {
   const originalJson = res.json.bind(res);
 
   // Explicit Success Dispatcher
-  res.success = function (data, statusCode = 200, metadata = {}) {
+  // aliases: false for responses built only from canonical names, which no client reads aliases from
+  res.success = function (data, statusCode = 200, metadata = {}, { aliases = true } = {}) {
     res.statusCode = statusCode;
     return originalJson({
       status: 'success',
@@ -27,7 +28,7 @@ export function responseEnvelope(req, res, next) {
         durationMs: getTurnaroundDurationMs(req),
         ...metadata
       },
-      data: toPublic(serialize(data))
+      data: toPublic(aliases ? serialize(data) : data)
     });
   };
 

@@ -115,7 +115,13 @@ aliases. Anything added to the database leaks to clients automatically.
 
 ---
 
-## Phase 3: `/summary` and `/timeline` endpoints
+## Phase 3: `/summary` and `/timeline` endpoints (done)
+
+**Status:** both endpoints are built as views of the month detail (`apps/server/src/domain/monthViews.js`) and
+documented in `docs/api-v1-migration.md`. `test/month_views_api.test.js` checks the summary is under 2 KB and matches
+the month detail, and a one-account timeline never mentions another account. The dev month's summary is 1.5 KB and
+its timeline 4.5 KB (month detail: 39 KB). The `Deprecation` header on the month detail is held back until the web
+and mobile apps stop loading it (Phase 5 for the web).
 
 **Why:** the new Plan page needs a handful of numbers first and the chart only on demand.
 
