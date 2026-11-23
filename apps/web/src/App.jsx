@@ -1290,6 +1290,7 @@ export default function App() {
               onRelogHeldLent={handleRelogHeldLent}
               creditCards={creditCards}
               simulation={activeSimulation}
+              month={currentMonth}
             />
           )}
 
