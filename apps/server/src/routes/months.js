@@ -2,6 +2,8 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { MonthLifecycle } from '../domain/monthLifecycle.js';
 import { route, yearMonth } from './routeHelpers.js';
+import { toSummary, toTimeline } from '../domain/monthViews.js';
+import { getTodayIso } from '../domain/monthHelpers.js';
 
 export const monthsRouter = express.Router();
 monthsRouter.use(requireAuth);
@@ -17,6 +19,14 @@ export const monthHandlers = {
 
   // Month detail with simulations
   detail: route(async (req, res) => res.success(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)))),
+
+  // The Plan page's first numbers, then its chart on demand (?accountId= for one account)
+  summary: route(async (req, res) => res.success(
+    toSummary(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)), getTodayIso()), 200, {}, { aliases: false }
+  )),
+  timeline: route(async (req, res) => res.success(
+    toTimeline(await MonthLifecycle.getMonthDetails(req.userId, ...yearMonth(req)), req.query.accountId || null), 200, {}, { aliases: false }
+  )),
 
   // Month settings / overrides
   update: route(async (req, res) => res.success(await MonthLifecycle.updateMonth(req.userId, ...yearMonth(req), req.body))),
