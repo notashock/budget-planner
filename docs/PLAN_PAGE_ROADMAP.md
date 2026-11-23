@@ -97,8 +97,9 @@ aliases. Anything added to the database leaks to clients automatically.
   `accountSummaries` (same as `simulation.accounts`, which the mobile app reads, so the map is the one kept) and
   `intradayEvents` (the chart takes a day's events from `simulation.events`). The Plan page reads the kept copies.
 - Month detail for the dev month: 106 KB → 39 KB.
-- Mobile fixtures re-recorded. Before that, the old fixtures were checked against the live API with only the
-  removed keys ignored, and every other field was still served. The Dart model contract test passes on the new ones.
+- Mobile fixtures keep their recorded data with only the removed keys deleted (plus `simulation.allEvents` and
+  `simulation.accountSimulations`, which #16 stopped sending). The old fixtures were checked against the live API
+  with only the removed keys ignored, and every other field was still served. All 206 Flutter tests pass on them.
 
 **Done when** (met)
 - `test/public_contract.test.js`: no removed field appears at any depth in auth, accounts, month detail or either

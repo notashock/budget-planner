@@ -1,6 +1,6 @@
 [
   {
-    "id": "00000000-0000-4000-8000-000000000018",
+    "id": "00000000-0000-4000-8000-000000000019",
     "monthId": "00000000-0000-4000-8000-000000000001",
     "name": "Headphones",
     "targetAmount": 800000,
@@ -8,23 +8,23 @@
     "status": "logged",
     "deferredReason": null,
     "priority": 1,
-    "fundingAccountId": "00000000-0000-4000-8000-000000000002",
-    "_id": "00000000-0000-4000-8000-000000000018",
-    "fundingBankAccountId": "00000000-0000-4000-8000-000000000002",
+    "fundingAccountId": "00000000-0000-4000-8000-000000000003",
+    "_id": "00000000-0000-4000-8000-000000000019",
+    "fundingBankAccountId": "00000000-0000-4000-8000-000000000003",
     "recommendation": {
-      "recommendedDate": "2026-11-24",
-      "recommendedDay": 24,
+      "recommendedDate": "2026-11-21",
+      "recommendedDay": 21,
       "feasible": true,
       "projectedLowestBalance": 10987000,
       "savingsBuffer": 10487000,
       "lowestDate": "2026-11-28",
-      "explanation": "Purchasing on 2026-11-24 preserves a safety buffer of ₹1,04,870 after clearing scheduled monthly obligations and accounting for spending pace.",
+      "explanation": "Purchasing on 2026-11-21 preserves a safety buffer of ₹1,04,870 after clearing scheduled monthly obligations and accounting for spending pace.",
       "pipelineDetails": {
-        "currentDay": 23,
-        "burnRatePerDay": 31000,
+        "currentDay": 20,
+        "burnRatePerDay": 35650,
         "heavyBillDays": [],
-        "safeDaysCount": 7,
-        "paceSafeDaysCount": 7
+        "safeDaysCount": 10,
+        "paceSafeDaysCount": 10
       }
     }
   }

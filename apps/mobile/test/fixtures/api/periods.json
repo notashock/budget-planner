@@ -11,26 +11,15 @@
     "safetyFloor": 500000,
     "unplannedAllowance": 0,
     "currencySymbol": "₹",
-    "salaryAccountId": "00000000-0000-4000-8000-000000000002",
+    "salaryAccountId": "00000000-0000-4000-8000-000000000003",
     "isSalaryCredited": false,
     "salaryCreditedDate": null,
     "isClosed": false,
     "closedAt": null,
     "closingBalances": null,
-    "accountOpeningBalances": [
-      {
-        "accountId": "00000000-0000-4000-8000-000000000002",
-        "amount": 5000000,
-        "bankAccountId": "00000000-0000-4000-8000-000000000002"
-      },
-      {
-        "accountId": "00000000-0000-4000-8000-000000000003",
-        "amount": 250000,
-        "bankAccountId": "00000000-0000-4000-8000-000000000003"
-      }
-    ],
+    "accountOpeningBalances": [],
     "_id": "00000000-0000-4000-8000-000000000001",
-    "salaryBankAccountId": "00000000-0000-4000-8000-000000000002",
+    "salaryBankAccountId": "00000000-0000-4000-8000-000000000003",
     "incomeCreditDay": 1
   }
 ]
