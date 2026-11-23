@@ -146,6 +146,9 @@ and mobile apps stop loading it (Phase 5 for the web).
 
 ## Phase 4: validate the redesign with 5 real people
 
+**Status:** prototype and session script ready (`docs/research/plan-mock/index.html`,
+`docs/research/2026-11-23-plan-mock-test.md`). Waiting on the 5 sessions; record the results in the script's table.
+
 **Runs alongside phases 1–3.** The panel was simulated, so this is the reality check before building the UI.
 
 **Scope**
