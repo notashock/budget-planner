@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatCurrencyWhole } from '@budget/engine';
-import { LayoutDashboardIcon, ListOrderedIcon, TargetIcon, WalletIcon, SparklesIcon } from './Icons.jsx';
+import { LayoutDashboardIcon, ListOrderedIcon, TargetIcon, WalletIcon, SparklesIcon, PlusIcon } from './Icons.jsx';
 import { AnimatedLogo } from './AnimatedLogo.jsx';
 import { liveBalance } from '../utils/liveBalance.js';
 
@@ -20,6 +20,8 @@ export function AppSidebar({
   month,
   selectedAccountId = 'all',
   onSelectAccount,
+  onNew = null,
+  youMenu = null,
 }) {
   const symbol = month?.currencySymbol ?? '₹';
 
@@ -29,6 +31,13 @@ export function AppSidebar({
         <AnimatedLogo size={24} />
         <span className="app-sidebar-label">Budget Planner</span>
       </div>
+
+      {onNew && (
+        <button type="button" className="btn btn-primary app-sidebar-new" title="New" onClick={onNew}>
+          <PlusIcon size={15} color="currentColor" />
+          <span className="app-sidebar-label">New</span>
+        </button>
+      )}
 
       <nav className="app-sidebar-nav" aria-label="Main Navigation">
         {NAV_TABS.map(({ id, label, Icon }) => (
@@ -74,15 +83,18 @@ export function AppSidebar({
         </div>
       )}
 
-      <button
-        type="button"
-        className={`app-sidebar-item app-sidebar-foot${activeTab === 'assistant' ? ' active' : ''}`}
-        title="Assistant"
-        onClick={() => onSelectTab('assistant')}
-      >
-        <SparklesIcon size={17} color="currentColor" />
-        <span className="app-sidebar-label">Assistant</span>
-      </button>
+      <div className="app-sidebar-foot">
+        <button
+          type="button"
+          className={`app-sidebar-item${activeTab === 'assistant' ? ' active' : ''}`}
+          title="Assistant"
+          onClick={() => onSelectTab('assistant')}
+        >
+          <SparklesIcon size={17} color="currentColor" />
+          <span className="app-sidebar-label">Assistant</span>
+        </button>
+        {youMenu}
+      </div>
     </aside>
   );
 }

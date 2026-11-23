@@ -9,7 +9,8 @@ export function BottomNav({
   isReviewMode = false,
   hasActivePlanningMonth = true,
   onOpenRollover,
-  nextMonthLabel = 'Next Month'
+  nextMonthLabel = 'Next Month',
+  youMenu = null
 }) {
   const tabs = NAV_TABS;
 
@@ -34,7 +35,8 @@ export function BottomNav({
 
   return (
     <div className="bottom-dock">
-      {/* Today bar: the one way to add, where the mini-player sits in Apple Music */}
+      {/* Today bar (the one way to add, where Apple Music's mini-player sits) + You */}
+      <div className="today-row">
       {!isReviewMode ? (
         <button
           type="button"
@@ -55,7 +57,9 @@ export function BottomNav({
         >
           <ZapIcon size={14} /><span>Start {nextMonthLabel || 'Next Month'}</span>
         </button>
-      ) : null}
+      ) : <span className="today-bar-spacer" />}
+      {youMenu}
+      </div>
 
       <nav className="bottom-nav" aria-label="Tabs">
         <div className="bottom-nav-inner">{tabs.map(tabButton)}</div>

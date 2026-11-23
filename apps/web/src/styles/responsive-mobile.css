@@ -13,29 +13,6 @@
     --sheet-pad-x: var(--space-4);
   }
 
-  /* Compact Header */
-  .app-header-inner {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .app-header-left {
-    gap: 8px;
-  }
-
-  .app-header-right {
-    gap: 6px;
-  }
-
-  .app-brand {
-    font-size: var(--fs-xs);
-  }
-
-  .app-brand-text,
-  .beta-badge {
-    display: none;
-  }
-
   .desktop-only-btn {
     display: none !important;
   }
@@ -46,16 +23,12 @@
     font-weight: 600;
   }
 
-  .header-today-lozenge {
-    padding: 4px 9px;
-    gap: 4px;
-  }
 
   
 
   /* Compact Container & Screen Paddings */
   .app-container {
-    padding: 10px 10px calc(130px + env(safe-area-inset-bottom, 0px)) 10px; /* clears the Today bar + tab bar */
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(140px + env(safe-area-inset-bottom, 0px)) 10px; /* clears the Today bar + tab bar */
   }
 
   .screen-content {
@@ -256,12 +229,7 @@
     width: 100%;
   }
 
-  .app-header,
-  .app-header-inner,
-  .app-header-left,
-  .app-header-right {
-    overflow: visible;
-  }
+
 
   .app-container,
 .screen-content,

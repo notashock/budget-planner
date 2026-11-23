@@ -11,7 +11,7 @@ export function ScreenHeader({ title, actions = null, className = '' }) {
   useEffect(() => {
     const el = titleRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    const toolbarHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h'), 10) || 56;
+    const toolbarHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h'), 10) || 0;
     const observer = new IntersectionObserver(
       ([entry]) => setCompact(!entry.isIntersecting && entry.boundingClientRect.top < toolbarHeight),
       { rootMargin: `-${toolbarHeight}px 0px 0px 0px` },

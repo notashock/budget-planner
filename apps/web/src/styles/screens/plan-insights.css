@@ -78,6 +78,21 @@
   align-items: start;
 }
 
+/* Hero, then the cash allocation bar directly under its graph */
+.plan-glance-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.plan-glance-main .alloc {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
 .plan-details-toggle {
   align-self: flex-start;
   display: inline-flex;

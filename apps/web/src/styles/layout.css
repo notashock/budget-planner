@@ -1,6 +1,6 @@
 /* App Shell: sidebar (≥768px) + toolbar + content */
 :root {
-  --toolbar-h: 56px;
+  --toolbar-h: 0px; /* no top bar: the compact title sits at the very top */
   --sidebar-w: 0px;
 }
 
@@ -132,6 +132,39 @@
   margin-top: auto;
 }
 
+.app-sidebar-new {
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  min-height: 36px;
+}
+
+.app-sidebar-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-sidebar-foot .app-sidebar-item {
+  flex: 1;
+}
+
+/* The You menu opens upward from the sidebar foot and the dock */
+.you-menu .app-dropdown-menu {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 8px;
+}
+
+.app-sidebar .you-menu .app-dropdown-menu {
+  left: 0;
+}
+
+.bottom-dock .you-menu .app-dropdown-menu {
+  left: auto;
+  right: 0;
+}
+
 /* 768–1023px: icons only */
 @media (min-width: 768px) and (max-width: 1023px) {
   .app-sidebar-label {
@@ -146,102 +179,6 @@
   }
 }
 
-/* Toolbar Today lozenge: one number, colour only on the status dot */
-.header-today {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.header-today-lozenge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--surface-subtle);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.header-today-caption {
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.header-today-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-}
-
-.header-today-dot.tight { background: var(--amber); }
-.header-today-dot.breached { background: var(--rose); }
-
-/* Header - Full Width */
-.app-header {
-  width: 100%;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-header);
-  min-height: var(--toolbar-h);
-  box-sizing: border-box;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  overflow: visible;
-}
-
-.app-header:has(.app-dropdown-menu),
-.app-header.has-active-dropdown {
-  z-index: var(--z-header-menu);
-}
-
-.app-header-inner {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  gap: 8px;
-  overflow: visible;
-}
-
-.app-header-left,
-.app-header-right {
-  overflow: visible;
-}
-
-.app-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.app-header-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-}
-
-.app-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
 
 .header-avatar-btn {
   width: 32px;
@@ -309,14 +246,10 @@ main {
   .bottom-dock {
     display: none !important;
   }
-  .app-brand--toolbar {
-    display: none !important;
-  }
 }
 
 @media (max-width: 767px) {
-  .app-sidebar,
-  .header-new-btn {
+  .app-sidebar {
     display: none !important;
   }
   .app-container {
@@ -325,62 +258,6 @@ main {
     box-sizing: border-box;
     padding: 0 16px 140px;
   }
-}
-
-/* Tablet Header Optimization (768px - 1023px) */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .app-header-inner {
-    padding: 8px clamp(12px, 2vw, 18px);
-    gap: clamp(8px, 1.5vw, 14px);
-  }
-
-  .app-header-left {
-    gap: 8px;
-    flex-shrink: 1;
-    min-width: 0;
-  }
-
-  .app-brand {
-    font-size: var(--fs-base);
-    letter-spacing: 0.04em;
-    gap: 6px;
-  }
-
-  .beta-badge {
-    display: none !important;
-  }
-
-  .month-picker-btn {
-    font-size: var(--fs-sm);
-    padding: 3px 6px;
-    white-space: nowrap;
-  }
-
-  .desktop-header-rollover-btn {
-    font-size: var(--fs-2xs);
-    padding: 3px 8px;
-  }
-
-
-
-  .app-header-right {
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .header-today-lozenge {
-    padding: 3px 8px;
-    gap: 4px;
-  }
-}
-
-/* Extra-tight tablet portrait refinement (768px - 860px) */
-@media (min-width: 768px) and (max-width: 1023px) {
-
-  .app-brand-text {
-    font-size: var(--fs-xs);
-  }
-
 }
 
 /* 3-Component Dashboard Layout & Mobile Glance-and-Act Hierarchy */

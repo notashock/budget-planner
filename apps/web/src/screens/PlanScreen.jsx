@@ -43,7 +43,8 @@ export function PlanScreen({
   onEditTransaction = null,
   onVerdictChange = null,
   selectedAccountId: controlledAccountId,
-  onSelectAccount
+  onSelectAccount,
+  monthMenu = null
 }) {
   const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -663,7 +664,7 @@ export function PlanScreen({
         </div>
       )}
 
-      <ScreenHeader title="Plan" />
+      <ScreenHeader title="Plan" actions={monthMenu} />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper plan-stack-2">
@@ -792,6 +793,7 @@ export function PlanScreen({
 
       {/* At a glance: one number, then what's due. Everything else is one tap deeper. */}
       <div className="plan-glance">
+        <div className="plan-glance-main">
         <MonthHealthHero
           safeVelocity={activeSafeVelocity}
           daysLeft={daysLeft}
@@ -805,6 +807,17 @@ export function PlanScreen({
           detailsOpen={detailsOpen}
           onToggleDetails={toggleDetails}
         />
+        <CashAllocationBar
+          todayBalance={activeTodayBalance}
+          committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
+          safetyFloor={activeSafetyFloor}
+          goalReserve={activeSafeVelocity?.goalReserve ?? 0}
+          heldReserve={activeSafeVelocity?.heldReserve ?? 0}
+          cardReserve={activeSafeVelocity?.cardReserve ?? 0}
+          freeSurplus={activeSafeVelocity?.freeSurplus}
+          currencySymbol={month.currencySymbol}
+        />
+        </div>
 
       <ErrorBoundary title="Upcoming payments unavailable">
         <UpcomingOutflows
@@ -834,16 +847,6 @@ export function PlanScreen({
       <div id="plan-details" className="plan-details">
       <div className="dashboard-top-grid">
         <div className="dashboard-insights-panel">
-          <CashAllocationBar
-            todayBalance={activeTodayBalance}
-            committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
-            safetyFloor={activeSafetyFloor}
-            goalReserve={activeSafeVelocity?.goalReserve ?? 0}
-            heldReserve={activeSafeVelocity?.heldReserve ?? 0}
-            cardReserve={activeSafeVelocity?.cardReserve ?? 0}
-            freeSurplus={activeSafeVelocity?.freeSurplus}
-            currencySymbol={month.currencySymbol}
-          />
           <DetailedKpiGrid
             incomeAmount={isFilteringAccount ? (activeAccountSummary?.incomeAmount ?? 0) : unifiedIncome}
             incomeCreditDay={month.incomeCreditDay}
@@ -902,7 +905,10 @@ export function PlanScreen({
         </ErrorBoundary>
       </div>
 
-      {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}
+      </div>
+      )}
+
+      {/* The day-by-day timeline stays on the page, below Details (chart and breakdowns) */}
       <div className="dashboard-bottom-timeline">
         <ErrorBoundary title="Transactions timeline encountered an issue">
           <TimelineList
@@ -925,8 +931,6 @@ export function PlanScreen({
           />
         </ErrorBoundary>
       </div>
-      </div>
-      )}
     </div>
   );
 }

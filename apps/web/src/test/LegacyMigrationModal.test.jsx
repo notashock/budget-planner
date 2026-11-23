@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AccountsScreen } from '../screens/AccountsScreen.jsx';
-import { Header } from '../components/Header.jsx';
+import { YouMenu } from '../components/YouMenu.jsx';
 import { SalarySafelineModal } from '../components/SalarySafelineModal.jsx';
 import { TransferCalculationsModal } from '../components/TransferCalculationsModal.jsx';
 
@@ -132,7 +132,7 @@ describe('Single Unified Migration Flow & Header Salary/Safeline Linking', () =>
       const handleOpenSalarySafeline = vi.fn();
 
       render(
-        <Header
+        <YouMenu
           user={{ email: 'test@example.com' }}
           months={[mockMonth]}
           currentMonth={mockMonth}

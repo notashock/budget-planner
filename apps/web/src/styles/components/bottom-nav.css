@@ -1,35 +1,47 @@
-/* Phone dock (<768px): Today bar over a four-tab bar, after Apple Music's mini-player */
+/* Phone dock (<768px): a floating, curved glass panel. Today bar + You on top, four tabs below */
 .bottom-dock {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: var(--z-nav);
   display: flex; /* hidden at ≥768px in layout.css */
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px calc(6px + env(safe-area-inset-bottom, 0px));
-  background: var(--dock-bg);
-  border-top: 1px solid var(--border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  gap: 6px;
+  padding: 8px 8px 4px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-.today-bar {
+.today-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+}
+
+.today-bar-spacer {
+  flex: 1;
+}
+
+.today-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--text-muted);
   font-size: var(--fs-body);
   text-align: left;
   cursor: pointer;
-  box-shadow: var(--shadow-subtle);
 }
 
 .today-bar svg {
@@ -48,9 +60,17 @@
   color: currentColor;
 }
 
+.bottom-dock .header-avatar-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: none;
+}
+
 .bottom-nav {
   display: flex;
-  height: 50px;
+  height: 48px;
 }
 
 .bottom-nav-inner {

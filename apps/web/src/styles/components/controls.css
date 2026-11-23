@@ -341,30 +341,6 @@ select.input-field {
   margin: 4px 0;
 }
 
-@media (max-width: 599px) {
-  .app-brand-text,
-  .beta-badge {
-    display: none;
-  }
-  
-  .app-header-inner {
-    padding: 8px 12px;
-    gap: 6px;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-  .app-header-left {
-    gap: 6px;
-    min-width: 0;
-    flex-shrink: 1;
-  }
-  .app-header-right {
-    gap: 6px;
-    flex-shrink: 0;
-  }
-}
-
 /* ==========================================================================
    Shared form building blocks (entry and edit forms)
    ========================================================================== */

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { Header } from '../components/Header.jsx';
+import { YouMenu } from '../components/YouMenu.jsx';
 import { AppSidebar } from '../components/AppSidebar.jsx';
 import { BottomNav } from '../components/BottomNav.jsx';
 import { ScreenHeader } from '../components/ScreenHeader.jsx';
@@ -42,7 +42,7 @@ describe("Consistent navigation and page titles", () => {
   it("opens the AI assistant from the profile menu", () => {
     const onSelectTab = vi.fn();
     render(
-      <Header
+      <YouMenu
         months={[]}
         currentMonth={null}
         user={{ name: 'Test', email: 'test@example.com' }}
