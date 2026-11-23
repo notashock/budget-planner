@@ -1,4 +1,5 @@
 import { serialize } from '../utils/serializer.js';
+import { toPublic } from '../utils/publicFields.js';
 
 /**
  * Helper to compute high-resolution turnaround time in milliseconds (2 decimal places)
@@ -26,7 +27,7 @@ export function responseEnvelope(req, res, next) {
         durationMs: getTurnaroundDurationMs(req),
         ...metadata
       },
-      data: serialize(data)
+      data: toPublic(serialize(data))
     });
   };
 
