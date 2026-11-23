@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { formatCurrency, formatDisplayDate, evaluateGoalsWithReservation } from '@budget/engine';
 import { PlusIcon, AlertTriangleIcon, CheckCircleIcon, CalendarIcon, BuildingLibraryIcon, WalletIcon } from '../components/Icons.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { DatePicker } from '../components/DatePicker.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { GoalEditForm } from '../components/GoalEditForm.jsx';
@@ -179,7 +179,7 @@ export function GoalsScreen({
   return (
     <div className="screen-content">
       <div className="goals-row">
-        <PageTitle title="Goals" subtitle="Things you are saving for, and when you can afford them." />
+        <ScreenHeader title="Goals" />
         <div className="goals-row-2">
           {isReviewMode && (
             <span className="review-badge-tag goals-note">

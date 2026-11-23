@@ -5,7 +5,7 @@ import { PlanScreen } from '../screens/PlanScreen.jsx';
 import { TransactionsScreen } from '../screens/TransactionsScreen.jsx';
 import { AccountsScreen } from '../screens/AccountsScreen.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
-import { Header } from '../components/Header.jsx';
+import { MonthMenu } from '../components/MonthMenu.jsx';
 import { BottomNav } from '../components/BottomNav.jsx';
 import { MonthRolloverModal } from '../components/MonthRolloverModal.jsx';
 
@@ -93,7 +93,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
   describe('Header Navigation & Modal Ceremonies', () => {
     it('does not render Create Month or Rollover buttons and categorizes closed months in dropdown', () => {
       render(
-        <Header
+        <MonthMenu
           currentMonth={closedMonth}
           months={[closedMonth, activeMonth]}
           activePlanningMonth={activeMonth}
@@ -128,7 +128,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       };
 
       render(
-        <Header
+        <MonthMenu
           currentMonth={activeMonth}
           months={[closedMonth, activeMonth, futureMonth]}
           activePlanningMonth={activeMonth}
@@ -287,7 +287,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
     it('renders start month action in header dropdown when no active planning cycle exists', () => {
       const onOpenRollover = vi.fn();
       render(
-        <Header
+        <MonthMenu
           currentMonth={closedMonth}
           months={[closedMonth]} // Only closed month, activePlanningMonths.length === 0
           hasActivePlanningMonth={false}
@@ -390,7 +390,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       };
 
       render(
-        <Header
+        <MonthMenu
           currentMonth={novMonth}
           months={[decMonth, novMonth, closedMonth]}
           onSelectMonth={vi.fn()}

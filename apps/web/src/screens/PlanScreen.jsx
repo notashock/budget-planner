@@ -16,7 +16,7 @@ import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon, EyeIcon } from '../components/Icons.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { liveBalance } from '../utils/liveBalance.js';
 import { CashAllocationBar } from '../components/CashAllocationBar.jsx';
@@ -41,11 +41,17 @@ export function PlanScreen({
   onTogglePaid = null,
   onPayTransaction = null,
   onEditTransaction = null,
-  onVerdictChange = null
+  onVerdictChange = null,
+  selectedAccountId: controlledAccountId,
+  onSelectAccount,
+  monthMenu = null
 }) {
   const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [localAccountId, setLocalAccountId] = useState('all');
+  // App controls it so the sidebar's account list and these pills agree
+  const selectedAccountId = controlledAccountId ?? localAccountId;
+  const setSelectedAccountId = onSelectAccount ?? setLocalAccountId;
   // Chart, tiles and timeline sit one tap below the summary; remembered per browser
   const [detailsOpen, setDetailsOpen] = useState(() => {
     try { return localStorage.getItem('plan.detailsOpen') === '1'; } catch { return false; }
@@ -658,7 +664,7 @@ export function PlanScreen({
         </div>
       )}
 
-      <PageTitle title="Plan" />
+      <ScreenHeader title="Plan" actions={monthMenu} />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper plan-stack-2">
@@ -787,6 +793,7 @@ export function PlanScreen({
 
       {/* At a glance: one number, then what's due. Everything else is one tap deeper. */}
       <div className="plan-glance">
+        <div className="plan-glance-main">
         <MonthHealthHero
           safeVelocity={activeSafeVelocity}
           daysLeft={daysLeft}
@@ -800,6 +807,17 @@ export function PlanScreen({
           detailsOpen={detailsOpen}
           onToggleDetails={toggleDetails}
         />
+        <CashAllocationBar
+          todayBalance={activeTodayBalance}
+          committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
+          safetyFloor={activeSafetyFloor}
+          goalReserve={activeSafeVelocity?.goalReserve ?? 0}
+          heldReserve={activeSafeVelocity?.heldReserve ?? 0}
+          cardReserve={activeSafeVelocity?.cardReserve ?? 0}
+          freeSurplus={activeSafeVelocity?.freeSurplus}
+          currencySymbol={month.currencySymbol}
+        />
+        </div>
 
       <ErrorBoundary title="Upcoming payments unavailable">
         <UpcomingOutflows
@@ -829,16 +847,6 @@ export function PlanScreen({
       <div id="plan-details" className="plan-details">
       <div className="dashboard-top-grid">
         <div className="dashboard-insights-panel">
-          <CashAllocationBar
-            todayBalance={activeTodayBalance}
-            committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
-            safetyFloor={activeSafetyFloor}
-            goalReserve={activeSafeVelocity?.goalReserve ?? 0}
-            heldReserve={activeSafeVelocity?.heldReserve ?? 0}
-            cardReserve={activeSafeVelocity?.cardReserve ?? 0}
-            freeSurplus={activeSafeVelocity?.freeSurplus}
-            currencySymbol={month.currencySymbol}
-          />
           <DetailedKpiGrid
             incomeAmount={isFilteringAccount ? (activeAccountSummary?.incomeAmount ?? 0) : unifiedIncome}
             incomeCreditDay={month.incomeCreditDay}
@@ -897,7 +905,10 @@ export function PlanScreen({
         </ErrorBoundary>
       </div>
 
-      {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}
+      </div>
+      )}
+
+      {/* The day-by-day timeline stays on the page, below Details (chart and breakdowns) */}
       <div className="dashboard-bottom-timeline">
         <ErrorBoundary title="Transactions timeline encountered an issue">
           <TimelineList
@@ -920,8 +931,6 @@ export function PlanScreen({
           />
         </ErrorBoundary>
       </div>
-      </div>
-      )}
     </div>
   );
 }

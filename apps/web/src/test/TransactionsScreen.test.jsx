@@ -385,7 +385,7 @@ describe('TransactionsScreen', () => {
     expect(screen.getAllByRole('button', { name: /Cancel commitment/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('button', { name: /Edit commitment/i })).not.toBeInTheDocument();
   });
-  it('renders desktop header with Transactions title and subtext', () => {
+  it('renders the Transactions large title', () => {
     render(
       <TransactionsScreen
         transactions={mockTransactions}
@@ -397,7 +397,6 @@ describe('TransactionsScreen', () => {
 
     const title = screen.getByRole('heading', { level: 1, name: 'Transactions' });
     expect(title).toBeInTheDocument();
-    expect(screen.getByText(/Everything you have paid, and everything still planned/i)).toBeInTheDocument();
   });
 
   it('spots expected salary credit date without displaying a planned debit amount when amount is 0', () => {

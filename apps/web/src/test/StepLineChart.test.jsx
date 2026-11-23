@@ -374,8 +374,10 @@ describe('StepLineChart component', () => {
       const tip = container.querySelector('.chart-tooltip');
       expect(tip).toHaveTextContent('Oct 5');
       expect(tip).toHaveTextContent('₹28.00');
-      expect(tip).toHaveTextContent('▼ -₹4.00');
-      expect(tip).toHaveClass('flip');
+      expect(tip).toHaveTextContent('−₹4.00');
+      // At the right edge it pins to the card edge, above or below the point, never beside it
+      expect(tip).toHaveClass('ct-end');
+      expect(tip.className).toMatch(/ct-(above|below)/);
       fireEvent.mouseLeave(plot);
       expect(container.querySelector('.chart-tooltip')).toBeNull();
     });

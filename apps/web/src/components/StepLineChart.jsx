@@ -544,7 +544,7 @@ export function StepLineChart({
             const pt = points.find((p) => p.day === row.day);
             if (!m || !pt) return null;
             const active = activeDay === row.day;
-            const s = active ? 6.5 : 5.5;
+            const s = active ? 4.5 : 3.5;
             return (
               <g key={`m-${row.day}`} className={`bc-marker bc-marker-${m.kind} ${active ? 'active' : ''}`}>
                 {m.kind === 'income' && (
@@ -553,9 +553,9 @@ export function StepLineChart({
                 {m.kind === 'bill' && (
                   <path d={`M ${pt.x} ${pt.y + s + 1} L ${pt.x + s} ${pt.y - s + 2} L ${pt.x - s} ${pt.y - s + 2} Z`} />
                 )}
-                {m.kind === 'paid' && <circle cx={pt.x} cy={pt.y} r={active ? 5 : 4} />}
+                {m.kind === 'paid' && <circle cx={pt.x} cy={pt.y} r={active ? 3.5 : 2.5} />}
                 {m.count > 1 && (
-                  <text className="bc-count" x={pt.x + s + 3} y={pt.y - s}>{m.count}</text>
+                  <text className="bc-count" x={pt.x + s + 2} y={pt.y - s - 1}>{m.count}</text>
                 )}
               </g>
             );
@@ -565,13 +565,13 @@ export function StepLineChart({
           {lowPoint && (
             <g className={`bc-low ${lowUnderFloor ? 'under' : ''}`}>
               {/* An outer ring, so that day's entry marker stays visible inside it */}
-              <circle cx={lowPoint.x} cy={lowPoint.y} r="9" />
+              <circle cx={lowPoint.x} cy={lowPoint.y} r="6.5" />
               {lowLabel && <text x={lowLabel.x} y={lowLabel.y} textAnchor={lowLabel.anchor}>{lowLabel.text}</text>}
             </g>
           )}
 
           {/* Selected/hovered day point */}
-          {activePoint && <circle className="bc-active-point" cx={activePoint.x} cy={activePoint.y} r="5" />}
+          {activePoint && <circle className="bc-active-point" cx={activePoint.x} cy={activePoint.y} r="3.5" />}
 
           {/* Month-end value at the end of the projection */}
           {showMonthEndLabel && (

@@ -78,6 +78,21 @@
   align-items: start;
 }
 
+/* Hero, then the cash allocation bar directly under its graph */
+.plan-glance-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.plan-glance-main .alloc {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
 .plan-details-toggle {
   align-self: flex-start;
   display: inline-flex;
@@ -1194,40 +1209,72 @@
   .di-hint { margin-left: 0; width: 100%; }
 }
 
-/* ---- Page titles: one heading style on every screen ---- */
-.page-title-group {
+/* ---- ScreenHeader: large title, then a compact blurred bar once it scrolls away ---- */
+.screen-header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
   min-width: 0;
   margin-bottom: 12px;
 }
 
 .page-title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--text);
   text-wrap: balance;
 }
 
-.page-subtitle {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-secondary);
+.screen-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Menus in the header's right-hand actions open toward the screen, not off its edge */
+.screen-header-actions .app-dropdown-menu {
+  left: auto;
+  right: 0;
+  max-width: calc(100vw - 32px);
+}
+
+.screen-header-compact {
+  position: fixed;
+  top: var(--toolbar-h);
+  left: var(--sidebar-w, 0px);
+  right: 0;
+  z-index: var(--z-header);
+  padding: 10px var(--space-page-x);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.screen-header-compact.is-visible {
+  opacity: 1;
 }
 
 /* Inside an existing header row the row handles spacing */
-.apple-tx-header-row-1 .page-title-group,
-.screen-content > div > .page-title-group {
+.apple-tx-header-row-1 .screen-header,
+.screen-content > div > .screen-header {
   margin-bottom: 0;
 }
 
 @media (max-width: 767px) {
-  .page-title { font-size: var(--fs-xl); }
-  .page-subtitle { font-size: var(--fs-sm); }
+  .page-title { font-size: 28px; }
 }
 
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */

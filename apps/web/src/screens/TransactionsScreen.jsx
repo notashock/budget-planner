@@ -11,7 +11,6 @@ import {
   TargetIcon,
   SearchIcon,
   EditIcon,
-  PlusIcon,
   InboxIcon,
   SendIcon,
   ArrowRightLeftIcon,
@@ -20,7 +19,7 @@ import {
   CreditCardIcon
 } from '../components/Icons.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
 import { SettleForm } from '../components/SettleForm.jsx';
@@ -321,10 +320,10 @@ export function TransactionsScreen({
           ========================================================================= */}
       <div className="apple-tx-header-row-1">
         {/* Left: Cupertino Large Title & Subtitle */}
-        <PageTitle
+        <ScreenHeader
           className="apple-tx-title-group tx-desktop-header"
           title="Transactions"
-          subtitle="Everything you have paid, and everything still planned."
+         
         />
 
         {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
@@ -367,18 +366,7 @@ export function TransactionsScreen({
             />
           </div>
 
-          {/* Desktop-only New Entry Button (Hidden on Mobile as bottom nav handles entry) */}
-          {!isReviewMode && (
-            <button
-              type="button"
-              className="btn-primary apple-tx-add-btn desktop-only"
-              onClick={() => onOpenUnifiedEntry?.('log')}
-              title="Add a new transaction or planned expense"
-            >
-              <PlusIcon size={13} />
-              <span className="apple-tx-add-label">New Entry</span>
-            </button>
-          )}
+          {/* New lives in the toolbar (web) and the Today bar (phone) */}
 
           {isReviewMode && (
             <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
