@@ -1668,35 +1668,6 @@ export function UnifiedEntryModal({
                     )}
                   </div>
 
-                  {/* Docked Date Companion */}
-                  {mode === 'plan' && itemType === 'recurring' ? (
-                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
-                      <CalendarIcon size={14} color="var(--text-secondary)" />
-                      <span>Day</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max="31"
-                        required
-                        value={dayOfMonth}
-                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
-                      />
-                    </div>
-                  ) : (
-                    <DatePicker
-                      compact
-                      value={date}
-                      onChange={(d) => setDate(d)}
-                      placeholder="Date"
-                      month={month}
-                      required={mode !== 'plan'}
-                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
-                      // anything already paid or received can't be in the future.
-                      minDate={mode === 'plan' ? planMinDate : null}
-                      maxDate={mode === 'plan' ? null : todayStr}
-                    />
-                  )}
                 </div>
 
                 {/* Quick Increment Shortcut Chips & Compact Variable Checkbox */}
@@ -1792,17 +1763,34 @@ export function UnifiedEntryModal({
                 </div>
               </div>
 
-            {/* ---------------------------------------------------------------------
-                SLOT 2: PRIMARY ACCOUNT SELECTOR
-               --------------------------------------------------------------------- */}
-            <div className="form-group entry-box-3">
-              <label className="form-label">
-                {mode === 'log' && 'Payment Account *'}
-                {mode === 'income' && 'Deposited To (Account) *'}
-                {mode === 'plan' && 'Dedicated Account *'}
-                {mode === 'transfer' && (moveTarget === 'card' ? 'Pay from *' : 'Source Account (Outflow) *')}
-              </label>
-
+            {/* Grouped rows (Phase E §5.1): label left, value right */}
+            <div className="sheet-group" role="group" aria-label="Details">
+              <div className="sheet-row">
+                <label className="sheet-row-label" htmlFor="entry-what-for">
+                  {mode === 'plan' ? 'Name *' : mode === 'transfer' ? 'Note' : 'What for'}
+                </label>
+                <input className="sheet-row-input"
+                  id="entry-what-for"
+                  type="text"
+                  required={mode === 'plan'}
+                  placeholder={
+                    mode === 'log'
+                      ? 'Grocery, metro…'
+                      : mode === 'income'
+                      ? 'Salary payout…'
+                      : mode === 'plan'
+                      ? 'Rent, electricity…'
+                      : 'Optional'
+                  }
+                  value={description}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
+                />
+              </div>
+              <div className="sheet-row sheet-row-stack">
+                <span className="sheet-row-label">
+                  {mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From'}
+                </span>
+                <div className="sheet-row-value">
               {hasZeroAccounts ? (
                 <div className="entry-box-4"
                 >
@@ -1840,6 +1828,41 @@ export function UnifiedEntryModal({
                   accountSimulations={accountSimulations}
                 />
               )}
+                </div>
+              </div>
+              <div className="sheet-row">
+                <span className="sheet-row-label">When</span>
+                <div className="sheet-row-value">
+                  {mode === 'plan' && itemType === 'recurring' ? (
+                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
+                      <CalendarIcon size={14} color="var(--text-secondary)" />
+                      <span>Day</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="31"
+                        required
+                        value={dayOfMonth}
+                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
+                      />
+                    </div>
+                  ) : (
+                    <DatePicker
+                      compact
+                      value={date}
+                      onChange={(d) => setDate(d)}
+                      placeholder="Date"
+                      month={month}
+                      required={mode !== 'plan'}
+                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
+                      // anything already paid or received can't be in the future.
+                      minDate={mode === 'plan' ? planMinDate : null}
+                      maxDate={mode === 'plan' ? null : todayStr}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* ---------------------------------------------------------------------
@@ -1934,7 +1957,7 @@ export function UnifiedEntryModal({
               ) : (
                 <>
                   <div className="entry-row-8">
-                    <label className="form-label entry-box-3">Destination Account (Inflow) *</label>
+                    <label className="form-label entry-box-3">To</label>
                     <button
                       type="button"
                       className="btn-subtle modal-conduit-swap-btn entry-btn-5"
@@ -1972,24 +1995,6 @@ export function UnifiedEntryModal({
                 SLOT 4: DESCRIPTION & CONTEXTUAL DETAILS
                --------------------------------------------------------------------- */}
             <div className="form-group entry-box-3">
-              <label className="form-label">
-                {mode === 'plan' ? 'Name / Description *' : 'Description note (optional)'}
-              </label>
-              <input className="entry-box-5"
-                type="text"
-                required={mode === 'plan'}
-                placeholder={
-                  mode === 'log'
-                    ? 'e.g. Grocery, Metro pass, Doctor checkup'
-                    : mode === 'income'
-                    ? 'e.g. Monthly salary payout, client invoice, dividends'
-                    : mode === 'plan'
-                    ? 'e.g. Rent, Electricity, Groceries'
-                    : 'e.g. ATM withdrawal, emergency savings, envelope funding'
-                }
-                value={description}
-                onChange={(e) => handleDescriptionChange(e.target.value)}
-              />
 
               {/* Mode-Specific Contextual Details below Description */}
 

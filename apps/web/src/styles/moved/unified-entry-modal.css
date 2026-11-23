@@ -685,3 +685,90 @@
 .modal-footer-row .entry-add-another {
   margin-left: auto;
 }
+
+/* Grouped rows (Phase E §5.1): one inset list, label left and value right */
+.modal-amount-date-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.sheet-row {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 4px 14px;
+}
+
+.sheet-row + .sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-row-label {
+  font-size: var(--fs-sm, 14px);
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sheet-row-value {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.sheet-row-value > * {
+  max-width: 100%;
+}
+
+.sheet-row-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm, 14px);
+  color: var(--text);
+  text-align: right;
+}
+
+.sheet-row-input:focus {
+  outline: none;
+}
+
+.sheet-row:focus-within {
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+
+/* The account picker is wide: let it take the row and sit flush right */
+.sheet-row-stack .sheet-row-value .custom-select-container {
+  width: 100%;
+}
+
+.sheet-group .app-select-trigger,
+.sheet-group .datepicker-trigger.compact {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sheet-group .app-select-trigger {
+  justify-content: flex-end;
+}
+
+@container (max-width: 400px) {
+  .sheet-row-stack {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-top: 10px;
+  }
+}
