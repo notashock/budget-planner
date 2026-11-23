@@ -166,6 +166,25 @@ the mock before Phase 5.
 
 ## Phase 5: Plan page redesign (web)
 
+**Status:** first cut built before the Phase 4 sessions (at the user's request), so the session results may still
+change it.
+- Top of the page: account pills (with an "All" total), one "safe to spend today" number with a status dot, days
+  left and a sparkline, then **Due soon** (3 rows, tap to mark paid). Tapping the number or **Details** opens
+  everything else; the choice is remembered per browser.
+- Under Details: "After today's bills" bar, the 4 tiles, the chart with its day inspector and legend, allowance pace,
+  category breakdown and the timeline with its filter chips.
+- Removed: the hero paragraph and verdict line, the header verdict badge on Plan (still shown on other tabs), the
+  desktop New Entry button, the duplicate month subtitle and the per-account notes in the "Showing only" bar.
+- Labels: "Keep at least" and "Left above minimum" replace "Safety floor" and "Room above floor".
+- Measured on dev data: 43 words above the fold at 375px and at 1280px, no amount shown twice. Web tests 264/264.
+
+Not done yet:
+- The page still reads the month detail; the chart does not load from `/timeline` yet.
+- Filter chips and category breakdown sit under Details instead of moving to Transactions.
+- The net worth row waits for Phase 6.
+- No automated contrast audit was run; the page uses the existing colour tokens.
+- The Phase 4 tasks with the built page need the 5 sessions.
+
 **Why:** 352 words above the fold today. The panel's top removal requests were R1 (74 votes), R2 (61) and R3 (58).
 
 **Scope**

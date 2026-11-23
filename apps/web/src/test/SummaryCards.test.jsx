@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DetailedKpiGrid } from '../components/SummaryCards.jsx';
 import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
+import { CashAllocationBar } from '../components/CashAllocationBar.jsx';
 
 describe('SummaryCards components', () => {
   describe('MonthHealthHero', () => {
@@ -15,94 +16,94 @@ describe('SummaryCards components', () => {
       freeSurplus: 540000
     };
 
-    it('renders the daily safe-to-spend figure, days left and an On track verdict', () => {
-      render(
-        <MonthHealthHero
-          safeVelocity={baseVelocity}
-          todayBalance={2040000}
-          endingBalance={1800000}
-          lowestBalance={1600000}
-          lowestDate="2026-11-28"
-          safetyFloor={1000000}
-          currencySymbol="₹"
-        />
+    it('shows one number and one caption line, with no explanation paragraph', () => {
+      const { container } = render(
+        <MonthHealthHero safeVelocity={baseVelocity} lowestBalance={1600000} safetyFloor={1000000} currencySymbol="₹" />
       );
 
-      expect(screen.getByText('Safe to spend')).toBeInTheDocument();
       expect(screen.getByText('₹450')).toBeInTheDocument();
-      expect(screen.getByText('12 days left')).toBeInTheDocument();
-      expect(screen.getByText('On track')).toBeInTheDocument();
-      expect(screen.getByText(/of upcoming bills, your/i)).toBeInTheDocument();
+      expect(screen.getByText(/safe to spend today · 12 days left/)).toBeInTheDocument();
+      expect(container.querySelector('.mh-dot.verdict-good')).not.toBeNull();
+      expect(screen.queryByText(/of upcoming bills/i)).not.toBeInTheDocument();
+      expect(container.textContent.split(/s+/).filter(Boolean).length).toBeLessThanOrEqual(10);
     });
 
+    it('opens the details on tap and says so to screen readers', () => {
+      const onToggle = vi.fn();
+      render(
+        <MonthHealthHero safeVelocity={baseVelocity} lowestBalance={1600000} safetyFloor={1000000}
+          currencySymbol="₹" onToggleDetails={onToggle} detailsOpen={false} />
+      );
+
+      const hero = screen.getByRole('button', { name: /₹450 safe to spend today, On track, 12 days left. Show details/ });
+      expect(hero).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(hero);
+      expect(onToggle).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws a sparkline with today marked', () => {
+      const dailyBalances = [5000, 4000, 4500, 3000].map((balance, i) => ({ day: i + 1, balance }));
+      const { container } = render(
+        <MonthHealthHero safeVelocity={baseVelocity} dailyBalances={dailyBalances} currentDay={2} currencySymbol="₹" />
+      );
+
+      expect(container.querySelector('.mh-spark-plan').getAttribute('points').split(' ')).toHaveLength(4);
+      expect(container.querySelector('.mh-spark-past').getAttribute('points').split(' ')).toHaveLength(2);
+      expect(container.querySelector('.mh-spark-dot')).not.toBeNull();
+    });
+
+    it('marks a projected floor breach and a tight month by colour and in the label', () => {
+      const { container, rerender } = render(
+        <MonthHealthHero safeVelocity={{ ...baseVelocity, safeVelocityPerDay: 0 }} lowestBalance={600000}
+          safetyFloor={1000000} currencySymbol="₹" onToggleDetails={() => {}} />
+      );
+      expect(container.querySelector('.mh-dot.verdict-critical')).not.toBeNull();
+      expect(screen.getByRole('button', { name: /Below floor/ })).toBeInTheDocument();
+
+      rerender(
+        <MonthHealthHero safeVelocity={baseVelocity} lowestBalance={1100000} safetyFloor={1000000}
+          currencySymbol="₹" onToggleDetails={() => {}} />
+      );
+      expect(container.querySelector('.mh-dot.verdict-tight')).not.toBeNull();
+      expect(screen.getByRole('button', { name: /Tight month/ })).toBeInTheDocument();
+    });
+  });
+
+  describe('CashAllocationBar (in the Plan details)', () => {
     it("shows where today's balance goes with legend amounts that add up", () => {
       render(
-        <MonthHealthHero
-          safeVelocity={baseVelocity}
-          todayBalance={2040000}
-          lowestBalance={1600000}
-          safetyFloor={1000000}
-          currencySymbol="₹"
-        />
+        <CashAllocationBar todayBalance={2040000} committedUpcomingItems={500000} safetyFloor={1000000}
+          freeSurplus={540000} currencySymbol="₹" />
       );
 
       expect(screen.getByText("After today's bills")).toBeInTheDocument();
-      // 20,400 = 5,000 bills + 10,000 floor + 5,400 free
+      // 20,400 = 5,000 bills + 10,000 kept aside + 5,400 free
       expect(screen.getByText('Upcoming bills')).toBeInTheDocument();
       expect(screen.getByText('₹5,000')).toBeInTheDocument();
-      expect(screen.getByText('Safety floor')).toBeInTheDocument();
+      expect(screen.getByText('Keep at least')).toBeInTheDocument();
       expect(screen.getByText('Free to spend')).toBeInTheDocument();
       expect(screen.getByText('₹5,400')).toBeInTheDocument();
       expect(screen.getByRole('img', { name: /Today's balance split/i })).toBeInTheDocument();
     });
 
-    it('flags a projected floor breach with a Below floor verdict and a shortfall part', () => {
+    it('shows a shortfall part when bills and the minimum exceed the balance', () => {
       render(
-        <MonthHealthHero
-          safeVelocity={{ ...baseVelocity, safeVelocityPerDay: 0, freeSurplus: 0 }}
-          todayBalance={1200000}
-          lowestBalance={600000}
-          lowestDate="2026-11-25"
-          safetyFloor={1000000}
-          currencySymbol="₹"
-        />
+        <CashAllocationBar todayBalance={1200000} committedUpcomingItems={500000} safetyFloor={1000000}
+          freeSurplus={0} currencySymbol="₹" />
       );
-
-      expect(screen.getByText('Below floor')).toBeInTheDocument();
-      expect(screen.getByText(/under your safety floor/i)).toBeInTheDocument();
       expect(screen.getByText('Shortfall')).toBeInTheDocument();
     });
 
-    it("sets aside this month's goal share as its own part of the bar and names it in the explanation", () => {
+    it("sets aside this month's goal share as its own part of the bar", () => {
       render(
-        <MonthHealthHero
-          safeVelocity={{ ...baseVelocity, goalReserve: 200000, freeSurplus: 340000 }}
-          todayBalance={2040000}
-          lowestBalance={1600000}
-          safetyFloor={1000000}
-          currencySymbol="₹"
-        />
+        <CashAllocationBar todayBalance={2040000} committedUpcomingItems={500000} safetyFloor={1000000}
+          goalReserve={200000} freeSurplus={340000} currencySymbol="₹" />
       );
 
-      // 20,400 = 5,000 bills + 10,000 floor + 2,000 goals + 3,400 free
+      // 20,400 = 5,000 bills + 10,000 kept aside + 2,000 goals + 3,400 free
       expect(screen.getByText('Goal savings')).toBeInTheDocument();
       expect(screen.getByText('₹2,000')).toBeInTheDocument();
       expect(screen.getByText('₹3,400')).toBeInTheDocument();
-      expect(screen.getByText(/set aside for goals this month/i)).toBeInTheDocument();
-    });
-
-    it('calls a month tight when the low point is within 15% of the floor', () => {
-      render(
-        <MonthHealthHero
-          safeVelocity={baseVelocity}
-          todayBalance={2040000}
-          lowestBalance={1100000}
-          safetyFloor={1000000}
-          currencySymbol="₹"
-        />
-      );
-
-      expect(screen.getByText('Tight month')).toBeInTheDocument();
     });
   });
 

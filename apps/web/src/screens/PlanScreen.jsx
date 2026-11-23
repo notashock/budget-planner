@@ -19,6 +19,7 @@ import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTri
 import { PageTitle } from '../components/PageTitle.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { liveBalance } from '../utils/liveBalance.js';
+import { CashAllocationBar } from '../components/CashAllocationBar.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -45,6 +46,14 @@ export function PlanScreen({
   const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState('all');
+  // Chart, tiles and timeline sit one tap below the summary; remembered per browser
+  const [detailsOpen, setDetailsOpen] = useState(() => {
+    try { return localStorage.getItem('plan.detailsOpen') === '1'; } catch { return false; }
+  });
+  const toggleDetails = () => setDetailsOpen((open) => {
+    try { localStorage.setItem('plan.detailsOpen', open ? '0' : '1'); } catch { /* storage blocked */ }
+    return !open;
+  });
   const [timeframe, setTimeframe] = useState('trailing12m'); // 'trailing12m' | 'ytd' | 'quarterly'
   const [viewSubmode, setViewSubmode] = useState('monthly'); // 'monthly' | 'irregular'
 
@@ -96,7 +105,6 @@ export function PlanScreen({
   const {
     events: simEvents = [],
     dailyBalances = [],
-    endingBalance = 0,
     todayBalance,
     lowestBalance = 0,
     lowestDate = '',
@@ -319,12 +327,6 @@ export function PlanScreen({
         ? accountsList.reduce((sum, a) => sum + (a.todayBalance || 0), 0)
         : todayBalance);
 
-  const unifiedEndingBalance = simulation?.endingBalance !== undefined
-    ? simulation.endingBalance
-    : (hasAccounts && accountsList.length > 0
-        ? accountsList.reduce((sum, a) => sum + (a.endingBalance || 0), 0)
-        : endingBalance);
-
   // Safe Velocity: isolated for filtered account, unified for all accounts
   const activeSafeVelocity = isFilteringAccount
     ? (activeAccountSummary?.safeVelocity || simulation?.safeVelocity)
@@ -339,9 +341,6 @@ export function PlanScreen({
   const activeTodayBalance = isFilteringAccount
     ? (activeAccountSummary?.todayBalance ?? todayBalance)
     : (simulation?.todayBalance ?? unifiedTodayBalance);
-  const activeEndingBalance = isFilteringAccount
-    ? (activeAccountSummary?.endingBalance ?? endingBalance)
-    : unifiedEndingBalance;
   // Forward-looking low (what the user can still act on); past breach shown separately
   const activeLowestBalance = activeLows.upcoming.balance;
   const activeLowestDate = activeLows.upcoming.date;
@@ -659,10 +658,7 @@ export function PlanScreen({
         </div>
       )}
 
-      <PageTitle
-        title="Plan"
-        subtitle={`${new Date(month.year, month.month - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })} · where your money stands`}
-      />
+      <PageTitle title="Plan" />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper plan-stack-2">
@@ -675,7 +671,13 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId('all')}
               >
-                <span>All accounts</span>
+                <span>All</span>
+                <span className="tabular-nums" style={{ opacity: selectedAccountId === 'all' ? 1 : 0.8, fontWeight: 700 }}>
+                  {formatCurrencyWhole(
+                    [...bankAccounts, ...wallets].reduce((sum, a) => sum + liveBalance(a, simulation?.accounts?.[a._id || a.id], month), 0),
+                    month.currencySymbol
+                  )}
+                </span>
               </button>
 
               {bankAccounts.map((b) => {
@@ -754,19 +756,10 @@ export function PlanScreen({
         </div>
 
         <div className="account-toolbar-actions">
-          {isReviewMode ? (
+          {isReviewMode && (
             <span className="review-badge-tag plan-row-9">
               <EyeIcon size={13} /> Historical Preview
             </span>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary desktop-only-btn plan-btn-5"
-              onClick={() => onOpenUnifiedEntry?.('log')}
-            >
-              <PlusIcon size={14} />
-              <span>New Entry</span>
-            </button>
           )}
         </div>
       </div>
@@ -779,8 +772,6 @@ export function PlanScreen({
             {selectedBank ? <BuildingLibraryIcon size={13} /> : <WalletIcon size={13} />}
             <span>
               Showing only <strong>{selectedAccount.name}</strong>
-              {selectedAccount?.minimumBalance ? ` • Minimum balance ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
-              {activeAccountSummary ? ` • Month-end ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
             </span>
           </div>
           <button
@@ -794,25 +785,60 @@ export function PlanScreen({
       )}
       </div>
 
-      {/* Top Split: Symmetrical Bento Left Insights and Right Timeline Curve */}
+      {/* At a glance: one number, then what's due. Everything else is one tap deeper. */}
+      <div className="plan-glance">
+        <MonthHealthHero
+          safeVelocity={activeSafeVelocity}
+          daysLeft={daysLeft}
+          safeToSpendPerDay={activeSafeToSpend}
+          lowestBalance={activeLowestBalance}
+          safetyFloor={activeSafetyFloor}
+          verdict={scopeVerdict}
+          currencySymbol={month.currencySymbol}
+          dailyBalances={activeDailyBalances}
+          currentDay={currentDay}
+          detailsOpen={detailsOpen}
+          onToggleDetails={toggleDetails}
+        />
+
+      <ErrorBoundary title="Upcoming payments unavailable">
+        <UpcomingOutflows
+          events={activeEvents}
+          todayStr={upcomingTodayStr}
+          currencySymbol={month.currencySymbol}
+          isReviewMode={isReviewMode}
+          onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
+          title="Due soon"
+          maxRows={3}
+        />
+      </ErrorBoundary>
+      </div>
+
+      <button
+        type="button"
+        className="plan-details-toggle"
+        onClick={toggleDetails}
+        aria-expanded={detailsOpen}
+        aria-controls="plan-details"
+      >
+        {detailsOpen ? 'Hide details' : 'Details'}
+        <span aria-hidden="true" className={`plan-details-chev ${detailsOpen ? 'open' : ''}`}>›</span>
+      </button>
+
+      {detailsOpen && (
+      <div id="plan-details" className="plan-details">
       <div className="dashboard-top-grid">
-        {/* COMPONENT 1: TOP-LEFT INSIGHTS */}
         <div className="dashboard-insights-panel">
-          {/* Month Health hero: daily safe-to-spend, verdict and where today's balance goes */}
-          <MonthHealthHero
-            safeVelocity={activeSafeVelocity}
-            daysLeft={daysLeft}
-            safeToSpendPerDay={activeSafeToSpend}
+          <CashAllocationBar
             todayBalance={activeTodayBalance}
-            endingBalance={activeEndingBalance}
-            lowestBalance={activeLowestBalance}
-            lowestDate={activeLowestDate}
+            committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
             safetyFloor={activeSafetyFloor}
-            verdict={scopeVerdict}
+            goalReserve={activeSafeVelocity?.goalReserve ?? 0}
+            heldReserve={activeSafeVelocity?.heldReserve ?? 0}
+            cardReserve={activeSafeVelocity?.cardReserve ?? 0}
+            freeSurplus={activeSafeVelocity?.freeSurplus}
             currencySymbol={month.currencySymbol}
           />
-
-          {/* Detailed KPI Cards */}
           <DetailedKpiGrid
             incomeAmount={isFilteringAccount ? (activeAccountSummary?.incomeAmount ?? 0) : unifiedIncome}
             incomeCreditDay={month.incomeCreditDay}
@@ -834,7 +860,6 @@ export function PlanScreen({
           />
         </div>
 
-        {/* COMPONENT 2: TOP-RIGHT TIMELINE CHART (CURVED LINE) */}
         <div className="dashboard-chart-panel">
           <ErrorBoundary title="Chart unavailable">
             <StepLineChart
@@ -857,17 +882,7 @@ export function PlanScreen({
         </div>
       </div>
 
-      {/* Planner insights: what's due next and how the allowance is pacing */}
       <div className="plan-insights-row">
-        <ErrorBoundary title="Upcoming payments unavailable">
-          <UpcomingOutflows
-            events={activeEvents}
-            todayStr={upcomingTodayStr}
-            currencySymbol={month.currencySymbol}
-            isReviewMode={isReviewMode}
-            onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
-          />
-        </ErrorBoundary>
         <ErrorBoundary title="Allowance pace unavailable">
           <AllowancePaceMeter
             unplannedAllowance={activeSim?.unplannedAllowance ?? 0}
@@ -905,6 +920,8 @@ export function PlanScreen({
           />
         </ErrorBoundary>
       </div>
+      </div>
+      )}
     </div>
   );
 }

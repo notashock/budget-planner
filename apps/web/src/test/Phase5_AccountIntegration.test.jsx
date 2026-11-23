@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { PlanScreen } from '../screens/PlanScreen.jsx';
@@ -6,6 +6,10 @@ import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
 
 describe('Phase 5: Multi-Account Frontend Integration', () => {
+  // These tests read the tiles and chart, which sit under the Plan page's Details
+  beforeEach(() => localStorage.setItem('plan.detailsOpen', '1'));
+  afterEach(() => localStorage.removeItem('plan.detailsOpen'));
+
   const mockMonth = {
     year: 2026,
     month: 10,
@@ -94,7 +98,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('All accounts')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^All\s*₹/ })).toBeInTheDocument();
       expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
@@ -148,7 +152,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       expect(screen.getByText('Floor: ₹25,000.00')).toBeInTheDocument();
-      expect(screen.getByText(/₹25,000.00 safety floor/)).toBeInTheDocument();
+      expect(within(document.querySelector('.alloc')).getByText('Keep at least')).toBeInTheDocument();
+      expect(within(document.querySelector('.alloc')).getByText('₹25,000')).toBeInTheDocument();
       expect(screen.queryByText('Floor: ₹15,000.00')).not.toBeInTheDocument();
     });
 
@@ -213,8 +218,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000')).toBeInTheDocument();
+      // In Unified view, the balance after today's bills is 49000 + 10000 + 2000 = ₹61,000.00
+      expect(within(document.querySelector('.alloc')).getByText('₹61,000')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));

@@ -74,7 +74,7 @@ describe('StepLineChart day insights', () => {
     expect(panel).toHaveTextContent('Closing balance₹800.00');
     expect(panel).toHaveTextContent('▼ -₹3,000.00');
     expect(panel).toHaveTextContent('+₹0.00 / -₹3,000.00');
-    expect(panel).toHaveTextContent('Room above floor-₹200.00');
+    expect(panel).toHaveTextContent('Left above minimum-₹200.00');
     expect(panel).toHaveTextContent('Lowest point of the month');
     expect(panel).toHaveTextContent('Biggest spending day');
     expect(panel).toHaveTextContent('₹200.00 below floor');

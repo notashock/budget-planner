@@ -347,7 +347,8 @@ export function Header({
 
         {/* Zone 3: Symmetrical Status & Global Utilities */}
         <div className="app-header-right">
-          {currentMonth && verdict && (
+          {/* On Plan the page's own hero shows the verdict */}
+          {currentMonth && verdict && activeTab !== 'plan' && (
             <div
               className={`header-floor-pill ${verdictClass}`}
               role="status"
