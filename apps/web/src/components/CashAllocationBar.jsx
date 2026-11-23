@@ -47,7 +47,7 @@ export function CashAllocationBar({
   return (
     <div className="alloc">
       <div className="alloc-head">
-        <span className="alloc-title">Where today's balance goes</span>
+        <span className="alloc-title">After today's bills</span>
         <span className="alloc-total tabular-nums">{formatCurrency(Math.max(0, todayBalance), currencySymbol)}</span>
       </div>
 

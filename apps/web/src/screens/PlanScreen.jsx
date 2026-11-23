@@ -18,6 +18,7 @@ import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon, EyeIcon } from '../components/Icons.jsx';
 import { PageTitle } from '../components/PageTitle.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
+import { liveBalance } from '../utils/liveBalance.js';
 
 gsap.registerPlugin(useGSAP);
 
@@ -467,7 +468,7 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === (b._id || b.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(b._id || b.id)}
               >
-                <span>{b.name} ({formatCurrency(b.openingBalance, currencySymbol)})</span>
+                <span>{b.name} ({formatCurrency(b.currentBalance ?? b.openingBalance, currencySymbol)})</span>
               </button>
             ))}
             {wallets.map((w) => (
@@ -477,7 +478,7 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === (w._id || w.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(w._id || w.id)}
               >
-                <span>{w.name} ({formatCurrency(w.openingBalance, currencySymbol)})</span>
+                <span>{w.name} ({formatCurrency(w.currentBalance ?? w.openingBalance, currencySymbol)})</span>
               </button>
             ))}
           </div>
@@ -704,7 +705,7 @@ export function PlanScreen({
                 const accId = b._id || b.id;
                 const isSelected = selectedAccountId === accId;
                 const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
+                const bal = liveBalance(b, accSim, month);
                 const hasBreach = accSim?.floorBreached;
                 const minBal = Number(b.minimumBalance) || 0;
                 const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
@@ -740,7 +741,7 @@ export function PlanScreen({
                 const accId = w._id || w.id;
                 const isSelected = selectedAccountId === accId;
                 const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
+                const bal = liveBalance(w, accSim, month);
                 const hasBreach = accSim?.floorBreached;
                 const minBal = Number(w.minimumBalance) || 0;
                 const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;

@@ -22,6 +22,7 @@ import { Chip } from '../components/ui/Chip.jsx';
 import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
 import { PeoplePanel } from '../components/PeoplePanel.jsx';
 import { CardsPanel } from '../components/CardsPanel.jsx';
+import { liveBalance } from '../utils/liveBalance.js';
 
 gsap.registerPlugin(useGSAP);
 
@@ -117,13 +118,13 @@ export function AccountsScreen({
   const totalBankBalance = bankAccounts.reduce((sum, b) => {
     const key = String(b._id || b.id || '');
     const acc = accountsMap[key] || accountsMap[b._id || b.id];
-    return sum + (acc ? acc.todayBalance : (b.openingBalance || 0));
+    return sum + liveBalance(b, acc, month);
   }, 0);
 
   const totalWalletBalance = wallets.reduce((sum, w) => {
     const key = String(w._id || w.id || '');
     const acc = accountsMap[key] || accountsMap[w._id || w.id];
-    return sum + (acc ? acc.todayBalance : (w.openingBalance || 0));
+    return sum + liveBalance(w, acc, month);
   }, 0);
 
   const totalPortfolioBalance = totalBankBalance + totalWalletBalance;
@@ -415,7 +416,7 @@ export function AccountsScreen({
                     const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
                     const bankId = bank._id || bank.id;
                     const snap = isReviewMode && month?.closingBalances ? month.closingBalances[bankId] : null;
-                    const currentBal = simAcc ? simAcc.todayBalance : (bank.openingBalance || 0);
+                    const currentBal = liveBalance(bank, simAcc, month);
                     const endingBal = simAcc ? simAcc.endingBalance : (bank.openingBalance || 0);
                     const minBal = bank.minimumBalance || 0;
                     const hasBreach = !isReviewMode && (simAcc ? simAcc.floorBreached : (currentBal < minBal));
@@ -579,7 +580,7 @@ export function AccountsScreen({
                     const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
                     const walletId = wallet._id || wallet.id;
                     const snap = isReviewMode && month?.closingBalances ? month.closingBalances[walletId] : null;
-                    const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
+                    const currentBal = liveBalance(wallet, simAcc, month);
                     const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
                     const minBal = wallet.minimumBalance || 0;
                     const hasBreach = !isReviewMode && ((currentBal < minBal) || (simAcc && simAcc.floorBreached));
