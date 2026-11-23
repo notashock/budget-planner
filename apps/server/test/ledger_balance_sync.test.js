@@ -1,0 +1,83 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { createApp } from '../src/app.js';
+import { db, pool, runMigrations } from '../src/db/index.js';
+import * as s from '../src/db/schema.js';
+import { and, eq } from 'drizzle-orm';
+import { MonthLifecycle } from '../src/domain/monthLifecycle.js';
+
+// An account's stored balance must always equal opening + its successful transactions, whichever
+// code path wrote them, and a refund filed under "Salary" must not stand in for the salary.
+describe('Ledger balance stays in sync', () => {
+  let app;
+  let auth;
+  let userId;
+  let bankId;
+  let otherId;
+
+  const stored = async (id) => Number((await pool.query('SELECT current_balance FROM accounts WHERE id = $1', [id])).rows[0].current_balance);
+
+  beforeAll(async () => {
+    await runMigrations();
+    app = createApp();
+    const reg = await request(app).post('/api/auth/register')
+      .send({ email: `ledger_sync_${Date.now()}@example.com`, password: 'Password123!' });
+    auth = { Authorization: `Bearer ${reg.body.data.token}` };
+    userId = reg.body.data.user.id;
+    bankId = (await request(app).post('/api/v1/accounts').set(auth)
+      .send({ name: 'Salary bank', type: 'bank', openingBalance: 10000, isPrimary: true })).body.data.id;
+    otherId = (await request(app).post('/api/v1/accounts').set(auth)
+      .send({ name: 'Personal', type: 'bank', openingBalance: 0 })).body.data.id;
+  });
+
+  it('follows inserts, edits, transfers, cancels and deletes made by any path', async () => {
+    const [spend] = await db.insert(s.transactions).values(
+      { userId, accountId: bankId, name: 'Groceries', amount: 2500, date: '2031-05-02', status: 'successful', origin: 'spot' }
+    ).returning();
+    expect(await stored(bankId)).toBe(7500);
+
+    await db.update(s.transactions).set({ amount: 3000 }).where(eq(s.transactions.id, spend.id));
+    expect(await stored(bankId)).toBe(7000);
+
+    await db.insert(s.transactions).values(
+      { userId, accountId: bankId, destinationAccountId: otherId, name: 'Move', amount: 1000, date: '2031-05-03', status: 'successful', origin: 'transfer' }
+    );
+    expect(await stored(bankId)).toBe(6000);
+    expect(await stored(otherId)).toBe(1000);
+
+    await db.update(s.transactions).set({ status: 'cancelled' }).where(eq(s.transactions.id, spend.id));
+    expect(await stored(bankId)).toBe(9000);
+
+    await db.delete(s.transactions).where(eq(s.transactions.userId, userId));
+    expect(await stored(bankId)).toBe(10000);
+    expect(await stored(otherId)).toBe(0);
+  });
+
+  it('an API spend changes the balance once, not twice', async () => {
+    const res = await request(app).post('/api/v1/transactions').set(auth)
+      .send({ name: 'Coffee', amount: 150, date: '2031-05-04', accountId: bankId, status: 'successful', origin: 'spot' });
+    expect(res.status).toBeLessThan(300);
+    expect(await stored(bankId)).toBe(9850);
+    await db.delete(s.transactions).where(eq(s.transactions.userId, userId));
+  });
+
+  it('crediting salary adds the salary even when a refund is filed under "Salary"', async () => {
+    await MonthLifecycle.createMonth(userId, {
+      year: 2031, month: 6, incomeAmount: 50000, safetyFloor: 0, unplannedAllowance: 0, salaryAccountId: bankId,
+    });
+    const [june] = await db.select().from(s.months).where(and(eq(s.months.userId, userId), eq(s.months.year, 2031), eq(s.months.month, 6)));
+    await db.insert(s.transactions).values(
+      { userId, monthId: june.id, accountId: otherId, name: 'Movie ticket refund', amount: 205, isIncome: true, category: 'Salary', date: '2031-06-03', status: 'successful', origin: 'spot' }
+    );
+
+    await MonthLifecycle.updateMonth(userId, 2031, 6, { isSalaryCredited: true, salaryCreditedDate: '2031-06-01' });
+
+    const salaries = await db.select().from(s.transactions)
+      .where(and(eq(s.transactions.userId, userId), eq(s.transactions.origin, 'salary')));
+    expect(salaries).toHaveLength(1);
+    expect(salaries[0].amount).toBe(50000);
+    expect(salaries[0].accountId).toBe(bankId);
+    expect(await stored(bankId)).toBe(60000);
+    expect(await stored(otherId)).toBe(205); // the refund itself is untouched
+  });
+});
