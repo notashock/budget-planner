@@ -245,23 +245,6 @@
   transition: transform 0.25s ease;
 }
 
-/* Category Pill Grid */
-.category-pill-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.category-pill-btn {
-  min-height: var(--control-h-sm);
-  padding: 0 var(--space-3);
-  font-size: var(--fs-sm);
-  border-radius: var(--field-radius);
-  cursor: pointer;
-  transition: all 0.14s ease;
-  user-select: none;
-}
-
 /* Compact Switch Card */
 
 /* Side-by-Side Amount & Date Row */

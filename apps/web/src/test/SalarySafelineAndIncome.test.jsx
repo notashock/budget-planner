@@ -248,12 +248,14 @@ describe('Salary Linking and Income Logging Integration', () => {
       />
     );
 
-    // Verify category buttons
-    expect(screen.getByRole('button', { name: 'Bonus' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Freelance' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Investment' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Other' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Salary' })).not.toBeInTheDocument();
+    // Verify the Source choices
+    fireEvent.click(screen.getByTestId('category-row'));
+    expect(screen.getByRole('option', { name: 'Bonus' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Freelance' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Investment' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Other' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Salary' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
 
     // Verify sole truth helper guidance text
     expect(screen.getByText(/your primary monthly salary is managed in salary schedule/i)).toBeInTheDocument();

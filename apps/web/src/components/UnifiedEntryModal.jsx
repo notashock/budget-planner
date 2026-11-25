@@ -23,7 +23,8 @@ import {
   AlertTriangleIcon,
   CalendarIcon,
   LockIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { HeldLentForm } from './HeldLentForm.jsx';
@@ -1299,7 +1300,8 @@ export function UnifiedEntryModal({
     return projected < minBal ? { accountName: acc.name, minimumBalance: minBal, projectedBalance: projected } : null;
   })();
 
-  const accountRowLabel = mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From';
+  const categoryRowLabel = mode === 'income' ? 'Source' : 'Category';
+  const accountRowLabel =mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From';
   const sheetTitle = settleItem ? 'Mark paid'
     : (mode === 'transfer' && moveTarget === 'person') ? 'Held & Lent'
     : mode === 'log' ? `${initialItem ? 'Edit' : 'New'} ${isRefund ? 'refund' : 'spend'}`
@@ -1342,26 +1344,61 @@ export function UnifiedEntryModal({
                 <button type="button" className="sheet-topbar-btn sheet-back-btn" onClick={() => setPicker(null)}>
                   <ChevronLeftIcon size={14} /> Back
                 </button>
-                <h2 className="sheet-topbar-title">{picker === 'date' ? 'When' : accountRowLabel}</h2>
+                <h2 className="sheet-topbar-title">
+                  {{ date: 'When', dest: 'To', category: categoryRowLabel }[picker] || accountRowLabel}
+                </h2>
                 <span className="sheet-topbar-btn" aria-hidden="true" />
               </div>
-              {picker === 'account' ? (
+              {picker === 'account' || picker === 'dest' ? (
                 <AccountSelect
                   inline
-                  accountType={accountType}
-                  accountId={accountId}
+                  accountType={picker === 'dest' ? destAccountType : accountType}
+                  accountId={picker === 'dest' ? destAccountId : accountId}
                   onChange={({ accountType: newType, accountId: newId }) => {
-                    setAccountType(newType);
-                    setAccountId(newId);
+                    if (picker === 'dest') {
+                      setDestAccountType(newType);
+                      setDestAccountId(newId);
+                    } else {
+                      setAccountType(newType);
+                      setAccountId(newId);
+                    }
                     setPicker(null);
                   }}
                   bankAccounts={bankAccounts}
                   wallets={wallets}
-                  creditCards={mode === 'log' || mode === 'plan' ? creditCards : []}
+                  creditCards={picker === 'account' && (mode === 'log' || mode === 'plan') ? creditCards : []}
                   currencySymbol={currencySymbol}
                   simulation={simulation}
                   accountSimulations={accountSimulations}
                 />
+              ) : picker === 'category' ? (
+                <div className="sheet-choice-list" role="listbox" aria-label={categoryRowLabel}>
+                  {(mode === 'income' ? INCOME_CATEGORIES : SPEND_CATEGORIES).map((t) => {
+                    const selected = (mode === 'income' ? incomeTag : tag) === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={`sheet-choice ${selected ? 'is-selected' : ''}`}
+                        onClick={() => {
+                          if (mode === 'income') {
+                            setIncomeTag(t);
+                          } else {
+                            setTag(t);
+                            setCategoryTouched(true);
+                            setTagSuggested(false);
+                          }
+                          setPicker(null);
+                        }}
+                      >
+                        <span>{t}</span>
+                        {selected && <CheckCircleIcon size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : (
                 <DatePicker
                   inline
@@ -1810,6 +1847,23 @@ export function UnifiedEntryModal({
                   onChange={(e) => handleDescriptionChange(e.target.value)}
                 />
               </div>
+              {mode !== 'transfer' && (
+                <button
+                  type="button"
+                  className="sheet-row sheet-row-button"
+                  data-testid="category-row"
+                  onClick={() => setPicker('category')}
+                >
+                  <span className="sheet-row-label">
+                    {categoryRowLabel}
+                    {mode !== 'income' && tagSuggested && <span className="field-suggested"> · suggested</span>}
+                  </span>
+                  <span className="sheet-row-value">
+                    {mode === 'income' ? incomeTag : tag}
+                    <ChevronRightIcon size={14} />
+                  </span>
+                </button>
+              )}
               <div className="sheet-row sheet-row-stack">
                 <span className="sheet-row-label">{accountRowLabel}</span>
                 <div className="sheet-row-value">
@@ -1895,37 +1949,6 @@ export function UnifiedEntryModal({
             <div className="form-group entry-box-3">
               {mode !== 'transfer' ? (
                 <>
-                  <label className="form-label">
-                    {mode === 'log' && 'Category tag'}
-                    {(mode === 'log' || mode === 'plan') && tagSuggested && <span className="field-suggested"> · suggested</span>}
-                    {mode === 'income' && 'Income Category / Source'}
-                    {mode === 'plan' && 'Category & Classification'}
-                  </label>
-                  <div className="category-pill-grid">
-                    {mode === 'income'
-                      ? INCOME_CATEGORIES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={`category-pill-btn ${incomeTag === t ? 'btn-primary' : 'btn-subtle'}`}
-                            aria-pressed={incomeTag === t}
-                            onClick={(e) => handleMicroPress(e, () => setIncomeTag(t))}
-                          >
-                            {t}
-                          </button>
-                        ))
-                      : SPEND_CATEGORIES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={`category-pill-btn ${tag === t ? 'btn-primary' : 'btn-subtle'}`}
-                            aria-pressed={tag === t}
-                            onClick={(e) => handleMicroPress(e, () => { setTag(t); setCategoryTouched(true); setTagSuggested(false); })}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                  </div>
                   {mode === 'income' && (
                     <span className="entry-note-5">
                       Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
@@ -2010,6 +2033,7 @@ export function UnifiedEntryModal({
                     currencySymbol={currencySymbol}
                     simulation={simulation}
                     accountSimulations={accountSimulations}
+                    onOpen={() => setPicker('dest')}
                   />
                 </>
               )}
