@@ -278,14 +278,14 @@ export function GoalsScreen({
               <h3 className="accounts-heading">New goal</h3>
               <button type="button" className="btn-icon" onClick={() => requestClose()} title="Close" aria-label="Close"><XIcon size={14} /></button>
             </div>
-            <form className="goals-stack-2" onSubmit={(e) => handleAddGoal(e, requestClose)}>
+            <form autoComplete="off" className="goals-stack-2" onSubmit={(e) => handleAddGoal(e, requestClose)}>
               <div className="form-group">
                 <label className="form-label" htmlFor="goal-new-name">What do you want to buy?</label>
-                <input id="goal-new-name" type="text" required placeholder="e.g. Noise Cancelling Headphones, Laptop" value={goalName} onChange={(e) => setGoalName(e.target.value)} />
+                <input autoComplete="off" id="goal-new-name" type="text" required placeholder="e.g. Noise Cancelling Headphones, Laptop" value={goalName} onChange={(e) => setGoalName(e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="goal-new-price">Price ({currencySymbol})</label>
-                <input id="goal-new-price" type="number" inputMode="decimal" step="0.01" required placeholder="0.00" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} />
+                <input autoComplete="off" id="goal-new-price" type="number" inputMode="decimal" step="0.01" required placeholder="0.00" value={goalAmount} onChange={(e) => setGoalAmount(e.target.value)} />
               </div>
               {allAccounts.length > 0 && (
                 <div className="form-group">

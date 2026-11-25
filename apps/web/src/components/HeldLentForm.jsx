@@ -251,7 +251,7 @@ export function HeldLentForm({
     : null;
 
   return (
-    <form className="hl-form" onSubmit={handleSubmit} data-testid="held-lent-form">
+    <form autoComplete="off" className="hl-form" onSubmit={handleSubmit} data-testid="held-lent-form">
       <div className="hl-actions" role="radiogroup" aria-label="What happened">
         {HELD_LENT_ACTIONS.map((a) => (
           <button
@@ -285,7 +285,7 @@ export function HeldLentForm({
           {!startsNew && matching.length === 0 && <option value="">No one yet</option>}
         </select>
         {fundId === NEW_PERSON && (
-          <input
+          <input autoComplete="off"
             className="input-field hl-new-person"
             placeholder="Name"
             value={personName}
@@ -300,7 +300,7 @@ export function HeldLentForm({
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="hl-amount">Amount ({currencySymbol})</label>
-          <input
+          <input autoComplete="off"
             id="hl-amount"
             className="input-field tabular-nums"
             type="number"
@@ -363,7 +363,7 @@ export function HeldLentForm({
 
       <div className="form-group">
         <label className="form-label" htmlFor="hl-note">Note (optional)</label>
-        <input id="hl-note" className="input-field" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+        <input autoComplete="off" id="hl-note" className="input-field" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
       </div>
 
       {twin && (

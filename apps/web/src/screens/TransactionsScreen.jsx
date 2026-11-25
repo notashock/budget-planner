@@ -525,7 +525,7 @@ export function TransactionsScreen({
             <span className="apple-search-icon">
               <SearchIcon size={14} />
             </span>
-            <input
+            <input autoComplete="off"
               type="text"
               className="apple-search-input"
               placeholder="Search"

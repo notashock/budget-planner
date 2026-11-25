@@ -275,7 +275,7 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
         )}
 
         {step === 1 && (
-          <form onSubmit={handleStep1Submit} className="onboarding-form">
+          <form autoComplete="off" onSubmit={handleStep1Submit} className="onboarding-form">
             {/* Account Type Selector */}
             <div className="onboarding-field-group gsap-onboarding-item">
               <label className="onboarding-field-label">
@@ -325,7 +325,7 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
               >
                 ACCOUNT NAME *
               </label>
-              <input
+              <input autoComplete="off"
                 id="onboarding-account-name"
                 type="text"
                 required
@@ -353,7 +353,7 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
                   <span className="onboarding-input-prefix">
                     {currencySymbol}
                   </span>
-                  <input
+                  <input autoComplete="off"
                     id="onboarding-opening-balance"
                     type="number"
                     step="any"
@@ -408,7 +408,7 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
         )}
 
         {step === 2 && (
-          <form onSubmit={handleStep2Submit} className="onboarding-form">
+          <form autoComplete="off" onSubmit={handleStep2Submit} className="onboarding-form">
             {/* Step 2 Income Model Cards */}
             <div className="onboarding-field-group gsap-onboarding-item">
               <label className="onboarding-field-label">
@@ -491,7 +491,7 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
                       <span className="onboarding-input-prefix">
                         {currencySymbol}
                       </span>
-                      <input
+                      <input autoComplete="off"
                         id="onboarding-salary-amount"
                         type="number"
                         step="any"

@@ -1614,7 +1614,7 @@ export function UnifiedEntryModal({
               />
             </div>
           ) : (
-          <form className="entry-stack"
+          <form autoComplete="off" className="entry-stack"
             id="entry-sheet-form"
             ref={formRef}
             onSubmit={handleSubmitRouter}
@@ -1704,7 +1704,7 @@ export function UnifiedEntryModal({
                 <div className="modal-amount-date-grid">
                   <div className="modal-amount-dock">
                     <span className="modal-amount-prefix">{currencySymbol}</span>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       inputMode="decimal"
                       step="0.01"
@@ -1755,7 +1755,7 @@ export function UnifiedEntryModal({
                       aria-checked={!isFixed}
                       title={!isFixed ? 'Variable expense (click to make Fixed)' : 'Fixed expense (click to make Variable)'}
                     >
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={!isFixed}
                         onChange={(e) => setIsFixed(!e.target.checked)}
@@ -1830,7 +1830,7 @@ export function UnifiedEntryModal({
                 <label className="sheet-row-label" htmlFor="entry-what-for">
                   {mode === 'plan' ? 'Name *' : mode === 'transfer' ? 'Note' : 'What for'}
                 </label>
-                <input className="sheet-row-input"
+                <input autoComplete="off" className="sheet-row-input"
                   id="entry-what-for"
                   type="text"
                   required={mode === 'plan'}
@@ -1914,7 +1914,7 @@ export function UnifiedEntryModal({
                     <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
                       <CalendarIcon size={14} color="var(--text-secondary)" />
                       <span>Day</span>
-                      <input
+                      <input autoComplete="off"
                         type="number"
                         inputMode="numeric"
                         min="1"
@@ -2222,7 +2222,7 @@ export function UnifiedEntryModal({
                         Applies this salary amount to upcoming months' safe-to-spend projections.
                       </div>
                     </div>
-                    <input className="entry-box-8"
+                    <input autoComplete="off" className="entry-box-8"
                       type="checkbox"
                       checked={updateSalaryTemplate}
                       onChange={(e) => setUpdateSalaryTemplate(e.target.checked)}

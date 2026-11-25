@@ -138,8 +138,8 @@ export function AssistantScreen({
           Describe an expense in plain language. The assistant converts it into a draft item for your review before saving.
         </p>
 
-        <form onSubmit={handleParse} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <textarea
+        <form autoComplete="off" onSubmit={handleParse} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <textarea autoComplete="off"
             rows="2"
             placeholder="e.g. Internet bill of 999 on the 15th every month, or groceries 2500 on day 5"
             value={promptText}
