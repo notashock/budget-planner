@@ -772,3 +772,8 @@
     padding-top: 10px;
   }
 }
+
+/* Would drop below the minimum balance: the action still works, in amber */
+.sheet-topbar-btn.is-warn {
+  color: var(--warn-ink);
+}
