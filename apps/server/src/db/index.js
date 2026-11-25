@@ -7,6 +7,7 @@ import * as schema from './schema.js';
 import { config } from '../config.js';
 import { poolSizing } from './poolSizing.js';
 import { migrateLedgerAndMaterializedBalances } from '../scripts/migrate_ledger_and_materialized_balances.js';
+import { installOpeningCarryTrigger, ensureOpeningCarryTrigger } from './openingCarry.js';
 
 const { Pool } = pg;
 
@@ -430,6 +431,8 @@ export async function runMigrations() {
     await migrateLedgerAndMaterializedBalances();
     await healPrematurelyClosedMonths();
     await pruneEmptyFutureMonths();
+    // Last, so the one-off data syncs above don't shift later months' openings
+    await installOpeningCarryTrigger(pool);
 
     // 4. Supabase Defense-in-Depth: Enable Row-Level Security on core tables
     for (const table of CORE_APP_TABLES) {
@@ -540,6 +543,7 @@ export async function ensureDatabaseInitialized() {
           await syncIdempotencySchema();
         }
         await ensureBalanceTrigger();
+        await ensureOpeningCarryTrigger(pool);
       }
 
       isInitialized = true;
