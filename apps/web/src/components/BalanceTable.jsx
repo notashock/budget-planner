@@ -23,7 +23,7 @@ export function BalanceTable({ rows = [], safetyFloor = 0, currentDay = null, cu
         </thead>
         <tbody>
           {rows.map((r) => {
-            const vsFloor = r.closing - safetyFloor;
+            const vsFloor = (r.own ?? r.closing) - safetyFloor; // own money: held for others doesn't count
             const classes = [
               r.day === currentDay ? 'is-today' : '',
               r.day === selectedDay ? 'is-selected' : '',

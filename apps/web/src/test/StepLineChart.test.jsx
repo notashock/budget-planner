@@ -426,3 +426,32 @@ describe('StepLineChart component', () => {
     });
   });
 });
+
+describe('Details numbers count your own cash only', () => {
+  // ₹10,000 in the bank, ₹4,000 of it held for someone; floor ₹8,000
+  const held = [
+    { day: 1, date: '2026-11-01', balance: 1000000, heldForOthers: 400000 },
+    { day: 2, date: '2026-11-02', balance: 1000000, heldForOthers: 400000 }
+  ];
+
+  it('the low label, breach band and headroom leave out money held for others', () => {
+    const { container } = render(
+      <StepLineChart dailyBalances={held} events={[]} safetyFloor={800000} currencySymbol="₹" currentDay={1} selectedDay={1} />
+    );
+    // Own money is ₹6,000, ₹2,000 under the floor (the old label said "Low ₹10,000" with no breach)
+    expect(container.querySelector('.bc-low.under text')).toHaveTextContent('₹2,000 under floor');
+    expect(container.querySelectorAll('.bc-breach-band')).toHaveLength(1);
+    expect(panel().getByText('-₹2,000.00')).toBeInTheDocument();
+  });
+
+  it('a card swipe moves no cash: not in Money out, and the day opens where it closes', () => {
+    const days = [
+      { day: 1, date: '2026-11-01', balance: 1000000 },
+      { day: 2, date: '2026-11-02', balance: 1000000 }
+    ];
+    const swipe = { day: 1, date: '2026-11-01', amount: -200000, name: 'Swipe', isCardSpend: true, itemType: 'unplanned-transaction' };
+    render(<StepLineChart dailyBalances={days} events={[swipe]} safetyFloor={0} currencySymbol="₹" selectedDay={1} />);
+    expect(panel().getByText('Opened at ₹10,000.00')).toBeInTheDocument();
+    expect(panel().getByText('-₹0.00')).toBeInTheDocument();
+  });
+});
