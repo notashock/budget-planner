@@ -196,8 +196,9 @@ export function PlanScreen({
         }
       }
 
-      // If an event has no bank or wallet assigned, fallback to primary bank, designated salary bank, or sole bank
-      if (!bId && !wId && !sBankId && !sWalletId && selectedBank) {
+      // If an event has no bank or wallet assigned, fallback to primary bank, designated salary bank, or sole bank.
+      // A card swipe has none either, but it moves no bank cash (the bill payment does), so it never falls back.
+      if (!bId && !wId && !sBankId && !sWalletId && selectedBank && !ev.isCardSpend) {
         if (selectedBank.isPrimary || isDesignatedSalaryBank || isSoleBank) {
           return true;
         }
