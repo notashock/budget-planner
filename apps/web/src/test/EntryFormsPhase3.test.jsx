@@ -68,12 +68,13 @@ describe('Phase 3: category suggestion', () => {
   it('picks the category as you type until you choose one yourself', () => {
     renderEntry();
     fireEvent.change(descriptionInput(), { target: { value: 'Uber to office' } });
-    expect(screen.getByRole('button', { name: 'Travel' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Travel/);
     expect(screen.getByText(/suggested/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Health' }));
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Health' }));
     fireEvent.change(descriptionInput(), { target: { value: 'Uber to office and lunch' } });
-    expect(screen.getByRole('button', { name: 'Health' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Health/);
   });
 });
 
@@ -264,5 +265,26 @@ describe('Phase E: pickers push inside the sheet', () => {
     expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
     // Escape only closed the picker, not the sheet
     expect(screen.getByRole('heading', { name: 'New spend' })).toBeInTheDocument();
+  });
+});
+
+describe('Phase E: Move and category pickers', () => {
+  it('the Move tab opens its To account in the sheet too', () => {
+    renderEntry({ initialMode: 'transfer' });
+    const triggers = document.body.querySelectorAll('.app-select-trigger');
+    fireEvent.click(triggers[triggers.length - 1]);
+    expect(screen.getByTestId('sheet-picker')).toHaveTextContent('To');
+    fireEvent.click(screen.getByRole('option', { name: /Cash Wallet/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    const after = document.body.querySelectorAll('.app-select-trigger');
+    expect(after[after.length - 1]).toHaveTextContent('Cash Wallet');
+  });
+
+  it('Category is a row that opens the list; the choice shows on the row', () => {
+    renderEntry();
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Category\s*Food/);
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Utilities' }));
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Utilities/);
   });
 });

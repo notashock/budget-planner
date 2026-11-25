@@ -513,9 +513,9 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '25000' } });
 
-      // Click Freelance source pill
-      const freelanceBtn = screen.getByRole('button', { name: 'Freelance' });
-      fireEvent.click(freelanceBtn);
+      // Choose Freelance from the Source picker
+      fireEvent.click(screen.getByTestId('category-row'));
+      fireEvent.click(screen.getByRole('option', { name: 'Freelance' }));
 
       // Submit income
       const submitBtn = screen.getByRole('button', { name: 'Add' });

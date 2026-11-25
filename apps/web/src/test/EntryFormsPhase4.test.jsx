@@ -53,7 +53,8 @@ describe('Phase 4: what an edit changes', () => {
     expect(summary).toHaveTextContent('No changes yet');
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '25' } });
     expect(screen.getByTestId('edit-summary')).toHaveTextContent(/Changing: Amount ₹20\.00 → ₹25\.00/);
-    fireEvent.click(screen.getByRole('button', { name: 'Travel' }));
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Travel' }));
     expect(screen.getByTestId('edit-summary')).toHaveTextContent(/Category Food → Travel/);
   });
 

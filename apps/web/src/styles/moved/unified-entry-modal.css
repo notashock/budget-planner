@@ -571,18 +571,6 @@
   font-size: var(--fs-xs);
 }
 
-/* Unselected category pills still read as buttons */
-.category-pill-btn.btn-subtle {
-  border: 1px solid var(--border);
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.category-pill-btn.btn-primary {
-  font-weight: 600;
-}
-
 /* Footer: let the toggle and the buttons wrap as blocks on narrow sheets */
 .modal-footer-row {
   flex-wrap: wrap;
@@ -806,4 +794,59 @@
   animation: none;
   border: 1px solid var(--border);
   border-radius: var(--field-radius);
+}
+
+/* A row that opens a picker: the whole row is the button, value and chevron on the right */
+.sheet-row-button {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-row-button .sheet-row-value {
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.sheet-row-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* A pushed list of choices (category, source) */
+.sheet-choice-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  overflow: hidden;
+}
+
+.sheet-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-choice + .sheet-choice {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-choice.is-selected {
+  font-weight: 600;
+  color: var(--accent);
 }
