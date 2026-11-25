@@ -101,20 +101,20 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
   };
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="card-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="card-form">
       <h3 className="hl-modal-title">{isEdit ? 'Edit card' : 'Add a credit card'}</h3>
       <div className="form-group">
         <label className="form-label" htmlFor="cc-name">Card name</label>
-        <input id="cc-name" className="input-field" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Millennia" />
+        <input autoComplete="off" id="cc-name" className="input-field" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Millennia" />
       </div>
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cc-limit">Credit limit ({currencySymbol})</label>
-          <input id="cc-limit" className="input-field tabular-nums" type="number" min="0" step="1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+          <input autoComplete="off" id="cc-limit" className="input-field tabular-nums" type="number" min="0" step="1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cc-owed">{isEdit ? 'Owed when added' : 'Owed right now'} ({currencySymbol})</label>
-          <input id="cc-owed" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={owed} onChange={(e) => setOwed(e.target.value)} placeholder="0" />
+          <input autoComplete="off" id="cc-owed" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={owed} onChange={(e) => setOwed(e.target.value)} placeholder="0" />
           {owedShift !== 0 && (
             <p className="history-warning" role="note" data-testid="card-owed-warning">
               Changing this shifts what the card owed on every day since it was added by{' '}
@@ -126,11 +126,11 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cc-sday">Bill generation day</label>
-          <input id="cc-sday" className="input-field tabular-nums" type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="1-31" required />
+          <input autoComplete="off" id="cc-sday" className="input-field tabular-nums" type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="1-31" required />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cc-dday">Payment due day</label>
-          <input id="cc-dday" className="input-field tabular-nums" type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="1-31" required />
+          <input autoComplete="off" id="cc-dday" className="input-field tabular-nums" type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="1-31" required />
         </div>
       </div>
       <p className="hl-hint">On the bill generation day the app adds up this card's spending into a bill for you to confirm. If the due day comes before the bill day, it is due the next month.</p>
@@ -223,7 +223,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
   };
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="confirm-bill-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="confirm-bill-form">
       <h3 className="hl-modal-title">Confirm {card.name} bill</h3>
       <p className="hl-hint">
         Bill for {dayLabel(statement.cycleStart)} to {dayLabel(statement.cycleEnd)}. The app worked out{' '}
@@ -233,7 +233,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cb-amount">Bill amount ({currencySymbol})</label>
-          <input id="cb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input autoComplete="off" id="cb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           <span className="field-hint" data-testid="bill-difference">
             {diff === 0
               ? `Matches what the app worked out (${money(statement.computedAmount, currencySymbol)}).`
@@ -242,7 +242,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cb-min">Minimum due (optional)</label>
-          <input id="cb-min" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={minimum} onChange={(e) => setMinimum(e.target.value)} />
+          <input autoComplete="off" id="cb-min" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={minimum} onChange={(e) => setMinimum(e.target.value)} />
         </div>
       </div>
       <div className="form-group">
@@ -326,7 +326,7 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, simula
   ];
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="pay-bill-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="pay-bill-form">
       <h3 className="hl-modal-title">Pay {card.name} bill</h3>
       <p className="hl-hint">Paying moves money from your bank to the card. It isn't counted as spending again: the card purchases already were.</p>
       <div className={`hl-actions ${options.length === 2 ? 'hl-actions-2' : 'cc-actions-3'}`} role="radiogroup" aria-label="How much to pay">
@@ -339,7 +339,7 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, simula
       {choice === 'custom' && (
         <div className="form-group">
           <label className="form-label" htmlFor="pb-amount">Amount ({currencySymbol})</label>
-          <input id="pb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={custom} onChange={(e) => setCustom(e.target.value)} />
+          <input autoComplete="off" id="pb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={custom} onChange={(e) => setCustom(e.target.value)} />
         </div>
       )}
       <div className="form-group">

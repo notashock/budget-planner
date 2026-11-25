@@ -554,10 +554,10 @@ export function AccountsScreen({
               </button>
             </div>
 
-            <form className="accounts-stack" onSubmit={(e) => handleSaveBank(e, requestClose)}>
+            <form autoComplete="off" className="accounts-stack" onSubmit={(e) => handleSaveBank(e, requestClose)}>
               <div>
                 <label className="form-label" htmlFor="bank-name-input">Account Name *</label>
-                <input
+                <input autoComplete="off"
                   id="bank-name-input"
                   type="text"
                   className="input-field"
@@ -570,7 +570,7 @@ export function AccountsScreen({
 
               <div>
                 <label className="form-label" htmlFor="bank-inst-input">Financial Institution</label>
-                <input
+                <input autoComplete="off"
                   id="bank-inst-input"
                   type="text"
                   className="input-field"
@@ -598,7 +598,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="bank-number-input">Masked Number</label>
-                  <input
+                  <input autoComplete="off"
                     id="bank-number-input"
                     type="text"
                     className="input-field"
@@ -614,7 +614,7 @@ export function AccountsScreen({
                   <label className="form-label" htmlFor="bankOpeningBalance">
                     Opening Balance ({currencySymbol})
                   </label>
-                  <input
+                  <input autoComplete="off"
                     id="bankOpeningBalance"
                     type="number"
                     step="0.01"
@@ -628,7 +628,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="bank-min-balance-input">Min Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="bank-min-balance-input"
                     type="number"
                     step="0.01"
@@ -641,7 +641,7 @@ export function AccountsScreen({
               </div>
 
               <div className="accounts-row-11">
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   id="bankIsPrimary"
                   checked={bankIsPrimary}
@@ -684,10 +684,10 @@ export function AccountsScreen({
               </button>
             </div>
 
-            <form className="accounts-stack" onSubmit={(e) => handleSaveWallet(e, requestClose)}>
+            <form autoComplete="off" className="accounts-stack" onSubmit={(e) => handleSaveWallet(e, requestClose)}>
               <div>
                 <label className="form-label">Wallet Name *</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   className="input-field"
                   placeholder="e.g. Physical Cash, Paytm Wallet"
@@ -713,7 +713,7 @@ export function AccountsScreen({
               <div className="accounts-grid-2">
                 <div>
                   <label className="form-label" htmlFor="walletOpeningBalance">Opening Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="walletOpeningBalance"
                     type="number"
                     step="0.01"
@@ -727,7 +727,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="wallet-min-balance-input">Min Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="wallet-min-balance-input"
                     type="number"
                     step="0.01"
@@ -740,7 +740,7 @@ export function AccountsScreen({
               </div>
 
               <div className="accounts-row-11">
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   id="walletIsPrimary"
                   checked={walletIsPrimary}

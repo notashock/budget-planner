@@ -37,15 +37,15 @@ function PersonForm({ fund, month, onSaved, onCancel }) {
     }
   };
   return (
-    <form className="hl-form" onSubmit={submit}>
+    <form autoComplete="off" className="hl-form" onSubmit={submit}>
       <h3 className="hl-modal-title">Edit {fund.personName}</h3>
       <div className="form-group">
         <label className="form-label" htmlFor="hl-edit-name">Name</label>
-        <input id="hl-edit-name" type="text" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+        <input autoComplete="off" id="hl-edit-name" type="text" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="hl-edit-note">Note</label>
-        <input id="hl-edit-note" type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
+        <input autoComplete="off" id="hl-edit-note" type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
       </div>
       <div className="form-group">
         <span className="form-label">{fund.direction === 'held' ? 'Give back by' : 'Back by'}</span>
@@ -81,11 +81,11 @@ function EntryForm({ entry, currencySymbol, month, onSaved, onCancel }) {
     }
   };
   return (
-    <form className="hl-form" onSubmit={submit}>
+    <form autoComplete="off" className="hl-form" onSubmit={submit}>
       <h3 className="hl-modal-title">Edit “{VERB[entry.origin] || entry.name}”</h3>
       <div className="form-group">
         <label className="form-label" htmlFor="hl-entry-amount">Amount ({currencySymbol})</label>
-        <input id="hl-entry-amount" type="number" inputMode="decimal" step="0.01" min="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <input autoComplete="off" id="hl-entry-amount" type="number" inputMode="decimal" step="0.01" min="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
       </div>
       <div className="form-group">
         <span className="form-label">Date</span>

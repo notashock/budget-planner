@@ -92,7 +92,7 @@ export function ReclassifyHeldLentModal({ transaction, currencySymbol = '₹', o
             <option value={NEW_PERSON}>+ New person</option>
           </select>
           {fundId === NEW_PERSON && (
-            <input
+            <input autoComplete="off"
               className="input-field hl-new-person"
               placeholder="Name"
               aria-label="Person name"

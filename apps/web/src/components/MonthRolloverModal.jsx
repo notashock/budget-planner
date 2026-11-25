@@ -74,7 +74,7 @@ export function MonthRolloverModal({
       style={{ padding: '24px' }}
     >
       {({ requestClose }) => (
-        <form onSubmit={(e) => handleSubmit(e, requestClose)}>
+        <form autoComplete="off" onSubmit={(e) => handleSubmit(e, requestClose)}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
@@ -197,7 +197,7 @@ export function MonthRolloverModal({
                 cursor: 'pointer'
               }}
             >
-              <input
+              <input autoComplete="off"
                 type="checkbox"
                 data-testid="rollover-unpaid-checkbox"
                 checked={rolloverUnpaid}
@@ -222,7 +222,7 @@ export function MonthRolloverModal({
                 cursor: 'pointer'
               }}
             >
-              <input
+              <input autoComplete="off"
                 type="checkbox"
                 data-testid="carry-balance-checkbox"
                 checked={carryBalance}
