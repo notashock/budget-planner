@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 
 describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', () => {
@@ -54,36 +54,19 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '45000' } });
 
-    // Submit form
-    const submitBtn = screen.getByRole('button', { name: 'Add' });
-    fireEvent.click(submitBtn);
-
-    // Verify pre-flight warning modal appears
-    await waitFor(() => {
-      expect(screen.getByTestId('floor-breach-modal')).toBeInTheDocument();
-      expect(screen.getByText('Safety Floor Warning')).toBeInTheDocument();
-    });
-
-    // Verify onLogTransaction has NOT been called yet
+    // The warning shows as you type, and Add turns into Add anyway
+    expect(screen.getByTestId('consequence-line')).toHaveTextContent(/HDFC Salary Account ₹5,000.00 · ₹5,000.00 below your floor/);
+    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
     expect(handleLogTx).not.toHaveBeenCalled();
 
-    // Click "Cancel" within warning modal
-    const breachModal = screen.getByTestId('floor-breach-modal');
-    const cancelBtn = within(breachModal).getByRole('button', { name: /Cancel/i });
-    fireEvent.click(cancelBtn);
+    // A smaller amount clears the warning
+    fireEvent.change(amountInput, { target: { value: '100' } });
+    expect(screen.getByTestId('consequence-line')).not.toHaveTextContent(/below your floor/);
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
 
-    expect(screen.queryByTestId('floor-breach-modal')).not.toBeInTheDocument();
-    expect(handleLogTx).not.toHaveBeenCalled();
-
-    // Submit again and click "Confirm Anyway"
-    fireEvent.click(submitBtn);
-    await waitFor(() => {
-      expect(screen.getByTestId('floor-breach-modal')).toBeInTheDocument();
-    });
-
-    const activeModal = screen.getByTestId('floor-breach-modal');
-    const confirmAnywayBtn = within(activeModal).getByRole('button', { name: /Confirm Anyway/i });
-    fireEvent.click(confirmAnywayBtn);
+    // Back above the floor, Add anyway saves in one tap
+    fireEvent.change(amountInput, { target: { value: '45000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add anyway' }));
 
     await waitFor(() => {
       expect(handleLogTx).toHaveBeenCalledWith(
@@ -115,21 +98,9 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '45000' } });
 
-    const transferSubmitBtn = screen.getByRole('button', { name: 'Add' });
-    fireEvent.click(transferSubmitBtn);
-
-    // Pre-flight warning modal should appear
-    await waitFor(() => {
-      expect(screen.getByTestId('floor-breach-modal')).toBeInTheDocument();
-      expect(screen.getByText('Safety Floor Warning')).toBeInTheDocument();
-    });
-
+    expect(screen.getByTestId('consequence-line')).toHaveTextContent(/below your floor/);
     expect(handleCreateTransfer).not.toHaveBeenCalled();
-
-    // Click "Confirm Anyway"
-    const breachModal = screen.getByTestId('floor-breach-modal');
-    const confirmAnywayBtn = within(breachModal).getByRole('button', { name: /Confirm Anyway/i });
-    fireEvent.click(confirmAnywayBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Add anyway' }));
 
     await waitFor(() => {
       expect(handleCreateTransfer).toHaveBeenCalledWith(
@@ -190,7 +161,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     fireEvent.click(submitBtn);
 
     // Verify pre-flight warning modal DOES NOT appear
-    expect(screen.queryByTestId('floor-breach-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('consequence-line')).not.toHaveTextContent(/below your floor/);
 
     // Verify onLogTransaction is called directly
     await waitFor(() => {
@@ -244,21 +215,10 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     const amountInput = screen.getByPlaceholderText('0.00');
     fireEvent.change(amountInput, { target: { value: '10500' } });
 
-    const submitBtn = screen.getByRole('button', { name: 'Add' });
-    fireEvent.click(submitBtn);
-
-    // Verify warning appears with correct projected balance (₹500.00)
-    await waitFor(() => {
-      expect(screen.getByTestId('floor-breach-modal')).toBeInTheDocument();
-      expect(screen.getByText('Safety Floor Warning')).toBeInTheDocument();
-    });
-
+    // Warning uses the live balance (₹11,000 − ₹10,500 = ₹500), not the stored one
+    expect(screen.getByTestId('consequence-line')).toHaveTextContent(/₹500.00 · ₹500.00 below your floor/);
     expect(handleLogTx).not.toHaveBeenCalled();
-
-    // Confirm override allows logging
-    const breachModal = screen.getByTestId('floor-breach-modal');
-    const confirmAnywayBtn = within(breachModal).getByRole('button', { name: /Confirm Anyway/i });
-    fireEvent.click(confirmAnywayBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Add anyway' }));
 
     await waitFor(() => {
       expect(handleLogTx).toHaveBeenCalledWith(
@@ -315,7 +275,7 @@ describe('Pre-Flight Account Safety Floor Interception (Rule 4 & TC-ACC-05)', ()
     fireEvent.click(transferSubmitBtn);
 
     // Verify warning does NOT appear
-    expect(screen.queryByTestId('floor-breach-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('consequence-line')).not.toHaveTextContent(/below your floor/);
 
     await waitFor(() => {
       expect(handleCreateTransfer).toHaveBeenCalledWith(

@@ -183,7 +183,6 @@ export function UnifiedEntryModal({
   const [settleError, setSettleError] = useState('');
   // Inline form error (replaces alert())
   const [formError, setFormError] = useState('');
-  const [floorBreachData, setFloorBreachData] = useState(null);
 
   // Earliest date a planned item may use: the first day of the month being planned
   const planMinDate = month?.year && month?.month
@@ -300,7 +299,6 @@ export function UnifiedEntryModal({
       setSettleItem(null);
       setSettleError('');
       setMoveTarget('account');
-      setFloorBreachData(null);
       setTransferError('');
       setCascadeScope('single');
       setUpdateSalaryTemplate(false);
@@ -851,7 +849,6 @@ export function UnifiedEntryModal({
     setTagSuggested(false);
     setTag('Food');
     setFormError('');
-    setFloorBreachData(null);
     requestAnimationFrame?.(() => amountInputRef.current?.focus?.());
   };
 
@@ -1012,7 +1009,7 @@ export function UnifiedEntryModal({
   }, [accountSimulations, simulation]);
 
   // Mode 1: Log Spending Submission
-  const handleTransactionSubmit = async (e, bypassFloorCheck = false, again = false) => {
+  const handleTransactionSubmit = async (e, again = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!amount || isNaN(Number(amount))) return;
@@ -1032,30 +1029,6 @@ export function UnifiedEntryModal({
         ? `Only ${formatCurrency(refundTarget.remaining, currencySymbol)} of ${refundTarget.name} is left to refund.`
         : `${refundTarget.name} is already fully refunded.`);
       return;
-    }
-
-    // Safety Floor Check
-    if (!isRefund && !bypassFloorCheck) {
-      const selectedAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
-        : wallets.find((w) => String(w.id || w._id) === String(accountId));
-
-      if (selectedAccount) {
-        const accBal = getAccountLiveBalance(selectedAccount);
-        const minBal = getAccountMinimumBalance(selectedAccount);
-        const existingDebit = initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
-        const netDebitChange = baseAmount - existingDebit;
-        if (minBal > 0 && (accBal - netDebitChange) < minBal) {
-          setFloorBreachData({
-            type: 'spending',
-            accountName: selectedAccount.name,
-            minimumBalance: minBal,
-            projectedBalance: accBal - netDebitChange,
-            again
-          });
-          return;
-        }
-      }
     }
 
     isSubmittingRef.current = true;
@@ -1219,7 +1192,7 @@ export function UnifiedEntryModal({
   };
 
   // Mode 4: Transfer Submission
-  const handleTransferSubmit = async (e, bypassFloorCheck = false) => {
+  const handleTransferSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     setTransferError('');
@@ -1250,27 +1223,6 @@ export function UnifiedEntryModal({
     }
 
     const xferAmt = Math.round(Number(amount) * 100);
-
-    // Safety Floor Check on source account
-    if (!bypassFloorCheck) {
-      const sourceAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
-        : wallets.find((w) => String(w.id || w._id) === String(accountId));
-
-      if (sourceAccount) {
-        const sourceBal = getAccountLiveBalance(sourceAccount);
-        const sourceMin = getAccountMinimumBalance(sourceAccount);
-        if (sourceMin > 0 && (sourceBal - xferAmt) < sourceMin) {
-          setFloorBreachData({
-            type: 'transfer',
-            accountName: sourceAccount.name,
-            minimumBalance: sourceMin,
-            projectedBalance: sourceBal - xferAmt
-          });
-          return;
-        }
-      }
-    }
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -1315,11 +1267,29 @@ export function UnifiedEntryModal({
   const handleSubmitRouter = (e) => {
     const again = againRef.current && canAddAnother;
     againRef.current = false;
-    if (mode === 'log') handleTransactionSubmit(e, false, again);
+    if (mode === 'log') handleTransactionSubmit(e, again);
     else if (mode === 'income') handleIncomeSubmit(e, again);
     else if (mode === 'plan') handlePlanSubmit(e, again);
     else if (mode === 'transfer') handleTransferSubmit(e);
   };
+
+  // Would this spend or move leave the account under its minimum balance?
+  const floorBreach = (() => {
+    if (settleItem || !(mode === 'log' || mode === 'transfer')) return null;
+    if (mode === 'log' && isRefund) return null;
+    if (mode === 'transfer' && moveTarget === 'person') return null;
+    const amt = Math.round(Math.abs(Number(amount) || 0) * 100);
+    if (!amt) return null;
+    const pool = accountType === 'bank' ? bankAccounts : accountType === 'wallet' ? wallets : [];
+    const acc = pool.find((a) => String(a.id || a._id) === String(accountId));
+    if (!acc) return null;
+    const minBal = getAccountMinimumBalance(acc);
+    if (!(minBal > 0)) return null;
+    // Editing a spend only moves the balance by the difference
+    const existing = mode === 'log' && initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
+    const projected = getAccountLiveBalance(acc) - (amt - existing);
+    return projected < minBal ? { accountName: acc.name, minimumBalance: minBal, projectedBalance: projected } : null;
+  })();
 
   const sheetTitle = settleItem ? 'Mark paid'
     : (mode === 'transfer' && moveTarget === 'person') ? 'Held & Lent'
@@ -1330,6 +1300,7 @@ export function UnifiedEntryModal({
   const showFormAction = !settleItem && !(mode === 'transfer' && moveTarget === 'person');
   const sheetAction = isSubmitting
     ? (initialItem ? 'Saving…' : 'Adding…')
+    : floorBreach ? (initialItem ? 'Save anyway' : 'Add anyway')
     : (initialItem ? 'Save' : (mode === 'transfer' && moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Add'));
 
   // Rendered on <body> so no parent stacking context can put it under the
@@ -1363,7 +1334,7 @@ export function UnifiedEntryModal({
               <button
                 type="submit"
                 form="entry-sheet-form"
-                className={`sheet-topbar-btn is-primary ${mode === 'log' && isRefund ? 'is-positive' : ''}`}
+                className={`sheet-topbar-btn is-primary ${mode === 'log' && isRefund ? 'is-positive' : ''} ${floorBreach ? 'is-warn' : ''}`}
                 disabled={(mode !== 'transfer' && hasZeroAccounts) || isSubmitting}
               >
                 {sheetAction}
@@ -2284,60 +2255,6 @@ export function UnifiedEntryModal({
                 />
               );
             })()}
-
-            {/* Safety floor: confirm inline before saving (PreFlightSafetyFloor.test.jsx) */}
-            {floorBreachData && (
-              <div className="floor-confirm"
-                data-testid="floor-breach-modal"
-                role="alertdialog"
-                aria-label="Safety floor warning"
-              >
-                <div className="floor-confirm-body">
-                  <div className="entry-row-15">
-                    <AlertTriangleIcon size={20} color="var(--rose)" />
-                    <h3 className="entry-heading">
-                      Safety Floor Warning
-                    </h3>
-                  </div>
-                  <p className="entry-text-5">
-                    This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
-                    <strong className="entry-text-4">{floorBreachData.accountName}</strong> below your safety floor of{' '}
-                    <strong className="entry-text-6">
-                      {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
-                    </strong>.
-                    <br />
-                    Projected balance:{' '}
-                    <strong className="entry-text-6">
-                      {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
-                    </strong>.
-                  </p>
-                  <div className="entry-row-16">
-                    <button
-                      type="button"
-                      className="btn-subtle entry-btn-9"
-                      onClick={() => setFloorBreachData(null)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary entry-btn-10"
-                      onClick={() => {
-                        const data = floorBreachData;
-                        setFloorBreachData(null);
-                        if (data.type === 'transfer') {
-                          handleTransferSubmit(null, true);
-                        } else {
-                          handleTransactionSubmit(null, true, data.again);
-                        }
-                      }}
-                    >
-                      Confirm Anyway
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {initialItem && (
               <div className="edit-summary" data-testid="edit-summary">
