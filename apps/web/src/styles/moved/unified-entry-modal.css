@@ -777,3 +777,33 @@
 .sheet-topbar-btn.is-warn {
   color: var(--warn-ink);
 }
+
+/* A picker pushed inside the sheet (plan §5.1): it replaces the form, which stays mounted */
+.entry-box.has-picker > :not(.sheet-picker):not(.modal-drag-zone) {
+  display: none;
+}
+
+.sheet-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sheet-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sheet-picker .app-dropdown-menu.is-inline,
+.sheet-picker .datepicker-popover.is-inline {
+  position: static;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  box-shadow: none;
+  animation: none;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+}

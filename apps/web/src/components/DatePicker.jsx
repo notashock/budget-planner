@@ -11,7 +11,9 @@ export function DatePicker({
   required = false,
   maxDate = null,
   minDate = null,
-  compact = false
+  compact = false,
+  inline = false, // calendar only, laid flat (a page pushed inside the entry sheet)
+  onOpen = null // when set, the trigger calls it instead of opening the popover
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState('down');
@@ -289,11 +291,12 @@ export function DatePicker({
 
   return (
     <div ref={containerRef} className={`datepicker-container ${compact ? 'compact' : ''} ${isOpen ? 'open is-open' : ''}`}>
+      {!inline && (
       <button
         type="button"
         className={`datepicker-trigger ${compact ? 'compact' : ''} ${isOpen ? 'open' : ''}`}
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (onOpen ? onOpen() : setIsOpen(!isOpen))}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
@@ -305,9 +308,10 @@ export function DatePicker({
           {isOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
         </span>
       </button>
+      )}
 
-      {isOpen && (
-        <div className={`datepicker-popover placement-${placement} ${alignRight || compact ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
+      {(isOpen || inline) && (
+        <div className={`datepicker-popover ${inline ? 'is-inline' : ''} placement-${placement} ${alignRight || compact ? 'align-right' : ''}`} role="dialog" aria-label="Choose Date">
           {/* Quick Shortcuts Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
             <button

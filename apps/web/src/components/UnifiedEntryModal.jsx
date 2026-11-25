@@ -22,7 +22,8 @@ import {
   WalletIcon,
   AlertTriangleIcon,
   CalendarIcon,
-  LockIcon
+  LockIcon,
+  ChevronLeftIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { HeldLentForm } from './HeldLentForm.jsx';
@@ -155,6 +156,8 @@ export function UnifiedEntryModal({
   const [tagSuggested, setTagSuggested] = useState(false);
   // "Discard this entry?" before closing a half-filled form
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // A picker pushed inside the sheet (plan §5.1): null | 'account' | 'date'
+  const [picker, setPicker] = useState(null);
   // Editing: the values the record opened with, to show what is changing
   const [editSnapshot, setEditSnapshot] = useState(null);
   const [snapshotPending, setSnapshotPending] = useState(false);
@@ -287,6 +290,7 @@ export function UnifiedEntryModal({
       setIsSubmitting(false);
       setFormError('');
       setConfirmDiscard(false);
+      setPicker(null);
       setConfirmDelete(false);
       setDismissedAssists({});
       setPersonPreset(null);
@@ -753,6 +757,10 @@ export function UnifiedEntryModal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (picker) {
+          setPicker(null);
+          return;
+        }
         if (confirmDiscard) {
           setConfirmDiscard(false);
           return;
@@ -1291,6 +1299,7 @@ export function UnifiedEntryModal({
     return projected < minBal ? { accountName: acc.name, minimumBalance: minBal, projectedBalance: projected } : null;
   })();
 
+  const accountRowLabel = mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From';
   const sheetTitle = settleItem ? 'Mark paid'
     : (mode === 'transfer' && moveTarget === 'person') ? 'Held & Lent'
     : mode === 'log' ? `${initialItem ? 'Edit' : 'New'} ${isRefund ? 'refund' : 'spend'}`
@@ -1314,7 +1323,7 @@ export function UnifiedEntryModal({
       >
         <div
           ref={contentRef}
-          className={`modal-content ${isExpanded ? 'is-expanded' : ''} entry-box`}
+          className={`modal-content ${isExpanded ? 'is-expanded' : ''} entry-box ${picker ? 'has-picker' : ''}`}
           onClick={(e) => e.stopPropagation()}
           onScroll={handleScroll}
           onTouchStart={handleTouchStart}
@@ -1325,6 +1334,50 @@ export function UnifiedEntryModal({
           <div className="modal-drag-zone">
             <div className="modal-drag-handle" />
           </div>
+
+          {/* A picker pushed inside the sheet: back arrow, then the list or calendar; the form stays mounted underneath */}
+          {picker && (
+            <div className="sheet-picker" data-testid="sheet-picker">
+              <div className="sheet-topbar">
+                <button type="button" className="sheet-topbar-btn sheet-back-btn" onClick={() => setPicker(null)}>
+                  <ChevronLeftIcon size={14} /> Back
+                </button>
+                <h2 className="sheet-topbar-title">{picker === 'date' ? 'When' : accountRowLabel}</h2>
+                <span className="sheet-topbar-btn" aria-hidden="true" />
+              </div>
+              {picker === 'account' ? (
+                <AccountSelect
+                  inline
+                  accountType={accountType}
+                  accountId={accountId}
+                  onChange={({ accountType: newType, accountId: newId }) => {
+                    setAccountType(newType);
+                    setAccountId(newId);
+                    setPicker(null);
+                  }}
+                  bankAccounts={bankAccounts}
+                  wallets={wallets}
+                  creditCards={mode === 'log' || mode === 'plan' ? creditCards : []}
+                  currencySymbol={currencySymbol}
+                  simulation={simulation}
+                  accountSimulations={accountSimulations}
+                />
+              ) : (
+                <DatePicker
+                  inline
+                  value={date}
+                  onChange={(d) => {
+                    setDate(d);
+                    setPicker(null);
+                  }}
+                  month={month}
+                  required={mode !== 'plan'}
+                  minDate={mode === 'plan' ? planMinDate : null}
+                  maxDate={mode === 'plan' ? null : todayStr}
+                />
+              )}
+            </div>
+          )}
 
           {/* Sheet top bar: Cancel, what this is, and the one action */}
           <div className="sheet-topbar">
@@ -1758,9 +1811,7 @@ export function UnifiedEntryModal({
                 />
               </div>
               <div className="sheet-row sheet-row-stack">
-                <span className="sheet-row-label">
-                  {mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From'}
-                </span>
+                <span className="sheet-row-label">{accountRowLabel}</span>
                 <div className="sheet-row-value">
               {hasZeroAccounts ? (
                 <div className="entry-box-4"
@@ -1797,6 +1848,7 @@ export function UnifiedEntryModal({
                   currencySymbol={currencySymbol}
                   simulation={simulation}
                   accountSimulations={accountSimulations}
+                  onOpen={() => setPicker('account')}
                 />
               )}
                 </div>
@@ -1830,6 +1882,7 @@ export function UnifiedEntryModal({
                       // anything already paid or received can't be in the future.
                       minDate={mode === 'plan' ? planMinDate : null}
                       maxDate={mode === 'plan' ? null : todayStr}
+                      onOpen={() => setPicker('date')}
                     />
                   )}
                 </div>

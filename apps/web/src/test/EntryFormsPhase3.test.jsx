@@ -236,3 +236,33 @@ describe('Phase E: sheet top bar', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 });
+
+describe('Phase E: pickers push inside the sheet', () => {
+  it('the account row opens a list in the sheet; picking one goes back with it chosen', () => {
+    renderEntry();
+    fireEvent.change(amountInput(), { target: { value: '120' } });
+    fireEvent.click(accountTrigger());
+    const page = screen.getByTestId('sheet-picker');
+    expect(page).toHaveTextContent('Paid from');
+    // No second popup: the list sits in the sheet, and the form is kept underneath
+    expect(document.body.querySelector('.custom-select-dropdown.is-inline')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: /Cash Wallet/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    expect(accountTrigger()).toHaveTextContent('Cash Wallet');
+    expect(amountInput()).toHaveValue(120);
+  });
+
+  it('the date row opens the calendar in the sheet; Back and Escape return without changing it', () => {
+    renderEntry();
+    fireEvent.click(document.body.querySelector('.datepicker-trigger'));
+    expect(screen.getByTestId('sheet-picker')).toHaveTextContent('When');
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+
+    fireEvent.click(document.body.querySelector('.datepicker-trigger'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    // Escape only closed the picker, not the sheet
+    expect(screen.getByRole('heading', { name: 'New spend' })).toBeInTheDocument();
+  });
+});
