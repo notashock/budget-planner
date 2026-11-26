@@ -217,16 +217,18 @@ Future<DateTime?> showAppDatePicker(
   DateTime initial, {
   int? minYear,
   int? maxYear,
+  DateTime? firstDate,
+  DateTime? lastDate,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final now = DateTime.now();
-  final firstYear = minYear ?? (now.year - 2);
-  final lastYear = maxYear ?? (now.year + 3);
+  final first = firstDate ?? DateTime(minYear ?? (now.year - 2), 1, 1);
+  final last = lastDate ?? DateTime(maxYear ?? (now.year + 3), 12, 31);
   return showDatePicker(
     context: context,
-    initialDate: initial,
-    firstDate: DateTime(firstYear, 1, 1),
-    lastDate: DateTime(lastYear, 12, 31),
+    initialDate: initial.isBefore(first) ? first : (initial.isAfter(last) ? last : initial),
+    firstDate: first,
+    lastDate: last,
     builder: (context, child) {
       return Theme(
         data: Theme.of(context).copyWith(

@@ -22,7 +22,6 @@ import '../theme/app_palette.dart';
 import 'held_lent_modal.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
-import '../widgets/account_selector.dart';
 import '../widgets/entry_summary_chips.dart';
 import '../widgets/web_icons.dart';
 import '../theme/app_typography.dart';
@@ -772,27 +771,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               ],
 
               if (_activeType == EntryType.transfer) ...[
-                SetupGroup(children: [
-                  SetupRow(label: 'Note', child: _rowInput(_nameCtrl, 'Optional', key: const ValueKey('entry-name'))),
-                ]),
-                const SizedBox(height: 12),
-                AccountSelector(
-                  label: _moveTarget == 'card' ? 'Pay from' : 'From',
-                  accountType: _sourceAccountType,
-                  selectedAccountId: _sourceAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  isRequired: true,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _sourceAccountType = newType;
-                      _sourceAccountId = newId;
-                    });
-                  },
-                ),
+                _buildMoveRows(budget),
                 const SizedBox(height: 12),
                 if (_moveTarget == 'card') ...[
-                  Text('Card to pay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  Text('Card to pay *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                   const SizedBox(height: AppForm.fieldGap),
                   ...budget.simulatedCards.map((card) {
                     final id = card.account.id;
@@ -849,21 +831,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       ],
                     );
                   }),
+                  const SizedBox(height: 6),
+                  Text("Paying a card moves money from your account to the card. It isn't counted as spending again.",
+                      style: TextStyle(fontSize: 11.5, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                 ] else
-                AccountSelector(
-                  label: 'To',
-                  accountType: _destAccountType,
-                  selectedAccountId: _destAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  isRequired: true,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _destAccountType = newType;
-                      _destAccountId = newId;
-                    });
-                  },
-                ),
+                  _buildMoveTo(budget),
+                const SizedBox(height: 8),
+                Text("Moving money between your own accounts doesn't change your total cash.",
+                    style: TextStyle(fontSize: 11.5, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
               ],
 
               // Smart assists: rebuilt as the amount or description changes
@@ -1263,7 +1238,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     final category = _isCustomCategory ? 'Custom' : _selectedCategory;
 
     Future<void> pickDate() async {
-      final picked = await showAppDatePicker(context, _selectedDate);
+      final picked = await _pickEntryDate();
       if (picked != null) {
         setState(() {
           _selectedDate = picked;
@@ -1340,6 +1315,118 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               key: const ValueKey('entry-date-chip'), semantics: isGoal ? 'Target date' : 'When'),
         ),
     ]);
+  }
+
+  /// Move form, as on web: Note / From / When grouped rows.
+  Widget _buildMoveRows(BudgetProvider budget) {
+    final label = _moveTarget == 'card' ? 'Pay from' : 'From';
+    final src = budget.accountById(_sourceAccountId);
+    return SetupGroup(children: [
+      SetupRow(label: 'Note', child: _rowInput(_nameCtrl, 'Optional', key: const ValueKey('entry-name'))),
+      SetupRow(
+        label: label,
+        child: _rowValue(
+          src == null ? 'Choose account' : (src.name.isEmpty ? 'Account' : src.name),
+          () => _pickMoveAccount(budget, label, _sourceAccountType, _sourceAccountId, (t, id) {
+            _sourceAccountType = t;
+            _sourceAccountId = id;
+          }),
+          key: const ValueKey('move-from'),
+          semantics: label,
+        ),
+      ),
+      SetupRow(
+        label: 'When',
+        child: _rowValue(EntrySummaryChips.dateLabel(_selectedDate), () async {
+          final picked = await _pickEntryDate();
+          if (picked != null) setState(() => _selectedDate = picked);
+        }, key: const ValueKey('entry-date-chip'), semantics: 'When'),
+      ),
+    ]);
+  }
+
+  /// "To" with web's Invert button, then the destination row.
+  Widget _buildMoveTo(BudgetProvider budget) {
+    final p = context.palette;
+    final dst = budget.accountById(_destAccountId);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Text('To', style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary)),
+        const Spacer(),
+        TextButton.icon(
+          key: const ValueKey('move-invert'),
+          onPressed: () => setState(() {
+            final t = _sourceAccountType, id = _sourceAccountId;
+            _sourceAccountType = _destAccountType;
+            _sourceAccountId = _destAccountId;
+            _destAccountType = t;
+            _destAccountId = id;
+          }),
+          icon: const Icon(Icons.swap_vert, size: 16),
+          label: const Text('Invert'),
+        ),
+      ]),
+      SetupGroup(children: [
+        SetupRow(
+          label: 'To',
+          child: _rowValue(
+            dst == null ? 'Choose account' : (dst.name.isEmpty ? 'Account' : dst.name),
+            () => _pickMoveAccount(budget, 'To', _destAccountType, _destAccountId, (t, id) {
+              _destAccountType = t;
+              _destAccountId = id;
+            }),
+            key: const ValueKey('move-to'),
+            semantics: 'To',
+          ),
+        ),
+      ]),
+    ]);
+  }
+
+  Future<void> _pickMoveAccount(BudgetProvider budget, String label, String type, String? id, void Function(String, String?) set) =>
+      EntrySummaryChips(
+        date: _selectedDate,
+        onDate: (_) {},
+        accountLabel: label,
+        accountType: type,
+        accountId: id,
+        banks: budget.bankAccountModels,
+        wallets: budget.walletModels,
+        accountRequired: true,
+        onAccount: (t, i) => setState(() => set(t, i)),
+      ).pickAccount(context);
+
+  DateTime get _today {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  /// Spends, income and moves can't be dated after today; a one-time plan can't be before it.
+  Future<DateTime?> _pickEntryDate() {
+    final logged = _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.transfer;
+    final plan = _activeType == EntryType.item && !_isPaid;
+    return showAppDatePicker(context, _selectedDate,
+        firstDate: plan ? _today : null, lastDate: logged ? _today : null);
+  }
+
+  /// The date the entry had before editing ('' for a new entry).
+  String get _originalDate {
+    final t = widget.initialTransaction;
+    if (t == null) return '';
+    final raw = t.isPlanned ? t.dueDate : t.date;
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  }
+
+  String? _dateRuleError(String dateStr, bool isRecurring) {
+    if (dateStr == _originalDate) return null;
+    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    if ((_activeType == EntryType.transaction || _activeType == EntryType.income) && day.isAfter(_today)) {
+      return "A spend or income can't be dated in the future.";
+    }
+    if (_activeType == EntryType.item && !isRecurring && !_isPaid && day.isBefore(_today)) {
+      return "A planned payment can't be dated in the past.";
+    }
+    return null;
   }
 
   Widget _buildDayStepper() {
@@ -1797,6 +1884,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     if (amt <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+      return;
+    }
+    final dateError = _dateRuleError(dateStr, isRecurring);
+    if (dateError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dateError)));
       return;
     }
 
