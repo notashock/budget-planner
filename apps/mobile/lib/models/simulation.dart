@@ -208,6 +208,8 @@ class SimulationResult {
   final int lentOutstanding;
   /// Owed on credit cards today: set aside from Safe-to-Spend from the swipe day
   final int cardReserve;
+  /// Today's day in the period's own frame (day 1 = its first day); 0 = not started, null = over or unknown
+  final int? currentDay;
 
   SimulationResult({
     required this.openingBalance,
@@ -226,6 +228,7 @@ class SimulationResult {
     this.heldReserve = 0,
     this.lentOutstanding = 0,
     this.cardReserve = 0,
+    this.currentDay,
   });
 
   factory SimulationResult.fromJson(Map<String, dynamic> json) {
@@ -274,6 +277,7 @@ class SimulationResult {
       heldReserve: (num.tryParse('${json['heldReserve'] ?? 0}') ?? 0).round(),
       lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0).round(),
       cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
+      currentDay: json['currentDay'] is num ? (json['currentDay'] as num).toInt() : null,
     );
   }
 }

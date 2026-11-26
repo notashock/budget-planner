@@ -389,8 +389,13 @@ export default function App() {
     const currentYearMonth = now.getFullYear() * 12 + now.getMonth() + 1;
     const viewingYearMonth = Number(currentMonth.year) * 12 + Number(currentMonth.month);
 
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     let currentDay = null;
-    if (viewingYearMonth === currentYearMonth) {
+    if (currentMonth.startDate && currentMonth.endDate) {
+      // By the period's dates, as the server does: a salary cycle can be named after the next month
+      if (currentMonth.startDate > todayIso) currentDay = 0;
+      else if (currentMonth.endDate >= todayIso) currentDay = now.getDate();
+    } else if (viewingYearMonth === currentYearMonth) {
       currentDay = now.getDate();
     } else if (viewingYearMonth < currentYearMonth) {
       currentDay = null;
@@ -414,7 +419,7 @@ export default function App() {
         transfers
       },
       [], // Unified transactions is the sole source of truth
-      { year: currentMonth.year, month: currentMonth.month },
+      { year: currentMonth.year, month: currentMonth.month, startDate: currentMonth.startDate, endDate: currentMonth.endDate },
       transactions,
       goals,
       transfers,
