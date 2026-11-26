@@ -3,7 +3,7 @@ import './setup.js';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Header } from '../components/Header.jsx';
+import { MonthMenu } from '../components/MonthMenu.jsx';
 import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 
 describe('Header Dropdown and Plan Form Account Balance Audit', () => {
@@ -45,7 +45,7 @@ describe('Header Dropdown and Plan Form Account Balance Audit', () => {
   it('Header dropdown renders active cycle and previous preview/closed cycles', () => {
     const handleSelectMonth = vi.fn();
     render(
-      <Header
+      <MonthMenu
         months={mockMonths}
         currentMonth={mockMonths[0]}
         onSelectMonth={handleSelectMonth}
@@ -101,7 +101,7 @@ describe('Header Dropdown and Plan Form Account Balance Audit', () => {
     );
 
     // Should display Plan tab active
-    expect(screen.getByText('Dedicated Account *')).toBeInTheDocument();
+    expect(screen.getByText('Pay from')).toBeInTheDocument();
     // Account select should show HDFC Salary Bank
     expect(screen.getByText('HDFC Salary Bank')).toBeInTheDocument();
     // Balance displayed beside account should be ₹42,000.00 (not stale ₹50,000)

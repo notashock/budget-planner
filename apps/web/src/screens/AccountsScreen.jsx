@@ -1,37 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { playEntrance } from '../components/entranceMotion.js';
 import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import { DatePicker } from '../components/DatePicker.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { CustomSelect } from '../components/CustomSelect.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import {
   BuildingLibraryIcon,
   WalletIcon,
   ArrowRightLeftIcon,
   PlusIcon,
-  EditIcon,
-  TrashIcon,
   AlertTriangleIcon,
   XIcon,
-  EyeIcon, ArrowRightIcon
+  EyeIcon
 } from '../components/Icons.jsx';
-import { Chip } from '../components/ui/Chip.jsx';
-import { ConcentricActivityRings } from '../components/ConcentricActivityRings.jsx';
+import { ActionMenu } from '../components/ActionMenu.jsx';
+import { Sparkline } from '../components/MonthHealthHero.jsx';
+import { api } from '../api.js';
 import { PeoplePanel } from '../components/PeoplePanel.jsx';
 import { CardsPanel } from '../components/CardsPanel.jsx';
-
-gsap.registerPlugin(useGSAP);
+import { liveBalance } from '../utils/liveBalance.js';
 
 
 export function AccountsScreen({
   bankAccounts = [],
   transactions = [],
   wallets = [],
-  transfers = [],
   simulation = null,
+  // Per-account month simulations from the server (daily balances for the sparkline)
+  accountSimulations = {},
   currencySymbol = '₹',
   onSaveBankAccount,
   onSaveWallet,
@@ -40,7 +35,6 @@ export function AccountsScreen({
   onCreateTransfer,
   // Opens the entry sheet: ('transfer', { sourceAccountId }) for the Move tab
   onOpenUnifiedEntry,
-  onDeleteTransfer,
   isMigrationEligible = false,
   migrationStats = null,
   onMigrateLegacyData,
@@ -52,23 +46,31 @@ export function AccountsScreen({
   onHeldLentChanged,
   creditCards = []
 }) {
-  const [activeSegment, setActiveSegment] = useState('banks'); // 'banks' | 'wallets' | 'transfers'
+  const [openId, setOpenId] = useState(null); // the account whose page is open
+  const [addCardRequest, setAddCardRequest] = useState(0);
+  const [addPersonRequest, setAddPersonRequest] = useState(0);
+  const [netWorth, setNetWorth] = useState(null);
+  const [netWorthRequest, setNetWorthRequest] = useState(0);
   const [bankModalOpen, setBankModalOpen] = useState(false);
   const [editingBank, setEditingBank] = useState(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState(null);
   const [preselectedSource, setPreselectedSource] = useState(null);
 
-  const switcherRef = useRef(null);
-  const banksBtnRef = useRef(null);
-  const walletsBtnRef = useRef(null);
-  const transfersBtnRef = useRef(null);
-  const tabIndicatorRef = useRef(null);
-  const cardsContainerRef = useRef(null);
+  // Net worth is computed by the server (bank + wallets + lent − cards − held)
+  const balancesKey = [...bankAccounts, ...wallets].map((a) => a.currentBalance).join(',');
+  useEffect(() => {
+    if (!month?.year || !month?.month || isReviewMode) { setNetWorth(null); return undefined; }
+    let live = true;
+    api.getMonthSummary(month.year, month.month)
+      .then((s) => { if (live) setNetWorth(s?.netWorth || null); })
+      .catch(() => { if (live) setNetWorth(null); });
+    return () => { live = false; };
+  }, [month?.year, month?.month, isReviewMode, balancesKey, netWorthRequest]);
+  const panelChanged = () => { setNetWorthRequest((n) => n + 1); onHeldLentChanged?.(); };
 
   useEffect(() => {
     if (initialOpenBankModal) {
-      setActiveSegment('banks');
       setEditingBank(null);
       setBankName('');
       setBankInstitution('');
@@ -117,13 +119,13 @@ export function AccountsScreen({
   const totalBankBalance = bankAccounts.reduce((sum, b) => {
     const key = String(b._id || b.id || '');
     const acc = accountsMap[key] || accountsMap[b._id || b.id];
-    return sum + (acc ? acc.todayBalance : (b.openingBalance || 0));
+    return sum + liveBalance(b, acc, month);
   }, 0);
 
   const totalWalletBalance = wallets.reduce((sum, w) => {
     const key = String(w._id || w.id || '');
     const acc = accountsMap[key] || accountsMap[w._id || w.id];
-    return sum + (acc ? acc.todayBalance : (w.openingBalance || 0));
+    return sum + liveBalance(w, acc, month);
   }, 0);
 
   const totalPortfolioBalance = totalBankBalance + totalWalletBalance;
@@ -266,528 +268,248 @@ export function AccountsScreen({
     onOpenUnifiedEntry?.('transfer', sourceOpt ? { sourceAccountId: sourceOpt.id } : null);
   };
 
-  const updateTabIndicator = (segment, immediate = false) => {
-    let targetEl = null;
-    if (segment === 'banks') targetEl = banksBtnRef.current;
-    else if (segment === 'wallets') targetEl = walletsBtnRef.current;
-    else if (segment === 'transfers') targetEl = transfersBtnRef.current;
-
-    if (!targetEl || !tabIndicatorRef.current) return;
-    const { offsetLeft, offsetWidth } = targetEl;
-    if (immediate) {
-      gsap.set(tabIndicatorRef.current, { x: offsetLeft, width: offsetWidth });
-    } else {
-      gsap.to(tabIndicatorRef.current, {
-        x: offsetLeft,
-        width: offsetWidth,
-        duration: 0.22,
-        ease: 'power2.out'
-      });
-    }
+  // One row per bank or wallet: the month-end snapshot in review mode, else today's balance
+  const rowFor = (acc, kind) => {
+    const id = acc._id || acc.id;
+    const simAcc = accountsMap[String(id)];
+    const snap = isReviewMode && month?.closingBalances ? month.closingBalances[id] : null;
+    const balance = snap ? snap.closingBalance : liveBalance(acc, simAcc, month);
+    const minBal = acc.minimumBalance || 0;
+    const breached = !isReviewMode && ((kind === 'wallet' && balance < minBal) || (simAcc ? Boolean(simAcc.floorBreached) : balance < minBal));
+    const isSalary = kind === 'bank' && Boolean(month?.salaryBankAccountId)
+      && String(month.salaryBankAccountId._id || month.salaryBankAccountId) === String(id);
+    const caption = kind === 'bank'
+      ? [acc.institution || 'Bank', acc.accountNumberMasked ? `•••• ${acc.accountNumberMasked.slice(-4)}` : null]
+      : [`${acc.walletType || 'cash'} wallet`];
+    return { acc, id, kind, simAcc, snap, balance, minBal, breached, isSalary, caption: caption.filter(Boolean).join(' · ') };
   };
+  const bankRows = bankAccounts.map((b) => rowFor(b, 'bank'));
+  const walletRows = wallets.map((w) => rowFor(w, 'wallet'));
+  const openRow = openId ? [...bankRows, ...walletRows].find((r) => String(r.id) === String(openId)) : null;
 
-  useGSAP(() => {
-    updateTabIndicator(activeSegment);
-  }, { dependencies: [activeSegment], scope: switcherRef });
+  const recentFor = (id) => transactions
+    .filter((t) => t && t.status === 'successful'
+      && (String(t.accountId) === String(id) || String(t.destinationAccountId) === String(id)))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 8);
 
-  useGSAP(() => {
-    if (!cardsContainerRef.current) return undefined;
-    return playEntrance(cardsContainerRef.current.querySelectorAll('.account-card-anim'), { y: 12, duration: 0.24 });
-  }, { dependencies: [activeSegment, bankAccounts.length, wallets.length, transfers.length], scope: cardsContainerRef });
+  const signed = (v) => `${v < 0 ? '−' : ''}${formatCurrency(Math.abs(v), currencySymbol)}`;
 
-  return (
-    <div className="screen-content">
-      <PageTitle title="Accounts" subtitle="Your bank accounts and wallets, and how much each holds." />
+  const breachNote = (r) => (
+    <div className="accounts-row-7" role="note">
+      <AlertTriangleIcon size={13} />
+      <span>{r.minBal > 0 ? `Projected to dip below min balance (${formatCurrency(r.minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(r.balance, currencySymbol)})`}</span>
+    </div>
+  );
 
-      {/* Header and Quick Stats */}
-      <div className="accounts-header-minimal">
-        <div>
-          <div className="accounts-note">
-            Total across accounts
-          </div>
-          <div className="accounts-hero-total tabular-nums">
-            {formatCurrency(totalPortfolioBalance, currencySymbol)}
-          </div>
+  const rowList = (title, rows, addLabel, onAdd) => (
+    <section className="acct-section" aria-label={title}>
+      <h2 className="acct-section-title">{title}</h2>
+      {rows.length === 0 ? (
+        <div className="acct-inset acct-empty">
+          {isReviewMode ? <span>None</span> : <button type="button" className="acct-empty-add" onClick={onAdd}>+ {addLabel}</button>}
         </div>
+      ) : (
+        <ul className="acct-inset">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <button type="button" className={`acct-row${r.breached ? ' breached' : ''}`} onClick={() => setOpenId(r.id)}>
+                <span className={`acct-row-icon ${r.kind}`} aria-hidden="true">
+                  {r.kind === 'bank' ? <BuildingLibraryIcon size={16} /> : <WalletIcon size={16} />}
+                </span>
+                <span className="acct-row-main">
+                  <span className="acct-row-title">{r.acc.name}</span>
+                  <span className="acct-row-caption">
+                    {r.acc.isPrimary && <span className="acct-tag">Primary</span>}
+                    {r.isSalary && <span className="acct-tag" data-testid="salary-depository-badge">Salary</span>}
+                    <span className="acct-row-caption-text">{r.breached ? 'Dips below its keep-at-least' : r.caption}</span>
+                  </span>
+                </span>
+                <span className="acct-row-balance tabular-nums">{formatCurrency(r.balance, currencySymbol)}</span>
+                <span className="acct-row-chev" aria-hidden="true">›</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 
-        <div className="accounts-row">
-          {isReviewMode ? (
-            <span className="review-badge-tag accounts-row-2">
-              <EyeIcon size={13} /> Month-end balances
-            </span>
-          ) : (
+  // A pushed page for one bank or wallet
+  const renderAccountPage = (r) => {
+    const isBank = r.kind === 'bank';
+    const daily = accountSimulations?.[r.id]?.dailyBalances || simulation?.accountDailyBalances?.[r.id] || [];
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayIdx = daily.findIndex((p) => p.date === todayLocal);
+    const endingBal = r.simAcc ? r.simAcc.endingBalance : (r.acc.openingBalance || 0);
+    const recent = recentFor(r.id);
+    return (
+      <div className="acct-page" data-testid="account-page">
+        <button type="button" className="acct-back" onClick={() => setOpenId(null)}>‹ Accounts</button>
+        <ScreenHeader
+          title={r.acc.name}
+          actions={!isReviewMode && (
             <>
               <button
                 type="button"
                 className="btn-secondary accounts-btn"
-                onClick={() => handleOpenTransfer()}
-                aria-label="Transfer Funds"
+                onClick={() => handleOpenTransfer({ type: r.kind, id: r.id })}
+                aria-label={isBank ? 'Transfer from Account' : 'Transfer from Wallet'}
               >
                 <ArrowRightLeftIcon size={14} />
-                <span>Transfer Funds</span>
+                <span>Transfer</span>
               </button>
-
-              {activeSegment === 'banks' ? (
-                <button
-                  type="button"
-                  className="btn-primary accounts-btn"
-                  onClick={handleOpenAddBank}
-                >
-                  <PlusIcon size={14} />
-                  <span>Add Bank</span>
-                </button>
-              ) : activeSegment === 'wallets' ? (
-                <button
-                  type="button"
-                  className="btn-primary accounts-btn"
-                  onClick={handleOpenAddWallet}
-                >
-                  <PlusIcon size={14} />
-                  <span>Add Wallet</span>
-                </button>
-              ) : null}
+              <ActionMenu
+                label={`More actions for ${r.acc.name}`}
+                items={[
+                  { label: isBank ? 'Edit account' : 'Edit wallet', onClick: () => (isBank ? handleOpenEditBank(r.acc) : handleOpenEditWallet(r.acc)) },
+                  { label: 'Archive', danger: true, onClick: () => { setOpenId(null); (isBank ? onArchiveBankAccount : onArchiveWallet)?.(r.id); } },
+                ]}
+              />
             </>
           )}
-        </div>
-      </div>
+        />
+        <p className="acct-page-caption">
+          {r.caption}
+          {r.acc.isPrimary && <span className="acct-tag">Primary</span>}
+          {r.isSalary && <span className="acct-tag">Salary</span>}
+        </p>
 
-      {/* Legacy Migration Callout Banner */}
-      {isMigrationEligible && (
-        <div className="accounts-row-3"
-          data-testid="migration-callout-banner"
-        >
-          <div className="accounts-row-4">
-            <div className="accounts-row-5"
-            >
-              <BuildingLibraryIcon size={18} />
+        <section className="acct-hero" aria-label="Balance">
+          {r.snap && <div className="acct-hero-label">Closing Balance (Snapshotted)</div>}
+          <div className="acct-hero-value tabular-nums">{formatCurrency(r.balance, currencySymbol)}</div>
+          {!isReviewMode && <p className="acct-hero-caption tabular-nums">Projected end of month {formatCurrency(endingBal, currencySymbol)}</p>}
+          {daily.length > 1 && (
+            <div className="acct-spark">
+              <Sparkline dailyBalances={daily} currentDay={todayIdx >= 0 ? todayIdx + 1 : null} />
+              <span className="acct-spark-label">This month</span>
+            </div>
+          )}
+        </section>
+
+        {r.breached && breachNote(r)}
+
+        {r.snap && (
+          <div className="accounts-grid">
+            <div>
+              <span className="accounts-note-8">Opening Balance</span>
+              <span className="tabular-nums accounts-note-9">{formatCurrency(r.snap.openingBalance, currencySymbol)}</span>
             </div>
             <div>
-              <div className="accounts-text">
-                Upgrade & Link Account
-              </div>
-              <div className="accounts-note-2">
-                You have legacy balances and budget records ready to link into a designated primary bank account.
-              </div>
+              <span className="accounts-note-8">Total Inflow</span>
+              <span className="tabular-nums accounts-note-10">+{formatCurrency(r.snap.totalInflow, currencySymbol)}</span>
+            </div>
+            <div>
+              <span className="accounts-note-8">Total Outflow</span>
+              <span className="tabular-nums accounts-note-9">-{formatCurrency(r.snap.totalOutflow, currencySymbol)}</span>
+            </div>
+            <div>
+              <span className="accounts-note-8">Net Movement</span>
+              <span className="tabular-nums accounts-note-11">{formatCurrency(r.snap.totalInflow - r.snap.totalOutflow, currencySymbol)}</span>
             </div>
           </div>
-          <button
-            type="button"
-            className="btn-primary accounts-btn-2"
-            onClick={handleOpenAddBank}
-          >
-            Link Primary Account
-          </button>
-        </div>
+        )}
+
+        <ul className="acct-inset">
+          <li className="acct-kv">
+            <span>Keep at least</span>
+            <span className="tabular-nums">{formatCurrency(r.minBal, currencySymbol)}</span>
+          </li>
+        </ul>
+
+        <section className="acct-section" aria-label="Recent activity">
+          <h2 className="acct-section-title">Recent activity</h2>
+          {recent.length === 0 ? (
+            <div className="acct-inset acct-empty"><span>Nothing paid in or out this month yet.</span></div>
+          ) : (
+            <ul className="acct-inset">
+              {recent.map((t) => {
+                const incoming = String(t.destinationAccountId) === String(r.id)
+                  || (String(t.accountId) === String(r.id) && (t.isIncome || t.origin === 'held_in' || t.origin === 'lent_repaid'));
+                return (
+                  <li key={t._id || t.id} className="acct-kv">
+                    <span className="acct-row-main">
+                      <span className="acct-row-title">{t.name || t.category || 'Transaction'}</span>
+                      <span className="acct-row-caption tabular-nums">{formatDisplayDate(t.date, true)}</span>
+                    </span>
+                    <span className={`tabular-nums acct-amount${incoming ? ' positive' : ''}`}>
+                      {incoming ? '+' : '−'}{formatCurrency(Math.abs(Number(t.amount) || 0), currencySymbol)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+    );
+  };
+
+  const netWorthParts = netWorth
+    ? [['Bank & wallets', netWorth.cash], ['Lent', netWorth.lent], ['Cards', -netWorth.cardsOwed], ['Held for others', -netWorth.held]]
+      .filter(([, v], i) => i === 0 || v)
+    : [];
+
+  return (
+    <div className="screen-content">
+      {openRow ? renderAccountPage(openRow) : (
+        <>
+          <ScreenHeader
+            title="Accounts"
+            actions={!isReviewMode && (
+              <ActionMenu
+                label="Add"
+                className="acct-add-menu"
+                triggerContent={<PlusIcon size={16} />}
+                items={[
+                  { label: 'Bank account', onClick: handleOpenAddBank },
+                  { label: 'Wallet', onClick: handleOpenAddWallet },
+                  { label: 'Card', onClick: () => setAddCardRequest((n) => n + 1) },
+                  { label: 'Person', onClick: () => setAddPersonRequest((n) => n + 1) },
+                ]}
+              />
+            )}
+          />
+
+          <section className="acct-hero" aria-label="Net worth">
+            <div className="acct-hero-label">{isReviewMode ? 'Total across accounts' : (netWorth ? 'Net worth' : 'Bank & wallets')}</div>
+            <div className="acct-hero-value tabular-nums" data-testid="net-worth">
+              {formatCurrency(netWorth ? netWorth.total : totalPortfolioBalance, currencySymbol)}
+            </div>
+            {netWorthParts.length > 1 && (
+              <p className="acct-hero-caption tabular-nums">{netWorthParts.map(([l, v]) => `${l} ${signed(v)}`).join(' · ')}</p>
+            )}
+            {isReviewMode && (
+              <span className="review-badge-tag accounts-row-2"><EyeIcon size={13} /> Month-end balances</span>
+            )}
+          </section>
+
+          {/* Legacy Migration Callout Banner */}
+          {isMigrationEligible && (
+            <div className="accounts-row-3" data-testid="migration-callout-banner">
+              <div className="accounts-row-4">
+                <div className="accounts-row-5"><BuildingLibraryIcon size={18} /></div>
+                <div>
+                  <div className="accounts-text">Upgrade & Link Account</div>
+                  <div className="accounts-note-2">
+                    You have legacy balances and budget records ready to link into a designated primary bank account.
+                  </div>
+                </div>
+              </div>
+              <button type="button" className="btn-primary accounts-btn-2" onClick={handleOpenAddBank}>
+                Link Primary Account
+              </button>
+            </div>
+          )}
+
+          {rowList('Bank accounts', bankRows, 'Add a bank account', handleOpenAddBank)}
+          {rowList('Wallets', walletRows, 'Add a wallet', handleOpenAddWallet)}
+        </>
       )}
 
-      {/* Laptop / Desktop Horizontal Split Layout */}
-      <div className="accounts-laptop-split">
-        {/* Left Section: Interactive Concentric Activity Rings Telemetry */}
-        <ConcentricActivityRings
-          totalBankBalance={totalBankBalance}
-          totalWalletBalance={totalWalletBalance}
-          transfersCount={transfers.length}
-          activeSegment={activeSegment}
-          onSelectSegment={setActiveSegment}
-          currencySymbol={currencySymbol}
-        />
-
-        {/* Right Section: Responsive Cards Grid */}
-        <div ref={cardsContainerRef}>
-          {/* Segment 1: Bank Accounts */}
-          {activeSegment === 'banks' && (
-            <div>
-              {bankAccounts.length === 0 ? (
-                <div className="apple-empty-card">
-                  <BuildingLibraryIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
-                  <button
-                    type="button"
-                    className="btn-primary accounts-btn-3"
-                    onClick={handleOpenAddBank}
-                  >
-                    + Create Depository
-                  </button>
-                </div>
-              ) : (
-                <div className="apple-cards-grid">
-                  {bankAccounts.map((bank) => {
-                    const key = String(bank._id || bank.id || '');
-                    const simAcc = accountsMap[key] || accountsMap[bank._id || bank.id];
-                    const bankId = bank._id || bank.id;
-                    const snap = isReviewMode && month?.closingBalances ? month.closingBalances[bankId] : null;
-                    const currentBal = simAcc ? simAcc.todayBalance : (bank.openingBalance || 0);
-                    const endingBal = simAcc ? simAcc.endingBalance : (bank.openingBalance || 0);
-                    const minBal = bank.minimumBalance || 0;
-                    const hasBreach = !isReviewMode && (simAcc ? simAcc.floorBreached : (currentBal < minBal));
-                    const isSalaryDepository = Boolean(
-                      month?.salaryBankAccountId &&
-                      (String(month.salaryBankAccountId._id || month.salaryBankAccountId) === String(bank._id || bank.id))
-                    );
-
-                    return (
-                      <div key={bank._id || bank.id} className={`apple-account-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
-                        {/* Top Row: Identity */}
-                        <div className="apple-card-top">
-                          <div className="apple-card-identity">
-                            <div className="apple-card-icon-box bank">
-                              <BuildingLibraryIcon size={16} />
-                            </div>
-                            <div>
-                              <div className="accounts-row-6">
-                                <span className="bento-card-title">{bank.name}</span>
-                                {bank.isPrimary && (
-                                  <span className="accounts-note-3">
-                                    Primary
-                                  </span>
-                                )}
-                                {isSalaryDepository && (
-                                  <span className="accounts-note-4"
-                                    data-testid="salary-depository-badge"
-                                  >
-                                    Salary
-                                  </span>
-                                )}
-                                {isReviewMode && (
-                                  <span className="review-badge-tag accounts-note-5">
-                                    Closed Scorecard
-                                  </span>
-                                )}
-                              </div>
-                              <div className="accounts-note-6">
-                                {bank.institution || 'Bank'} {bank.accountNumberMasked ? `• •••• ${bank.accountNumberMasked.slice(-4)}` : ''}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Hero Metric Row: Balance on left, Projected end on right */}
-                        <div className="apple-card-hero-row">
-                          <div>
-                            {isReviewMode && (
-                              <div className="accounts-note-7">
-                                Closing Balance (Snapshotted)
-                              </div>
-                            )}
-                            <div className="apple-card-balance tabular-nums">
-                              {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
-                            </div>
-                          </div>
-                          {!isReviewMode && (
-                            <div className="apple-card-projected tabular-nums">
-                              Projected end <strong>{formatCurrency(endingBal, currencySymbol)}</strong>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Snapshotted 2x2 Specs Grid in Review Mode */}
-                        {snap && (
-                          <div className="accounts-grid">
-                            <div>
-                              <span className="accounts-note-8">Opening Balance</span>
-                              <span className="tabular-nums accounts-note-9">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Total Inflow</span>
-                              <span className="tabular-nums accounts-note-10">
-                                +{formatCurrency(snap.totalInflow, currencySymbol)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Total Outflow</span>
-                              <span className="tabular-nums accounts-note-9">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Net Movement</span>
-                              <span className="tabular-nums accounts-note-11">
-                                {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* High-Contrast Breach Indicator if breached */}
-                        {hasBreach && (
-                          <div className="accounts-row-7">
-                            <AlertTriangleIcon size={13} />
-                            <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
-                          </div>
-                        )}
-
-                        {/* Bottom Row: Status on Bottom Left, Action Buttons on Bottom Right */}
-                        <div className="apple-card-footer">
-                          <span className={`apple-status-chip ${hasBreach ? 'breached' : 'healthy'}`}>
-                            <span className="apple-status-dot" />
-                            <span>{hasBreach ? 'Breached' : 'Healthy'}</span>
-                          </span>
-
-                          {!isReviewMode && (
-                            <div className="apple-card-actions">
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => handleOpenTransfer({ type: 'bank', id: bank._id || bank.id })}
-                                title="Transfer Funds"
-                                aria-label="Transfer from Account"
-                              >
-                                <ArrowRightLeftIcon size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => handleOpenEditBank(bank)}
-                                title="Edit Account"
-                              >
-                                <EditIcon size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => onArchiveBankAccount?.(bank._id || bank.id)}
-                                title="Archive Account"
-                              >
-                                <TrashIcon size={13} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Segment 2: Wallets */}
-          {activeSegment === 'wallets' && (
-            <div>
-              {wallets.length === 0 ? (
-                <div className="apple-empty-card">
-                  <WalletIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
-                  <button
-                    type="button"
-                    className="btn-primary accounts-btn-3"
-                    onClick={handleOpenAddWallet}
-                  >
-                    + Create Wallet
-                  </button>
-                </div>
-              ) : (
-                <div className="apple-cards-grid">
-                  {wallets.map((wallet) => {
-                    const key = String(wallet._id || wallet.id || '');
-                    const simAcc = accountsMap[key] || accountsMap[wallet._id || wallet.id];
-                    const walletId = wallet._id || wallet.id;
-                    const snap = isReviewMode && month?.closingBalances ? month.closingBalances[walletId] : null;
-                    const currentBal = simAcc ? simAcc.todayBalance : (wallet.openingBalance || 0);
-                    const endingBal = simAcc ? simAcc.endingBalance : (wallet.openingBalance || 0);
-                    const minBal = wallet.minimumBalance || 0;
-                    const hasBreach = !isReviewMode && ((currentBal < minBal) || (simAcc && simAcc.floorBreached));
-
-                    return (
-                      <div key={wallet._id || wallet.id} className={`apple-account-card account-card-anim ${hasBreach ? 'breached' : ''}`}>
-                        {/* Top Row: Identity */}
-                        <div className="apple-card-top">
-                          <div className="apple-card-identity">
-                            <div className="apple-card-icon-box wallet">
-                              <WalletIcon size={16} />
-                            </div>
-                            <div>
-                              <div className="accounts-row-6">
-                                <span className="bento-card-title">{wallet.name}</span>
-                                {wallet.isPrimary && (
-                                  <span className="accounts-note-3">
-                                    Primary
-                                  </span>
-                                )}
-                                {isReviewMode && (
-                                  <span className="review-badge-tag accounts-note-5">
-                                    Closed Scorecard
-                                  </span>
-                                )}
-                              </div>
-                              <div className="accounts-note-12">
-                                {wallet.walletType} Wallet
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Hero Metric Row: Balance on left, Projected end on right */}
-                        <div className="apple-card-hero-row">
-                          <div>
-                            {isReviewMode && (
-                              <div className="accounts-note-7">
-                                Closing Balance (Snapshotted)
-                              </div>
-                            )}
-                            <div className="apple-card-balance tabular-nums">
-                              {formatCurrency(snap ? snap.closingBalance : currentBal, currencySymbol)}
-                            </div>
-                          </div>
-                          {!isReviewMode && (
-                            <div className="apple-card-projected tabular-nums">
-                              Projected end <strong>{formatCurrency(endingBal, currencySymbol)}</strong>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Snapshotted 2x2 Specs Grid in Review Mode */}
-                        {snap && (
-                          <div className="accounts-grid">
-                            <div>
-                              <span className="accounts-note-8">Opening Balance</span>
-                              <span className="tabular-nums accounts-note-9">{formatCurrency(snap.openingBalance, currencySymbol)}</span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Total Inflow</span>
-                              <span className="tabular-nums accounts-note-10">
-                                +{formatCurrency(snap.totalInflow, currencySymbol)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Total Outflow</span>
-                              <span className="tabular-nums accounts-note-9">-{formatCurrency(snap.totalOutflow, currencySymbol)}</span>
-                            </div>
-                            <div>
-                              <span className="accounts-note-8">Net Movement</span>
-                              <span className="tabular-nums accounts-note-11">
-                                {formatCurrency(snap.totalInflow - snap.totalOutflow, currencySymbol)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* High-Contrast Breach Indicator if breached */}
-                        {hasBreach && (
-                          <div className="accounts-row-7">
-                            <AlertTriangleIcon size={13} />
-                            <span>{minBal > 0 ? `Projected to dip below min balance (${formatCurrency(minBal, currencySymbol)})` : `Overdrawn balance (${formatCurrency(currentBal, currencySymbol)})`}</span>
-                          </div>
-                        )}
-
-                        {/* Bottom Row: Status on Bottom Left, Action Buttons on Bottom Right */}
-                        <div className="apple-card-footer">
-                          <span className={`apple-status-chip ${hasBreach ? 'breached' : 'healthy'}`}>
-                            <span className="apple-status-dot" />
-                            <span>{hasBreach ? 'Breached' : 'Healthy'}</span>
-                          </span>
-
-                          {!isReviewMode && (
-                            <div className="apple-card-actions">
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => handleOpenTransfer({ type: 'wallet', id: wallet._id || wallet.id })}
-                                title="Transfer Funds"
-                                aria-label="Transfer from Wallet"
-                              >
-                                <ArrowRightLeftIcon size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => handleOpenEditWallet(wallet)}
-                                title="Edit Wallet"
-                              >
-                                <EditIcon size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon accounts-btn-4"
-                                onClick={() => onArchiveWallet?.(wallet._id || wallet.id)}
-                                title="Archive Wallet"
-                              >
-                                <TrashIcon size={13} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Segment 3: Transfers (Option A: Apple Wallet Inset Table) */}
-          {activeSegment === 'transfers' && (
-            <div>
-              {transfers.length === 0 ? (
-                <div className="apple-empty-card">
-                  <ArrowRightLeftIcon size={32} style={{ opacity: 0.5, color: 'var(--text-secondary)' }} />
-                  <button
-                    type="button"
-                    className="btn-primary accounts-btn-3"
-                    onClick={() => handleOpenTransfer()}
-                  >
-                    + Transfer Funds
-                  </button>
-                </div>
-              ) : (
-                <div className="apple-inset-group account-card-anim">
-                  {transfers.map((tr) => {
-                    const allAccountsList = [...(bankAccounts || []), ...(wallets || [])];
-                    const sBankId = tr.sourceBankAccountId?._id || tr.sourceBankAccountId;
-                    const sWalletId = tr.sourceWalletId?._id || tr.sourceWalletId;
-                    const sBank = bankAccounts.find((b) => (b._id || b.id) === sBankId) || (typeof tr.sourceBankAccountId === 'object' ? tr.sourceBankAccountId : null);
-                    const sWallet = wallets.find((w) => (w._id || w.id) === sWalletId) || (typeof tr.sourceWalletId === 'object' ? tr.sourceWalletId : null);
-                    const sAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.sourceAccountId || sBankId || sWalletId));
-                    const sourceName = sAcc?.name || sBank?.name || sWallet?.name || 'Source Account';
-
-                    const dBankId = tr.destinationBankAccountId?._id || tr.destinationBankAccountId;
-                    const dWalletId = tr.destinationWalletId?._id || tr.destinationWalletId;
-                    const dBank = bankAccounts.find((b) => (b._id || b.id) === dBankId) || (typeof tr.destinationBankAccountId === 'object' ? tr.destinationBankAccountId : null);
-                    const dWallet = wallets.find((w) => (w._id || w.id) === dWalletId) || (typeof tr.destinationWalletId === 'object' ? tr.destinationWalletId : null);
-                    const dAcc = allAccountsList.find((a) => (a._id || a.id) === (tr.destinationAccountId || dBankId || dWalletId));
-                    const destName = dAcc?.name || dBank?.name || dWallet?.name || 'Destination Account';
-
-                    return (
-                      <div key={tr._id || tr.id} className="apple-inset-row">
-                        <div className="accounts-row-4">
-                          <div className="accounts-row-8">
-                            <ArrowRightLeftIcon size={14} />
-                          </div>
-                          <div>
-                            <div className="accounts-row-9">
-                              <span>{sourceName}</span>
-                              <ArrowRightIcon size={11} style={{ color: 'var(--text-secondary)' }} />
-                              <span>{destName}</span>
-                            </div>
-                            <div className="accounts-note-13">
-                              <span className="tabular-nums">{formatDisplayDate(tr.date, true)}</span>
-                              {tr.note ? ` • ${tr.note}` : ''}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="accounts-row-4">
-                          <div className="tabular-nums accounts-text-2">
-                            {formatCurrency(tr.amount, currencySymbol)}
-                          </div>
-                          <Chip tone="good">Settled</Chip>
-                          {!isReviewMode && (
-                            <button
-                              type="button"
-                              className="btn-icon accounts-btn-5"
-                              onClick={() => onDeleteTransfer?.(tr._id || tr.id)}
-                              title="Delete Transfer"
-                            >
-                              <TrashIcon size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
+      {/* Kept mounted on the account page so the ＋ menu and their data stay ready */}
+      <div hidden={Boolean(openRow)}>
       {/* Credit cards: what is owed, bills to confirm or pay, and the payability score */}
       <CardsPanel
         bankAccounts={bankAccounts}
@@ -797,7 +519,8 @@ export function AccountsScreen({
         onPayBill={onOpenUnifiedEntry ? (card) => onOpenUnifiedEntry('transfer', { moveTarget: 'card', cardId: card.id }) : undefined}
         currencySymbol={currencySymbol}
         isReviewMode={isReviewMode}
-        onChanged={onHeldLentChanged}
+        onChanged={panelChanged}
+        addRequest={addCardRequest}
       />
 
       {/* Held & Lent money: other people's money with you, and yours with them */}
@@ -809,8 +532,10 @@ export function AccountsScreen({
         month={month}
         simulation={simulation}
         isReviewMode={isReviewMode}
-        onChanged={onHeldLentChanged}
+        onChanged={panelChanged}
+        addRequest={addPersonRequest}
       />
+      </div>
 
       {/* Modal: Add/Edit Bank Account */}
       <AnimatedModal
@@ -829,10 +554,10 @@ export function AccountsScreen({
               </button>
             </div>
 
-            <form className="accounts-stack" onSubmit={(e) => handleSaveBank(e, requestClose)}>
+            <form autoComplete="off" className="accounts-stack" onSubmit={(e) => handleSaveBank(e, requestClose)}>
               <div>
                 <label className="form-label" htmlFor="bank-name-input">Account Name *</label>
-                <input
+                <input autoComplete="off"
                   id="bank-name-input"
                   type="text"
                   className="input-field"
@@ -845,7 +570,7 @@ export function AccountsScreen({
 
               <div>
                 <label className="form-label" htmlFor="bank-inst-input">Financial Institution</label>
-                <input
+                <input autoComplete="off"
                   id="bank-inst-input"
                   type="text"
                   className="input-field"
@@ -873,7 +598,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="bank-number-input">Masked Number</label>
-                  <input
+                  <input autoComplete="off"
                     id="bank-number-input"
                     type="text"
                     className="input-field"
@@ -889,7 +614,7 @@ export function AccountsScreen({
                   <label className="form-label" htmlFor="bankOpeningBalance">
                     Opening Balance ({currencySymbol})
                   </label>
-                  <input
+                  <input autoComplete="off"
                     id="bankOpeningBalance"
                     type="number"
                     step="0.01"
@@ -903,7 +628,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="bank-min-balance-input">Min Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="bank-min-balance-input"
                     type="number"
                     step="0.01"
@@ -916,7 +641,7 @@ export function AccountsScreen({
               </div>
 
               <div className="accounts-row-11">
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   id="bankIsPrimary"
                   checked={bankIsPrimary}
@@ -959,10 +684,10 @@ export function AccountsScreen({
               </button>
             </div>
 
-            <form className="accounts-stack" onSubmit={(e) => handleSaveWallet(e, requestClose)}>
+            <form autoComplete="off" className="accounts-stack" onSubmit={(e) => handleSaveWallet(e, requestClose)}>
               <div>
                 <label className="form-label">Wallet Name *</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   className="input-field"
                   placeholder="e.g. Physical Cash, Paytm Wallet"
@@ -988,7 +713,7 @@ export function AccountsScreen({
               <div className="accounts-grid-2">
                 <div>
                   <label className="form-label" htmlFor="walletOpeningBalance">Opening Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="walletOpeningBalance"
                     type="number"
                     step="0.01"
@@ -1002,7 +727,7 @@ export function AccountsScreen({
 
                 <div>
                   <label className="form-label" htmlFor="wallet-min-balance-input">Min Balance ({currencySymbol})</label>
-                  <input
+                  <input autoComplete="off"
                     id="wallet-min-balance-input"
                     type="number"
                     step="0.01"
@@ -1015,7 +740,7 @@ export function AccountsScreen({
               </div>
 
               <div className="accounts-row-11">
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   id="walletIsPrimary"
                   checked={walletIsPrimary}

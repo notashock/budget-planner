@@ -55,7 +55,7 @@ describe('Refunds can be linked to the spend they reverse', () => {
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '1500' } });
     expect(screen.getByTestId('link-hint')).toHaveTextContent(/net cost becomes ₹3,000\.00/);
 
-    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     expect(onLogTransaction.mock.calls[0][0]).toMatchObject({
       amount: -150000,
@@ -84,7 +84,7 @@ describe('Refunds can be linked to the spend they reverse', () => {
     fireEvent.click(screen.getByText('Tea'));
     fireEvent.click(screen.getByRole('button', { name: /Credit \/ Refund/ }));
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '40' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log expense debit/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     expect(onLogTransaction.mock.calls[0][0].refundTargetTransactionId).toBeUndefined();
   });
@@ -94,7 +94,7 @@ describe('Refunds can be linked to the spend they reverse', () => {
     renderEntry({ onLogTransaction });
     openRefund();
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     expect(onLogTransaction.mock.calls[0][0]).toMatchObject({ amount: -10000, plannedItemId: null });
     expect(onLogTransaction.mock.calls[0][0].refundTargetTransactionId).toBeUndefined();
@@ -148,13 +148,13 @@ describe('Several refunds on one spend use what is left, not the original amount
     // 900 fits the original 1,260.24 but not the 800.24 left
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '900' } });
     expect(screen.getByTestId('link-hint')).toHaveTextContent(/More than the ₹800\.24 left to refund on Movie ticket \(₹1,260\.24 paid\)/);
-    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Only ₹800.24 of Movie ticket is left to refund.');
     expect(onLogTransaction).not.toHaveBeenCalled();
 
     // Exactly what is left is fine
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '800.24' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log credit inflow/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     expect(onLogTransaction.mock.calls[0][0]).toMatchObject({ amount: -80024, refundTargetTransactionId: 'm1' });
   });
@@ -176,5 +176,34 @@ describe('Several refunds on one spend use what is left, not the original amount
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '1200' } });
     fireEvent.click(screen.getByRole('button', { name: /credit inflow|Save|Update/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Only ₹1,100.24 of Movie ticket is left to refund.');
+  });
+});
+
+describe('Scrolling the link list on a phone', () => {
+  it('scrolls the list without dragging or expanding the entry sheet', () => {
+    const width = window.innerWidth;
+    window.innerWidth = 375;
+    try {
+      const { container } = renderEntry();
+      openRefund();
+      fireEvent.click(screen.getByRole('button', { name: /Refund for/ }));
+      const sheet = container.ownerDocument.querySelector('.modal-content');
+      const row = screen.getByText('Running shoes');
+
+      fireEvent.touchStart(row, { touches: [{ clientY: 400 }] });
+      fireEvent.touchMove(row, { touches: [{ clientY: 330 }] }); // swipe up: would expand the sheet
+      fireEvent.touchMove(row, { touches: [{ clientY: 480 }] }); // swipe down: would drag it shut
+      fireEvent.touchEnd(row, { changedTouches: [{ clientY: 480 }] });
+      expect(sheet).not.toHaveClass('is-expanded');
+      expect(sheet.style.transform || '').not.toMatch(/80px/);
+
+      // The handle still drags the sheet
+      const handle = container.ownerDocument.querySelector('.modal-drag-zone');
+      fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+      fireEvent.touchMove(handle, { touches: [{ clientY: 140 }] });
+      expect(sheet.style.transform).toMatch(/40px/);
+    } finally {
+      window.innerWidth = width;
+    }
   });
 });

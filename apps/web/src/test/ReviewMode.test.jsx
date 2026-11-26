@@ -5,7 +5,7 @@ import { PlanScreen } from '../screens/PlanScreen.jsx';
 import { TransactionsScreen } from '../screens/TransactionsScreen.jsx';
 import { AccountsScreen } from '../screens/AccountsScreen.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
-import { Header } from '../components/Header.jsx';
+import { MonthMenu } from '../components/MonthMenu.jsx';
 import { BottomNav } from '../components/BottomNav.jsx';
 import { MonthRolloverModal } from '../components/MonthRolloverModal.jsx';
 
@@ -93,7 +93,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
   describe('Header Navigation & Modal Ceremonies', () => {
     it('does not render Create Month or Rollover buttons and categorizes closed months in dropdown', () => {
       render(
-        <Header
+        <MonthMenu
           currentMonth={closedMonth}
           months={[closedMonth, activeMonth]}
           activePlanningMonth={activeMonth}
@@ -128,7 +128,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       };
 
       render(
-        <Header
+        <MonthMenu
           currentMonth={activeMonth}
           months={[closedMonth, activeMonth, futureMonth]}
           activePlanningMonth={activeMonth}
@@ -203,7 +203,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
   });
 
   describe('AccountsScreen in Review Mode', () => {
-    it('displays snapshotted closing balance breakdown and hides mutation controls', () => {
+    it('shows month-end totals and an account page with the snapshot, without mutation controls', () => {
       render(
         <AccountsScreen
           month={closedMonth}
@@ -211,44 +211,19 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
           wallets={mockWallets}
           transfers={mockTransfers}
           isReviewMode={true}
-          onOpenTransferModal={vi.fn()}
-          onOpenAddBankModal={vi.fn()}
-          onOpenAddWalletModal={vi.fn()}
         />
       );
 
-      // Verify mutation buttons are hidden
-      expect(screen.queryByRole('button', { name: /Transfer Funds/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Add Bank/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Transfer from Account/i })).toBeNull();
-      expect(screen.queryByRole('button', { name: /Transfer from Wallet/i })).toBeNull();
-      expect(screen.queryByTitle(/Edit Account/i)).toBeNull();
-      expect(screen.queryByTitle(/Archive Account/i)).toBeNull();
-
-      // Verify snapshotted breakdown
       expect(screen.getByText(/Month-end balances/i)).toBeInTheDocument();
-      expect(screen.getAllByText(/Closing Balance \(Snapshotted\)/i).length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /HDFC Salary Account/ }));
+      expect(screen.queryByRole('button', { name: /Transfer from Account/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /More actions/i })).toBeNull();
+      expect(screen.getByText(/Closing Balance \(Snapshotted\)/i)).toBeInTheDocument();
       expect(screen.getByText(/Total Inflow/i)).toBeInTheDocument();
       expect(screen.getByText(/Total Outflow/i)).toBeInTheDocument();
       expect(screen.getByText(/Net Movement/i)).toBeInTheDocument();
-    });
-
-    it('hides transfer delete button in transfers segment in review mode', () => {
-      render(
-        <AccountsScreen
-          month={closedMonth}
-          bankAccounts={mockBankAccounts}
-          wallets={mockWallets}
-          transfers={mockTransfers}
-          isReviewMode={true}
-        />
-      );
-
-      // Switch to transfers segment
-      const transfersTab = screen.getByRole('button', { name: /Transfers/i });
-      fireEvent.click(transfersTab);
-
-      expect(screen.queryByTitle(/Delete Transfer/i)).toBeNull();
     });
   });
 
@@ -263,7 +238,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       }
     ];
 
-    it('replaces goal input form with Goal Scorecard and hides card action buttons', () => {
+    it('has no new-goal button and the goal page has no actions', () => {
       render(
         <GoalsScreen
           month={closedMonth}
@@ -276,8 +251,10 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
         />
       );
 
-      expect(screen.queryByText(/Set Target Purchase/i)).toBeNull();
-      expect(screen.getByText(/Goal Scorecard \(Archive\)/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New goal' })).toBeNull();
+      expect(screen.getByText(/Review Archive/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Headphones/ }));
+      expect(screen.queryByRole('button', { name: /More actions/i })).toBeNull();
       expect(screen.queryByRole('button', { name: /Schedule/i })).toBeNull();
       expect(screen.queryByRole('button', { name: /Delete/i })).toBeNull();
     });
@@ -287,7 +264,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
     it('renders start month action in header dropdown when no active planning cycle exists', () => {
       const onOpenRollover = vi.fn();
       render(
-        <Header
+        <MonthMenu
           currentMonth={closedMonth}
           months={[closedMonth]} // Only closed month, activePlanningMonths.length === 0
           hasActivePlanningMonth={false}
@@ -390,7 +367,7 @@ describe('Continuous Tracking & Read-Only Review Mode', () => {
       };
 
       render(
-        <Header
+        <MonthMenu
           currentMonth={novMonth}
           months={[decMonth, novMonth, closedMonth]}
           onSelectMonth={vi.fn()}

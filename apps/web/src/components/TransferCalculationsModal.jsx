@@ -162,7 +162,7 @@ export function TransferCalculationsModal({
           </div>
         </div>
 
-        <form onSubmit={(e) => handleSubmit(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form autoComplete="off" onSubmit={(e) => handleSubmit(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {bankAccounts.length === 0 ? (
             <>
               <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
@@ -171,7 +171,7 @@ export function TransferCalculationsModal({
 
               <div>
                 <label className="form-label" htmlFor="migration-bank-name">Bank Account Name *</label>
-                <input
+                <input autoComplete="off"
                   id="migration-bank-name"
                   type="text"
                   className="input-field"
@@ -185,7 +185,7 @@ export function TransferCalculationsModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label className="form-label" htmlFor="migration-bank-inst">Financial Institution *</label>
-                  <input
+                  <input autoComplete="off"
                     id="migration-bank-inst"
                     type="text"
                     className="input-field"

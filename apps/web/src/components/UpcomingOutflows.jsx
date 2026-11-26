@@ -1,8 +1,7 @@
 import React from 'react';
-import { formatCurrency, formatCurrencyWhole, formatDisplayDate, getUpcomingOutflows } from '@budget/engine';
+import { formatCurrencyWhole, formatDisplayDate, getUpcomingOutflows } from '@budget/engine';
 import { AlertTriangleIcon, CalendarIcon, CheckCircleIcon } from './Icons.jsx';
 
-const MAX_ROWS = 6;
 
 /**
  * The next week's planned outflows, overdue items pinned first, with a total
@@ -15,18 +14,20 @@ export function UpcomingOutflows({
   windowDays = 7,
   currencySymbol = '₹',
   isReviewMode = false,
-  onPay = null
+  onPay = null,
+  title = null,
+  maxRows = 6
 }) {
   if (!todayStr) return null;
   const { items, total, overdueCount, daysToSalary } = getUpcomingOutflows(events, todayStr, windowDays);
 
-  const shown = items.slice(0, MAX_ROWS);
+  const shown = items.slice(0, maxRows);
   const hidden = items.length - shown.length;
 
   return (
     <section className="summary-card plan-insight-card plan-upcoming-card" aria-labelledby="upcoming-title">
       <div className="pic-head">
-        <h3 id="upcoming-title" className="pic-title">Next {windowDays} days</h3>
+        <h3 id="upcoming-title" className="pic-title">{title || `Next ${windowDays} days`}</h3>
         <span className="pic-total tabular-nums">{formatCurrencyWhole(total, currencySymbol)}</span>
       </div>
 
@@ -65,7 +66,7 @@ export function UpcomingOutflows({
                   <span className="upcoming-name">{item.label || item.name || 'Planned payment'}</span>
                   <span className="upcoming-when">{when}</span>
                 </span>
-                <span className="upcoming-amount tabular-nums">{formatCurrency(item.outflow, currencySymbol)}</span>
+                <span className="upcoming-amount tabular-nums">{formatCurrencyWhole(item.outflow, currencySymbol)}</span>
                 {!isReviewMode && onPay && targetId && (
                   <button
                     type="button"
@@ -84,7 +85,7 @@ export function UpcomingOutflows({
       )}
 
       {hidden > 0 && (
-        <p className="pic-note">+{hidden} more in the timeline below.</p>
+        <p className="pic-note">+{hidden} more in details.</p>
       )}
     </section>
   );

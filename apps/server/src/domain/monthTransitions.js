@@ -6,7 +6,7 @@ import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { loadGoalsForUser } from './simulationService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
-import { pad, attachAccountOpeningsToMonth } from './monthHelpers.js';
+import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 
 /**
  * Month transitions: crediting the salary and rolling over to the next month.
@@ -68,7 +68,7 @@ export const MonthTransitions = {
       where: and(
         eq(s.transactions.userId, userId),
         eq(s.transactions.monthId, month.id),
-        eq(s.transactions.category, 'Salary')
+        salaryTxCondition()
       )
     });
 
@@ -91,6 +91,9 @@ export const MonthTransitions = {
         monthId: month.id,
         amount: salaryAmt,
         date: creditDate,
+        name: 'Monthly Salary',
+        origin: 'salary',
+        status: 'successful',
         note: 'Monthly Salary',
         category: 'Salary',
         accountId: targetBank ? targetBank.id : null,

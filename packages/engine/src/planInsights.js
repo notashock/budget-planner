@@ -27,6 +27,14 @@ const isCardBillEvent = (evt) => evt?.itemType === 'card-bill';
 const isMoneyMovement = (evt) => isTransferEvent(evt) || isPassThroughEvent(evt) || isCardBillEvent(evt);
 
 /**
+ * A refund of a recorded spend (saved as a negative spend, ADR 0062): money back that
+ * reduces spending rather than counting as income.
+ */
+export const isSpendRefundEvent = (evt) =>
+  Boolean(evt?.isActual) && !evt.isIncome && toInt(evt.amount) > 0 && !isMoneyMovement(evt) &&
+  (evt.itemType === 'unplanned-transaction' || evt.itemType === 'actual-refund');
+
+/**
  * Splits today's balance into what it is already promised to.
  *
  * Mirrors the engine's own Safe Velocity definition:
@@ -151,14 +159,16 @@ export function getNetPosition(incomeAmount = 0, totalExpenses = 0, { invested =
 export function splitPaidAndPlanned(events = []) {
   let paid = 0;
   let planned = 0;
+  let refunded = 0;
   (events || []).forEach((evt) => {
     if (!evt || isMoneyMovement(evt)) return;
     const amt = toInt(evt.amount);
+    if (isSpendRefundEvent(evt)) refunded += amt;
     if (amt >= 0) return;
     if (evt.isActual || evt.isPaid) paid += Math.abs(amt);
     else planned += Math.abs(amt);
   });
-  return { paid, planned };
+  return { paid: Math.max(0, paid - refunded), planned };
 }
 
 /**

@@ -103,7 +103,7 @@ export function SettleForm({
   const shownError = localError || error;
 
   return (
-    <form className="form-stack settle-form" onSubmit={handleSubmit} data-testid="settle-form">
+    <form autoComplete="off" className="form-stack settle-form" onSubmit={handleSubmit} data-testid="settle-form">
       <div className="settle-summary">
         <span className="settle-summary-name">{bill?.name || bill?.title || 'Planned bill'}</span>
         <span className="settle-summary-meta">
@@ -114,7 +114,7 @@ export function SettleForm({
 
       <div className="form-group">
         <label className="form-label" htmlFor="settle-amount">Amount paid ({currencySymbol})</label>
-        <input
+        <input autoComplete="off"
           id="settle-amount"
           type="number"
           inputMode="decimal"

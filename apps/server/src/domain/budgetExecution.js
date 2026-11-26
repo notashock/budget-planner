@@ -2,7 +2,6 @@ import { eq, and, or, asc, inArray, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { recommendPurchaseDate, deriveTransactionState, isPassThrough, getRefundableRemaining } from '@budget/engine';
-import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { serialize } from '../utils/serializer.js';
@@ -77,12 +76,6 @@ export const BudgetExecution = {
 
     if (!month) {
       throw new NotFoundError(`Month ${year}-${monthNum} not found`);
-    }
-
-    try {
-      await backfillUnassignedTransactions(userId);
-    } catch {
-      // non-fatal
     }
 
     const userSettings = await db.query.settings.findFirst({
@@ -776,6 +769,11 @@ export const BudgetExecution = {
         }).where(eq(s.salaryTemplates.userId, userId));
       }
 
+      // Editing a held/lent entry can settle or reopen that person
+      if (tx.personFundId) {
+        await PersonFundService.refreshStatus(tx.personFundId);
+      }
+
       const month = updated.monthId ? await db.query.months.findFirst({ where: eq(s.months.id, updated.monthId) }) : null;
       if (month) {
         if (updated.isIncome || (tx.amount > updated.amount)) {
@@ -1150,12 +1148,6 @@ export const BudgetExecution = {
    * Lists all transactions across dates/periods (for irregular earners or global ledger view).
    */
   async listAllTransactions(userId, query = {}) {
-    try {
-      await backfillUnassignedTransactions(userId);
-    } catch {
-      // non-fatal
-    }
-
     const userSettings = await db.query.settings.findFirst({
       where: eq(s.settings.userId, userId)
     });

@@ -5,7 +5,7 @@ import {
   getRelativeDay,
   getDateFromRelativeDay
 } from './calendar.js';
-import { getGoalMonthlyReserve } from './planInsights.js';
+import { getGoalMonthlyReserve, isSpendRefundEvent } from './planInsights.js';
 import {
   deriveTransactionState,
   isDiscretionarySpend,
@@ -1446,7 +1446,10 @@ export function simulate(
       if (evt.isCardSpend) return;
       const isPt = evt.itemType === 'pass-through';
       const isCardMove = evt.itemType === 'card-bill' || evt.sourceIsCard || evt.destinationIsCard;
-      if (evt.amount > 0 && isDst && !isPt && !isCardMove) {
+      if (isSpendRefundEvent(evt) && isDirectMatch) {
+        // A refund gives spending back; it isn't income
+        accExpenses -= evt.amount;
+      } else if (evt.amount > 0 && isDst && !isPt && !isCardMove) {
         accIncome += evt.amount;
       }
       if (evt.amount < 0 && isSrc) {
@@ -1554,7 +1557,7 @@ export function simulate(
       floorBreached,
       heldForOthers: accHeld,
       incomeAmount: accIncome,
-      totalExpenses: accExpenses,
+      totalExpenses: Math.max(0, accExpenses),
       isPrimary: Boolean(acc.isPrimary),
       isArchived: Boolean(acc.isArchived),
       isSalaryCredited: Boolean(isSalaryMarkedCredited || salaryTx),
@@ -1588,13 +1591,18 @@ export function simulate(
   });
 
   const totalLoggedIncome = (transactions || [])
-    .filter((t) => t.isIncome && (!salaryTx || (t !== salaryTx && String(t._id || t.id) !== String(salaryTx._id || salaryTx.id))))
+    .filter((t) => t.isIncome && t.status !== 'cancelled' && t.status !== 'planned' && (!salaryTx || (t !== salaryTx && String(t._id || t.id) !== String(salaryTx._id || salaryTx.id))))
     .reduce((sum, t) => sum + Math.round(Number(t.amount) || 0), 0);
   const totalSimIncome = effectiveSalaryAmount + totalLoggedIncome;
 
-  const totalSimExpenses = events
+  const grossSimExpenses = events
     .filter((e) => e.amount < 0 && e.itemType !== 'transfer' && e.itemType !== 'pass-through' && e.itemType !== 'card-bill')
     .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  // A refund of a spend (saved as a negative spend) gives that spending back
+  const totalSimRefunds = events
+    .filter((e) => isSpendRefundEvent(e))
+    .reduce((sum, e) => sum + e.amount, 0);
+  const totalSimExpenses = Math.max(0, grossSimExpenses - totalSimRefunds);
 
   const ownDailyBalances = toOwnPoints(dailyBalances, heldByDay);
   const aggLowestBalance = ownDailyBalances.length > 0

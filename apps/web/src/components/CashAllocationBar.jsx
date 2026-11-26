@@ -5,7 +5,7 @@ const SEGMENT_META = {
   committed: { label: 'Upcoming bills', className: 'alloc-committed' },
   held: { label: 'Held for others', className: 'alloc-held' },
   cards: { label: 'Owed on cards', className: 'alloc-cards' },
-  floor: { label: 'Safety floor', className: 'alloc-floor' },
+  floor: { label: 'Keep at least', className: 'alloc-floor' },
   goals: { label: 'Goal savings', className: 'alloc-goals' },
   free: { label: 'Free to spend', className: 'alloc-free' },
   shortfall: { label: 'Shortfall', className: 'alloc-shortfall' }
@@ -47,7 +47,7 @@ export function CashAllocationBar({
   return (
     <div className="alloc">
       <div className="alloc-head">
-        <span className="alloc-title">Where today's balance goes</span>
+        <span className="alloc-title">After today's bills</span>
         <span className="alloc-total tabular-nums">{formatCurrency(Math.max(0, todayBalance), currencySymbol)}</span>
       </div>
 

@@ -7,6 +7,7 @@ import * as schema from './schema.js';
 import { config } from '../config.js';
 import { poolSizing } from './poolSizing.js';
 import { migrateLedgerAndMaterializedBalances } from '../scripts/migrate_ledger_and_materialized_balances.js';
+import { installOpeningCarryTrigger, ensureOpeningCarryTrigger } from './openingCarry.js';
 
 const { Pool } = pg;
 
@@ -430,6 +431,8 @@ export async function runMigrations() {
     await migrateLedgerAndMaterializedBalances();
     await healPrematurelyClosedMonths();
     await pruneEmptyFutureMonths();
+    // Last, so the one-off data syncs above don't shift later months' openings
+    await installOpeningCarryTrigger(pool);
 
     // 4. Supabase Defense-in-Depth: Enable Row-Level Security on core tables
     for (const table of CORE_APP_TABLES) {
@@ -463,6 +466,18 @@ const INIT_RETRY_COOLDOWN_MS = 15000;
 
 export function isDatabaseInitialized() {
   return isInitialized;
+}
+
+// Account balances follow the ledger through this trigger; without it no write moves a balance.
+// Serverless deploys never run runMigrations on an existing database, so install it here.
+export async function ensureBalanceTrigger() {
+  const { rows } = await pool.query(
+    `SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_transactions_sync_balance') AS has_balance_trigger;`
+  );
+  if (!rows[0]?.has_balance_trigger) {
+    console.log('[DevOps Auto-Init] Installing the ledger balance trigger and recomputing balances...');
+    await migrateLedgerAndMaterializedBalances();
+  }
 }
 
 export async function ensureDatabaseInitialized() {
@@ -527,6 +542,8 @@ export async function ensureDatabaseInitialized() {
           console.log('[DevOps Auto-Init] Adding idempotency_keys table...');
           await syncIdempotencySchema();
         }
+        await ensureBalanceTrigger();
+        await ensureOpeningCarryTrigger(pool);
       }
 
       isInitialized = true;

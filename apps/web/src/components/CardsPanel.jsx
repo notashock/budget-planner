@@ -7,7 +7,7 @@ import { DatePicker } from './DatePicker.jsx';
 import { Button } from './ui/Button.jsx';
 import { FloorBreachNotice, anywayLabel } from './FloorBreachNotice.jsx';
 import { checkFloor, findCashAccount } from '../utils/floorCheck.js';
-import { PlusIcon, CreditCardIcon, EditIcon, AlertTriangleIcon, XIcon } from './Icons.jsx';
+import { CreditCardIcon, EditIcon, AlertTriangleIcon, XIcon } from './Icons.jsx';
 
 const BAND_TONE = {
   comfortable: 'good',
@@ -101,20 +101,20 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
   };
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="card-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="card-form">
       <h3 className="hl-modal-title">{isEdit ? 'Edit card' : 'Add a credit card'}</h3>
       <div className="form-group">
         <label className="form-label" htmlFor="cc-name">Card name</label>
-        <input id="cc-name" className="input-field" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Millennia" />
+        <input autoComplete="off" id="cc-name" className="input-field" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Millennia" />
       </div>
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cc-limit">Credit limit ({currencySymbol})</label>
-          <input id="cc-limit" className="input-field tabular-nums" type="number" min="0" step="1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
+          <input autoComplete="off" id="cc-limit" className="input-field tabular-nums" type="number" min="0" step="1" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cc-owed">{isEdit ? 'Owed when added' : 'Owed right now'} ({currencySymbol})</label>
-          <input id="cc-owed" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={owed} onChange={(e) => setOwed(e.target.value)} placeholder="0" />
+          <input autoComplete="off" id="cc-owed" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={owed} onChange={(e) => setOwed(e.target.value)} placeholder="0" />
           {owedShift !== 0 && (
             <p className="history-warning" role="note" data-testid="card-owed-warning">
               Changing this shifts what the card owed on every day since it was added by{' '}
@@ -126,11 +126,11 @@ function CardForm({ card = null, bankAccounts, wallets, currencySymbol, onSaved,
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cc-sday">Bill generation day</label>
-          <input id="cc-sday" className="input-field tabular-nums" type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="1-31" required />
+          <input autoComplete="off" id="cc-sday" className="input-field tabular-nums" type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="1-31" required />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cc-dday">Payment due day</label>
-          <input id="cc-dday" className="input-field tabular-nums" type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="1-31" required />
+          <input autoComplete="off" id="cc-dday" className="input-field tabular-nums" type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="1-31" required />
         </div>
       </div>
       <p className="hl-hint">On the bill generation day the app adds up this card's spending into a bill for you to confirm. If the due day comes before the bill day, it is due the next month.</p>
@@ -223,7 +223,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
   };
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="confirm-bill-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="confirm-bill-form">
       <h3 className="hl-modal-title">Confirm {card.name} bill</h3>
       <p className="hl-hint">
         Bill for {dayLabel(statement.cycleStart)} to {dayLabel(statement.cycleEnd)}. The app worked out{' '}
@@ -233,7 +233,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
       <div className="hl-row">
         <div className="form-group">
           <label className="form-label" htmlFor="cb-amount">Bill amount ({currencySymbol})</label>
-          <input id="cb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input autoComplete="off" id="cb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           <span className="field-hint" data-testid="bill-difference">
             {diff === 0
               ? `Matches what the app worked out (${money(statement.computedAmount, currencySymbol)}).`
@@ -242,7 +242,7 @@ function ConfirmBillForm({ card, statement, currencySymbol, onSaved, onCancel })
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="cb-min">Minimum due (optional)</label>
-          <input id="cb-min" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={minimum} onChange={(e) => setMinimum(e.target.value)} />
+          <input autoComplete="off" id="cb-min" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={minimum} onChange={(e) => setMinimum(e.target.value)} />
         </div>
       </div>
       <div className="form-group">
@@ -326,7 +326,7 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, simula
   ];
 
   return (
-    <form className="hl-form" onSubmit={submit} data-testid="pay-bill-form">
+    <form autoComplete="off" className="hl-form" onSubmit={submit} data-testid="pay-bill-form">
       <h3 className="hl-modal-title">Pay {card.name} bill</h3>
       <p className="hl-hint">Paying moves money from your bank to the card. It isn't counted as spending again: the card purchases already were.</p>
       <div className={`hl-actions ${options.length === 2 ? 'hl-actions-2' : 'cc-actions-3'}`} role="radiogroup" aria-label="How much to pay">
@@ -339,7 +339,7 @@ function PayBillForm({ card, bill, bankAccounts, wallets, currencySymbol, simula
       {choice === 'custom' && (
         <div className="form-group">
           <label className="form-label" htmlFor="pb-amount">Amount ({currencySymbol})</label>
-          <input id="pb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={custom} onChange={(e) => setCustom(e.target.value)} />
+          <input autoComplete="off" id="pb-amount" className="input-field tabular-nums" type="number" min="0" step="0.01" inputMode="decimal" value={custom} onChange={(e) => setCustom(e.target.value)} />
         </div>
       )}
       <div className="form-group">
@@ -383,11 +383,14 @@ export function CardsPanel({
   isReviewMode = false,
   onChanged,
   // In the app, paying a bill opens the entry sheet's Move tab on this card (one payment form)
-  onPayBill
+  onPayBill,
+  // Bumped by the Accounts ＋ menu to open the add-card form
+  addRequest = 0
 }) {
   const [cards, setCards] = useState([]);
   const [modal, setModal] = useState(null); // { kind: 'add'|'edit'|'confirm'|'pay', card, statement?, bill? }
   const [loadError, setLoadError] = useState('');
+  const [expanded, setExpanded] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -404,6 +407,10 @@ export function CardsPanel({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (addRequest) setModal({ kind: 'add' });
+  }, [addRequest]);
 
   const scoreById = useMemo(() => {
     const m = {};
@@ -428,91 +435,104 @@ export function CardsPanel({
     }
   };
 
+  // One line per card for the collapsed row: the bill state matters more than the cycle days
+  const rowCaption = (card) => {
+    const bill = card.openBill;
+    const draft = card.statements?.find((st) => st.id === bill?.statementId && st.isDraft);
+    if (bill && draft) return { text: `Bill ready to check · due ${dayLabel(bill.dueDate)}`, tone: 'warn' };
+    if (bill?.isOverdue) return { text: `Overdue since ${dayLabel(bill.dueDate)}`, tone: 'bad' };
+    if (bill) return { text: `Bill ${money(bill.remaining, currencySymbol)} · due ${dayLabel(bill.dueDate)}`, tone: '' };
+    return { text: `Next bill ${dayLabel(card.cycleEnd)}`, tone: '' };
+  };
+
   return (
-    <section className="hl-panel cc-panel" aria-labelledby="cc-panel-title" data-testid="cards-panel">
-      <div className="hl-panel-head">
-        <div>
-          <h2 id="cc-panel-title" className="hl-panel-title">Credit cards</h2>
-          <p className="hl-panel-sub">Card spending counts on the day you swipe and is set aside from Safe-to-Spend. Paying the bill moves money from your bank and isn't counted again.</p>
-        </div>
-        {!isReviewMode && (
-          <Button size="sm" icon={<PlusIcon size={14} />} onClick={() => setModal({ kind: 'add' })}>Add card</Button>
-        )}
-      </div>
+    <section className="acct-section cc-panel" aria-labelledby="cc-panel-title" data-testid="cards-panel">
+      <h2 id="cc-panel-title" className="acct-section-title">Cards</h2>
 
       {loadError && <div className="hl-error" role="alert">{loadError}</div>}
 
       {cards.length === 0 ? (
-        <p className="hl-empty">No cards yet. Add one to track what you owe and whether you can pay the next bill.</p>
+        <div className="acct-inset acct-empty">
+          {isReviewMode ? <span>No cards</span> : (
+            <button type="button" className="acct-empty-add" onClick={() => setModal({ kind: 'add' })}>+ Add a credit card</button>
+          )}
+        </div>
       ) : (
-        <ul className="cc-list">
+        <ul className="acct-inset">
           {cards.map((card) => {
             const score = scoreById[card.id];
             const util = card.creditLimit > 0 ? Math.min(1, card.outstanding / card.creditLimit) : null;
             const draft = card.statements?.find((st) => st.id === card.openBill?.statementId && st.isDraft) || null;
             const bill = card.openBill;
+            const isOpen = expanded === card.id;
+            const caption = rowCaption(card);
             return (
               <li key={card.id} className="cc-card">
-                <div className="cc-card-head">
-                  <span className="hl-avatar" aria-hidden="true"><CreditCardIcon size={14} /></span>
-                  <div className="cc-card-title">
-                    <span className="hl-person-name">{card.name}</span>
-                    <span className="hl-person-meta">
-                      Bill on day {card.statementDay} · due day {card.dueDay}
-                    </span>
-                  </div>
-                  {!isReviewMode && (
-                    <button type="button" className="cc-icon-btn" onClick={() => setModal({ kind: 'edit', card })} aria-label={`Edit ${card.name}`} title="Edit card">
-                      <EditIcon size={13} />
-                    </button>
-                  )}
-                </div>
+                <button type="button" className="acct-row" aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? null : card.id)}>
+                  <span className="acct-row-icon card" aria-hidden="true"><CreditCardIcon size={16} /></span>
+                  <span className="acct-row-main">
+                    <span className="acct-row-title">{card.name}</span>
+                    <span className="acct-row-caption"><span className={`acct-row-caption-text ${caption.tone ? `tone-${caption.tone}` : ''}`}>{caption.text}</span></span>
+                  </span>
+                  <span className="acct-row-balance tabular-nums">{card.outstanding > 0 ? '−' : ''}{money(card.outstanding, currencySymbol)}</span>
+                  <span className={`acct-row-chev${isOpen ? ' open' : ''}`} aria-hidden="true">›</span>
+                </button>
 
-                <div className="cc-owed">
-                  <span className="cc-owed-label">Owed now</span>
-                  <span className="cc-owed-value tabular-nums">{money(card.outstanding, currencySymbol)}</span>
-                  {card.creditLimit > 0 && (
-                    <span className="cc-owed-limit tabular-nums">of {money(card.creditLimit, currencySymbol)} limit</span>
-                  )}
-                </div>
-                {util !== null && (
-                  <div className={`cc-util ${util > 0.8 ? 'high' : (util > 0.5 ? 'mid' : '')}`} role="img" aria-label={`${Math.round(util * 100)}% of the limit used`}>
-                    <div className="cc-util-fill" style={{ width: `${Math.round(util * 100)}%` }} />
-                  </div>
-                )}
-
-                <dl className="cc-facts">
-                  <div><dt>Spent this cycle</dt><dd className="tabular-nums">{money(card.unbilledSoFar, currencySymbol)}</dd></div>
-                  <div><dt>Next bill</dt><dd>{dayLabel(card.cycleEnd)}</dd></div>
-                  <div><dt>That bill is due</dt><dd>{dayLabel(card.cycleDueDate)}</dd></div>
-                </dl>
-
-                {bill && draft && (
-                  <div className="cc-banner" role="status">
-                    <span>Bill ready: <strong className="tabular-nums">{money(bill.amount, currencySymbol)}</strong>, due {dayLabel(bill.dueDate)}. Check it against your bank.</span>
-                    {!isReviewMode && <Button size="sm" variant="primary" onClick={() => setModal({ kind: 'confirm', card, statement: draft })}>Confirm</Button>}
-                  </div>
-                )}
-                {bill && !draft && (
-                  <div className={`cc-banner ${bill.isOverdue ? 'overdue' : ''}`} role="status">
-                    <span>
-                      {bill.isOverdue && <AlertTriangleIcon size={13} />}{' '}
-                      {bill.isOverdue ? 'Overdue: ' : 'Bill due '}
-                      <strong className="tabular-nums">{money(bill.remaining, currencySymbol)}</strong>
-                      {bill.isOverdue ? ` since ${dayLabel(bill.dueDate)}` : ` by ${dayLabel(bill.dueDate)}`}
-                      {bill.minimumDue ? ` (minimum ${money(Math.min(bill.minimumDue, bill.remaining), currencySymbol)})` : ''}
-                    </span>
-                    {!isReviewMode && <Button size="sm" variant="primary" onClick={() => (onPayBill ? onPayBill(card, bill) : setModal({ kind: 'pay', card, bill }))}>Pay bill</Button>}
-                  </div>
-                )}
-
-                {score && (
-                  <div className={`cc-payability tone-${BAND_TONE[score.band] || 'good'}`}>
-                    <ScoreRing score={score.score} band={score.band} label={score.bandLabel} />
-                    <div className="cc-payability-text">
-                      <span className="cc-payability-band">Payability: {score.bandLabel}</span>
-                      <p>{score.statement}</p>
+                {isOpen && (
+                  <div className="acct-row-body">
+                    <div className="cc-owed">
+                      <span className="cc-owed-label">Owed now</span>
+                      <span className="cc-owed-value tabular-nums">{money(card.outstanding, currencySymbol)}</span>
+                      {card.creditLimit > 0 && (
+                        <span className="cc-owed-limit tabular-nums">of {money(card.creditLimit, currencySymbol)} limit</span>
+                      )}
                     </div>
+                    {util !== null && (
+                      <div className={`cc-util ${util > 0.8 ? 'high' : (util > 0.5 ? 'mid' : '')}`} role="img" aria-label={`${Math.round(util * 100)}% of the limit used`}>
+                        <div className="cc-util-fill" style={{ width: `${Math.round(util * 100)}%` }} />
+                      </div>
+                    )}
+
+                    <dl className="cc-facts">
+                      <div><dt>Spent this cycle</dt><dd className="tabular-nums">{money(card.unbilledSoFar, currencySymbol)}</dd></div>
+                      <div><dt>Next bill</dt><dd>{dayLabel(card.cycleEnd)}</dd></div>
+                      <div><dt>That bill is due</dt><dd>{dayLabel(card.cycleDueDate)}</dd></div>
+                    </dl>
+
+                    {bill && draft && (
+                      <div className="cc-banner" role="status">
+                        <span>Bill ready: <strong className="tabular-nums">{money(bill.amount, currencySymbol)}</strong>, due {dayLabel(bill.dueDate)}. Check it against your bank.</span>
+                        {!isReviewMode && <Button size="sm" variant="primary" onClick={() => setModal({ kind: 'confirm', card, statement: draft })}>Confirm</Button>}
+                      </div>
+                    )}
+                    {bill && !draft && (
+                      <div className={`cc-banner ${bill.isOverdue ? 'overdue' : ''}`} role="status">
+                        <span>
+                          {bill.isOverdue && <AlertTriangleIcon size={13} />}{' '}
+                          {bill.isOverdue ? 'Overdue: ' : 'Bill due '}
+                          <strong className="tabular-nums">{money(bill.remaining, currencySymbol)}</strong>
+                          {bill.isOverdue ? ` since ${dayLabel(bill.dueDate)}` : ` by ${dayLabel(bill.dueDate)}`}
+                          {bill.minimumDue ? ` (minimum ${money(Math.min(bill.minimumDue, bill.remaining), currencySymbol)})` : ''}
+                        </span>
+                        {!isReviewMode && <Button size="sm" variant="primary" onClick={() => (onPayBill ? onPayBill(card, bill) : setModal({ kind: 'pay', card, bill }))}>Pay bill</Button>}
+                      </div>
+                    )}
+
+                    {score && (
+                      <div className={`cc-payability tone-${BAND_TONE[score.band] || 'good'}`}>
+                        <ScoreRing score={score.score} band={score.band} label={score.bandLabel} />
+                        <div className="cc-payability-text">
+                          <span className="cc-payability-band">Payability: {score.bandLabel}</span>
+                          <p>{score.statement}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isReviewMode && (
+                      <div className="acct-row-actions">
+                        <Button size="sm" icon={<EditIcon size={13} />} onClick={() => setModal({ kind: 'edit', card })} aria-label={`Edit ${card.name}`}>Edit card</Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </li>
@@ -520,6 +540,7 @@ export function CardsPanel({
           })}
         </ul>
       )}
+      <p className="acct-section-foot">Card spending counts on the day you swipe. Paying the bill moves money from your bank and isn&rsquo;t counted again.</p>
 
       <AnimatedModal isOpen={Boolean(modal)} onClose={() => setModal(null)} dataTestId="card-modal">
         <button type="button" className="btn-icon modal-corner-close" onClick={() => setModal(null)} aria-label="Close">

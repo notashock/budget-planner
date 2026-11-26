@@ -5,69 +5,32 @@
    (every state also has an icon/label, every bar part a legend entry).
    ========================================================================= */
 
-/* ---- Month Health hero ---- */
+/* ---- Month Health hero: one number, one caption, a sparkline ---- */
 .month-health-hero {
-  gap: 12px;
-  padding: 16px 18px;
+  padding: 0;
 }
 
-.mh-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.mh-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: var(--radius-pill);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  border: 1px solid transparent;
-}
-
-.mh-verdict.verdict-good {
-  background: var(--emerald-subtle);
-  color: var(--positive);
-  border-color: var(--emerald-border);
-}
-
-.mh-verdict.verdict-tight {
-  background: var(--amber-subtle);
-  color: var(--amber);
-  border-color: var(--amber-border);
-}
-
-.mh-verdict.verdict-critical {
-  background: var(--rose-subtle);
-  color: var(--rose);
-  border-color: var(--rose-border);
-}
-
-.mh-figure {
+.mh-hit {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  width: 100%;
+  padding: 18px 18px 14px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: inherit;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
-.mh-label {
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--text-secondary);
+.mh-hit:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
-.mh-value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* Hero figure: proportional digits at display size (tabular only in columns) */
+/* Hero figure: proportional digits at display size */
 .mh-value {
   font-size: var(--fs-display);
   font-weight: 700;
@@ -76,42 +39,97 @@
   color: var(--text);
 }
 
-.mh-unit {
-  font-size: var(--fs-base);
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.mh-explain {
-  margin: 4px 0 0;
-  font-size: var(--fs-xs);
-  line-height: 1.45;
-  color: var(--text-muted);
-}
-
-.mh-verdict-line {
-  margin: 0;
-  padding: 9px 12px;
-  border-radius: var(--radius);
+.mh-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--fs-sm);
-  line-height: 1.45;
   color: var(--text-secondary);
-  background: var(--surface-subtle);
+}
+
+.mh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--positive);
+  flex: none;
+}
+
+.mh-dot.verdict-tight { background: var(--amber); }
+.mh-dot.verdict-critical { background: var(--rose); }
+
+.mh-spark {
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+  display: block;
+}
+
+.mh-spark polyline { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.mh-spark-plan { stroke: var(--border-strong); }
+.mh-spark-past { stroke: var(--text); }
+.mh-spark-dot { fill: var(--text); }
+
+/* ---- At a glance row and the Details toggle ---- */
+.plan-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+/* Hero, then the cash allocation bar directly under its graph */
+.plan-glance-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.plan-glance-main .alloc {
+  padding: 14px 16px;
   border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
 }
 
-.mh-verdict-line strong {
-  color: var(--text);
+.plan-details-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: var(--fs-sm);
   font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
 }
 
-.mh-verdict-line.verdict-critical {
-  background: var(--rose-subtle);
-  border-color: var(--rose-border);
+.plan-details-toggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius);
 }
 
-.mh-verdict-line.verdict-critical strong {
-  color: var(--rose);
+.plan-details-chev { display: inline-block; transition: transform 0.15s ease; }
+.plan-details-chev.open { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-details-chev { transition: none; }
+}
+
+.plan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1023px) {
+  .plan-details { gap: 12px; }
 }
 
 /* ---- Cash allocation: thin segmented bar + legend ---- */
@@ -1191,47 +1209,78 @@
   .di-hint { margin-left: 0; width: 100%; }
 }
 
-/* ---- Page titles: one heading style on every screen ---- */
-.page-title-group {
+/* ---- ScreenHeader: large title, then a compact blurred bar once it scrolls away ---- */
+.screen-header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
   min-width: 0;
   margin-bottom: 12px;
 }
 
 .page-title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--text);
   text-wrap: balance;
 }
 
-.page-subtitle {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-secondary);
+.screen-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Menus in the header's right-hand actions open toward the screen, not off its edge */
+.screen-header-actions .app-dropdown-menu {
+  left: auto;
+  right: 0;
+  max-width: calc(100vw - 32px);
+}
+
+.screen-header-compact {
+  position: fixed;
+  top: var(--toolbar-h);
+  left: var(--sidebar-w, 0px);
+  right: 0;
+  z-index: var(--z-header);
+  padding: 10px var(--space-page-x);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.screen-header-compact.is-visible {
+  opacity: 1;
 }
 
 /* Inside an existing header row the row handles spacing */
-.apple-tx-header-row-1 .page-title-group,
-.screen-content > div > .page-title-group {
+.apple-tx-header-row-1 .screen-header,
+.screen-content > div > .screen-header {
   margin-bottom: 0;
 }
 
 @media (max-width: 767px) {
-  .page-title { font-size: var(--fs-xl); }
-  .page-subtitle { font-size: var(--fs-sm); }
+  .page-title { font-size: 28px; }
 }
 
 /* ---- Mobile reading order: verdict → KPIs → what's next → chart → detail ---- */
 @media (max-width: 1023px) {
-  .month-health-hero { order: 1; }
+  .alloc { order: 1; }
   .detailed-kpi-grid { order: 2; }
-  .plan-upcoming-card { order: 3; }
   .dashboard-chart-panel { order: 4; }
   .plan-pace-card { order: 5; }
   .plan-category-card { order: 6; }
@@ -1239,8 +1288,8 @@
 }
 
 @media (max-width: 599px) {
-  .month-health-hero {
-    padding: 14px;
+  .mh-hit {
+    padding: 14px 14px 12px;
   }
 
   .alloc-legend {

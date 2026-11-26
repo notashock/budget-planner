@@ -2,7 +2,6 @@ import { eq, and, desc, asc, or, lt } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { simulate, recommendPurchaseDate as engineRecommendDate, deriveTransactionState } from '@budget/engine';
-import { backfillUnassignedTransactions } from '../services/accountMigration.js';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { SimulationService, loadGoalsForUser } from './simulationService.js';
@@ -11,7 +10,7 @@ import { CardService } from './cardService.js';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { loadAccountTypeMap, attachAccountTypes } from '../utils/accountTypes.js';
-import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
+import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 import { MonthTransitions } from './monthTransitions.js';
 
 // Re-exported for existing importers
@@ -138,21 +137,10 @@ export const MonthLifecycle = {
     const bankAccounts = allAccounts.filter(a => a.type === 'bank');
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
-    // Auto-backfill unassigned if primary bank exists
-    if (allAccounts.some(a => a.type !== 'credit_card')) {
-      const cashAccounts = allAccounts.filter(a => a.type !== 'credit_card');
-      const primaryBank = cashAccounts.find(b => b.isPrimary) || cashAccounts[0];
-      try {
-        await backfillUnassignedTransactions(userId, primaryBank);
-        if (!month.salaryAccountId) {
-          month.salaryAccountId = primaryBank.id;
-          await db.update(s.months)
-            .set({ salaryAccountId: primaryBank.id, updatedAt: new Date() })
-            .where(eq(s.months.id, month.id));
-        }
-      } catch (backfillErr) {
-        console.error('Error during automatic month backfill:', backfillErr);
-      }
+    // Reads never write: a month without a salary account shows the primary one, without saving it
+    const cashAccounts = allAccounts.filter(a => a.type !== 'credit_card');
+    if (!month.salaryAccountId && cashAccounts.length > 0) {
+      month.salaryAccountId = (cashAccounts.find(b => b.isPrimary) || cashAccounts[0]).id;
     }
 
     const [rawItems, untypedTransactions, rawTransfers, userSettings, accountTypes] = await Promise.all([
@@ -598,13 +586,7 @@ export const MonthLifecycle = {
         where: and(
           eq(s.transactions.userId, userId),
           eq(s.transactions.monthId, month.id),
-          or(
-            eq(s.transactions.origin, 'salary'),
-            eq(s.transactions.category, 'Salary'),
-            eq(s.transactions.category, 'Income'),
-            eq(s.transactions.name, 'Monthly Salary'),
-            eq(s.transactions.name, 'Expected Monthly Salary')
-          )
+          salaryTxCondition()
         ),
         orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
       });

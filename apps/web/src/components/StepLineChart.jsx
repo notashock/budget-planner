@@ -134,16 +134,23 @@ export function StepLineChart({
         ? pt.intradayEvents
         : (events || []).filter((e) => e.day === pt.day || e.date === pt.date);
       const evts = raw.filter(belongsToSelectedAccount);
-      const inflow = evts.reduce((sum, e) => (e.amount > 0 && e.itemType !== 'transfer' ? sum + e.amount : sum), 0);
-      const outflow = evts.reduce((sum, e) => (e.amount < 0 && e.itemType !== 'transfer' ? sum + Math.abs(e.amount) : sum), 0);
+      // Cash that actually moved: a card swipe moves none (the bill payment does), and a transfer
+      // only moves cash in or out when one account is shown (across all accounts it nets to zero)
+      const cashEvts = evts.filter((e) => !e.isCardSpend);
+      const counts = (e) => selectedAccountId || e.itemType !== 'transfer';
+      const inflow = cashEvts.reduce((sum, e) => (e.amount > 0 && counts(e) ? sum + e.amount : sum), 0);
+      const outflow = cashEvts.reduce((sum, e) => (e.amount < 0 && counts(e) ? sum + Math.abs(e.amount) : sum), 0);
       const opening = i > 0
         ? dailyBalances[i - 1].balance
-        : pt.balance - evts.reduce((sum, e) => sum + (e.amount || 0), 0);
-      return { day: pt.day, date: pt.date, closing: pt.balance, opening, inflow, outflow, evts };
+        : pt.balance - cashEvts.reduce((sum, e) => sum + (e.amount || 0), 0);
+      // Your own money: the balance less what you hold for others, as the Lowest balance tile counts it
+      const own = pt.balance - (pt.heldForOthers || 0);
+      return { day: pt.day, date: pt.date, closing: pt.balance, own, opening, inflow, outflow, evts };
     });
     // belongsToSelectedAccount only depends on the account props listed here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyBalances, events, hasChartData, selectedAccountId, selectedAccount]);
+  const ownPoints = useMemo(() => rows.map((r) => ({ day: r.day, date: r.date, balance: r.own })), [rows]);
 
   // ---- Scales and paths ----
   const chart = useMemo(() => {
@@ -230,10 +237,12 @@ export function StepLineChart({
   // ---- Low point and breaches ----
   const low = (upcomingLow && typeof upcomingLow.balance === 'number' && upcomingLow.date)
     ? upcomingLow
-    : summarizeLowPoints(dailyBalances, { currentDay, floor: safetyFloor }).upcoming;
+    : summarizeLowPoints(ownPoints, { currentDay, floor: safetyFloor }).upcoming;
   const lowPoint = points.find((p) => p.date === low?.date) || null;
-  const lowUnderFloor = Boolean(lowPoint && safetyFloor > 0 && lowPoint.balance < safetyFloor);
-  const breachRuns = findBreachRuns(dailyBalances, safetyFloor);
+  // The low point sits on the cash line, but its amount is your own money (held money left out)
+  const lowOwn = lowPoint ? low.balance : null;
+  const lowUnderFloor = Boolean(lowPoint && safetyFloor > 0 && lowOwn < safetyFloor);
+  const breachRuns = findBreachRuns(ownPoints, safetyFloor);
   const runForDay = (day) => breachRuns.find((r) => day >= r.startDay && day <= r.endDay) || null;
   const runLabel = (r) => (r.startDay === r.endDay
     ? fmtDate(r.startDate, r.startDay)
@@ -267,7 +276,7 @@ export function StepLineChart({
   let insight = null;
   if (insightRow) {
     const change = insightRow.closing - insightRow.opening;
-    const headroom = insightRow.closing - safetyFloor;
+    const headroom = insightRow.own - safetyFloor;
     const maxOut = Math.max(...rows.map((r) => r.outflow));
     const unplannedOut = insightRow.evts.reduce((sum, e) => (e.amount < 0 && e.itemType === 'unplanned-transaction' ? sum + Math.abs(e.amount) : sum), 0);
     const run = runForDay(insightRow.day);
@@ -295,12 +304,12 @@ export function StepLineChart({
   // ---- Screen-reader summary ----
   const firstPoint = points[0];
   const chartSummary = `Balance starts at ${formatCurrency(firstPoint.balance, currencySymbol)} and is projected to end the month at ${formatCurrency(lastPoint.balance, currencySymbol)}. `
-    + (lowPoint ? `${hasToday ? 'Lowest point from today' : 'Lowest point'} ${formatCurrency(lowPoint.balance, currencySymbol)} on ${fmtDate(lowPoint.date, lowPoint.day, true)}, ` : '')
+    + (lowPoint ? `${hasToday ? 'Lowest point from today' : 'Lowest point'} ${formatCurrency(lowOwn, currencySymbol)} on ${fmtDate(lowPoint.date, lowPoint.day, true)}, ` : '')
     + (safetyFloor > 0
       ? (lowUnderFloor
-        ? `${formatCurrency(safetyFloor - lowPoint.balance, currencySymbol)} below the safety floor.`
-        : `above the safety floor of ${formatCurrency(safetyFloor, currencySymbol)}.`)
-      : 'no safety floor set.')
+        ? `${formatCurrency(safetyFloor - lowOwn, currencySymbol)} below the amount you keep aside.`
+        : `above the amount you keep aside, ${formatCurrency(safetyFloor, currencySymbol)}.`)
+      : 'no minimum set.')
     + ' Use the left and right arrow keys to move between days.';
 
   // ---- Interaction ----
@@ -364,7 +373,7 @@ export function StepLineChart({
     day: activePoint.day,
     balance: activeRow.closing,
     change: activeRow.closing - activeRow.opening,
-    belowFloorBy: safetyFloor > 0 && activeRow.closing < safetyFloor ? safetyFloor - activeRow.closing : 0
+    belowFloorBy: safetyFloor > 0 && activeRow.own < safetyFloor ? safetyFloor - activeRow.own : 0
   } : null;
 
   // Low-point label placement: below the point (it is the lowest point from
@@ -374,8 +383,8 @@ export function StepLineChart({
   // line or markers, so the low is stated in a line under the title instead.
   const lowText = lowPoint
     ? (lowUnderFloor
-      ? `${formatCurrencyWhole(safetyFloor - lowPoint.balance, currencySymbol)} under floor · ${fmtDate(lowPoint.date, lowPoint.day)}`
-      : `Low ${formatCurrencyWhole(lowPoint.balance, currencySymbol)} · ${fmtDate(lowPoint.date, lowPoint.day)}`)
+      ? `${formatCurrencyWhole(safetyFloor - lowOwn, currencySymbol)} under floor · ${fmtDate(lowPoint.date, lowPoint.day)}`
+      : `Low ${formatCurrencyWhole(lowOwn, currencySymbol)} · ${fmtDate(lowPoint.date, lowPoint.day)}`)
     : '';
   let lowLabel = null;
   if (lowPoint && !isMobile) {
@@ -544,7 +553,7 @@ export function StepLineChart({
             const pt = points.find((p) => p.day === row.day);
             if (!m || !pt) return null;
             const active = activeDay === row.day;
-            const s = active ? 6.5 : 5.5;
+            const s = active ? 4.5 : 3.5;
             return (
               <g key={`m-${row.day}`} className={`bc-marker bc-marker-${m.kind} ${active ? 'active' : ''}`}>
                 {m.kind === 'income' && (
@@ -553,9 +562,9 @@ export function StepLineChart({
                 {m.kind === 'bill' && (
                   <path d={`M ${pt.x} ${pt.y + s + 1} L ${pt.x + s} ${pt.y - s + 2} L ${pt.x - s} ${pt.y - s + 2} Z`} />
                 )}
-                {m.kind === 'paid' && <circle cx={pt.x} cy={pt.y} r={active ? 5 : 4} />}
+                {m.kind === 'paid' && <circle cx={pt.x} cy={pt.y} r={active ? 3.5 : 2.5} />}
                 {m.count > 1 && (
-                  <text className="bc-count" x={pt.x + s + 3} y={pt.y - s}>{m.count}</text>
+                  <text className="bc-count" x={pt.x + s + 2} y={pt.y - s - 1}>{m.count}</text>
                 )}
               </g>
             );
@@ -565,13 +574,13 @@ export function StepLineChart({
           {lowPoint && (
             <g className={`bc-low ${lowUnderFloor ? 'under' : ''}`}>
               {/* An outer ring, so that day's entry marker stays visible inside it */}
-              <circle cx={lowPoint.x} cy={lowPoint.y} r="9" />
+              <circle cx={lowPoint.x} cy={lowPoint.y} r="6.5" />
               {lowLabel && <text x={lowLabel.x} y={lowLabel.y} textAnchor={lowLabel.anchor}>{lowLabel.text}</text>}
             </g>
           )}
 
           {/* Selected/hovered day point */}
-          {activePoint && <circle className="bc-active-point" cx={activePoint.x} cy={activePoint.y} r="5" />}
+          {activePoint && <circle className="bc-active-point" cx={activePoint.x} cy={activePoint.y} r="3.5" />}
 
           {/* Month-end value at the end of the projection */}
           {showMonthEndLabel && (
@@ -665,7 +674,7 @@ export function StepLineChart({
               </dd>
             </div>
             <div className="di-stat">
-              <dt>{safetyFloor > 0 ? 'Room above floor' : 'Safety floor'}</dt>
+              <dt>{safetyFloor > 0 ? 'Left above minimum' : 'Keep at least'}</dt>
               <dd className={`tabular-nums ${safetyFloor > 0 && insight.headroom < 0 ? 'di-down' : ''}`}>
                 {safetyFloor > 0 ? formatCurrency(insight.headroom, currencySymbol) : 'Not set'}
               </dd>

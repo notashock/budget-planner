@@ -68,12 +68,13 @@ describe('Phase 3: category suggestion', () => {
   it('picks the category as you type until you choose one yourself', () => {
     renderEntry();
     fireEvent.change(descriptionInput(), { target: { value: 'Uber to office' } });
-    expect(screen.getByRole('button', { name: 'Travel' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Travel/);
     expect(screen.getByText(/suggested/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Health' }));
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Health' }));
     fireEvent.change(descriptionInput(), { target: { value: 'Uber to office and lunch' } });
-    expect(screen.getByRole('button', { name: 'Health' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Health/);
   });
 });
 
@@ -105,7 +106,7 @@ describe('Phase 3: remembered defaults', () => {
     renderEntry({ onLogTransaction, initialPreset: null });
     rememberAccount('log', 'wallet', 'w1');
     fireEvent.change(amountInput(), { target: { value: '120' } });
-    fireEvent.click(screen.getByRole('button', { name: /Log expense debit/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalled());
     // Saved from the default (Main Bank), so that is what is remembered now
     await waitFor(() => expect(lastAccountFor('log')).toEqual({ accountType: 'bank', accountId: 'b1' }));
@@ -127,7 +128,7 @@ describe('Phase 3: Save & add another', () => {
     renderEntry({ onLogTransaction, onClose });
     fireEvent.change(amountInput(), { target: { value: '250' } });
     fireEvent.change(descriptionInput(), { target: { value: 'Coffee' } });
-    fireEvent.click(screen.getByRole('button', { name: /Save & add another/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add & log another/ }));
 
     await waitFor(() => expect(onLogTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 25000, title: 'Coffee', category: 'Food' }),
@@ -153,7 +154,7 @@ describe('Phase 3: Save & add another', () => {
       initialMode: 'log',
       initialItem: { _id: 't9', id: 't9', origin: 'spot', status: 'successful', title: 'Tea', amount: 2000, date: '2026-11-10', category: 'Food', accountId: 'b1' }
     });
-    expect(screen.queryByRole('button', { name: /Save & add another/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add & log another/ })).not.toBeInTheDocument();
   });
 });
 
@@ -205,5 +206,85 @@ describe('Phase 3: toast with Undo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(onUndo).toHaveBeenCalled());
     await waitFor(() => expect(onDismiss).toHaveBeenCalled());
+  });
+});
+
+describe('Phase E: sheet top bar', () => {
+  it('shows Cancel, a title that follows the tab, and Add, with no close cross', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({ id: 't1' });
+    renderEntry({ onLogTransaction });
+    expect(screen.getByRole('heading', { name: 'New spend' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Income' }));
+    expect(screen.getByRole('heading', { name: 'New income' })).toBeInTheDocument();
+  });
+
+  it('Add in the top bar submits the form', async () => {
+    const onLogTransaction = vi.fn().mockResolvedValue({ id: 't1' });
+    renderEntry({ onLogTransaction });
+    fireEvent.change(amountInput(), { target: { value: '120' } });
+    fireEvent.change(descriptionInput(), { target: { value: 'Coffee' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onLogTransaction).toHaveBeenCalledWith(expect.objectContaining({ amount: 12000, title: 'Coffee' })));
+  });
+
+  it('says Edit and Save when editing', () => {
+    renderEntry({
+      initialMode: 'log',
+      initialItem: { _id: 't9', id: 't9', origin: 'spot', status: 'successful', title: 'Tea', amount: 2000, date: '2026-11-10', category: 'Food', accountId: 'b1' }
+    });
+    expect(screen.getByRole('heading', { name: 'Edit spend' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+});
+
+describe('Phase E: pickers push inside the sheet', () => {
+  it('the account row opens a list in the sheet; picking one goes back with it chosen', () => {
+    renderEntry();
+    fireEvent.change(amountInput(), { target: { value: '120' } });
+    fireEvent.click(accountTrigger());
+    const page = screen.getByTestId('sheet-picker');
+    expect(page).toHaveTextContent('Paid from');
+    // No second popup: the list sits in the sheet, and the form is kept underneath
+    expect(document.body.querySelector('.custom-select-dropdown.is-inline')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: /Cash Wallet/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    expect(accountTrigger()).toHaveTextContent('Cash Wallet');
+    expect(amountInput()).toHaveValue(120);
+  });
+
+  it('the date row opens the calendar in the sheet; Back and Escape return without changing it', () => {
+    renderEntry();
+    fireEvent.click(document.body.querySelector('.datepicker-trigger'));
+    expect(screen.getByTestId('sheet-picker')).toHaveTextContent('When');
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+
+    fireEvent.click(document.body.querySelector('.datepicker-trigger'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    // Escape only closed the picker, not the sheet
+    expect(screen.getByRole('heading', { name: 'New spend' })).toBeInTheDocument();
+  });
+});
+
+describe('Phase E: Move and category pickers', () => {
+  it('the Move tab opens its To account in the sheet too', () => {
+    renderEntry({ initialMode: 'transfer' });
+    const triggers = document.body.querySelectorAll('.app-select-trigger');
+    fireEvent.click(triggers[triggers.length - 1]);
+    expect(screen.getByTestId('sheet-picker')).toHaveTextContent('To');
+    fireEvent.click(screen.getByRole('option', { name: /Cash Wallet/ }));
+    expect(screen.queryByTestId('sheet-picker')).not.toBeInTheDocument();
+    const after = document.body.querySelectorAll('.app-select-trigger');
+    expect(after[after.length - 1]).toHaveTextContent('Cash Wallet');
+  });
+
+  it('Category is a row that opens the list; the choice shows on the row', () => {
+    renderEntry();
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Category\s*Food/);
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Utilities' }));
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Utilities/);
   });
 });

@@ -245,14 +245,31 @@ export const PersonFundService = {
     return this.getFund(userId, fundId);
   },
 
-  /** Deletes a person only when nothing was logged against them (history is kept otherwise). */
-  async deleteFund(userId, fundId) {
+  /**
+   * Deletes a person. With entries logged, only when `withEntries` is set: their entries go too
+   * (the balance trigger undoes what they moved), unless one sits in a closed review period.
+   */
+  async deleteFund(userId, fundId, { withEntries = false } = {}) {
     const fund = await loadOwnedFund(userId, fundId);
     const txs = await fundTransactions(fund.id);
     if (txs.some((t) => t.status !== 'cancelled')) {
-      throw new ValidationError('This person has logged entries. Delete those entries first, or keep the record as settled.');
+      if (!withEntries) {
+        throw new ValidationError('This person has logged entries. Delete those entries first, or keep the record as settled.');
+      }
+      const monthIds = [...new Set(txs.map((t) => t.monthId).filter(Boolean))];
+      if (monthIds.length) {
+        const closed = await db.query.months.findFirst({
+          where: and(inArray(s.months.id, monthIds), eq(s.months.isClosed, true))
+        });
+        if (closed) {
+          throw new ValidationError(`An entry for this person is in closed review period ${closed.year}-${closed.month}. Review periods are read-only.`);
+        }
+      }
     }
-    await db.delete(s.personFunds).where(eq(s.personFunds.id, fund.id));
+    await db.transaction(async (trx) => {
+      await trx.delete(s.transactions).where(and(eq(s.transactions.personFundId, fund.id), eq(s.transactions.userId, userId)));
+      await trx.delete(s.personFunds).where(eq(s.personFunds.id, fund.id));
+    });
     return serialize(fund);
   },
 

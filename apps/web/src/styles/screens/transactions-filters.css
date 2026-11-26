@@ -93,7 +93,7 @@
   }
 
   .apple-tx-title-group.tx-desktop-header {
-    display: block;
+    display: flex;
   }
 
   

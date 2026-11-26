@@ -156,7 +156,7 @@
 .bc-marker path,
 .bc-marker circle {
   stroke: var(--surface);
-  stroke-width: 2;
+  stroke-width: 1.5;
   stroke-linejoin: round;
   paint-order: stroke;
 }
@@ -166,7 +166,7 @@
 .bc-marker-bill path {
   fill: var(--surface);
   stroke: var(--indigo);
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .bc-marker-paid circle { fill: var(--text-secondary); }
@@ -184,7 +184,7 @@
 .bc-low circle {
   fill: none;
   stroke: var(--text);
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .bc-low text,
@@ -212,25 +212,30 @@
 .bc-low.under circle { stroke: var(--bad-ink); }
 .bc-low.under text { fill: var(--bad-ink); }
 
-/* Hover tooltip: compact, follows the hovered day */
+/* Hover tooltip: one compact line above (or below) the hovered point, never over the line */
 .chart-tooltip {
   position: absolute;
   z-index: 2;
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 128px;
-  padding: 7px 10px;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-subtle);
   pointer-events: none;
-  transform: translate(14px, -50%);
   white-space: nowrap;
+  --ct-x: -50%;
+  --ct-y: calc(-100% - 10px);
+  transform: translate(var(--ct-x), var(--ct-y));
 }
 
-.chart-tooltip.flip { transform: translate(calc(-100% - 14px), -50%); }
+.chart-tooltip.ct-below { --ct-y: 10px; }
+.chart-tooltip.ct-start { --ct-x: -8px; }
+.chart-tooltip.ct-end { --ct-x: calc(-100% + 8px); }
 
 .ct-date {
   font-size: var(--fs-2xs);
@@ -239,7 +244,7 @@
 }
 
 .ct-balance {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text);
 }

@@ -55,15 +55,15 @@ export function GoalEditForm({ goal, bankAccounts = [], wallets = [], currencySy
   };
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit} data-testid="goal-edit-form">
+    <form autoComplete="off" className="form-stack" onSubmit={handleSubmit} data-testid="goal-edit-form">
       <h3 className="settle-modal-title">Edit goal</h3>
       <div className="form-group">
         <label className="form-label" htmlFor="goal-edit-name">Goal</label>
-        <input id="goal-edit-name" className="input-field" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+        <input autoComplete="off" id="goal-edit-name" className="input-field" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="goal-edit-price">Price ({currencySymbol})</label>
-        <input
+        <input autoComplete="off"
           id="goal-edit-price"
           className="input-field tabular-nums"
           type="number"

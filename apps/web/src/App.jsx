@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './api.js';
 import { simulate, formatCurrency } from '@budget/engine';
-import { Header } from './components/Header.jsx';
+import { MonthMenu } from './components/MonthMenu.jsx';
+import { YouMenu } from './components/YouMenu.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
+import { AppSidebar } from './components/AppSidebar.jsx';
 import { PlanScreen } from './screens/PlanScreen.jsx';
 import { TransactionsScreen } from './screens/TransactionsScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
@@ -83,6 +85,8 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [wallets, setWallets] = useState([]);
+  // Shared by the sidebar's account list and the Plan account pills
+  const [planAccountId, setPlanAccountId] = useState('all');
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [transfers, setTransfers] = useState([]);
   // Credit cards with what is owed and the payability score, from the server simulation
@@ -254,7 +258,6 @@ export default function App() {
   };
 
   // Verdict reported by the Plan page for the scope being viewed (header mirrors it)
-  const [planVerdict, setPlanVerdict] = useState(null);
   const [serverSimulation, setServerSimulation] = useState(() => {
     try {
       const cached = localStorage.getItem('budget_cached_simulation');
@@ -1131,6 +1134,29 @@ export default function App() {
     );
   }
 
+  // No top bar: the month picker sits in the Plan header, "You" on the dock and sidebar
+  const monthMenu = (
+    <MonthMenu
+      months={months}
+      currentMonth={currentMonth}
+      onSelectMonth={(y, m) => loadMonthDetails(y, m)}
+      isReviewMode={isReviewMode}
+      onOpenRollover={() => setRolloverModalOpen(true)}
+      nextMonthLabel={nextMonthLabel}
+    />
+  );
+  const youMenu = (
+    <YouMenu
+      user={user}
+      currentMonth={currentMonth}
+      onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
+      onLogout={handleLogout}
+      themeMode={themeMode}
+      onCycleTheme={cycleTheme}
+      onSelectTab={setActiveTab}
+    />
+  );
+
   return (
     <div className="app-shell">
       {dataLoading && (
@@ -1138,24 +1164,16 @@ export default function App() {
           <div className="top-activity-line" />
         </div>
       )}
-      <Header
-        user={user}
-        months={months}
-        currentMonth={currentMonth}
-        simulation={activeSimulation}
-        onSelectMonth={(y, m) => loadMonthDetails(y, m)}
-        isReviewMode={isReviewMode}
-        hasActivePlanningMonth={Boolean(activePlanningMonth)}
-        onOpenRollover={() => setRolloverModalOpen(true)}
-        nextMonthLabel={nextMonthLabel}
-        onOpenSalarySafeline={() => setIsSalarySafelineOpen(true)}
-        onDeleteMonth={handleDeleteMonth}
-        onLogout={handleLogout}
-        themeMode={themeMode}
-        onCycleTheme={cycleTheme}
+      <AppSidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        verdict={activeTab === 'plan' ? planVerdict : null}
+        accounts={[...bankAccounts, ...wallets]}
+        simulation={activeSimulation}
+        month={currentMonth}
+        selectedAccountId={planAccountId}
+        onSelectAccount={setPlanAccountId}
+        onNew={isReviewMode ? null : () => handleOpenUnifiedEntry('log')}
+        youMenu={youMenu}
       />
 
       <div className="app-container app-box">
@@ -1237,6 +1255,9 @@ export default function App() {
                 accountSimulations={serverAccountSimulations}
                 bankAccounts={bankAccounts}
                 wallets={wallets}
+                selectedAccountId={planAccountId}
+                onSelectAccount={setPlanAccountId}
+                monthMenu={monthMenu}
                 migrationEligible={migrationEligible}
                 isReviewMode={isReviewMode}
                 onOpenMigration={() => setMigrationModalOpen(true)}
@@ -1249,7 +1270,6 @@ export default function App() {
                 }}
                 onPayTransaction={handlePayTransaction}
                 onEditTransaction={handleEditItem}
-                onVerdictChange={setPlanVerdict}
               />
             )
           )}
@@ -1270,6 +1290,7 @@ export default function App() {
               onRelogHeldLent={handleRelogHeldLent}
               creditCards={creditCards}
               simulation={activeSimulation}
+              month={currentMonth}
             />
           )}
 
@@ -1300,6 +1321,7 @@ export default function App() {
               wallets={wallets}
               transfers={transfers}
               simulation={activeSimulation}
+              accountSimulations={serverAccountSimulations}
               currencySymbol={currentMonth?.currencySymbol || settings?.currencySymbol || '₹'}
               isReviewMode={isReviewMode}
               onSaveBankAccount={handleSaveBankAccount}
@@ -1339,6 +1361,7 @@ export default function App() {
         hasActivePlanningMonth={Boolean(activePlanningMonth)}
         onOpenRollover={() => setRolloverModalOpen(true)}
         nextMonthLabel={nextMonthLabel}
+        youMenu={youMenu}
       />
 
       {/* Unified Entry Modal: Single Component & Button for Logging & Planning */}

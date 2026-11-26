@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { PlanScreen } from '../screens/PlanScreen.jsx';
@@ -6,6 +6,10 @@ import { UnifiedEntryModal } from '../components/UnifiedEntryModal.jsx';
 import { GoalsScreen } from '../screens/GoalsScreen.jsx';
 
 describe('Phase 5: Multi-Account Frontend Integration', () => {
+  // These tests read the tiles and chart, which sit under the Plan page's Details
+  beforeEach(() => localStorage.setItem('plan.detailsOpen', '1'));
+  afterEach(() => localStorage.removeItem('plan.detailsOpen'));
+
   const mockMonth = {
     year: 2026,
     month: 10,
@@ -94,7 +98,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText('All accounts')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^All\s*₹/ })).toBeInTheDocument();
       expect(screen.getAllByText('HDFC Salary Account')[0]).toBeInTheDocument();
       expect(screen.getByText('Cash Pocket')).toBeInTheDocument();
 
@@ -148,7 +152,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       );
 
       expect(screen.getByText('Floor: ₹25,000.00')).toBeInTheDocument();
-      expect(screen.getByText(/₹25,000.00 safety floor/)).toBeInTheDocument();
+      expect(within(document.querySelector('.alloc')).getByText('Keep at least')).toBeInTheDocument();
+      expect(within(document.querySelector('.alloc')).getByText('₹25,000')).toBeInTheDocument();
       expect(screen.queryByText('Floor: ₹15,000.00')).not.toBeInTheDocument();
     });
 
@@ -213,8 +218,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      // In Unified view, Today's balance is 49000 + 10000 + 2000 = ₹61,000.00
-      expect(within(document.querySelector('.month-health-hero')).getByText('₹61,000')).toBeInTheDocument();
+      // In Unified view, the balance after today's bills is 49000 + 10000 + 2000 = ₹61,000.00
+      expect(within(document.querySelector('.alloc')).getByText('₹61,000')).toBeInTheDocument();
 
       // Click on HDFC Salary Account
       fireEvent.click(screen.getAllByText('HDFC Salary Account')[0].closest('button'));
@@ -247,8 +252,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       // Transfers live in the Move tab (accounts, cards and people)
       expect(screen.getByRole('button', { name: /^Move$/i })).toBeInTheDocument();
 
-      // Payment Account selector exists in Log mode
-      expect(screen.getByText(/Payment Account/)).toBeInTheDocument();
+      // The account row exists in Log mode
+      expect(screen.getByText('Paid from')).toBeInTheDocument();
     });
 
     it('displays Bank Account Required notice and disables submit when zero accounts exist', () => {
@@ -272,7 +277,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const addBankBtn = screen.getByRole('button', { name: /\+ Add Bank Account/i });
       expect(addBankBtn).toBeInTheDocument();
 
-      const logSubmitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const logSubmitBtn = screen.getByRole('button', { name: 'Add' });
       expect(logSubmitBtn).toBeDisabled();
 
       // Switch to Plan mode
@@ -280,7 +285,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       fireEvent.click(planTabBtn);
 
       expect(screen.getByText(/Bank Account Required/i)).toBeInTheDocument();
-      const planSubmitBtn = screen.getByRole('button', { name: /Save planned/i });
+      const planSubmitBtn = screen.getByRole('button', { name: 'Add' });
       expect(planSubmitBtn).toBeDisabled();
     });
 
@@ -303,7 +308,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '45.50' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockLogTx).toHaveBeenCalledWith(
@@ -352,7 +357,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '5.00' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Log expense debit/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockLogTx).toHaveBeenCalledWith(
@@ -382,13 +387,13 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      const nameInput = screen.getByPlaceholderText(/e\.g\. Rent, Electricity/i);
+      const nameInput = screen.getByPlaceholderText(/Rent, electricity/i);
       fireEvent.change(nameInput, { target: { value: 'Electricity Bill' } });
 
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '120.00' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Save planned/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       await waitFor(() => {
@@ -422,14 +427,14 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const transferTabBtn = screen.getByRole('button', { name: /^Move$/i });
       fireEvent.click(transferTabBtn);
 
-      expect(screen.getByText(/Source Account \(Outflow\)/i)).toBeInTheDocument();
-      expect(screen.getByText(/Destination Account \(Inflow\)/i)).toBeInTheDocument();
+      expect(screen.getByText('From')).toBeInTheDocument();
+      expect(screen.getByText('To')).toBeInTheDocument();
 
       // Fill in amount
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '500' } });
 
-      const submitBtn = screen.getByRole('button', { name: /Record Transfer/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(mockCreateTransfer).toHaveBeenCalledWith(
@@ -445,7 +450,7 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
   });
 
   describe('GoalsScreen funding account', () => {
-    it('renders funding account selector in GoalsScreen and includes account details in goal submission', () => {
+    it('renders funding account selector in GoalsScreen and includes account details in goal submission', async () => {
       const handleCreateGoal = vi.fn();
       render(
         <GoalsScreen
@@ -456,7 +461,8 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
         />
       );
 
-      expect(screen.getByText(/Funding Account \*/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'New goal' }));
+      expect(await screen.findByText(/Funding Account \*/i)).toBeInTheDocument();
 
       fireEvent.change(screen.getByPlaceholderText(/e\.g\. Noise Cancelling Headphones, Laptop/i), {
         target: { value: 'MacBook Pro M3' }
@@ -507,12 +513,12 @@ describe('Phase 5: Multi-Account Frontend Integration', () => {
       const amountInput = screen.getByPlaceholderText('0.00');
       fireEvent.change(amountInput, { target: { value: '25000' } });
 
-      // Click Freelance source pill
-      const freelanceBtn = screen.getByRole('button', { name: 'Freelance' });
-      fireEvent.click(freelanceBtn);
+      // Choose Freelance from the Source picker
+      fireEvent.click(screen.getByTestId('category-row'));
+      fireEvent.click(screen.getByRole('option', { name: 'Freelance' }));
 
       // Submit income
-      const submitBtn = screen.getByRole('button', { name: /Record Income/i });
+      const submitBtn = screen.getByRole('button', { name: 'Add' });
       fireEvent.click(submitBtn);
 
       expect(handleLogTransaction).toHaveBeenCalledWith(
