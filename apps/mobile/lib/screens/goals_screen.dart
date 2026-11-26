@@ -8,6 +8,7 @@ import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/unified_entry_modal.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/tab_states.dart';
 
 class GoalsScreen extends StatelessWidget {
   const GoalsScreen({super.key});
@@ -35,7 +36,7 @@ class GoalsScreen extends StatelessWidget {
 
     return Scaffold(
       body: goals.isEmpty
-          ? Center(
+          ? ScrollableEmpty(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -49,7 +50,8 @@ class GoalsScreen extends StatelessWidget {
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(14, 14, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
               itemCount: goals.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
@@ -233,20 +235,6 @@ class GoalsScreen extends StatelessWidget {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add goal',
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        child: const Icon(Icons.add),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(initialType: EntryType.goal),
-          );
-        },
-      ),
     );
   }
 }

@@ -576,18 +576,6 @@ class BudgetProvider with ChangeNotifier {
   }
 
   // Month actions
-  Future<void> createMonth(int year, int month, {num opening = 0, num income = 0, num floor = 0, int creditDay = 1, bool carryoverBalance = false}) => _write(() async {
-      await _api.createMonth({
-        'year': year,
-        'month': month,
-        'openingBalance': opening,
-        'incomeAmount': income,
-        'safetyFloor': floor,
-        'incomeCreditDay': creditDay,
-        'carryoverBalance': carryoverBalance,
-      });
-  }, reload: loadInitialData);
-
   Future<void> rolloverMonth({bool carryBalance = true, bool rolloverUnpaid = false}) => _write(() async {
       await _api.rolloverMonth(_currentYear, _currentMonth, carryBalance: carryBalance, rolloverUnpaid: rolloverUnpaid);
   }, reload: loadInitialData);

@@ -6,11 +6,13 @@ import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
 import '../widgets/min_tap.dart';
+import '../widgets/tab_states.dart';
+import '../services/outbox.dart' show WriteResult;
+import '../widgets/swipe_row.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -22,6 +24,10 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   // 'successful' | 'planned'
   String _activeTab = 'successful';
+
+  // Swiped "paid" but still inside the Undo window: hidden from Planned, not
+  // sent yet (upgrade plan 3.7). There is no "unpay", so undo means not sending.
+  final Set<String> _paying = {};
 
   // Filters within active tab
   RecordedFilter _successfulFilter = RecordedFilter.all;
@@ -140,6 +146,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  /// Swipe right on a planned row: paid in full from its usual account today,
+  /// sent when the Undo snackbar closes without Undo.
+  void _swipePay(BuildContext context, Transaction tx) {
+    final budget = context.read<BudgetProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final from = defaultPayFrom(budget, tx);
+    final name = tx.name.isEmpty ? 'Payment' : tx.name;
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    var undone = false;
+    setState(() => _paying.add(tx.id));
+    messenger.hideCurrentSnackBar(); // an earlier swipe's snackbar closing sends that payment
+    messenger
+        .showSnackBar(SnackBar(
+          content: Text('Marked \u201c$name\u201d paid'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(label: 'Undo', onPressed: () => undone = true),
+        ))
+        .closed
+        .then((_) async {
+      try {
+        if (undone) return;
+        final result = await budget.payTransaction(tx.id, accountId: from?.id, amount: tx.displayAmount, date: today);
+        if (result == WriteResult.queued) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('No connection. The payment is saved on this phone and will sync.'),
+          ));
+        }
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Couldn\u2019t mark \u201c$name\u201d paid: $e')));
+      } finally {
+        if (mounted) setState(() => _paying.remove(tx.id));
+      }
+    });
+  }
+
   void _openMarkPaidModal(BuildContext context, Transaction tx) {
     showModalBottomSheet(
       context: context,
@@ -149,19 +191,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  void _openAddModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
-      builder: (_) => UnifiedEntryModal(
-        initialType: _activeTab == 'planned'
-            ? EntryType.item
-            : EntryType.transaction,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +214,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         : AppColors.lightTextMuted;
 
     final displayedSuccessful = lists.recordedWhere(_successfulFilter);
-    final displayedPlanned = lists.plannedWhere(_plannedFilter);
+    final displayedPlanned = lists.plannedWhere(_plannedFilter).where((t) => !_paying.contains(t.id)).toList();
 
     return Scaffold(
       backgroundColor: bg,
@@ -407,17 +436,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: context.palette.indigo,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text(
-          _activeTab == 'planned' ? 'Add Planned' : 'Add Transaction',
-          style: AppTypography.inter(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        onPressed: () => _openAddModal(context),
-      ),
     );
   }
 
@@ -472,7 +490,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -497,7 +515,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {
@@ -517,7 +536,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ? Colors.purple
             : context.palette.warnInk;
 
-        return InkWell(
+        return SwipeRow(
+          id: tx.id,
+          onEdit: canEditTransaction(tx) ? () => openEditTransaction(context, tx) : null,
+          child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
             showModalBottomSheet(
@@ -656,7 +678,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -673,7 +695,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -698,7 +720,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {
@@ -724,7 +747,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           badgeIcon = Icons.access_time_filled;
         }
 
-        return Container(
+        return SwipeRow(
+          id: tx.id,
+          onMarkPaid: () => _swipePay(context, tx),
+          onEdit: canEditTransaction(tx) ? () => openEditTransaction(context, tx) : null,
+          child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: surface,
@@ -898,7 +925,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }

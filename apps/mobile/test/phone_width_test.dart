@@ -1,11 +1,14 @@
-import 'package:budget_mobile/modals/month_modals.dart';
+import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/providers/app_lock_provider.dart';
 import 'package:budget_mobile/providers/auth_provider.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/providers/theme_provider.dart';
 import 'package:budget_mobile/screens/plan_screen.dart';
-import 'package:budget_mobile/widgets/header.dart';
+import 'package:budget_mobile/widgets/app_dock.dart';
+import 'package:budget_mobile/widgets/month_menu.dart';
+import 'package:budget_mobile/widgets/screen_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -50,39 +53,85 @@ void main() {
     await tester.pump();
   }
 
-  for (final (width, scale) in [(360.0, 1.0), (393.0, 1.0), (393.0, 1.3), (320.0, 1.0)]) {
-    testWidgets('the header fits ${width.toInt()} dp at ${scale}x text', (tester) async {
+  Widget shell() => Column(children: [
+        const Expanded(child: ScreenHeader(title: 'Transactions', actions: [MonthMenu()], child: SizedBox.expand())),
+        AppDock(index: 0, onTab: (_) {}),
+      ]);
+
+  for (final (width, scale) in [(360.0, 1.0), (393.0, 1.0), (393.0, 1.3), (320.0, 1.0), (393.0, 2.0)]) {
+    testWidgets('the header and dock fit ${width.toInt()} dp at ${scale}x text', (tester) async {
       final budget = await loaded(tester);
-      await pumpAt(tester, const HeaderWidget(), budget, width: width, textScale: scale);
+      await pumpAt(tester, shell(), budget, width: width, textScale: scale);
       expect(tester.takeException(), isNull, reason: 'no RenderFlex overflow');
-      expect(find.byKey(const ValueKey('header-more')), findsOneWidget);
+      expect(find.byKey(const ValueKey('header-month')), findsOneWidget);
+      for (final tab in ['Plan', 'Transactions', 'Goals', 'Accounts']) {
+        expect(find.byKey(ValueKey('dock-tab-$tab')), findsOneWidget);
+      }
     });
   }
 
-  testWidgets('theme, app lock, server settings and sign-out are in the More menu, 48 dp tall', (tester) async {
+  testWidgets('the You sheet holds salary, assistant, appearance, app lock, server and sign-out', (tester) async {
     final budget = await loaded(tester);
-    await pumpAt(tester, const HeaderWidget(), budget, width: 393);
+    await pumpAt(tester, shell(), budget, width: 393);
 
-    expect(tester.getSize(find.byKey(const ValueKey('header-more'))).height, greaterThanOrEqualTo(48));
-    await tester.tap(find.byKey(const ValueKey('header-more')));
+    expect(tester.getSize(find.byKey(const ValueKey('dock-you'))).height, greaterThanOrEqualTo(48));
+    await tester.tap(find.byKey(const ValueKey('dock-you')));
     await tester.pumpAndSettle();
-    expect(find.text('Server settings'), findsOneWidget);
-    expect(find.text('Sign out'), findsOneWidget);
-    expect(find.textContaining('App lock:'), findsOneWidget);
-    expect(find.textContaining('Theme:'), findsOneWidget);
+    for (final label in ['Salary schedule', 'Assistant', 'Appearance', 'App lock', 'Server settings', 'Sign out']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
   });
 
-  testWidgets('a new user can create the month from the empty Plan', (tester) async {
+  testWidgets('screen readers can activate the Today bar and every tab', (tester) async {
+    final handle = tester.ensureSemantics();
+    final budget = await loaded(tester);
+    await pumpAt(tester, shell(), budget, width: 393);
+    for (final label in ['Add spend', 'Plan', 'Transactions', 'Goals', 'Accounts']) {
+      final node = tester.getSemantics(find.descendant(of: find.byType(AppDock), matching: find.bySemanticsLabel(label)));
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue, reason: label);
+    }
+    handle.dispose();
+  });
+
+  testWidgets('the Today bar opens the entry sheet on Spend', (tester) async {
+    final budget = await loaded(tester);
+    await pumpAt(tester, shell(), budget, width: 393);
+    await tester.tap(find.byKey(const ValueKey('today-bar')));
+    await tester.pumpAndSettle();
+    final sheet = tester.widget<UnifiedEntryModal>(find.byType(UnifiedEntryModal));
+    expect(sheet.initialType, EntryType.transaction);
+  });
+
+  testWidgets('the large title hands over to the compact bar on scroll', (tester) async {
+    final budget = await loaded(tester);
+    await pumpAt(
+        tester,
+        ScreenHeader(
+          title: 'Goals',
+          child: ListView(children: [for (var i = 0; i < 60; i++) ListTile(title: Text('row $i'))]),
+        ),
+        budget,
+        width: 393);
+    double largeOpacity() => tester
+        .widget<Opacity>(find.ancestor(of: find.text('Goals').last, matching: find.byType(Opacity)).first)
+        .opacity;
+    expect(find.text('Goals'), findsNWidgets(2), reason: 'large title shown, compact one hidden');
+    expect(largeOpacity(), 1.0);
+    await tester.drag(find.text('row 3'), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(find.text('Goals'), findsOneWidget, reason: 'only the compact title once scrolled');
+  });
+
+  testWidgets('months are never created by hand (same as web)', (tester) async {
     final budget = await loaded(tester, newUser: true);
     await pumpAt(tester, const PlanScreen(), budget, width: 393);
-
     expect(budget.monthMissing, isTrue);
-    final create = find.byKey(const ValueKey('plan-create-month'));
-    expect(create, findsOneWidget);
-    await tester.tap(create);
+    expect(find.textContaining('Create'), findsNothing);
+
+    await pumpAt(tester, shell(), budget, width: 393);
+    await tester.tap(find.byKey(const ValueKey('header-month')));
     await tester.pumpAndSettle();
-    expect(find.byType(CreateMonthModal), findsOneWidget);
-    final modal = tester.widget<CreateMonthModal>(find.byType(CreateMonthModal));
-    expect((modal.year, modal.month), (budget.currentYear, budget.currentMonth));
+    expect(find.text('Create Month'), findsNothing);
+    expect(find.text('Rollover Month'), findsOneWidget);
   });
 }

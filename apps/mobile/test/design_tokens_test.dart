@@ -42,7 +42,7 @@ void main() {
         'text': p.text,
         'text-secondary': p.textSecondary,
         'text-muted': p.textMuted,
-        'accent': p.accent,
+        'brand': p.accent,
         'success': p.good,
         'success-subtle': p.goodSubtle,
         'good-ink': p.goodInk,
