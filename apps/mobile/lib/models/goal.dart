@@ -26,8 +26,19 @@ class GoalRecommendation {
   final int? recommendedDay;
   final String? recommendedDate;
   final String? explanation;
+  final int? projectedFloorDeficit;
+  final int? savingsBuffer;
+  final String? lowestDate;
 
-  const GoalRecommendation({required this.feasible, this.recommendedDay, this.recommendedDate, this.explanation});
+  const GoalRecommendation({
+    required this.feasible,
+    this.recommendedDay,
+    this.recommendedDate,
+    this.explanation,
+    this.projectedFloorDeficit,
+    this.savingsBuffer,
+    this.lowestDate,
+  });
 
   factory GoalRecommendation.fromJson(Object? source) {
     final r = JsonReader('GoalRecommendation', source);
@@ -36,6 +47,9 @@ class GoalRecommendation {
       recommendedDay: r.optInt('recommendedDay'),
       recommendedDate: r.optDate('recommendedDate'),
       explanation: r.optString('explanation'),
+      projectedFloorDeficit: r.optInt('projectedFloorDeficit'),
+      savingsBuffer: r.optInt('savingsBuffer'),
+      lowestDate: r.optDate('lowestDate'),
     );
   }
 }

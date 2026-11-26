@@ -13,7 +13,6 @@ import 'screens/plan_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/accounts_screen.dart';
-import 'modals/unified_entry_modal.dart';
 import 'widgets/app_dock.dart';
 import 'widgets/month_menu.dart';
 import 'widgets/screen_header.dart';
@@ -136,21 +135,7 @@ class _AppShellState extends State<AppShell> {
   static final List<Widget> _screens = [
     const ScreenHeader(title: 'Plan', actions: [MonthMenu()], child: TabStates(child: PlanScreen())),
     const ScreenHeader(title: 'Transactions', actions: [MonthMenu()], child: TabStates(child: TransactionsScreen())),
-    ScreenHeader(title: 'Goals', actions: [
-      Builder(
-        builder: (context) => IconButton(
-          key: const ValueKey('goals-add'),
-          tooltip: 'New goal',
-          icon: const Icon(Icons.add),
-          onPressed: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(initialType: EntryType.goal),
-          ),
-        ),
-      ),
-    ], child: const TabStates(child: GoalsScreen())),
+    const ScreenHeader(title: 'Goals', actions: [GoalsHeaderActions()], child: TabStates(child: GoalsScreen())),
     const ScreenHeader(title: 'Accounts', actions: [AccountsAddMenu()], child: TabStates(child: AccountsScreen())),
   ];
 

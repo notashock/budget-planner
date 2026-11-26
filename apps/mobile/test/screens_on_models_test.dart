@@ -45,6 +45,11 @@ void main() {
   Map<String, dynamic> goal(Map<String, dynamic> f) => (f['goals'] as List).first as Map<String, dynamic>;
 
   group('Goals', () {
+    Future<void> openGoal(WidgetTester tester, String id) async {
+      await tester.tap(find.byKey(ValueKey('goal-$id')));
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('a goal the engine has not evaluated says so, not "floor breach risk"', (tester) async {
       final fb = FixtureBudget();
       // The server now evaluates logged goals, so drop the recorded recommendation
@@ -53,14 +58,17 @@ void main() {
       expect(budget.goalModels.single.recommendation, isNull);
       await pump(tester, budget, const GoalsScreen());
 
-      expect(find.text('No safe purchase date checked yet.'), findsOneWidget);
+      expect(find.text('SAVING'), findsOneWidget);
+      expect(find.text('No safe purchase date checked yet'), findsOneWidget);
       expect(find.textContaining('Floor breach risk'), findsNothing);
-      expect(find.text('Schedule Transaction'), findsNothing);
-      expect(find.text('High'), findsNothing);
-      expect(find.text('Medium'), findsOneWidget, reason: 'priority 1 is medium');
+
+      await openGoal(tester, budget.goalModels.single.id);
+      expect(find.text('Medium priority'), findsOneWidget, reason: 'priority 1 is medium');
+      expect(find.text('No safe purchase date checked yet.'), findsOneWidget);
+      expect(find.text('Schedule'), findsNothing);
     });
 
-    testWidgets('a feasible goal offers its safe day and Schedule', (tester) async {
+    testWidgets('a feasible goal sits on the Ready to buy shelf and schedules', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(() => fb.load(edit: (f) {
             goal(f)
@@ -69,19 +77,24 @@ void main() {
           })))!;
       await pump(tester, budget, const GoalsScreen());
 
-      expect(find.text('Safe purchase date: Day 24 (2026-11-24)'), findsOneWidget);
-      await tester.tap(find.text('Schedule Transaction'));
+      expect(find.text('READY TO BUY'), findsOneWidget);
+      expect(find.textContaining('Safe from'), findsOneWidget);
+      final id = budget.goalModels.single.id;
+      await openGoal(tester, id);
+      expect(find.textContaining('Fits this month'), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey('goal-action-$id')));
       await settle(tester);
-      expect(fb.writes, contains('POST /api/v1/goals/${budget.goalModels.single.id}/schedule'));
+      expect(fb.writes, contains('POST /api/v1/goals/$id/schedule'));
     });
 
-    testWidgets('a deferred goal (the server says "deferred") offers Reactivate', (tester) async {
+    testWidgets('a deferred goal (the server says "deferred") is Later and offers Reactivate', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(() => fb.load(edit: (f) => goal(f)['status'] = 'deferred')))!;
       expect(budget.goalModels.single.status, GoalStatus.deferred);
       await pump(tester, budget, const GoalsScreen());
 
-      expect(find.text('Reactivate'), findsOneWidget);
+      expect(find.text('LATER'), findsOneWidget);
+      await openGoal(tester, budget.goalModels.single.id);
       await tester.tap(find.text('Reactivate'));
       await settle(tester);
       expect(fb.writes, contains('POST /api/v1/goals/${budget.goalModels.single.id}/reactivate'));
@@ -92,16 +105,22 @@ void main() {
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const GoalsScreen());
       final id = budget.goalModels.single.id;
+      await openGoal(tester, id);
 
-      await tester.tap(find.byKey(ValueKey('delete-goal-$id')));
-      await tester.pumpAndSettle();
+      Future<void> askDelete() async {
+        await tester.tap(find.byKey(ValueKey('goal-menu-$id')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey('delete-goal-$id')));
+        await tester.pumpAndSettle();
+      }
+
+      await askDelete();
       expect(find.text('Delete "Headphones"?'), findsOneWidget);
       await tester.tap(find.text('Keep'));
       await tester.pumpAndSettle();
       expect(fb.writes, isEmpty);
 
-      await tester.tap(find.byKey(ValueKey('delete-goal-$id')));
-      await tester.pumpAndSettle();
+      await askDelete();
       await tester.tap(find.text('Delete'));
       await settle(tester);
       expect(fb.writes, ['DELETE /api/v1/goals/$id']);
