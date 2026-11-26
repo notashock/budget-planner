@@ -46,6 +46,11 @@ class AppTheme {
         outlineVariant: p.borderSubtle,
       ),
       dividerColor: p.border,
+      // Android 14+ predictive back: the page follows the back gesture
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      }),
       cardTheme: CardThemeData(
         color: p.surface,
         elevation: 0,

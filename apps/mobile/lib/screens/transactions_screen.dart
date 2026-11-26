@@ -6,10 +6,13 @@ import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
+import '../widgets/min_tap.dart';
+import '../widgets/tab_states.dart';
+import '../services/outbox.dart' show WriteResult;
+import '../widgets/swipe_row.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -21,6 +24,10 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   // 'successful' | 'planned'
   String _activeTab = 'successful';
+
+  // Swiped "paid" but still inside the Undo window: hidden from Planned, not
+  // sent yet (upgrade plan 3.7). There is no "unpay", so undo means not sending.
+  final Set<String> _paying = {};
 
   // Filters within active tab
   RecordedFilter _successfulFilter = RecordedFilter.all;
@@ -63,7 +70,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: const Text('Return to Logged'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: context.palette.bad),
+              style: ElevatedButton.styleFrom(backgroundColor: context.palette.badInk),
               onPressed: () => Navigator.pop(ctx, 'drop'),
               child: const Text(
                 'Mark as Dropped',
@@ -109,7 +116,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: const Text('Keep'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: context.palette.bad),
+              style: ElevatedButton.styleFrom(backgroundColor: context.palette.badInk),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text(
                 'Cancel Commitment',
@@ -139,6 +146,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  /// Swipe right on a planned row: paid in full from its usual account today,
+  /// sent when the Undo snackbar closes without Undo.
+  void _swipePay(BuildContext context, Transaction tx) {
+    final budget = context.read<BudgetProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final from = defaultPayFrom(budget, tx);
+    final name = tx.name.isEmpty ? 'Payment' : tx.name;
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    var undone = false;
+    setState(() => _paying.add(tx.id));
+    messenger.hideCurrentSnackBar(); // an earlier swipe's snackbar closing sends that payment
+    messenger
+        .showSnackBar(SnackBar(
+          content: Text('Marked \u201c$name\u201d paid'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(label: 'Undo', onPressed: () => undone = true),
+        ))
+        .closed
+        .then((_) async {
+      try {
+        if (undone) return;
+        final result = await budget.payTransaction(tx.id, accountId: from?.id, amount: tx.displayAmount, date: today);
+        if (result == WriteResult.queued) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('No connection. The payment is saved on this phone and will sync.'),
+          ));
+        }
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Couldn\u2019t mark \u201c$name\u201d paid: $e')));
+      } finally {
+        if (mounted) setState(() => _paying.remove(tx.id));
+      }
+    });
+  }
+
   void _openMarkPaidModal(BuildContext context, Transaction tx) {
     showModalBottomSheet(
       context: context,
@@ -148,19 +191,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  void _openAddModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
-      builder: (_) => UnifiedEntryModal(
-        initialType: _activeTab == 'planned'
-            ? EntryType.item
-            : EntryType.transaction,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +214,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         : AppColors.lightTextMuted;
 
     final displayedSuccessful = lists.recordedWhere(_successfulFilter);
-    final displayedPlanned = lists.plannedWhere(_plannedFilter);
+    final displayedPlanned = lists.plannedWhere(_plannedFilter).where((t) => !_paying.contains(t.id)).toList();
 
     return Scaffold(
       backgroundColor: bg,
@@ -216,6 +246,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           onTap: () =>
                               setState(() => _activeTab = 'successful'),
                           child: Container(
+                            constraints: const BoxConstraints(minHeight: MinTap.size),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'successful'
@@ -242,7 +273,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   Icons.check_circle_outline,
                                   size: 15,
                                   color: _activeTab == 'successful'
-                                      ? context.palette.good
+                                      ? context.palette.goodInk
                                       : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
@@ -271,6 +302,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         child: GestureDetector(
                           onTap: () => setState(() => _activeTab = 'planned'),
                           child: Container(
+                            constraints: const BoxConstraints(minHeight: MinTap.size),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: _activeTab == 'planned'
@@ -297,7 +329,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   Icons.schedule,
                                   size: 15,
                                   color: _activeTab == 'planned'
-                                      ? context.palette.warn
+                                      ? context.palette.warnInk
                                       : textSecondary,
                                 ),
                                 const SizedBox(width: 6),
@@ -404,17 +436,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: context.palette.indigo,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text(
-          _activeTab == 'planned' ? 'Add Planned' : 'Add Transaction',
-          style: AppTypography.inter(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        onPressed: () => _openAddModal(context),
-      ),
     );
   }
 
@@ -469,7 +490,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -494,7 +515,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {
@@ -512,9 +534,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final badge = tx.sourceLabel == category ? null : tx.sourceLabel;
         final badgeColor = tx.origin == TxOrigin.goal
             ? Colors.purple
-            : context.palette.warn;
+            : context.palette.warnInk;
 
-        return InkWell(
+        return SwipeRow(
+          id: tx.id,
+          onEdit: canEditTransaction(tx) ? () => openEditTransaction(context, tx) : null,
+          child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
             showModalBottomSheet(
@@ -547,7 +572,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         : (isMove ? Icons.swap_horiz : Icons.arrow_upward),
                     size: 16,
                     color: isIn
-                        ? context.palette.good
+                        ? context.palette.goodInk
                         : (isMove ? textSecondary : context.palette.indigo),
                   ),
                 ),
@@ -571,11 +596,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Text(
-                            date,
-                            style: AppTypography.inter(
-                              fontSize: 11,
-                              color: textMuted,
+                          Flexible(
+                            child: Text(
+                              date,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.inter(
+                                fontSize: 11,
+                                color: textMuted,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -642,14 +671,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: isIn
-                        ? context.palette.good
+                        ? context.palette.goodInk
                         : (isMove ? textSecondary : text),
                   ),
                 ),
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -666,7 +695,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String currency,
   ) {
     if (items.isEmpty) {
-      return Center(
+      return ScrollableEmpty(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -691,7 +720,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {
@@ -708,16 +738,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         IconData badgeIcon = Icons.schedule;
 
         if (isOverdue) {
-          badgeColor = context.palette.bad;
+          badgeColor = context.palette.badInk;
           badgeLabel = 'Overdue';
           badgeIcon = Icons.error_outline;
         } else if (isDue) {
-          badgeColor = context.palette.warn;
+          badgeColor = context.palette.warnInk;
           badgeLabel = 'Due Soon';
           badgeIcon = Icons.access_time_filled;
         }
 
-        return Container(
+        return SwipeRow(
+          id: tx.id,
+          onMarkPaid: () => _swipePay(context, tx),
+          onEdit: canEditTransaction(tx) ? () => openEditTransaction(context, tx) : null,
+          child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: surface,
@@ -866,7 +900,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: context.palette.good,
+                      backgroundColor: context.palette.goodInk,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
@@ -891,7 +925,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }

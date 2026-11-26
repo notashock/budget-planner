@@ -84,7 +84,7 @@ class _SyncStripState extends State<SyncStrip> {
                   const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
                 else
                   Icon(refused > 0 ? Icons.error_outline : Icons.cloud_upload_outlined,
-                      size: 16, color: refused > 0 ? context.palette.warn : textColor),
+                      size: 16, color: refused > 0 ? context.palette.warnInk : textColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(label,

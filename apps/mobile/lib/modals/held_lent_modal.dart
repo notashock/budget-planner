@@ -339,7 +339,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
                 FloorBreachNotice(amountController: _amountCtrl, accountId: _accountId),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: context.palette.bad, fontSize: 13)),
+                Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
               ],
               const SizedBox(height: 18),
               SizedBox(

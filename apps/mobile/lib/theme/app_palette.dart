@@ -54,8 +54,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     borderStrong: Color(0xFFD4D4D8),
     text: Color(0xFF09090B),
     textSecondary: Color(0xFF52525B),
-    textMuted: Color(0xFF71717A),
-    accent: Color(0xFF09090B),
+    textMuted: Color(0xFF67676F),
+    accent: Color(0xFF4F46E5), // --brand (indigo)
     good: Color(0xFF10B981),
     goodSubtle: Color(0x1410B981), // rgba(16, 185, 129, 0.08)
     goodInk: Color(0xFF047857),
@@ -80,8 +80,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     borderStrong: Color(0xFF3F3F46),
     text: Color(0xFFF4F4F5),
     textSecondary: Color(0xFFA1A1AA),
-    textMuted: Color(0xFF71717A),
-    accent: Color(0xFFFFFFFF),
+    textMuted: Color(0xFF8A8A93),
+    accent: Color(0xFF8B85FF), // --brand (indigo)
     good: Color(0xFF34D399),
     goodSubtle: Color(0x1A34D399), // rgba(52, 211, 153, 0.1)
     goodInk: Color(0xFF6EE7B7),
