@@ -7,6 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 /// - Inter for UI headings, titles, labels, badges, body text
 /// - JetBrains Mono for tabular numbers, currency amounts, dates, and metric values
 class AppTypography {
+  /// The shell's three sizes (Apple-style plan §6, tokens.css --fs-title/body/caption).
+  static const double titleSize = 32, bodySize = 15, captionSize = 12;
+
   /// Fonts ship in the app (`google_fonts/`, upgrade plan 2.5): no network
   /// fetch on first launch and no font swap on a slow connection. A weight
   /// that is not bundled throws in debug instead of being downloaded.

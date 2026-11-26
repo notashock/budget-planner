@@ -5,6 +5,7 @@ import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/card_modals.dart';
 
@@ -17,14 +18,14 @@ String _shortDate(String? iso) {
   return '${int.tryParse(parts[2]) ?? parts[2]} ${months[(m - 1).clamp(0, 11)]}';
 }
 
-Color _bandColor(String? band) {
+Color _bandColor(BuildContext context, String? band) {
   switch (band) {
     case 'over':
-      return AppColors.red;
+      return context.palette.badInk;
     case 'tight':
-      return AppColors.amber;
+      return context.palette.warnInk;
     default:
-      return AppColors.green;
+      return context.palette.goodInk;
   }
 }
 
@@ -102,7 +103,7 @@ class _CardsSectionState extends State<CardsSection> {
         Text('Swipes count on the day and are set aside from Safe-to-Spend. Paying the bill isn\'t counted again.',
             style: TextStyle(fontSize: 12, color: muted)),
         const SizedBox(height: 10),
-        if (_error != null) Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 12)),
+        if (_error != null) Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 12)),
         if (_cards.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -169,7 +170,7 @@ class _CardsSectionState extends State<CardsSection> {
                         value: util,
                         minHeight: 6,
                         backgroundColor: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                        color: util > 0.8 ? AppColors.red : (util > 0.5 ? AppColors.amber : text),
+                        color: util > 0.8 ? context.palette.badInk : (util > 0.5 ? context.palette.warnInk : text),
                       ),
                     ),
                   ],
@@ -183,7 +184,7 @@ class _CardsSectionState extends State<CardsSection> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: overdue ? AppColors.redSubtle : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
+                        color: overdue ? context.palette.badSubtle : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(children: [
@@ -192,7 +193,7 @@ class _CardsSectionState extends State<CardsSection> {
                             draft != null
                                 ? 'Bill ready: ${formatCurrencyWhole(draft.billAmount)}, due ${_shortDate(bill.dueDate)}'
                                 : '${overdue ? 'Overdue' : 'Bill due'}: ${formatCurrencyWhole(bill.remaining)} by ${_shortDate(bill.dueDate)}',
-                            style: TextStyle(fontSize: 12, color: overdue ? AppColors.red : text),
+                            style: TextStyle(fontSize: 12, color: overdue ? context.palette.badInk : text),
                           ),
                         ),
                         TextButton(
@@ -216,7 +217,7 @@ class _CardsSectionState extends State<CardsSection> {
                             value: score.score / 100,
                             strokeWidth: 5,
                             backgroundColor: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                            color: _bandColor(score.band),
+                            color: _bandColor(context, score.band),
                           ),
                           Text('${score.score}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: text)),
                         ]),
@@ -225,7 +226,7 @@ class _CardsSectionState extends State<CardsSection> {
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Payability: ${score.bandLabel}',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _bandColor(score.band))),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _bandColor(context, score.band))),
                           const SizedBox(height: 2),
                           Text(score.statement, style: TextStyle(fontSize: 12, color: muted, height: 1.4)),
                         ]),

@@ -80,7 +80,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: isUser
-                          ? (isDark ? Colors.white : Colors.black)
+                          ? (Theme.of(context).colorScheme.primary)
                           : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
                       borderRadius: BorderRadius.circular(10),
                       border: isUser
@@ -92,7 +92,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         color: isUser
-                            ? (isDark ? Colors.black : Colors.white)
+                            ? (Theme.of(context).colorScheme.onPrimary)
                             : (isDark ? AppColors.darkText : AppColors.lightText),
                       ),
                     ),

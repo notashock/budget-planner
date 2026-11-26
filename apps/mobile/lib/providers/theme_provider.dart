@@ -3,8 +3,19 @@ import '../services/storage_service.dart';
 
 class ThemeProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
+  bool _deviceColors = false;
 
   ThemeMode get themeMode => _themeMode;
+
+  /// Opt-in (upgrade plan 3.1): the accent follows the phone's wallpaper
+  /// colours on Android 12+. Off by default; the app's look is monochrome.
+  bool get deviceColors => _deviceColors;
+
+  Future<void> setDeviceColors(bool on) async {
+    _deviceColors = on;
+    await StorageService.setDeviceColors(on);
+    notifyListeners();
+  }
 
   String get themeModeName {
     switch (_themeMode) {
@@ -30,6 +41,7 @@ class ThemeProvider with ChangeNotifier {
         _themeMode = ThemeMode.system;
         break;
     }
+    _deviceColors = await StorageService.getDeviceColors();
     notifyListeners();
   }
 

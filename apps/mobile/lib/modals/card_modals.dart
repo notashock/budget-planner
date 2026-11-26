@@ -6,6 +6,7 @@ import '../engine/engine.dart';
 import '../models/account.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/account_selector.dart';
 import '../widgets/app_date_picker.dart';
@@ -74,13 +75,12 @@ class _Sheet extends StatelessWidget {
 }
 
 Widget _primaryButton(BuildContext context, String label, VoidCallback? onPressed) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
   return SizedBox(
     width: double.infinity,
     child: ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isDark ? Colors.white : Colors.black,
-        foregroundColor: isDark ? Colors.black : Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         padding: const EdgeInsets.symmetric(vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -214,7 +214,7 @@ class _AddCardModalState extends State<AddCardModal> {
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             'Changing this shifts what the card owed on every day since it was added by ${owedShift > 0 ? '+' : '−'}${formatCurrency(owedShift.abs())}.',
-            style: const TextStyle(fontSize: 12, color: AppColors.amber),
+            style: TextStyle(fontSize: 12, color: context.palette.warnInk),
           ),
         ),
       const SizedBox(height: 10),
@@ -237,7 +237,7 @@ class _AddCardModalState extends State<AddCardModal> {
       ),
       if (_error != null) ...[
         const SizedBox(height: 10),
-        Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
+        Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
       ],
       const SizedBox(height: 16),
       _primaryButton(context, _saving ? 'Saving…' : (_isEdit ? 'Save changes' : 'Add card'), _saving ? null : _save),
@@ -246,7 +246,7 @@ class _AddCardModalState extends State<AddCardModal> {
         if (!_confirmRemove)
           TextButton(
             onPressed: _saving ? null : () => setState(() => _confirmRemove = true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.red, minimumSize: const Size.fromHeight(AppForm.controlHeightSm)),
+            style: TextButton.styleFrom(foregroundColor: context.palette.badInk, minimumSize: const Size.fromHeight(AppForm.controlHeightSm)),
             child: const Text('Remove card'),
           )
         else
@@ -255,7 +255,7 @@ class _AddCardModalState extends State<AddCardModal> {
             TextButton(onPressed: () => setState(() => _confirmRemove = false), child: const Text('Keep')),
             TextButton(
               onPressed: _saving ? null : _remove,
-              style: TextButton.styleFrom(foregroundColor: AppColors.red),
+              style: TextButton.styleFrom(foregroundColor: context.palette.badInk),
               child: const Text('Remove'),
             ),
           ]),
@@ -350,7 +350,7 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
             style: const TextStyle(fontSize: 13),
           ),
         ),
-      if (_error != null) Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
+      if (_error != null) Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
       const SizedBox(height: 16),
       _primaryButton(context, _saving ? 'Saving…' : 'Confirm bill', _saving ? null : _save),
     ]);
@@ -460,7 +460,7 @@ class _PayBillModalState extends State<PayBillModal> {
       FloorBreachNotice(amountController: _custom, accountId: _payFrom, fixedAmount: _amount),
       if (_error != null) ...[
         const SizedBox(height: 10),
-        Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
+        Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
       ],
       const SizedBox(height: 16),
       _primaryButton(context, _saving ? 'Saving…' : 'Pay ${formatCurrency(_amount)}', _saving ? null : _save),

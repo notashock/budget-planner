@@ -7,6 +7,7 @@ import '../engine/engine.dart';
 import '../models/transaction.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
@@ -38,27 +39,10 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
     _selectedDate = DateTime.now();
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    final txAccId = tx.accountId;
-    final banks = budget.bankAccountModels;
-    final wallets = budget.walletModels;
-
-    // Pay from the account the bill was planned on, including a card: it used
-    // to fall back to the first bank for a card, silently changing the account.
-    if (wallets.any((w) => w.id == txAccId)) {
-      _accountType = 'wallet';
-      _selectedAccountId = txAccId;
-    } else if (banks.any((b) => b.id == txAccId)) {
-      _accountType = 'bank';
-      _selectedAccountId = txAccId;
-    } else if (budget.cardAccountModels.any((c) => c.id == txAccId)) {
-      _accountType = 'credit_card';
-      _selectedAccountId = txAccId;
-    } else if (banks.isNotEmpty) {
-      _accountType = 'bank';
-      _selectedAccountId = banks.first.id;
-    } else if (wallets.isNotEmpty) {
-      _accountType = 'wallet';
-      _selectedAccountId = wallets.first.id;
+    final from = defaultPayFrom(budget, tx);
+    if (from != null) {
+      _accountType = from.type;
+      _selectedAccountId = from.id;
     }
   }
 
@@ -237,7 +221,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(color: context.palette.indigo, width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
@@ -273,7 +257,7 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
               // Confirm Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.green,
+                  backgroundColor: context.palette.goodInk,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,
@@ -298,4 +282,18 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
       ),
     );
   }
+}
+
+/// Where a planned transaction is paid from unless the user picks otherwise:
+/// the account it was planned on (a card too; it used to fall back to the
+/// first bank for a card, silently changing the account), else the first bank,
+/// else the first wallet. Shared by this sheet and swipe-to-pay.
+({String type, String id})? defaultPayFrom(BudgetProvider budget, Transaction tx) {
+  final id = tx.accountId;
+  if (budget.walletModels.any((w) => w.id == id)) return (type: 'wallet', id: id!);
+  if (budget.bankAccountModels.any((b) => b.id == id)) return (type: 'bank', id: id!);
+  if (budget.cardAccountModels.any((c) => c.id == id)) return (type: 'credit_card', id: id!);
+  if (budget.bankAccountModels.isNotEmpty) return (type: 'bank', id: budget.bankAccountModels.first.id);
+  if (budget.walletModels.isNotEmpty) return (type: 'wallet', id: budget.walletModels.first.id);
+  return null;
 }
