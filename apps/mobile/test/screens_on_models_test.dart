@@ -182,6 +182,24 @@ void main() {
   });
 
   group('Plan', () {
+    testWidgets('Timeline like web: title, filter tabs with counts, day headers; Income shows only money in',
+        (tester) async {
+      final budget = (await tester.runAsync(FixtureBudget().load))!;
+      await pump(tester, budget, const PlanScreen(), wide: true);
+
+      expect(find.text('Timeline'), findsOneWidget);
+      for (final id in ['all', 'incomes', 'planned', 'actuals', 'breaches']) {
+        expect(find.byKey(Key('timeline-filter-$id')), findsOneWidget);
+      }
+      expect(find.textContaining(RegExp(r'^\d+ (entry|entries)$')), findsWidgets);
+      expect(find.textContaining(RegExp(r'^-.\d')), findsWidgets);
+
+      await tester.tap(find.byKey(const Key('timeline-filter-incomes')));
+      await tester.pump();
+      expect(find.textContaining(RegExp(r'^-.\d')), findsNothing, reason: 'no money-out rows under Income');
+      expect(find.textContaining(RegExp(r'^\+.\d')), findsWidgets);
+    });
+
     testWidgets('web order: hero, cash split, Due soon, then Details hides the chart and tiles', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
