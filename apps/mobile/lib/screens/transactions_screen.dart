@@ -6,7 +6,6 @@ import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
@@ -192,19 +191,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  void _openAddModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      // One entry sheet for the app: the Planned tab opens Plan, everything else opens Spend
-      builder: (_) => UnifiedEntryModal(
-        initialType: _activeTab == 'planned'
-            ? EntryType.item
-            : EntryType.transaction,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -450,17 +436,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: context.palette.indigo,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text(
-          _activeTab == 'planned' ? 'Add Planned' : 'Add Transaction',
-          style: AppTypography.inter(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        onPressed: () => _openAddModal(context),
-      ),
     );
   }
 
@@ -541,7 +516,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {
@@ -746,7 +721,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {

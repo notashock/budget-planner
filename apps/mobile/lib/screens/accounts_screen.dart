@@ -34,7 +34,7 @@ class AccountsScreen extends StatelessWidget {
     return Scaffold(
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

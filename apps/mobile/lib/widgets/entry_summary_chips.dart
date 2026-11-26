@@ -172,6 +172,7 @@ class _Chip extends StatelessWidget {
       button: true,
       label: semanticsLabel,
       excludeSemantics: true,
+      onTap: onTap, // excludeSemantics drops the InkWell's own action
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),

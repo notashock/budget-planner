@@ -5,6 +5,7 @@ import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/services/storage_service.dart';
 import 'package:budget_mobile/widgets/entry_summary_chips.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -97,6 +98,16 @@ void main() {
     final body = jsonDecode(post.body) as Map;
     expect(body['walletId'] ?? body['accountId'], isNotNull);
     expect(body['accountType'], 'wallet');
+  });
+
+  testWidgets('screen readers can activate both chips', (tester) async {
+    final handle = tester.ensureSemantics();
+    await openSheet(tester);
+    for (final label in [RegExp(r'^Date: '), RegExp(r'^Paid from: ')]) {
+      final node = tester.getSemantics(find.bySemanticsLabel(label));
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue, reason: '$label');
+    }
+    handle.dispose();
   });
 
   testWidgets('a recurring plan has no date chip (it has a day of the month)', (tester) async {
