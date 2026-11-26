@@ -39,27 +39,10 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
     _selectedDate = DateTime.now();
 
     final budget = Provider.of<BudgetProvider>(context, listen: false);
-    final txAccId = tx.accountId;
-    final banks = budget.bankAccountModels;
-    final wallets = budget.walletModels;
-
-    // Pay from the account the bill was planned on, including a card: it used
-    // to fall back to the first bank for a card, silently changing the account.
-    if (wallets.any((w) => w.id == txAccId)) {
-      _accountType = 'wallet';
-      _selectedAccountId = txAccId;
-    } else if (banks.any((b) => b.id == txAccId)) {
-      _accountType = 'bank';
-      _selectedAccountId = txAccId;
-    } else if (budget.cardAccountModels.any((c) => c.id == txAccId)) {
-      _accountType = 'credit_card';
-      _selectedAccountId = txAccId;
-    } else if (banks.isNotEmpty) {
-      _accountType = 'bank';
-      _selectedAccountId = banks.first.id;
-    } else if (wallets.isNotEmpty) {
-      _accountType = 'wallet';
-      _selectedAccountId = wallets.first.id;
+    final from = defaultPayFrom(budget, tx);
+    if (from != null) {
+      _accountType = from.type;
+      _selectedAccountId = from.id;
     }
   }
 
@@ -299,4 +282,18 @@ class _MarkPaidModalState extends State<MarkPaidModal> {
       ),
     );
   }
+}
+
+/// Where a planned transaction is paid from unless the user picks otherwise:
+/// the account it was planned on (a card too; it used to fall back to the
+/// first bank for a card, silently changing the account), else the first bank,
+/// else the first wallet. Shared by this sheet and swipe-to-pay.
+({String type, String id})? defaultPayFrom(BudgetProvider budget, Transaction tx) {
+  final id = tx.accountId;
+  if (budget.walletModels.any((w) => w.id == id)) return (type: 'wallet', id: id!);
+  if (budget.bankAccountModels.any((b) => b.id == id)) return (type: 'bank', id: id!);
+  if (budget.cardAccountModels.any((c) => c.id == id)) return (type: 'credit_card', id: id!);
+  if (budget.bankAccountModels.isNotEmpty) return (type: 'bank', id: budget.bankAccountModels.first.id);
+  if (budget.walletModels.isNotEmpty) return (type: 'wallet', id: budget.walletModels.first.id);
+  return null;
 }

@@ -10,7 +10,9 @@ import 'dart:io';
 
 import 'package:budget_mobile/theme/app_palette.dart';
 import 'package:budget_mobile/theme/app_theme.dart';
-import 'package:budget_mobile/widgets/header.dart';
+import 'package:budget_mobile/widgets/app_dock.dart';
+import 'package:budget_mobile/widgets/month_menu.dart';
+import 'package:budget_mobile/widgets/screen_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +30,10 @@ import 'helpers/real_fonts.dart';
 /// legend swatches inside a label's box (an ink badge at 5:1 measured 1.6).
 void main() {
   final screens = <(String, Widget)>[
-    ('header', const HeaderWidget()),
+    ('header and dock', Column(children: [
+      const Expanded(child: ScreenHeader(title: 'Transactions', actions: [MonthMenu()], child: SizedBox.expand())),
+      AppDock(index: 1, onTab: (_) {}),
+    ])),
     ('Plan', const PlanScreen()),
     ('Transactions', const TransactionsScreen()),
     ('Goals', const GoalsScreen()),
