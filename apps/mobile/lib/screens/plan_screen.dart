@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
@@ -7,9 +6,7 @@ import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
-import '../modals/month_modals.dart';
 import '../modals/month_review_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
@@ -49,23 +46,12 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: AppTypography.cardTitle(color: text),
               ),
               const SizedBox(height: 8),
+              // Months are never created by hand (same as web): they start from
+              // the income setup, and the next one from "Rollover Month".
               Text(
-                'Create or select a budget month to view your cashflow plan.',
+                'Months start on their own from your income setup. Pick another month from the menu above.',
                 textAlign: TextAlign.center,
                 style: AppTypography.inter(fontSize: 13, color: textMuted),
-              ),
-              const SizedBox(height: 20),
-              // First run (upgrade plan 3.8): a new user had no way forward here.
-              FilledButton.icon(
-                key: const ValueKey('plan-create-month'),
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => CreateMonthModal(year: budget.currentYear, month: budget.currentMonth),
-                ),
-                icon: const Icon(Icons.add),
-                label: Text('Create ${DateFormat.MMMM().format(DateTime(budget.currentYear, budget.currentMonth))} ${budget.currentYear}'),
               ),
             ],
           ),
@@ -101,7 +87,7 @@ class _PlanScreenState extends State<PlanScreen> {
     return Scaffold(
       body: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+          padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -187,21 +173,6 @@ class _PlanScreenState extends State<PlanScreen> {
             ],
           ),
         ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        elevation: 2,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text('New Entry', style: AppTypography.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(),
-          );
-        },
-      ),
     );
   }
 

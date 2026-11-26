@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
+import '../services/api_service.dart';
 import '../widgets/server_settings_dialog.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   bool _isRegister = false;
+  bool _showAdvanced = false;
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
@@ -162,17 +164,36 @@ class _AuthScreenState extends State<AuthScreen> {
                   const Divider(),
                   const SizedBox(height: 8),
 
-                  // Server host configuration button
-                  TextButton.icon(
-                    icon: const Icon(Icons.settings_ethernet, size: 16),
-                    label: const Text('Configure Backend Host / ADB URL', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => const ServerSettingsDialog(),
-                      );
-                    },
-                  ),
+                  // The server is set per build; changing it is for testing, so it
+                  // sits behind "Advanced" (upgrade plan 3.8).
+                  if (!_showAdvanced)
+                    TextButton(
+                      key: const ValueKey('auth-advanced'),
+                      onPressed: () => setState(() => _showAdvanced = true),
+                      child: const Text('Advanced', style: TextStyle(fontSize: 12)),
+                    )
+                  else ...[
+                    Text(
+                      'Server: ${ApiService().baseUrl}',
+                      key: const ValueKey('auth-server'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.settings_ethernet, size: 16),
+                      label: const Text('Change server', style: TextStyle(fontSize: 12)),
+                      onPressed: () async {
+                        await showDialog(
+                          context: context,
+                          builder: (_) => const ServerSettingsDialog(),
+                        );
+                        if (mounted) setState(() {}); // show the new server
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

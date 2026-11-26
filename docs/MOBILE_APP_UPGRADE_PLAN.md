@@ -425,6 +425,36 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
 - **Tests:** a failed first load shows the error, not the empty text, on all three tabs (these fail without the wrapper); the skeleton shows before the first answer; pulling an empty tab reloads the month.
 - **Device check:** at the end of Phase 3.
 
+**Status, Phase 3 stack PR 7 (3.8 onboarding):**
+- **Server address:** the sign-in screen's prominent "Configure Backend Host / ADB URL" button is now an "Advanced" link. It reveals which server the app signs in to and a "Change server" button; the same dialog stays in the More menu once signed in.
+- **First run:** "Create <Month>" on the empty Plan landed in PR #18.
+- **Test:** `test/onboarding_test.dart`. The device check is at the end of Phase 3.
+
+**Status, Phase 3 stack PR 8 (3.7 swipe actions):**
+- **`SwipeRow` (`lib/widgets/swipe_row.dart`) on Transactions:**
+  - **Swipe right on a planned row:** mark paid in full, from the account it was planned on (`defaultPayFrom`, now shared with the mark-paid sheet), dated today.
+  - **Swipe left on an editable row:** opens the entry sheet (`canEditTransaction` / `openEditTransaction`, now shared with the detail sheet). Transfers, held/lent rows and cancelled rows aren't editable.
+- **Undo by not sending:** there's no "unpay", so a swiped row is hidden while the 4-second Undo snackbar shows, and the payment is sent only when it closes without Undo. If the app is killed in that window, nothing was sent and the row comes back. A queued (offline) payment says so.
+- **TalkBack:** both actions are also custom semantics actions, since screen-reader users can't swipe.
+- **Not adopted:** the release branch's swipeable card; this is plain `Dismissible`, restyled to Material 3.
+- **Tests:** `test/swipe_actions_test.dart` (the Undo test fails if Undo still sends).
+
+**Status, Phase 3 stack PR 9 (3.6 entry sheet):**
+- **Entry-forms §5.1, compact row:** Spend, Income and Plan show date and account as one row of chips (`EntrySummaryChips`): `[📅 Today ▾] [🏦 Main · ₹63,550 ▾]`. They replace the full date field and the full account picker. The date chip opens the same calendar (`showAppDatePicker`, now shared); the account chip opens the existing picker in a small sheet.
+  - Income with no account shows "Choose account" in the warning colour.
+  - A recurring plan keeps its day-of-month field and drops the date chip.
+  - Move (two accounts) and Goal (target date) keep their full fields.
+  - The chips are a Row: the account name ellipsizes, so the pair stays on one line at 200 % text.
+- **Already done in earlier work:** the four tabs (Purchase Goal opens from Goals).
+- **Not done:**
+  - **B5's 5-second Undo on delete.** Delete still asks first. A real Undo needs the provider to hide a row across every screen until the window ends, which is a bigger change than this item.
+  - **Splitting `UnifiedEntryModal` into per-tab widgets** (moved here from 2.3). A Dart class can't span files, so the split means rebuilding each tab as its own widget over 20+ shared fields and callbacks: a large refactor of the most-used form with no user-visible change. Typing performance, the reason for 2.3, is fixed and tested (#17). Recommended as its own refactor PR, with screenshot tests first.
+- **Tests:** `test/entry_chips_test.dart`:
+  - one row with Today and the account and its balance;
+  - choosing a wallet updates the chip and the saved spend;
+  - recurring has no date chip;
+  - 200 % text fits.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |
