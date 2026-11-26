@@ -146,7 +146,7 @@ class AcctTag extends StatelessWidget {
 class AcctRow extends StatelessWidget {
   const AcctRow({
     super.key,
-    required this.icon,
+    this.icon,
     required this.title,
     this.tags = const [],
     required this.caption,
@@ -158,7 +158,7 @@ class AcctRow extends StatelessWidget {
     this.body,
   });
 
-  final AcctIconKind icon;
+  final AcctIconKind? icon;
   final String title;
   final List<String> tags;
   final String caption;
@@ -177,8 +177,7 @@ class AcctRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(children: [
-          AcctIcon(icon),
-          const SizedBox(width: 12),
+          if (icon != null) ...[AcctIcon(icon!), const SizedBox(width: 12)],
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title,

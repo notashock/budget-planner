@@ -82,7 +82,7 @@ void main() {
   // states, so a failed first load read as "no transactions" / "no goals".
   for (final (name, tab, emptyText) in [
     ('Transactions', const TransactionsScreen() as Widget, 'Nothing here yet'),
-    ('Goals', const GoalsScreen() as Widget, 'No purchase goals'),
+    ('Goals', const GoalsScreen() as Widget, 'Add something you want to buy'),
     ('Accounts', const AccountsScreen() as Widget, 'Add a bank account'),
   ]) {
     testWidgets('$name: a failed first load shows the error, not an empty list', (tester) async {
@@ -113,7 +113,7 @@ void main() {
     await tester.pumpWidget(host(budget!, const TabStates(child: GoalsScreen())));
     await tester.pump();
 
-    await tester.fling(find.text('No purchase goals'), const Offset(0, 400), 1000);
+    await tester.fling(find.text('+ Add something you want to buy'), const Offset(0, 400), 1000);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
