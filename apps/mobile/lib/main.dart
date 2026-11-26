@@ -158,7 +158,7 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     ], child: const TabStates(child: GoalsScreen())),
-    const ScreenHeader(title: 'Accounts', child: TabStates(child: AccountsScreen())),
+    const ScreenHeader(title: 'Accounts', actions: [AccountsAddMenu()], child: TabStates(child: AccountsScreen())),
   ];
 
   @override
