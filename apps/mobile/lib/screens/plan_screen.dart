@@ -72,7 +72,7 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
               const SizedBox(height: 8),
               // Months are never created by hand (same as web): they start from
-              // the income setup, and the next one from "Rollover Month".
+              // the income setup, and the next one from the month menu's "Start" (as web).
               Text(
                 'Months start on their own from your income setup. Pick another month from the menu above.',
                 textAlign: TextAlign.center,
