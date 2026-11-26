@@ -213,6 +213,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
+                borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
                 initialValue: _selectedBankId != null && banks.any((b) => b.id == _selectedBankId)
                     ? _selectedBankId
                     : (banks.isNotEmpty ? banks.first.id : null),

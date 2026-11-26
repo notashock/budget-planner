@@ -84,10 +84,72 @@ class AppTheme {
         contentTextStyle: TextStyle(color: isDark ? p.text : p.bg),
         actionTextColor: accent ?? (isDark ? p.goodInk : const Color(0xFF6EE7B7)),
       ),
+      // Web's buttons (base.css): 8px radius, .btn-primary brand fill at 600,
+      // plain buttons on the surface with a 1px border at 500. No elevation.
+      elevatedButtonTheme: ElevatedButtonThemeData(style: _button(bg: p.accent, fg: onAccent, weight: FontWeight.w600)),
+      filledButtonTheme: FilledButtonThemeData(style: _button(bg: p.accent, fg: onAccent, weight: FontWeight.w600)),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: _button(bg: p.surface, fg: p.text, weight: FontWeight.w500).copyWith(
+          side: WidgetStatePropertyAll(BorderSide(color: p.border)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: p.text,
+          shape: RoundedRectangleBorder(borderRadius: AppForm.radius),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+      // Web's .app-dropdown-menu: page background, border-strong, 8px radius, deep shadow.
+      canvasColor: p.bg,
+      popupMenuTheme: PopupMenuThemeData(
+        color: p.bg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shadowColor: Colors.black.withAlpha(isDark ? 153 : 60),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppForm.radius,
+          side: BorderSide(color: p.borderStrong),
+        ),
+        menuPadding: const EdgeInsets.all(4),
+        labelTextStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13, color: p.text)),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(p.bg),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+            borderRadius: AppForm.radius,
+            side: BorderSide(color: p.borderStrong),
+          )),
+        ),
+      ),
+      // Web's .modal-content on phones: surface, 18px top corners, 1px top border.
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: p.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+          side: BorderSide(color: p.border),
+        ),
+      ),
       inputDecorationTheme: AppForm.inputTheme(isDark: isDark),
       chipTheme: AppForm.chipTheme(isDark: isDark, onSelected: onAccent),
       textTheme: GoogleFonts.interTextTheme((isDark ? ThemeData.dark() : ThemeData.light()).textTheme)
           .apply(bodyColor: p.text, displayColor: p.text),
     );
   }
+
+  static ButtonStyle _button({required Color bg, required Color fg, required FontWeight weight}) =>
+      ElevatedButton.styleFrom(
+        backgroundColor: bg,
+        foregroundColor: fg,
+        elevation: 0,
+        minimumSize: const Size(0, AppForm.controlHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: AppForm.radius),
+        textStyle: TextStyle(fontSize: 14, fontWeight: weight),
+      );
 }
