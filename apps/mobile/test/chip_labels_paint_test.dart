@@ -63,7 +63,8 @@ void main() {
       }
 
       for (final label in ['100', '500', '1k', 'Travel', 'Health', 'Credit / Refund', 'Food']) {
-        expect(spread(label), greaterThan(100), reason: '"$label" is not visible');
+        // Blank labels measure ~0; 50 leaves room for softer anti-aliasing on CI's Linux fonts.
+        expect(spread(label), greaterThan(50), reason: '"$label" is not visible');
       }
     });
   }

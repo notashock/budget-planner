@@ -81,7 +81,7 @@ class AppTheme {
         actionTextColor: accent ?? (isDark ? p.goodInk : const Color(0xFF6EE7B7)),
       ),
       inputDecorationTheme: AppForm.inputTheme(isDark: isDark),
-      chipTheme: AppForm.chipTheme(isDark: isDark),
+      chipTheme: AppForm.chipTheme(isDark: isDark, onSelected: onAccent),
       textTheme: GoogleFonts.interTextTheme((isDark ? ThemeData.dark() : ThemeData.light()).textTheme)
           .apply(bodyColor: p.text, displayColor: p.text),
     );

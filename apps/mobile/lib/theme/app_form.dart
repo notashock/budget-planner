@@ -66,7 +66,7 @@ class AppForm {
     );
   }
 
-  static ChipThemeData chipTheme({required bool isDark}) {
+  static ChipThemeData chipTheme({required bool isDark, Color onSelected = Colors.white}) {
     return ChipThemeData(
       shape: RoundedRectangleBorder(borderRadius: radius),
       side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
@@ -74,12 +74,13 @@ class AppForm {
       // The colour must be set here: a theme labelStyle replaces Material's
       // default label style, colour included, and a chip label with no colour
       // paints white (unselected chips were blank on the phone).
-      // Selected chips sit on a filled (indigo) background: white text there.
+      // Selected chips sit on the accent: [onSelected] is the text colour that
+      // reads on it (white on light indigo, near-black on the dark theme's #8B85FF).
       labelStyle: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: WidgetStateColor.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return Colors.white;
+          if (states.contains(WidgetState.selected)) return onSelected;
           if (states.contains(WidgetState.disabled)) {
             return isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
           }
