@@ -188,10 +188,12 @@ export function UnifiedEntryModal({
   // Inline form error (replaces alert())
   const [formError, setFormError] = useState('');
 
-  // Earliest date a planned item may use: the first day of the month being planned
-  const planMinDate = month?.year && month?.month
+  // Earliest date a planned item may use: today, or the 1st of a later month being planned
+  const planMonthStart = month?.year && month?.month
     ? `${month.year}-${String(month.month).padStart(2, '0')}-01`
     : `${todayStr.slice(0, 7)}-01`;
+  const planMinDate = isPaid ? null : (planMonthStart > todayStr ? planMonthStart : todayStr);
+  const futureDateError = (d) => (d && d > todayStr ? "A spend or income can't be dated in the future." : '');
 
   const selectedCard = (creditCards || []).find((c) => String(c.id || c._id) === String(cardId)) || null;
 
@@ -1029,6 +1031,11 @@ export function UnifiedEntryModal({
       return;
     }
 
+    if (futureDateError(date)) {
+      setFormError(futureDateError(date));
+      return;
+    }
+
     const baseAmount = Math.round(Math.abs(Number(amount)) * 100);
     const finalAmount = isRefund ? -baseAmount : baseAmount;
 
@@ -1087,6 +1094,10 @@ export function UnifiedEntryModal({
       setFormError('Choose the account the money came into.');
       return;
     }
+    if (futureDateError(date)) {
+      setFormError(futureDateError(date));
+      return;
+    }
 
     const baseAmount = Math.round(Math.abs(Number(amount)) * 100);
 
@@ -1131,6 +1142,10 @@ export function UnifiedEntryModal({
 
     if (!accountId) {
       setFormError('Choose the account this bill is paid from.');
+      return;
+    }
+    if (itemType === 'one-time' && !isPaid && date && date < todayStr && date !== String(initialItem?.date || '').slice(0, 10)) {
+      setFormError("A planned payment can't be dated in the past.");
       return;
     }
 
@@ -1932,7 +1947,7 @@ export function UnifiedEntryModal({
                       placeholder="Date"
                       month={month}
                       required={mode !== 'plan'}
-                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
+                      // Plans start today or later;
                       // anything already paid or received can't be in the future.
                       minDate={mode === 'plan' ? planMinDate : null}
                       maxDate={mode === 'plan' ? null : todayStr}

@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { recommendPurchaseDate, deriveTransactionState, isPassThrough, getRefundableRemaining } from '@budget/engine';
 import { validateUserAccount } from '../services/accountValidation.js';
+import { assertEntryDate } from './entryDateRules.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { serialize } from '../utils/serializer.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
@@ -239,6 +240,7 @@ export const BudgetExecution = {
       return serialize(transaction);
     }
 
+    assertEntryDate({ status: resolvedStatus, date: date || plannedDate });
     let txDate = date || plannedDate;
     if (!txDate) {
       if (resolvedStatus === 'planned') {
@@ -407,6 +409,7 @@ export const BudgetExecution = {
 
     let rawAmt = payload.amount !== undefined ? payload.amount : payload.actualAmount;
     let rawDate = payload.date || payload.actualDate;
+    if (rawDate) assertEntryDate({ status: 'successful', date: rawDate });
     let requestedAccountId = payload.accountId;
 
     // Helper: resolve default primary account if accountId is empty/null
@@ -702,6 +705,11 @@ export const BudgetExecution = {
       }
       if (payload.status !== undefined) {
         updates.status = payload.status;
+      }
+
+      // Only a date that changes is checked: an overdue plan can still be edited
+      if (tx.origin !== 'transfer' && !isPassThrough(tx.origin) && updates.date && updates.date !== tx.date) {
+        assertEntryDate({ status: updates.status || tx.status, date: updates.date });
       }
 
       const [updated] = await db.update(s.transactions)
@@ -1234,6 +1242,7 @@ export const BudgetExecution = {
 
     const now = new Date();
     const defaultToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    if (resolvedOrigin !== 'transfer') assertEntryDate({ status: resolvedStatus, date: date || plannedDate });
     const txDate = date || plannedDate || defaultToday;
 
     // Attempt to link covering month if one exists for txDate
