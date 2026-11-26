@@ -9,6 +9,7 @@ import 'providers/app_lock_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
 import 'screens/auth_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/plan_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/goals_screen.dart';
@@ -156,6 +157,9 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // No bank account or wallet yet: first-run setup, as web.
+    if (context.select<BudgetProvider, bool>((b) => b.needsSetup)) return const OnboardingScreen();
+
     // A 401 on any load means the token is no longer valid: back to sign-in.
     final sessionExpired = context.select<BudgetProvider, bool>(
       (b) => b.loadError?.isSessionExpired ?? false,
