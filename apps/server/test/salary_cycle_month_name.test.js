@@ -55,3 +55,41 @@ describe('a salary cycle is named after the month it mostly covers', () => {
     expect(months.filter((m) => m.startDate <= todayIso && m.endDate >= todayIso)).toHaveLength(1);
   });
 });
+
+describe('first-run setup: a salary logged as credited lands in the bank balance', () => {
+  async function setup(app, { balanceDate, salaryDate }) {
+    const reg = await request(app).post('/api/auth/register')
+      .send({ email: `setup_credit_${Date.now()}_${Math.random()}@example.com`, password: 'Password123!' });
+    const auth = { Authorization: `Bearer ${reg.body.data.token}` };
+    const acc = await request(app).post('/api/v1/accounts').set(auth).send({
+      name: 'HDFC', type: 'bank', accountType: 'salary', openingBalance: 5000000,
+      openingBalanceDate: balanceDate, isPrimary: true
+    });
+    const tpl = await request(app).post('/api/salary-templates').set(auth).send({
+      amount: 8000000, expectedCreditDay: Number(salaryDate.slice(8)), receivingAccountId: acc.body.data.id,
+      periodType: 'salary_cycle', effectiveDate: salaryDate, markCredited: true
+    });
+    expect(tpl.status).toBe(201);
+    const account = (await request(app).get('/api/v1/accounts').set(auth)).body.data.find((a) => a.id === acc.body.data.id);
+    const months = (await request(app).get('/api/v1/periods').set(auth)).body.data;
+    return { account, months };
+  }
+
+  it('a salary on or after the balance date is added to the balance and marks the month credited', async () => {
+    const today = iso(new Date());
+    const { account, months } = await setup(createApp(), { balanceDate: today, salaryDate: today });
+    expect(account.currentBalance).toBe(13000000);
+    const current = months.find((m) => m.startDate <= today && m.endDate >= today);
+    expect(current.isSalaryCredited).toBe(true);
+    expect(current.isClosed).toBeFalsy();
+  });
+
+  it('a salary before the balance date is already in that balance: marked credited, not added twice', async () => {
+    const now = new Date();
+    const today = iso(now);
+    const salaryDate = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3));
+    const { account, months } = await setup(createApp(), { balanceDate: today, salaryDate });
+    expect(account.currentBalance).toBe(5000000);
+    expect(months.find((m) => m.startDate <= today && m.endDate >= today).isSalaryCredited).toBe(true);
+  });
+});

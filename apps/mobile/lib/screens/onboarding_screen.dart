@@ -128,6 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         'receivingAccountId': id,
         'periodType': 'salary_cycle',
         'effectiveDate': _iso(_salaryDate),
+        'markCredited': true,
       });
       if (_incomeMode == 'both') await api.updateSettings({'incomeMode': 'both'});
       _go(_Step.done);

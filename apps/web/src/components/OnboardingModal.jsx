@@ -152,7 +152,8 @@ export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
         expectedCreditDay: creditDay,
         receivingAccountId: createdAccount?.id,
         periodType: 'salary_cycle',
-        effectiveDate: salaryCreditDate
+        effectiveDate: salaryCreditDate,
+        markCredited: true
       });
       if (incomeMode === 'both') await api.updateSettings({ incomeMode: 'both' });
       setResult({ incomeMode, account: createdAccount, template });
