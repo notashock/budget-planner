@@ -271,6 +271,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     }
     final valid = targets.any((t) => t.id == _refundTargetId);
     return DropdownButtonFormField<String?>(
+      borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
       key: const ValueKey('refund-for'),
       initialValue: valid ? _refundTargetId : null,
       isExpanded: true,

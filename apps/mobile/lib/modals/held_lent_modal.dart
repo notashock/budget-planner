@@ -239,6 +239,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
               Text("${_current.hint} It won't count as income or spending.", style: TextStyle(fontSize: 12, color: muted)),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
+                borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
                 key: ValueKey('person-$_action-${_matching.length}'),
                 initialValue: _fundId,
                 isExpanded: true,
