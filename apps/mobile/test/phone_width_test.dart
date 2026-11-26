@@ -132,6 +132,19 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('header-month')));
     await tester.pumpAndSettle();
     expect(find.text('Create Month'), findsNothing);
-    expect(find.text('Rollover Month'), findsOneWidget);
+    expect(find.text('Rollover Month'), findsNothing, reason: 'web has no rollover item');
+    expect(find.text('No active planning cycle'), findsOneWidget);
+    expect(find.text('Start Next Month'), findsOneWidget, reason: 'web offers a start only with no active cycle');
+  });
+
+  testWidgets('the month menu lists the current cycle as web does, without rollover', (tester) async {
+    final budget = await loaded(tester);
+    await pumpAt(tester, shell(), budget, width: 393);
+    await tester.tap(find.byKey(const ValueKey('header-month')));
+    await tester.pumpAndSettle();
+    expect(find.text('ACTIVE PLANNING CYCLE'), findsOneWidget);
+    expect(find.text('Current'), findsOneWidget);
+    expect(find.byKey(const ValueKey('header-start-month')), findsNothing);
+    expect(find.text('Rollover Month'), findsNothing);
   });
 }
