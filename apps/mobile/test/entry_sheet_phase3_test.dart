@@ -106,17 +106,16 @@ void main() {
 
   testWidgets('typing a description suggests the category', (tester) async {
     await pumpSheet(tester);
-    await tester.enterText(field('Description'), 'Uber to office');
+    await tester.enterText(find.byKey(const ValueKey('entry-name')), 'Uber to office');
     await tester.pump();
     expect(find.text('Category · suggested'), findsOneWidget);
-    final travel = tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Travel'));
-    expect(travel.selected, isTrue);
+    expect(find.descendant(of: find.byKey(const ValueKey('entry-category')), matching: find.text('Travel')), findsOneWidget);
   });
 
-  testWidgets('Save & add another keeps the sheet open, clears the amount and counts', (tester) async {
+  testWidgets('Add & log another keeps the sheet open, clears the amount and counts', (tester) async {
     final budget = await pumpSheet(tester);
-    await tester.enterText(field('Amount (₹) *'), '250');
-    await tester.enterText(field('Description'), 'Coffee');
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '250');
+    await tester.enterText(find.byKey(const ValueKey('entry-name')), 'Coffee');
     await tester.ensureVisible(find.byKey(const ValueKey('save-add-another')));
     await tester.tap(find.byKey(const ValueKey('save-add-another')));
     await tester.pumpAndSettle();
@@ -135,15 +134,15 @@ void main() {
 
   testWidgets('closing a half-filled entry asks first', (tester) async {
     await pumpSheet(tester);
-    await tester.enterText(field('Amount (₹) *'), '45');
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '45');
+    await tester.tap(find.byKey(const ValueKey('entry-cancel')));
     await tester.pumpAndSettle();
     expect(find.text('Discard this entry?'), findsOneWidget);
     await tester.tap(find.text('Keep editing'));
     await tester.pumpAndSettle();
     expect(find.byType(UnifiedEntryModal), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byKey(const ValueKey('entry-cancel')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Discard'));
     await tester.pumpAndSettle();
@@ -152,7 +151,7 @@ void main() {
 
   testWidgets('shows the balance after a spend', (tester) async {
     await pumpSheet(tester);
-    await tester.enterText(field('Amount (₹) *'), '1000');
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '1000');
     await tester.pump();
     expect(find.byKey(const ValueKey('consequence-line')), findsOneWidget);
     expect(find.textContaining('above floor'), findsOneWidget);

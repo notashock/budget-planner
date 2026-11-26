@@ -87,7 +87,7 @@ void main() {
 
   testWidgets('a refund links to a recorded spend and is saved as a negative spend', (tester) async {
     final budget = await pumpSheet(tester);
-    await tester.tap(find.text('Credit / Refund'));
+    await tester.tap(find.byKey(const ValueKey('entry-refund-toggle')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('refund-for')));
@@ -100,9 +100,9 @@ void main() {
     await tester.tap(find.textContaining('Shoes · ').last);
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, 'Amount (₹) *'), '1500');
-    await tester.ensureVisible(find.text('Add Spend'));
-    await tester.tap(find.text('Add Spend'));
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '1500');
+    await tester.ensureVisible(find.byKey(const ValueKey('entry-primary')));
+    await tester.tap(find.byKey(const ValueKey('entry-primary')));
     await tester.pumpAndSettle();
 
     expect(budget.created, hasLength(1));
@@ -131,7 +131,7 @@ void main() {
     const r2 = {'_id': 'r2', 'title': 'Shoe refund 2', 'amount': -200000, 'status': 'successful', 'origin': 'spot', 'refundTargetTransactionId': 't1', 'date': '2026-11-17'};
 
     Future<void> pickShoes(WidgetTester tester) async {
-      await tester.tap(find.text('Credit / Refund'));
+      await tester.tap(find.byKey(const ValueKey('entry-refund-toggle')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('refund-for')));
       await tester.pumpAndSettle();
@@ -155,16 +155,16 @@ void main() {
       await tester.tap(find.textContaining('Shoes · ').last);
       await tester.pumpAndSettle();
       // 1,500 fits the original 4,500 but not the 1,000 left
-      await tester.enterText(find.widgetWithText(TextField, 'Amount (₹) *'), '1500');
-      await tester.ensureVisible(find.text('Add Spend'));
-      await tester.tap(find.text('Add Spend'));
+      await tester.enterText(find.byKey(const ValueKey('entry-amount')), '1500');
+      await tester.ensureVisible(find.byKey(const ValueKey('entry-primary')));
+      await tester.tap(find.byKey(const ValueKey('entry-primary')));
       await tester.pumpAndSettle();
       expect(budget.created, isEmpty);
       expect(find.text('Only ₹1,000.00 of Shoes is left to refund.'), findsOneWidget);
 
-      await tester.enterText(find.widgetWithText(TextField, 'Amount (₹) *'), '1000');
-      await tester.ensureVisible(find.text('Add Spend'));
-      await tester.tap(find.text('Add Spend'));
+      await tester.enterText(find.byKey(const ValueKey('entry-amount')), '1000');
+      await tester.ensureVisible(find.byKey(const ValueKey('entry-primary')));
+      await tester.tap(find.byKey(const ValueKey('entry-primary')));
       await tester.pumpAndSettle();
       expect(budget.created, hasLength(1));
       expect(budget.created.single['amount'], -100000);

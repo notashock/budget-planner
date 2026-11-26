@@ -43,7 +43,7 @@ Future<void> pumpSheet(WidgetTester tester, FakeBudget budget, {EntryType type =
 void main() {
   testWidgets('four tabs: Spend, Income, Plan, Move (no Goal, no separate Held/Lent)', (tester) async {
     await pumpSheet(tester, FakeBudget());
-    for (final label in ['Spend', 'Income', 'Plan', 'Move']) {
+    for (final label in ['Spending', 'Income', 'Plan', 'Move']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
     expect(find.text('Purchase Goal'), findsNothing);

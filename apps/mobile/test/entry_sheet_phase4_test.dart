@@ -101,12 +101,15 @@ void main() {
     expect(find.text('Move'), findsNothing, reason: 'tabs are hidden while editing');
     expect(find.widgetWithText(TextField, '20'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Tea'), findsOneWidget);
-    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Travel')).selected, isTrue);
+    expect(find.descendant(of: find.byKey(const ValueKey('entry-category')), matching: find.text('Travel')), findsOneWidget);
+    expect(find.text('Editing Settled Expense'), findsOneWidget);
+    expect(find.text('Type Locked'), findsOneWidget);
+    expect(find.text('No changes yet'), findsOneWidget);
     expect(find.byKey(const ValueKey('save-add-another')), findsNothing);
 
     await tester.enterText(find.widgetWithText(TextField, '20'), '25');
-    await tester.ensureVisible(find.text('Save changes'));
-    await tester.tap(find.text('Save changes'));
+    await tester.ensureVisible(find.byKey(const ValueKey('entry-primary')));
+    await tester.tap(find.byKey(const ValueKey('entry-primary')));
     await tester.pumpAndSettle();
 
     expect(budget.created, isEmpty);
@@ -126,8 +129,8 @@ void main() {
     );
     expect(find.text('Edit purchase goal'), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextField, '15000'), '14000');
-    await tester.ensureVisible(find.text('Save changes'));
-    await tester.tap(find.text('Save changes'));
+    await tester.ensureVisible(find.byKey(const ValueKey('entry-primary')));
+    await tester.tap(find.byKey(const ValueKey('entry-primary')));
     await tester.pumpAndSettle();
     expect(budget.updated['g1'], {'name': 'Headphones', 'targetAmount': 1400000, 'priority': 2});
   });

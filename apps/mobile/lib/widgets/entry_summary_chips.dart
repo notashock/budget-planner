@@ -95,14 +95,14 @@ class EntrySummaryChips extends StatelessWidget {
           label: accountText,
           color: missing && accountRequired ? p.warnInk : null,
           semanticsLabel: '$accountLabel: $accountText. Change',
-          onTap: () => _pickAccount(context),
+          onTap: () => pickAccount(context),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _pickAccount(BuildContext context) => showModalBottomSheet<void>(
+  Future<void> pickAccount(BuildContext context) => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
