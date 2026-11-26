@@ -160,6 +160,9 @@ class CardStatement {
   /// What the app worked out from the card's own entries.
   final int computedAmount;
 
+  /// Net spend in this cycle (what the bill adds on top of anything carried).
+  final int newSpend;
+
   /// What the user confirmed from the bank's statement, once confirmed.
   final int? statementAmount;
   final int? minimumDue;
@@ -172,6 +175,7 @@ class CardStatement {
     required this.dueDate,
     required this.computedAmount,
     required this.status,
+    this.newSpend = 0,
     this.statementAmount,
     this.minimumDue,
   });
@@ -191,6 +195,7 @@ class CardStatement {
       cycleEnd: r.date('cycleEnd'),
       dueDate: r.date('dueDate'),
       computedAmount: r.money('computedAmount'),
+      newSpend: r.optMoney('newSpend') ?? 0,
       statementAmount: r.optMoney('statementAmount'),
       minimumDue: r.optMoney('minimumDue'),
       status: _statuses[r.optString('status')] ?? StatementStatus.unknown,

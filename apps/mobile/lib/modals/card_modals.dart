@@ -35,11 +35,11 @@ String? defaultPayFromAccountId(List<Account> bankAccounts, List<Account> wallet
   return wallets.isNotEmpty ? wallets.first.id : null;
 }
 
-/// Shared bottom-sheet frame for the card sheets.
-class _Sheet extends StatelessWidget {
+/// Shared bottom-sheet frame: a title, a close button and the form below.
+class AppSheet extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  const _Sheet({required this.title, required this.children});
+  const AppSheet({super.key, required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +61,7 @@ class _Sheet extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText)),
+                  Expanded(child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText))),
                   IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
                 ],
               ),
@@ -200,13 +200,13 @@ class _AddCardModalState extends State<AddCardModal> {
   Widget build(BuildContext context) {
     final budget = context.budgetView();
     final owedShift = _isEdit ? toMinorUnits(num.tryParse(_owed.text) ?? 0) - _originalOwed : 0;
-    return _Sheet(title: _isEdit ? 'Edit card' : 'Add a credit card', children: [
-      TextField(controller: _name, decoration: const InputDecoration(labelText: 'Card name *')),
+    return AppSheet(title: _isEdit ? 'Edit card' : 'Add a credit card', children: [
+      TextField(controller: _name, maxLength: 60, decoration: const InputDecoration(labelText: 'Card name', hintText: 'e.g. HDFC Millennia', counterText: '')),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: TextField(controller: _limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Credit limit ($moneySymbol)'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: _isEdit ? 'Owed when added ($moneySymbol)' : 'Owed now ($moneySymbol)'))),
+        Expanded(child: TextField(controller: _owed, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: _isEdit ? 'Owed when added ($moneySymbol)' : 'Owed right now ($moneySymbol)'))),
       ]),
       if (owedShift != 0)
         Padding(
@@ -219,10 +219,15 @@ class _AddCardModalState extends State<AddCardModal> {
         ),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: TextField(controller: _billDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bill day (1-31) *'))),
+        Expanded(child: TextField(controller: _billDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bill generation day', hintText: '1-31'))),
         const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _dueDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Due day (1-31) *'))),
+        Expanded(child: TextField(controller: _dueDay, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Payment due day', hintText: '1-31'))),
       ]),
+      const SizedBox(height: 8),
+      Text(
+        'On the bill generation day the app adds up this card\'s spending into a bill for you to confirm. If the due day comes before the bill day, it is due the next month.',
+        style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
+      ),
       const SizedBox(height: 10),
       AccountSelector(
         label: 'Pay the bill from',
@@ -239,19 +244,10 @@ class _AddCardModalState extends State<AddCardModal> {
         const SizedBox(height: 10),
         Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
       ],
-      const SizedBox(height: 16),
-      _primaryButton(context, _saving ? 'Saving…' : (_isEdit ? 'Save changes' : 'Add card'), _saving ? null : _save),
-      if (_isEdit) ...[
-        const SizedBox(height: 8),
-        if (!_confirmRemove)
-          TextButton(
-            onPressed: _saving ? null : () => setState(() => _confirmRemove = true),
-            style: TextButton.styleFrom(foregroundColor: context.palette.badInk, minimumSize: const Size.fromHeight(AppForm.controlHeightSm)),
-            child: const Text('Remove card'),
-          )
-        else
-          Row(children: [
-            Expanded(child: Text('Remove ${widget.card!.account.name.isEmpty ? 'this card' : widget.card!.account.name}? Its history is kept.', style: const TextStyle(fontSize: 13))),
+      if (_isEdit && _confirmRemove) ...[
+        const SizedBox(height: 10),
+          Row(key: const ValueKey('card-remove-confirm'), children: [
+            Expanded(child: Text('Remove ${widget.card!.account.name.isEmpty ? 'this card' : widget.card!.account.name}? Its history is kept; it stops showing here.', style: const TextStyle(fontSize: 13))),
             TextButton(onPressed: () => setState(() => _confirmRemove = false), child: const Text('Keep')),
             TextButton(
               onPressed: _saving ? null : _remove,
@@ -260,6 +256,22 @@ class _AddCardModalState extends State<AddCardModal> {
             ),
           ]),
       ],
+      const SizedBox(height: 16),
+      Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, spacing: 0, runSpacing: 8, children: [
+        if (_isEdit && !_confirmRemove)
+          TextButton(
+            onPressed: _saving ? null : () => setState(() => _confirmRemove = true),
+            style: TextButton.styleFrom(foregroundColor: context.palette.badInk),
+            child: const Text('Remove card'),
+          ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          key: const ValueKey('card-save'),
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'Saving…' : (_isEdit ? 'Save' : 'Add card')),
+        ),
+      ]),
     ]);
   }
 }
@@ -277,6 +289,7 @@ class ConfirmBillModal extends StatefulWidget {
 class _ConfirmBillModalState extends State<ConfirmBillModal> {
   late final TextEditingController _amount;
   final _minimum = TextEditingController();
+  late DateTime _dueDate = DateTime.tryParse(widget.statement.dueDate) ?? DateTime.now();
   bool _logDiff = true;
   bool _saving = false;
   String? _error;
@@ -299,7 +312,8 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
 
   int get _diff => toMinorUnits(num.tryParse(_amount.text) ?? 0) - widget.statement.computedAmount;
 
-  Future<void> _save() async {
+  /// [payNext] is "Confirm & pay": the sheet closes with 'pay' so the card list opens the pay sheet.
+  Future<void> _save({bool payNext = false}) async {
     setState(() {
       _saving = true;
       _error = null;
@@ -308,10 +322,11 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
     try {
       await Provider.of<BudgetProvider>(context, listen: false).confirmCardStatement(widget.statement.id, {
         'statementAmount': toMinorUnits(num.tryParse(_amount.text) ?? 0),
-        if (_minimum.text.trim().isNotEmpty) 'minimumDue': toMinorUnits(num.tryParse(_minimum.text) ?? 0),
+        'minimumDue': _minimum.text.trim().isEmpty ? null : toMinorUnits(num.tryParse(_minimum.text) ?? 0),
+        'dueDate': _ymd(_dueDate),
         'logChargesDifference': _diff != 0 && _logDiff,
       });
-      navigator.pop(true);
+      navigator.pop(payNext ? 'pay' : true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -322,37 +337,95 @@ class _ConfirmBillModalState extends State<ConfirmBillModal> {
   @override
   Widget build(BuildContext context) {
     final diff = _diff;
-    return _Sheet(title: 'Confirm ${widget.card.account.name} bill', children: [
+    final s = widget.statement;
+    final p = context.palette;
+    String money(int n) => formatCurrency(n, digits: MoneyDigits.auto);
+    String day(String iso) => iso.isEmpty ? '—' : formatDisplayDate(iso, includeWeekday: false);
+    Widget choice(bool value, String title, String sub) {
+      final active = _logDiff == value;
+      return InkWell(
+        key: ValueKey('bill-diff-${value ? 'log' : 'keep'}'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => setState(() => _logDiff = value),
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: active ? p.indigo : p.border, width: active ? 1.5 : 1),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.text)),
+            const SizedBox(height: 2),
+            Text(sub, style: TextStyle(fontSize: 12, color: p.textSecondary)),
+          ]),
+        ),
+      );
+    }
+
+    return AppSheet(title: 'Confirm ${widget.card.account.name} bill', children: [
       Text(
-        'The app worked out ${formatCurrency(widget.statement.computedAmount)} from your card entries. Change it if your bank\'s statement says otherwise.',
-        style: const TextStyle(fontSize: 12),
+        'Bill for ${day(s.cycleStart)} to ${day(s.cycleEnd)}. The app worked out ${money(s.computedAmount)} from your card entries '
+        '(${money(s.newSpend)} spent this cycle). Change it if your bank\'s statement says otherwise.',
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
       ),
       const SizedBox(height: 12),
-      TextField(
-        controller: _amount,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(labelText: 'Bill amount ($moneySymbol)'),
-      ),
-      const SizedBox(height: 10),
-      TextField(
-        controller: _minimum,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(labelText: 'Minimum due (optional)'),
-      ),
-      if (diff != 0)
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _logDiff,
-          onChanged: (v) => setState(() => _logDiff = v ?? false),
-          title: Text(
-            'Log the ${formatCurrency(diff.abs())} difference as card ${diff > 0 ? 'charges' : 'credit'}',
-            style: const TextStyle(fontSize: 13),
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: TextField(
+            key: const ValueKey('cb-amount'),
+            controller: _amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(labelText: 'Bill amount ($moneySymbol)'),
           ),
         ),
-      if (_error != null) Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: _minimum,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Minimum due (optional)'),
+          ),
+        ),
+      ]),
+      Padding(
+        key: const ValueKey('bill-difference'),
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          diff == 0
+              ? 'Matches what the app worked out (${money(s.computedAmount)}).'
+              : '${diff > 0 ? '+' : '−'}${money(diff.abs())} vs the app\'s ${money(s.computedAmount)} — ${diff > 0 ? 'fees or interest?' : 'cashback or a reversal?'}',
+          style: TextStyle(fontSize: 12, color: p.textMuted),
+        ),
+      ),
+      const SizedBox(height: 10),
+      AppDatePickerField(label: 'Due date', selectedDate: _dueDate, onDateSelected: (d) => setState(() => _dueDate = d)),
+      if (diff != 0) ...[
+        choice(true, 'Log the ${money(diff.abs())} difference as card ${diff > 0 ? 'charges' : 'credit'}',
+            '${diff > 0 ? 'Fees or interest' : 'Cashback or a reversal'}, so the card matches the bank.'),
+        choice(false, 'Just update the bill', 'Card entries stay as they are.'),
+      ],
+      if (_error != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text(_error!, style: TextStyle(color: p.badInk, fontSize: 13)),
+        ),
       const SizedBox(height: 16),
-      _primaryButton(context, _saving ? 'Saving…' : 'Confirm bill', _saving ? null : _save),
+      Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 8, children: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        OutlinedButton(
+          key: const ValueKey('confirm-and-pay'),
+          onPressed: _saving ? null : () => _save(payNext: true),
+          child: const Text('Confirm & pay'),
+        ),
+        ElevatedButton(
+          key: const ValueKey('confirm-bill'),
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'Saving…' : 'Confirm bill'),
+        ),
+      ]),
     ]);
   }
 }
@@ -424,7 +497,7 @@ class _PayBillModalState extends State<PayBillModal> {
   Widget build(BuildContext context) {
     final budget = context.budgetView();
     final hasMinimum = (widget.bill.minimumDue ?? 0) > 0;
-    return _Sheet(title: 'Pay ${widget.card.account.name} bill', children: [
+    return AppSheet(title: 'Pay ${widget.card.account.name} bill', children: [
       const Text('Paying moves money from your bank to the card. It isn\'t counted as spending again.', style: TextStyle(fontSize: 12)),
       const SizedBox(height: 12),
       Wrap(spacing: 6, children: [

@@ -89,6 +89,7 @@ class _BudgetMobileAppState extends State<BudgetMobileApp>
       builder: (lightDynamic, darkDynamic) => MaterialApp(
         title: 'Budget Planner',
         debugShowCheckedModeBanner: false,
+        navigatorObservers: [_DropFocusOnPop()],
         theme: AppTheme.build(
           Brightness.light,
           accent: themeProvider.deviceColors ? lightDynamic?.primary : null,
@@ -197,4 +198,11 @@ SystemUiOverlayStyle _systemBars(Brightness brightness) {
     statusBarBrightness: brightness, // iOS
     systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
   );
+}
+
+/// A sheet saved with the keyboard up left its field's focus behind, so the
+/// keyboard came back over the screen below; closing any route drops it.
+class _DropFocusOnPop extends NavigatorObserver {
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => FocusManager.instance.primaryFocus?.unfocus();
 }

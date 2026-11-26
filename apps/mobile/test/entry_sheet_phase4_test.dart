@@ -137,7 +137,7 @@ void main() {
       tester,
       EditAccountModal(account: Account.fromJson({'_id': 'b1', 'name': 'Main Bank', 'type': 'bank', 'openingBalance': 1000000}), isBank: true),
     );
-    final opening = find.widgetWithText(TextField, 'Opening balance (₹)');
+    final opening = find.widgetWithText(TextField, 'Opening Balance (₹)');
     expect(find.byKey(const ValueKey('opening-balance-warning')), findsNothing);
     await tester.enterText(opening, '10500');
     await tester.pump();

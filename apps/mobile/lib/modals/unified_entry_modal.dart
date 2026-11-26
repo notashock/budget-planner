@@ -39,6 +39,9 @@ String resolveEntryName(String typed, String category, String typeTitle) {
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
 
+  /// A transfer opened from an account page starts from that account (web's "Transfer from Account").
+  final String? initialSourceAccountId;
+
   /// Editing: the transaction or planned bill to change. The type is locked
   /// while editing, as on web.
   final Transaction? initialTransaction;
@@ -49,6 +52,7 @@ class UnifiedEntryModal extends StatefulWidget {
   const UnifiedEntryModal({
     super.key,
     this.initialType = EntryType.transaction,
+    this.initialSourceAccountId,
     this.initialTransaction,
     this.initialGoal,
   });
@@ -157,6 +161,19 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     _destAccountType = wallets.isNotEmpty ? 'wallet' : 'bank';
     _destAccountId = wallets.isNotEmpty ? wallets.first.id : (banks.length > 1 ? banks[1].id : null);
+
+    final from = widget.initialSourceAccountId;
+    final fromWallet = wallets.any((w) => w.id == from);
+    if (from != null && (fromWallet || banks.any((b) => b.id == from))) {
+      _sourceAccountType = fromWallet ? 'wallet' : 'bank';
+      _sourceAccountId = from;
+      if (_destAccountId == from) {
+        // Move to the first other account: a bank when the source is a wallet, else any
+        final others = [...(fromWallet ? banks : wallets), ...banks, ...wallets].where((a) => a.id != from);
+        _destAccountId = others.isEmpty ? null : others.first.id;
+        _destAccountType = others.isNotEmpty && wallets.any((w) => w.id == others.first.id) ? 'wallet' : 'bank';
+      }
+    }
 
     if (_activeType == EntryType.goal) {
       _fetchGoalRecommendation();
