@@ -1368,7 +1368,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       ]),
       SetupGroup(children: [
         SetupRow(
-          label: 'To',
+          label: 'Account',
           child: _rowValue(
             dst == null ? 'Choose account' : (dst.name.isEmpty ? 'Account' : dst.name),
             () => _pickMoveAccount(budget, 'To', _destAccountType, _destAccountId, (t, id) {
