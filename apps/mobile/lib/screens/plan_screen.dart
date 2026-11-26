@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
@@ -7,12 +6,11 @@ import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
-import '../widgets/load_error_banner.dart';
-import '../modals/month_modals.dart';
 import '../modals/month_review_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import '../widgets/tab_states.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -35,18 +33,9 @@ class _PlanScreenState extends State<PlanScreen> {
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    if (budget.isLoading && budget.simulation == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // A failed load is never shown as "no month": that is only for a real 404.
-    if (budget.monthInfo == null && budget.loadError != null && !budget.monthMissing) {
-      return LoadErrorView(error: budget.loadError!);
-    }
-
     final month = budget.monthInfo;
     if (month == null) {
-      return Center(
+      return ScrollableEmpty(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -57,23 +46,12 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: AppTypography.cardTitle(color: text),
               ),
               const SizedBox(height: 8),
+              // Months are never created by hand (same as web): they start from
+              // the income setup, and the next one from "Rollover Month".
               Text(
-                'Create or select a budget month to view your cashflow plan.',
+                'Months start on their own from your income setup. Pick another month from the menu above.',
                 textAlign: TextAlign.center,
                 style: AppTypography.inter(fontSize: 13, color: textMuted),
-              ),
-              const SizedBox(height: 20),
-              // First run (upgrade plan 3.8): a new user had no way forward here.
-              FilledButton.icon(
-                key: const ValueKey('plan-create-month'),
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => CreateMonthModal(year: budget.currentYear, month: budget.currentMonth),
-                ),
-                icon: const Icon(Icons.add),
-                label: Text('Create ${DateFormat.MMMM().format(DateTime(budget.currentYear, budget.currentMonth))} ${budget.currentYear}'),
               ),
             ],
           ),
@@ -107,11 +85,9 @@ class _PlanScreenState extends State<PlanScreen> {
     salaryCreditDay ??= month.incomeCreditDay;
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => budget.refresh(),
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+          padding: EdgeInsets.fromLTRB(14, 12, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -197,22 +173,6 @@ class _PlanScreenState extends State<PlanScreen> {
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: isDark ? Colors.white : Colors.black,
-        foregroundColor: isDark ? Colors.black : Colors.white,
-        elevation: 2,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text('New Entry', style: AppTypography.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(),
-          );
-        },
-      ),
     );
   }
 
@@ -319,10 +279,10 @@ class _PlanScreenState extends State<PlanScreen> {
     required Color border,
     required Color text,
     required Color textSecondary,
-    String currencySymbol = '₹',
+    String currencySymbol = kDefaultCurrencySymbol,
   }) {
-    final activeBg = isDark ? Colors.white : Colors.black;
-    final activeText = isDark ? Colors.black : Colors.white;
+    final activeBg = Theme.of(context).colorScheme.primary;
+    final activeText = Theme.of(context).colorScheme.onPrimary;
     final inactiveBg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
 
     return InkWell(
@@ -337,7 +297,7 @@ class _PlanScreenState extends State<PlanScreen> {
           color: isSelected ? activeBg : inactiveBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? activeBg : (hasBreach ? AppColors.red.withAlpha(120) : border),
+            color: isSelected ? activeBg : (hasBreach ? context.palette.bad.withAlpha(120) : border),
             width: 1,
           ),
         ),
@@ -359,11 +319,11 @@ class _PlanScreenState extends State<PlanScreen> {
             if (amount != null) ...[
               const SizedBox(width: 5),
               Text(
-                '• ${formatCurrency(amount, symbol: currencySymbol)}',
+                '• ${formatCurrencyWhole(amount, symbol: currencySymbol)}',
                 style: AppTypography.mono(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? activeText : (hasBreach ? AppColors.red : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
+                  color: isSelected ? activeText : (hasBreach ? context.palette.badInk : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
                 ),
               ),
             ],
@@ -372,7 +332,7 @@ class _PlanScreenState extends State<PlanScreen> {
               Icon(
                 Icons.warning_amber_rounded,
                 size: 9,
-                color: isSelected ? activeText : AppColors.red,
+                color: isSelected ? activeText : context.palette.badInk,
               ),
             ],
           ],
@@ -424,11 +384,11 @@ class _PlanScreenState extends State<PlanScreen> {
                         ),
                         if (safetyFloor > 0)
                           TextSpan(
-                            text: '• Min: ${formatCurrency(safetyFloor, symbol: currencySymbol)} ',
+                            text: '• Min: ${formatCurrencyWhole(safetyFloor, symbol: currencySymbol)} ',
                             style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
                           ),
                         TextSpan(
-                          text: '• End: ${formatCurrency(endingBalance, symbol: currencySymbol)}',
+                          text: '• End: ${formatCurrencyWhole(endingBalance, symbol: currencySymbol)}',
                           style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
                         ),
                       ],

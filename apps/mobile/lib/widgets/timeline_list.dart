@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../engine/currency.dart';
 import '../models/simulation.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/transaction_detail_modal.dart';
 
@@ -21,7 +22,7 @@ class TimelineListWidget extends StatefulWidget {
     this.selectedDay,
     this.currentDay,
     this.onSelectDay,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
     this.onEventTap,
   });
 
@@ -200,11 +201,11 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     bool isBreachPill = false,
   }) {
     final isActive = _filterType == type;
-    final activeBg = isDark ? Colors.white : Colors.black;
-    final activeText = isDark ? Colors.black : Colors.white;
+    final activeBg = Theme.of(context).colorScheme.primary;
+    final activeText = Theme.of(context).colorScheme.onPrimary;
 
     Color inactiveBg = isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle;
-    Color inactiveBorder = isBreachPill ? AppColors.red.withAlpha(100) : border;
+    Color inactiveBorder = isBreachPill ? context.palette.bad.withAlpha(100) : border;
 
     return InkWell(
       onTap: () => setState(() => _filterType = type),
@@ -221,7 +222,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
           style: AppTypography.inter(
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? activeText : (isBreachPill ? AppColors.red : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+            color: isActive ? activeText : (isBreachPill ? context.palette.badInk : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
           ),
         ),
       ),
@@ -286,9 +287,9 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0x1AF59E0B) : const Color(0x14F59E0B),
+        color: context.palette.warnSubtle,
         border: Border.symmetric(
-          horizontal: BorderSide(color: AppColors.amber.withAlpha(80), width: 1),
+          horizontal: BorderSide(color: context.palette.warn.withAlpha(80), width: 1),
         ),
       ),
       child: Row(
@@ -296,7 +297,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on, size: 13, color: AppColors.amber),
+              Icon(Icons.location_on, size: 13, color: context.palette.warnInk),
               const SizedBox(width: 5),
               Text(
                 'TODAY',
@@ -304,7 +305,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.8,
-                  color: AppColors.amber,
+                  color: context.palette.warnInk,
                 ),
               ),
             ],
@@ -314,7 +315,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
             style: AppTypography.mono(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              color: AppColors.amber,
+              color: context.palette.warnInk,
             ),
           ),
         ],
@@ -437,7 +438,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                           style: AppTypography.mono(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isNetPositive ? AppColors.green : (isNetNegative ? AppColors.red : textSecondary),
+                            color: isNetPositive ? context.palette.goodInk : (isNetNegative ? context.palette.badInk : textSecondary),
                           ),
                         ),
                         Text(
@@ -594,10 +595,10 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                       if (isIncome)
                         _buildStatusPill(
                           'Inflow • ${ev.category != null && ev.category!.isNotEmpty ? ev.category! : 'Income'}',
-                          AppColors.green,
+                          context.palette.goodInk,
                           isDark,
-                          AppColors.green.withAlpha(80),
-                          bg: AppColors.green.withAlpha(25),
+                          context.palette.good.withAlpha(80),
+                          bg: context.palette.good.withAlpha(25),
                         )
                       else
                         _buildStatusPill(
@@ -609,28 +610,28 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                       if (ev.isPaid)
                         _buildStatusPill(
                           isIncome ? 'Credited' : 'Paid',
-                          AppColors.green,
+                          context.palette.goodInk,
                           isDark,
-                          AppColors.green.withAlpha(80),
-                          bg: AppColors.green.withAlpha(25),
+                          context.palette.good.withAlpha(80),
+                          bg: context.palette.good.withAlpha(25),
                           icon: Icons.check_circle_rounded,
                         )
                       else if (ev.derivedStatus == 'overdue')
                         _buildStatusPill(
                           'Overdue',
-                          AppColors.red,
+                          context.palette.badInk,
                           isDark,
-                          AppColors.red.withAlpha(80),
-                          bg: AppColors.red.withAlpha(25),
+                          context.palette.bad.withAlpha(80),
+                          bg: context.palette.bad.withAlpha(25),
                           icon: Icons.error_outline,
                         )
                       else if (ev.derivedStatus == 'due')
                         _buildStatusPill(
                           'Due',
-                          AppColors.amber,
+                          context.palette.warnInk,
                           isDark,
-                          AppColors.amber.withAlpha(80),
-                          bg: AppColors.amber.withAlpha(25),
+                          context.palette.warn.withAlpha(80),
+                          bg: context.palette.warn.withAlpha(25),
                           icon: Icons.schedule,
                         )
                       else
@@ -643,10 +644,10 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                       if (ev.type == 'transfer')
                         _buildStatusPill(
                           'Transfer',
-                          AppColors.amber,
+                          context.palette.warnInk,
                           isDark,
-                          AppColors.amber.withAlpha(80),
-                          bg: AppColors.amber.withAlpha(25),
+                          context.palette.warn.withAlpha(80),
+                          bg: context.palette.warn.withAlpha(25),
                         ),
                     ],
                   ),
@@ -673,8 +674,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: isTransfer
-                            ? AppColors.amber
-                            : (isIncome ? AppColors.green : AppColors.red),
+                            ? context.palette.warnInk
+                            : (isIncome ? context.palette.goodInk : context.palette.badInk),
                       ),
                     );
                   },
@@ -683,10 +684,10 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
-                    color: isBreached ? AppColors.red.withAlpha(20) : (isDark ? Colors.white.withAlpha(12) : Colors.black.withAlpha(8)),
+                    color: isBreached ? context.palette.bad.withAlpha(20) : (isDark ? Colors.white.withAlpha(12) : Colors.black.withAlpha(8)),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: isBreached ? AppColors.red.withAlpha(100) : border,
+                      color: isBreached ? context.palette.bad.withAlpha(100) : border,
                       width: 0.8,
                     ),
                   ),
@@ -697,16 +698,16 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                         'Bal: ${formatCurrency(ev.runningBalance, symbol: widget.currencySymbol)}',
                         style: AppTypography.mono(
                           fontSize: 10,
-                          color: isBreached ? AppColors.red : (isDark ? Colors.white70 : Colors.black87),
+                          color: isBreached ? context.palette.badInk : (isDark ? Colors.white70 : Colors.black87),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (isBreached) ...[
                         const SizedBox(width: 3),
-                        const Icon(
+                        Icon(
                           Icons.warning_amber_rounded,
                           size: 9,
-                          color: AppColors.red,
+                          color: context.palette.badInk,
                         ),
                       ],
                     ],
@@ -742,12 +743,16 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
             Icon(icon, size: 9, color: textColor),
             const SizedBox(width: 3),
           ],
-          Text(
-            label,
-            style: AppTypography.inter(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-              color: textColor,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.inter(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
             ),
           ),
         ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 
 /// Asks before a destructive action (delete, cancel). Returns true only when the
 /// user taps the confirm button; dismissing the dialog counts as "keep".
@@ -21,7 +21,7 @@ Future<bool> confirmDestructive(
           child: Text(cancelLabel),
         ),
         TextButton(
-          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          style: TextButton.styleFrom(foregroundColor: context.palette.badInk),
           onPressed: () => Navigator.of(ctx).pop(true),
           child: Text(confirmLabel),
         ),

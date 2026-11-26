@@ -5,6 +5,7 @@ import '../engine/engine.dart';
 import '../models/account.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 
 class EditAccountModal extends StatefulWidget {
   final Account account;
@@ -165,7 +166,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                 controller: _openingCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Opening balance (₹)'),
+                decoration: InputDecoration(labelText: 'Opening balance ($moneySymbol)'),
               ),
               Builder(builder: (_) {
                 final shift = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0) - _originalOpening;
@@ -176,7 +177,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   child: Text(
                     'Changing this shifts every balance since ${widget.account.name.isEmpty ? 'this account' : widget.account.name} was added by '
                     '${shift > 0 ? '+' : '−'}${formatCurrency(shift.abs())}.',
-                    style: const TextStyle(fontSize: 12, color: AppColors.amber),
+                    style: TextStyle(fontSize: 12, color: context.palette.warnInk),
                   ),
                 );
               }),
@@ -184,8 +185,8 @@ class _EditAccountModalState extends State<EditAccountModal> {
               TextField(
                 controller: _minBalCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Minimum Safety Floor / Balance (₹)',
+                decoration: InputDecoration(
+                  labelText: 'Minimum Safety Floor / Balance ($moneySymbol)',
                 ),
               ),
               const SizedBox(height: 12),
@@ -205,7 +206,7 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   'Default destination for unassigned transactions & salary',
                   style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                 ),
-                activeTrackColor: AppColors.green,
+                activeTrackColor: context.palette.goodInk,
                 onChanged: (val) => setState(() => _isPrimary = val),
               ),
               const SizedBox(height: 20),
@@ -226,8 +227,8 @@ class _EditAccountModalState extends State<EditAccountModal> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isDark ? Colors.white : Colors.black,
-                        foregroundColor: isDark ? Colors.black : Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),

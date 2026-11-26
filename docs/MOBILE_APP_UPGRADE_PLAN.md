@@ -367,6 +367,94 @@ Platform: `MainActivity` is now a `FlutterFragmentActivity`, themes use AppCompa
   - **3.2/3.3:** the "New Entry" button covers the timeline's filter chips;
   - **to check:** "Today's balance" includes a salary the timeline still lists as planned.
 
+**Status, Phase 3 stack PR 2 (3.4 money and dates):**
+- **Rules:** these mirror the web engine (`formatCurrency` / `formatCurrencyWhole`, the chart's `formatChartTick`):
+  - lists and the ledger keep paise (₹1,250.00);
+  - headline figures and totals are whole rupees: summary cards, safe-to-spend, the chart's day balance, card and held/lent figures, the Accounts total;
+  - `MoneyDigits.auto` drops paise only when there are none.
+- **Compact figures:** chart axes and the floor pill use the Indian system: the full figure under ₹10,000, then k, L and Cr (was k and m).
+- **Symbol:** no hard-coded `₹` is left in widgets. Amounts and input labels follow the loaded month's `currencySymbol` (`moneySymbol`, set on each load), and defaults use `kDefaultCurrencySymbol`.
+- **Dates:** the Indian day-month order ("Fri, 18 Sep"). The web app still uses "Fri, Sep 18" (follow-up for web).
+
+**Status, Phase 3 stack PR 3 (3.1 Material 3 theme and tokens):**
+- **Shared tokens:** `AppPalette` (a ThemeExtension, read as `context.palette`) holds the tokens of `apps/web/src/styles/tokens.css` for light and dark. `test/design_tokens_test.dart` reads that CSS and fails on any drift. It found the drift that was already there: light background and surface swapped, red #EF4444 vs rose #F43F5E, no dark-mode status colours.
+- **Colours migrated:** all 144 status-colour uses (`AppColors.green/red/amber`) and the 9 indigo uses now follow the theme (lighter in dark mode, as on web). The neutral `AppColors` constants equal the web.
+- **Theme:** both themes come from one builder with a full ColorScheme from the palette. Cards use the web's 12 px radius; snack bars float.
+- **Dynamic colour (opt-in):** "Device colours" in the More menu (`dynamic_color` 1.7.0; 1.9.0 needs a newer Kotlin Gradle plugin). Only the accent changes: the 33 hard-coded black/white accent spots now read `colorScheme.primary` / `onPrimary`. Neutrals and good/bad/warn never change.
+- **On the phone:** dark, light, and device colours on (the wallpaper accent on the FAB and the selected chip, money colours unchanged). The app's settings were put back afterwards.
+
+**Status, Phase 3 stack PR 4 (3.2 edge-to-edge, predictive back, 48 dp):**
+- **Edge-to-edge:** `SystemUiMode.edgeToEdge` with transparent status and navigation bars whose icons follow the theme, so the grey status band seen on the phone is gone. Every top-level screen already sits in a SafeArea.
+- **Predictive back:** `android:enableOnBackInvokedCallback="true"`, plus `PredictiveBackPageTransitionsBuilder` for Android page transitions. The entry sheet's PopScope keeps its discard check.
+- **48 dp targets:** `test/tap_targets_test.dart` runs Android's `androidTapTargetGuideline` on the header and the four tabs at 393 dp with the recorded month. It found 10 small targets:
+  - the header month and floor pills (30–33 dp);
+  - Plan's Month Review (24 dp);
+  - the Transactions tabs (34 dp);
+  - five Accounts icon buttons (40 dp).
+
+  `MinTap` gives a small control a 48 dp tap area without changing how it looks. The header's padding was cut so its height is unchanged.
+- **Realistic test layout:** `test/helpers/real_fonts.dart` (`loadAppFonts()`) loads the bundled fonts before pumping. With the 1-em test font, Plan "overflowed" at 393 dp where the phone shows no overflow. With real fonts, it doesn't.
+- **Not covered by the tap test yet:** the sheets (entry form chips are 32 dp; that's 3.6).
+
+**Status, Phase 3 stack PR 5 (3.3 accessibility):**
+- **Labels:** `test/accessibility_test.dart` runs `labeledTapTargetGuideline` on the header and the four tabs. It found the Goals add button (icon only, now with tooltip "Add goal") and the Plan chart (now a spoken summary of the lowest balance, month-end and floor, plus "Tap a day to see its balance").
+- **Contrast, checked from the colours:** Flutter's pixel-sampling `textContrastGuideline` was unreliable here. It under-reads thin 10–11 px Inter (5.1:1 measured 3.3) and mixes borders and swatches into a label's box (5:1 measured 1.6). Instead, the test computes WCAG ratios:
+  - every text token on every surface and tint, both themes, must reach ≥ 4.5;
+  - a scan of `lib/` fails if status text uses the bright fill colours.
+- **What the maths found:**
+  - light-mode green, red and amber are 2.0–3.7:1 as text. 99 foreground uses moved to the `*Ink` colours (4.6–6.3 in light, 8–13 in dark); fills, tints and chart lines stay bright;
+  - `--text-muted` failed AA (4.4 on the light subtle surface, 3.7–4.1 in dark). It was changed in **both** `apps/web/src/styles/tokens.css` and mobile, to #67676f (light) and #8a8a93 (dark);
+  - the badge tints were raw hex values and now come from the palette.
+- **200 % text at 393 dp (real fonts):** these rows now reflow with `Wrap` and keep their one-line look at 1×:
+  - Plan's safe-velocity header, card title rows, chart header and legend;
+  - Accounts' name and balance (the balance moves under the name).
+
+  Timeline pills and Transactions' date line ellipsize instead of overflowing. A 1× layout test keeps the reflowed rows on one line, after the phone showed an early version stretching "Month Review" and the legend.
+- **On the phone:** checked up to the legend and badge fix. The "Month Review" fix is covered by the 1× test and waits for the end-of-Phase-3 device pass (no TalkBack or large-text run on the phone yet).
+
+**Status, Phase 3 stack PR 6 (3.5 pull-to-refresh, skeletons, error tiers):**
+- **The bug:** only Plan had pull-to-refresh, a loading state and the full-screen error. Transactions, Goals and Accounts fell through to their empty states, so a failed or unfinished first load read as "No successful transactions recorded", "No purchase goals" or "No bank accounts configured".
+- **`TabStates` (`lib/widgets/tab_states.dart`) wraps the four data tabs in the shell:**
+  - a skeleton during the first load (TalkBack reads "Loading");
+  - the full-screen error with Try again when a load failed with nothing to show (T7 tier c);
+  - otherwise the tab with pull-to-refresh.
+
+  T7 tiers a (the offline strip) and b (the save snackbar and sync strip) already existed.
+- **Plan:** its own spinner, error view and refresh moved into the wrapper.
+- **Pulling short tabs:** empty states and short lists can be pulled (`ScrollableEmpty`, `AlwaysScrollableScrollPhysics`).
+- **Tests:** a failed first load shows the error, not the empty text, on all three tabs (these fail without the wrapper); the skeleton shows before the first answer; pulling an empty tab reloads the month.
+- **Device check:** at the end of Phase 3.
+
+**Status, Phase 3 stack PR 7 (3.8 onboarding):**
+- **Server address:** the sign-in screen's prominent "Configure Backend Host / ADB URL" button is now an "Advanced" link. It reveals which server the app signs in to and a "Change server" button; the same dialog stays in the More menu once signed in.
+- **First run:** "Create <Month>" on the empty Plan landed in PR #18.
+- **Test:** `test/onboarding_test.dart`. The device check is at the end of Phase 3.
+
+**Status, Phase 3 stack PR 8 (3.7 swipe actions):**
+- **`SwipeRow` (`lib/widgets/swipe_row.dart`) on Transactions:**
+  - **Swipe right on a planned row:** mark paid in full, from the account it was planned on (`defaultPayFrom`, now shared with the mark-paid sheet), dated today.
+  - **Swipe left on an editable row:** opens the entry sheet (`canEditTransaction` / `openEditTransaction`, now shared with the detail sheet). Transfers, held/lent rows and cancelled rows aren't editable.
+- **Undo by not sending:** there's no "unpay", so a swiped row is hidden while the 4-second Undo snackbar shows, and the payment is sent only when it closes without Undo. If the app is killed in that window, nothing was sent and the row comes back. A queued (offline) payment says so.
+- **TalkBack:** both actions are also custom semantics actions, since screen-reader users can't swipe.
+- **Not adopted:** the release branch's swipeable card; this is plain `Dismissible`, restyled to Material 3.
+- **Tests:** `test/swipe_actions_test.dart` (the Undo test fails if Undo still sends).
+
+**Status, Phase 3 stack PR 9 (3.6 entry sheet):**
+- **Entry-forms §5.1, compact row:** Spend, Income and Plan show date and account as one row of chips (`EntrySummaryChips`): `[📅 Today ▾] [🏦 Main · ₹63,550 ▾]`. They replace the full date field and the full account picker. The date chip opens the same calendar (`showAppDatePicker`, now shared); the account chip opens the existing picker in a small sheet.
+  - Income with no account shows "Choose account" in the warning colour.
+  - A recurring plan keeps its day-of-month field and drops the date chip.
+  - Move (two accounts) and Goal (target date) keep their full fields.
+  - The chips are a Row: the account name ellipsizes, so the pair stays on one line at 200 % text.
+- **Already done in earlier work:** the four tabs (Purchase Goal opens from Goals).
+- **Not done:**
+  - **B5's 5-second Undo on delete.** Delete still asks first. A real Undo needs the provider to hide a row across every screen until the window ends, which is a bigger change than this item.
+  - **Splitting `UnifiedEntryModal` into per-tab widgets** (moved here from 2.3). A Dart class can't span files, so the split means rebuilding each tab as its own widget over 20+ shared fields and callbacks: a large refactor of the most-used form with no user-visible change. Typing performance, the reason for 2.3, is fixed and tested (#17). Recommended as its own refactor PR, with screenshot tests first.
+- **Tests:** `test/entry_chips_test.dart`:
+  - one row with Today and the account and its balance;
+  - choosing a wallet updates the chip and the saved spend;
+  - recurring has no date chip;
+  - 200 % text fits.
+
 ### Phase 4 — Features (weeks 9–12)
 
 | # | Feature | Notes |

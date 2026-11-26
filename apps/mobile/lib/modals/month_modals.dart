@@ -1,156 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
-import '../engine/engine.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
-
-class CreateMonthModal extends StatefulWidget {
-  /// The month to suggest; today's month when not given.
-  final int? year;
-  final int? month;
-
-  const CreateMonthModal({super.key, this.year, this.month});
-
-  @override
-  State<CreateMonthModal> createState() => _CreateMonthModalState();
-}
-
-class _CreateMonthModalState extends State<CreateMonthModal> {
-  late final _yearCtrl = TextEditingController(text: '${widget.year ?? DateTime.now().year}');
-  late final _monthCtrl = TextEditingController(text: '${widget.month ?? DateTime.now().month}');
-  final _openingCtrl = TextEditingController(text: '0');
-  final _incomeCtrl = TextEditingController(text: '0');
-  final _floorCtrl = TextEditingController(text: '0');
-  bool _carryoverBalance = false;
-  bool _submitting = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        padding: AppForm.sheetPadding,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Create New Budget Month',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _yearCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Year'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _monthCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Month (1-12)'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _openingCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Opening Balance (₹)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _incomeCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Salary / Income (₹)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _floorCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Safety Floor Threshold (₹)'),
-            ),
-            const SizedBox(height: 8),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              value: _carryoverBalance,
-              title: const Text('Carry over previous month ending balance', style: TextStyle(fontSize: 12.5)),
-              onChanged: (val) => setState(() => _carryoverBalance = val ?? false),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white : Colors.black,
-                  foregroundColor: isDark ? Colors.black : Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _submitting
-                    ? null
-                    : () async {
-                        setState(() => _submitting = true);
-                        final y = int.tryParse(_yearCtrl.text) ?? 2026;
-                        final m = int.tryParse(_monthCtrl.text) ?? 1;
-                        final opening = toMinorUnits(num.tryParse(_openingCtrl.text) ?? 0);
-                        final income = toMinorUnits(num.tryParse(_incomeCtrl.text) ?? 0);
-                        final floor = toMinorUnits(num.tryParse(_floorCtrl.text) ?? 0);
-
-                        final navigator = Navigator.of(context);
-                        await context.read<BudgetProvider>().createMonth(
-                              y,
-                              m,
-                              opening: opening,
-                              income: income,
-                              floor: floor,
-                              carryoverBalance: _carryoverBalance,
-                            );
-                        if (mounted) navigator.pop();
-                      },
-                child: _submitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Create Month', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class RolloverModal extends StatefulWidget {
   const RolloverModal({super.key});
@@ -224,8 +76,8 @@ class _RolloverModalState extends State<RolloverModal> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white : Colors.black,
-                foregroundColor: isDark ? Colors.black : Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),

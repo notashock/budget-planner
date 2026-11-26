@@ -4,6 +4,7 @@ import '../providers/budget_provider.dart';
 import '../engine/engine.dart';
 import '../models/person_fund.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/held_lent_modal.dart';
 
@@ -78,7 +79,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
               children: [
                 Text(label.toUpperCase(), style: AppTypography.sectionHeader(color: muted)),
                 const SizedBox(height: 4),
-                Text(formatCurrency(amount), style: AppTypography.cardTitle(color: text)),
+                Text(formatCurrencyWhole(amount), style: AppTypography.cardTitle(color: text)),
                 const SizedBox(height: 2),
                 Text(note, style: TextStyle(fontSize: 11, color: muted)),
               ],
@@ -111,7 +112,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 12)),
+          Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 12)),
         ],
         const SizedBox(height: 10),
         if (visible.isEmpty)
@@ -142,8 +143,8 @@ class _HeldLentSectionState extends State<HeldLentSection> {
                   style: TextStyle(fontSize: 12, color: muted),
                 ),
                 trailing: Text(
-                  formatCurrency(out < 0 ? 0 : out),
-                  style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? AppColors.primary : text)),
+                  formatCurrencyWhole(out < 0 ? 0 : out),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: settled ? muted : (isHeld ? context.palette.indigo : text)),
                 ),
                 onTap: settled
                     ? () => _open(action: isHeld ? 'hold' : 'lend', fundId: f.id)
