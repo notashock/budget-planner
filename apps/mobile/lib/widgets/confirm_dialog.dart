@@ -21,7 +21,7 @@ Future<bool> confirmDestructive(
           child: Text(cancelLabel),
         ),
         TextButton(
-          style: TextButton.styleFrom(foregroundColor: context.palette.bad),
+          style: TextButton.styleFrom(foregroundColor: context.palette.badInk),
           onPressed: () => Navigator.of(ctx).pop(true),
           child: Text(confirmLabel),
         ),

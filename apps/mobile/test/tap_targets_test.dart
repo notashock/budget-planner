@@ -7,7 +7,9 @@ import 'package:budget_mobile/screens/goals_screen.dart';
 import 'package:budget_mobile/screens/plan_screen.dart';
 import 'package:budget_mobile/screens/transactions_screen.dart';
 import 'package:budget_mobile/theme/app_theme.dart';
-import 'package:budget_mobile/widgets/header.dart';
+import 'package:budget_mobile/widgets/app_dock.dart';
+import 'package:budget_mobile/widgets/month_menu.dart';
+import 'package:budget_mobile/widgets/screen_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +22,10 @@ import 'helpers/real_fonts.dart';
 /// guideline), on each tab with the recorded month loaded, at phone width.
 void main() {
   for (final (name, screen) in <(String, Widget)>[
-    ('header', const HeaderWidget()),
+    ('header and dock', Column(children: [
+      const Expanded(child: ScreenHeader(title: 'Transactions', actions: [MonthMenu()], child: SizedBox.expand())),
+      AppDock(index: 1, onTab: (_) {}),
+    ])),
     ('Plan', const PlanScreen()),
     ('Transactions', const TransactionsScreen()),
     ('Goals', const GoalsScreen()),

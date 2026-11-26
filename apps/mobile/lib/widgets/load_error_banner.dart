@@ -38,7 +38,7 @@ class LoadErrorBanner extends StatelessWidget {
         : "Couldn't refresh · showing data$since";
     return _strip(
         context,
-      icon: Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: context.palette.warn),
+      icon: Icon(error.isOffline ? Icons.cloud_off_outlined : Icons.error_outline, size: 16, color: context.palette.warnInk),
       label: label,
       textColor: textColor,
       action: TextButton(

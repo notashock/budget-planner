@@ -101,16 +101,16 @@ void showMonthReviewModal(
                     children: [
                       _buildReviewRow('Opening Balance', formatCurrency(simulation.openingBalance, symbol: currencySymbol), text, textMuted),
                       const SizedBox(height: 8),
-                      _buildReviewRow('Total Income', '+${formatCurrency(simulation.totalIncome, symbol: currencySymbol)}', context.palette.good, textMuted),
+                      _buildReviewRow('Total Income', '+${formatCurrency(simulation.totalIncome, symbol: currencySymbol)}', context.palette.goodInk, textMuted),
                       const SizedBox(height: 8),
-                      _buildReviewRow('Total Outflow', '-${formatCurrency(totalOutflow, symbol: currencySymbol)}', context.palette.bad, textMuted),
+                      _buildReviewRow('Total Outflow', '-${formatCurrency(totalOutflow, symbol: currencySymbol)}', context.palette.badInk, textMuted),
                       const SizedBox(height: 8),
                       Divider(color: border, height: 1),
                       const SizedBox(height: 8),
                       _buildReviewRow(
                         'Net Trajectory',
                         '${netCashflow >= 0 ? '+' : ''}${formatCurrency(netCashflow, symbol: currencySymbol)}',
-                        netCashflow >= 0 ? context.palette.good : context.palette.bad,
+                        netCashflow >= 0 ? context.palette.goodInk : context.palette.badInk,
                         text,
                         isBold: true,
                       ),
@@ -153,14 +153,14 @@ void showMonthReviewModal(
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.warning_amber_rounded, size: 10, color: context.palette.bad),
+                                  Icon(Icons.warning_amber_rounded, size: 10, color: context.palette.badInk),
                                   const SizedBox(width: 3),
                                   Text(
                                     'BREACHED',
                                     style: AppTypography.inter(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w700,
-                                      color: context.palette.bad,
+                                      color: context.palette.badInk,
                                     ),
                                   ),
                                 ],
@@ -174,7 +174,7 @@ void showMonthReviewModal(
                       _buildReviewRow(
                         'Lowest Balance',
                         formatCurrency(simulation.lowestBalance, symbol: currencySymbol),
-                        isBreached ? context.palette.bad : text,
+                        isBreached ? context.palette.badInk : text,
                         textMuted,
                       ),
                       const SizedBox(height: 8),
