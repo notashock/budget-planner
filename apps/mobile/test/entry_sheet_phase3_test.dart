@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:budget_mobile/models/transaction.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/engine/category_suggest.dart';
@@ -33,7 +34,7 @@ class FakeBudget extends BudgetProvider {
   }
 }
 
-Future<FakeBudget> pumpSheet(WidgetTester tester) async {
+Future<FakeBudget> pumpSheet(WidgetTester tester, {Widget sheet = const UnifiedEntryModal()}) async {
   tester.view.physicalSize = const Size(1080, 2600);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -49,7 +50,7 @@ Future<FakeBudget> pumpSheet(WidgetTester tester) async {
                 onPressed: () => showModalBottomSheet(
                   context: ctx,
                   isScrollControlled: true,
-                  builder: (_) => const UnifiedEntryModal(),
+                  builder: (_) => sheet,
                 ),
                 child: const Text('open'),
               ),
@@ -155,5 +156,19 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('consequence-line')), findsOneWidget);
     expect(find.textContaining('above floor'), findsOneWidget);
+  });
+
+  testWidgets('editing a spend counts its saved amount once', (tester) async {
+    await pumpSheet(tester, sheet: UnifiedEntryModal(
+      initialType: EntryType.transaction,
+      initialTransaction: Transaction.fromJson(const {
+        '_id': 't1', 'title': 'Tea', 'amount': 2000, 'status': 'successful', 'date': '2026-11-10',
+        'category': 'Food', 'accountId': 'b1',
+      }),
+    ));
+    // ₹10,000 today already has the ₹20 out; raising it to ₹25 leaves ₹9,995
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '25');
+    await tester.pump();
+    expect(find.textContaining(RegExp(r'After this: Main Bank ₹9,995')), findsOneWidget);
   });
 }

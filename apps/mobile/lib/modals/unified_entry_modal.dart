@@ -853,6 +853,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   amountController: _amountCtrl,
                   accountId: _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId,
                   showWhenSafe: true,
+                  alreadyCounted: _savedSpendIn(_selectedAccountId),
                 ),
 
               if (_isEditing) _buildEditSummary(budget),
@@ -1395,6 +1396,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         accountRequired: true,
         onAccount: (t, i) => setState(() => set(t, i)),
       ).pickAccount(context);
+
+  /// The saved spend being edited is already out of [accountId]'s balance.
+  int _savedSpendIn(String? accountId) {
+    final t = widget.initialTransaction;
+    if (_activeType != EntryType.transaction || t == null || t.isPlanned || t.accountId != accountId) return 0;
+    return t.amount;
+  }
 
   DateTime get _today {
     final n = DateTime.now();
