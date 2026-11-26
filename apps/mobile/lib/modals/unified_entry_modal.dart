@@ -26,7 +26,7 @@ import '../widgets/entry_summary_chips.dart';
 import '../widgets/web_icons.dart';
 import '../theme/app_typography.dart';
 import '../screens/onboarding_screen.dart' show SetupGroup, SetupRow, SetupSegmented;
-import '../screens/accounts_screen.dart' show showAddAccountDialog;
+import 'edit_account_modal.dart' show showAccountForm;
 
 enum EntryType { transaction, income, item, goal, transfer }
 
@@ -1501,7 +1501,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         const SizedBox(height: 8),
         TextButton(
           key: const ValueKey('entry-add-bank'),
-          onPressed: () => showAddAccountDialog(context, isBank: true),
+          onPressed: () => showAccountForm(context, isBank: true),
           child: const Text('+ Add Bank Account'),
         ),
       ]),
