@@ -4,7 +4,6 @@ import 'package:budget_mobile/modals/edit_account_modal.dart';
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/screens/plan_screen.dart';
-import 'package:budget_mobile/widgets/account_selector.dart';
 import 'package:budget_mobile/widgets/cards_section.dart';
 import 'package:budget_mobile/widgets/held_lent_section.dart';
 import 'package:flutter/material.dart';
@@ -170,10 +169,8 @@ void main() {
     final budget = (await tester.runAsync(FixtureBudget().load))!;
     const upi = '00000000-0000-4000-8000-000000000010';
     await pump(tester, budget, const UnifiedEntryModal(initialType: EntryType.transfer, initialSourceAccountId: upi));
-    final source = tester.widget<AccountSelector>(
-        find.byWidgetPredicate((w) => w is AccountSelector && w.label == 'Source Account (From)'));
-    expect(source.selectedAccountId, upi);
-    expect(source.accountType, 'wallet');
+    // The transfer form's "From" row (phase 1 layout) names the source account.
+    expect(find.descendant(of: find.byKey(const ValueKey('move-from')), matching: find.text('UPI')), findsOneWidget);
   });
 
   testWidgets('Confirm & pay confirms the bill, then opens Pay on it', (tester) async {
