@@ -377,3 +377,119 @@ class _Pattern extends CustomPainter {
   @override
   bool shouldRepaint(_Pattern old) => old.color != color || old.dots != dots;
 }
+
+/// web's AllowancePaceMeter: the unplanned allowance used so far against an
+/// even pace for today. Shows nothing without an allowance.
+class AllowancePaceMeter extends StatelessWidget {
+  const AllowancePaceMeter({
+    super.key,
+    required this.unplannedAllowance,
+    required this.totalUnplannedSpent,
+    required this.daysElapsed,
+    required this.daysInMonth,
+    required this.currencySymbol,
+  });
+  final int unplannedAllowance, totalUnplannedSpent, daysElapsed, daysInMonth;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final pace = getAllowancePace(
+      unplannedAllowance: unplannedAllowance,
+      totalUnplannedSpent: totalUnplannedSpent,
+      daysElapsed: daysElapsed,
+      daysInMonth: daysInMonth,
+    );
+    if (pace == null) return const SizedBox.shrink();
+    final p = context.palette;
+    String money(int v) => formatCurrency(v, symbol: currencySymbol);
+    String whole(int v) => formatCurrencyWhole(v, symbol: currencySymbol);
+    final over = pace.status == 'over';
+    final (label, icon) = switch (pace.status) {
+      'over' => ('Over pace', WebIcons.alertTriangle),
+      'under' => ('Under pace', WebIcons.trendingDown),
+      _ => ('On pace', WebIcons.checkCircle),
+    };
+    final gap = pace.delta.abs();
+    final message = switch (pace.status) {
+      'over' => '${money(gap)} ahead of an even pace for day $daysElapsed.',
+      'under' => '${money(gap)} behind an even pace, so there is room to spare.',
+      _ => 'Spending evenly for day $daysElapsed of $daysInMonth.',
+    };
+    final statusFg = over ? p.warnInk : p.good;
+    final statusBg = over ? p.warnSubtle : p.goodSubtle;
+    final fill = over ? p.warn : p.indigo;
+    return PlanCard(
+      key: const ValueKey('allowance-pace'),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(child: Semantics(header: true, child: Text('Unplanned allowance', style: _inter(13, FontWeight.w600, p.text)))),
+          Container(
+            height: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              WebIcon(icon, size: 12, color: statusFg),
+              const SizedBox(width: 5),
+              Text(label, style: _inter(11, FontWeight.w600, statusFg)),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: 6, children: [
+          Text(whole(pace.spent), style: _inter(22, FontWeight.w700, p.text, letterSpacing: -0.44)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text('of ${whole(pace.allowance)} used', style: _inter(13, FontWeight.w400, p.textSecondary)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Semantics(
+          label: 'Allowance used: ${money(pace.spent)} of ${money(pace.allowance)}; expected by today ${money(pace.expectedByToday)}',
+          child: SizedBox(
+            height: 18,
+            child: LayoutBuilder(builder: (context, c) {
+              final w = c.maxWidth;
+              return Stack(clipBehavior: Clip.none, alignment: Alignment.centerLeft, children: [
+                Container(height: 10, decoration: BoxDecoration(color: fill.withAlpha(36), borderRadius: BorderRadius.circular(999))),
+                Container(
+                  height: 10,
+                  width: (w * pace.usedRatio).clamp(4, w).toDouble(),
+                  decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(999)),
+                ),
+                Positioned(
+                  left: (w * pace.expectedRatio - 1.5).clamp(0, w - 3).toDouble(),
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: p.text,
+                      borderRadius: BorderRadius.circular(2),
+                      border: Border.all(color: p.surface, width: 0.5),
+                    ),
+                  ),
+                ),
+              ]);
+            }),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: Text.rich(TextSpan(style: _inter(12, FontWeight.w400, p.textSecondary), children: [
+              const TextSpan(text: 'Expected by today '),
+              TextSpan(text: money(pace.expectedByToday), style: _inter(12, FontWeight.w600, p.text)),
+            ])),
+          ),
+          Text.rich(TextSpan(style: _inter(12, FontWeight.w400, p.textSecondary), children: [
+            TextSpan(text: pace.left >= 0 ? 'Left ' : 'Over by '),
+            TextSpan(text: money(pace.left.abs()), style: _inter(12, FontWeight.w600, p.text)),
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        Text(message, style: _inter(12, FontWeight.w400, over ? p.warnInk : p.textMuted)),
+      ]),
+    );
+  }
+}

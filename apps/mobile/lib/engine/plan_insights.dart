@@ -147,3 +147,45 @@ String _addDays(String date, int n) =>
     daysToSalary: daysToSalary,
   );
 }
+
+class AllowancePace {
+  const AllowancePace({
+    required this.allowance,
+    required this.spent,
+    required this.expectedByToday,
+    required this.status,
+    required this.usedRatio,
+    required this.expectedRatio,
+  });
+  final int allowance, spent, expectedByToday;
+  final String status; // on | under | over
+  final double usedRatio, expectedRatio;
+  int get left => allowance - spent;
+  int get delta => spent - expectedByToday;
+}
+
+/// Envelope pacing for the unplanned allowance (getAllowancePace on web):
+/// spent so far against an even pace for today. Null when there is no allowance.
+AllowancePace? getAllowancePace({
+  required int unplannedAllowance,
+  required int totalUnplannedSpent,
+  int daysElapsed = 1,
+  int daysInMonth = 30,
+}) {
+  if (unplannedAllowance <= 0) return null;
+  final spent = totalUnplannedSpent < 0 ? 0 : totalUnplannedSpent;
+  final totalDays = daysInMonth < 1 ? 1 : daysInMonth;
+  final elapsed = daysElapsed.clamp(0, totalDays);
+  final expected = (unplannedAllowance * elapsed / totalDays).round();
+  final delta = spent - expected;
+  final tolerance = (unplannedAllowance * 0.05).round();
+  final status = delta > tolerance ? 'over' : (delta < -tolerance ? 'under' : 'on');
+  return AllowancePace(
+    allowance: unplannedAllowance,
+    spent: spent,
+    expectedByToday: expected,
+    status: status,
+    usedRatio: (spent / unplannedAllowance).clamp(0, 1).toDouble(),
+    expectedRatio: (elapsed / totalDays).clamp(0, 1).toDouble(),
+  );
+}

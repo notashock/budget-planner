@@ -210,6 +210,11 @@ class SimulationResult {
   final int cardReserve;
   /// Today's day in the period's own frame (day 1 = its first day); 0 = not started, null = over or unknown
   final int? currentDay;
+  /// Unplanned allowance for the period and how much of it is spent (the pace meter)
+  final int unplannedAllowance;
+  final int totalUnplannedSpent;
+  final int? daysElapsed;
+  final int? daysInMonth;
 
   SimulationResult({
     required this.openingBalance,
@@ -229,6 +234,10 @@ class SimulationResult {
     this.lentOutstanding = 0,
     this.cardReserve = 0,
     this.currentDay,
+    this.unplannedAllowance = 0,
+    this.totalUnplannedSpent = 0,
+    this.daysElapsed,
+    this.daysInMonth,
   });
 
   factory SimulationResult.fromJson(Map<String, dynamic> json) {
@@ -278,6 +287,10 @@ class SimulationResult {
       lentOutstanding: (num.tryParse('${json['lentOutstanding'] ?? 0}') ?? 0).round(),
       cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
       currentDay: json['currentDay'] is num ? (json['currentDay'] as num).toInt() : null,
+      unplannedAllowance: (num.tryParse('${json['unplannedAllowance'] ?? 0}') ?? 0).round(),
+      totalUnplannedSpent: (num.tryParse('${json['totalUnplannedSpent'] ?? 0}') ?? 0).round(),
+      daysElapsed: json['daysElapsed'] is num ? (json['daysElapsed'] as num).toInt() : null,
+      daysInMonth: json['daysInMonth'] is num ? (json['daysInMonth'] as num).toInt() : null,
     );
   }
 }

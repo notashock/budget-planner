@@ -3,366 +3,311 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
 import '../engine/engine.dart';
-import '../theme/app_form.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
+import '../theme/app_typography.dart';
+import '../widgets/web_icons.dart';
 
+/// web's SalarySafelineModal ("Salary schedule"): the salary account, amount,
+/// safety floor and credit date. Outside the salary window only the safety
+/// floor can change.
 class SalarySafelineModal extends StatefulWidget {
-  const SalarySafelineModal({super.key});
+  const SalarySafelineModal({super.key, this.currentDate});
+
+  /// Today, for the salary window (tests pass a fixed date).
+  final DateTime? currentDate;
 
   @override
   State<SalarySafelineModal> createState() => _SalarySafelineModalState();
 }
 
 class _SalarySafelineModalState extends State<SalarySafelineModal> {
-  late TextEditingController _incomeCtrl;
-  late TextEditingController _floorCtrl;
-  late TextEditingController _creditDayCtrl;
-  String? _selectedBankId;
-  String? _salaryCreditedDateStr;
+  late final TextEditingController _incomeCtrl;
+  late final TextEditingController _floorCtrl;
+  String? _bankId;
+  late String _creditedDate;
   bool _isSalaryCredited = false;
-  bool _submitting = false;
+  bool _dateDirty = false;
+  bool _creditedDirty = false;
+  bool _loading = false;
+  String? _error;
+
+  static String _major(int minor) {
+    final v = toMajorUnits(minor);
+    return v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+  }
+
+  static String _pad(int n) => n.toString().padLeft(2, '0');
 
   @override
   void initState() {
     super.initState();
     final budget = context.read<BudgetProvider>();
-    final active = budget.monthInfo;
-
-    final incomeMajor = toMajorUnits(active?.incomeAmount ?? 0);
-    final floorMajor = toMajorUnits(active?.safetyFloor ?? 0);
-
-    _incomeCtrl = TextEditingController(text: incomeMajor > 0 ? '$incomeMajor' : '');
-    _floorCtrl = TextEditingController(text: floorMajor > 0 ? '$floorMajor' : '');
-    _creditDayCtrl = TextEditingController(text: '${active?.incomeCreditDay ?? 1}');
-    _selectedBankId = active?.salaryAccountId;
-
-    _isSalaryCredited = active?.isSalaryCredited ?? false;
-    final existingDate = active?.salaryCreditedDate ?? active?.incomeCreditDate;
-    if (existingDate != null && existingDate.isNotEmpty) {
-      _salaryCreditedDateStr = existingDate;
-    } else {
-      final now = DateTime.now();
-      final year = active?.year ?? now.year;
-      final month = active?.month ?? now.month;
-      final day = (active?.incomeCreditDay ?? 1).clamp(1, 31);
-      String pad(int n) => n.toString().padLeft(2, '0');
-      _salaryCreditedDateStr = '$year-${pad(month)}-${pad(day)}';
-    }
+    final m = budget.monthInfo;
+    final banks = budget.bankAccountModels;
+    _incomeCtrl = TextEditingController(text: _major(m?.incomeAmount ?? 0));
+    _floorCtrl = TextEditingController(text: _major(m?.safetyFloor ?? 0));
+    final saved = m?.salaryAccountId;
+    final primary = banks.where((b) => b.isPrimary).firstOrNull ?? banks.firstOrNull;
+    _bankId = banks.any((b) => b.id == saved) ? saved : primary?.id;
+    final now = DateTime.now();
+    _creditedDate = m?.salaryCreditedDate ??
+        m?.incomeCreditDate ??
+        '${m?.year ?? now.year}-${_pad(m?.month ?? now.month)}-${_pad((m?.incomeCreditDay ?? 1).clamp(1, 31))}';
+    _isSalaryCredited = m?.isSalaryCredited ?? false;
   }
 
   @override
   void dispose() {
     _incomeCtrl.dispose();
     _floorCtrl.dispose();
-    _creditDayCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _pickSalaryDate() async {
-    final now = DateTime.now();
+  Future<void> _pickDate(int year, int month) async {
+    final last = DateTime(year, month + 1, 0);
+    final first = DateTime(year - 1, 1, 1);
+    var initial = DateTime.tryParse(_creditedDate) ?? DateTime(year, month, 1);
+    if (initial.isAfter(last)) initial = last;
+    if (initial.isBefore(first)) initial = first;
+    final picked = await showDatePicker(context: context, initialDate: initial, firstDate: first, lastDate: last);
+    if (picked == null) return;
+    setState(() {
+      _creditedDate = '${picked.year}-${_pad(picked.month)}-${_pad(picked.day)}';
+      _dateDirty = true;
+      _isSalaryCredited = true;
+      _creditedDirty = true;
+    });
+  }
+
+  Future<void> _submit(bool locked) async {
     final budget = context.read<BudgetProvider>();
-    final active = budget.monthInfo;
-    final year = active?.year ?? now.year;
-    final month = active?.month ?? now.month;
-
-    DateTime initialDate = DateTime(year, month, int.tryParse(_creditDayCtrl.text) ?? 1);
-    if (_salaryCreditedDateStr != null) {
-      try {
-        final parsed = DateTime.parse(_salaryCreditedDateStr!);
-        initialDate = parsed;
-      } catch (_) {}
-    }
-
-    final firstDate = DateTime(year - 1, 1, 1);
-    final lastDate = DateTime(year + 1, 12, 31);
-    if (initialDate.isBefore(firstDate)) initialDate = firstDate;
-    if (initialDate.isAfter(lastDate)) initialDate = lastDate;
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
-    );
-
-    if (picked != null) {
-      setState(() {
-        String pad(int n) => n.toString().padLeft(2, '0');
-        _salaryCreditedDateStr = '${picked.year}-${pad(picked.month)}-${pad(picked.day)}';
-        _creditDayCtrl.text = '${picked.day}';
-        _isSalaryCredited = true;
-      });
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final floor = toMinorUnits(num.tryParse(_floorCtrl.text) ?? 0);
+    try {
+      if (locked) {
+        await budget.updateSalaryFloor(floor: floor);
+      } else {
+        await budget.updateSalaryFloor(
+          income: toMinorUnits(num.tryParse(_incomeCtrl.text) ?? 0),
+          floor: floor,
+          bankAccountId: _bankId,
+          salaryCreditedDate: _dateDirty ? _creditedDate : null,
+          isSalaryCredited: _creditedDirty ? _isSalaryCredited : null,
+        );
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) setState(() => _error = msg.isEmpty ? 'Failed to update salary details.' : msg);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final budget = context.budgetView();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final status = budget.salaryStatus;
+    final p = context.palette;
+    final m = budget.monthInfo;
+    if (m == null) return const SizedBox.shrink();
+    final status = getSalaryWindowStatus(m.raw, widget.currentDate);
+    final locked = status.isLocked;
     final banks = budget.bankAccountModels;
-    final active = budget.monthInfo;
+    final sym = m.currencySymbol;
 
-    final isAlreadyCredited = _isSalaryCredited || (active?.isSalaryCredited ?? false);
-    final isModalLocked = status.isLocked || isAlreadyCredited;
-
-    Color badgeColor;
-    if (isAlreadyCredited) {
-      badgeColor = context.palette.goodInk;
-    } else if (status.status == 'in_window') {
-      badgeColor = context.palette.goodInk;
-    } else if (status.status == 'before_window') {
-      badgeColor = context.palette.warnInk;
-    } else {
-      badgeColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    }
-
-    String bannerText = status.tooltip;
-    if (isAlreadyCredited) {
-      bannerText = 'Salary credited for this cycle. Settings locked until next cycle window.';
-    }
+    TextStyle label() => AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary);
+    Widget field(String text, Widget child, {String? hint}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(text, style: label()),
+            const SizedBox(height: 6),
+            child,
+            if (hint != null) ...[
+              const SizedBox(height: 4),
+              Text(hint, style: AppTypography.inter(fontSize: 11, color: p.textMuted)),
+            ],
+          ],
+        );
+    Widget notice(WebIconData icon, String title, String body, {Color? bg, Color? border, Key? key}) => Container(
+          key: key,
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg ?? p.surfaceSubtle,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: border ?? p.border),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(padding: const EdgeInsets.only(top: 1), child: WebIcon(icon, size: 14, color: p.textSecondary)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(TextSpan(style: AppTypography.inter(fontSize: 12, color: p.textSecondary), children: [
+                if (title.isNotEmpty) TextSpan(text: '$title ', style: const TextStyle(fontWeight: FontWeight.w700)),
+                TextSpan(text: body),
+              ])),
+            ),
+          ]),
+        );
+    InputDecoration box() => const InputDecoration(hintText: '0.00', isDense: true);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
-        padding: AppForm.sheetPadding,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          color: p.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          border: Border.all(color: p.border),
         ),
+        child: SafeArea(
+        top: false,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Salary & Safety Floor',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Window Status Banner
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: badgeColor.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: badgeColor.withAlpha(100)),
+              Row(children: [
+                WebIcon(WebIcons.buildingLibrary, size: 18, color: p.text),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Salary schedule', style: AppTypography.inter(fontSize: 16, fontWeight: FontWeight.w600, color: p.text))),
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                  icon: WebIcon(WebIcons.x, size: 16, color: p.textSecondary),
                 ),
-                child: Row(
-                  children: [
-                    Icon(isModalLocked ? Icons.lock_outline : Icons.check_circle_outline, size: 18, color: badgeColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        bannerText,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: badgeColor),
-                      ),
-                    ),
-                  ],
-                ),
+              ]),
+              const SizedBox(height: 8),
+              Text(
+                'Designate the bank account that receives your salary and specify the monthly salary details for ${m.month}/${m.year}.',
+                style: AppTypography.inter(fontSize: 12, color: p.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 16),
-
-              // Fast "Credit Salary Now" Action if allowed
-              if (!isModalLocked && !status.isUnconfigured)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.palette.goodInk,
-                      side: BorderSide(color: context.palette.goodInk),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    icon: const Icon(Icons.account_balance_wallet, size: 18),
-                    label: const Text('Credit Monthly Salary to Bank Account'),
-                    onPressed: () async {
-                      final navigator = Navigator.of(context);
-                      await budget.creditSalary();
-                      if (mounted) navigator.pop();
-                    },
-                  ),
+              if (locked)
+                notice(WebIcons.lock, 'Salary logging locked:', '${status.reason} Your safety floor can still be changed.',
+                    key: const ValueKey('salary-lock-banner')),
+              if (status.isMidMonthSetup && !locked)
+                notice(
+                  WebIcons.shieldAlert,
+                  'Notice:',
+                  'Because today is outside the 10-day rollover window (Day -4 to Day 5), this initial salary setup will lock immediately upon saving until next month-end.',
+                  bg: p.warnSubtle,
+                  border: p.warn.withAlpha(77),
+                  key: const ValueKey('mid-month-warning-banner'),
                 ),
-
-              TextField(
-                controller: _incomeCtrl,
-                enabled: !isModalLocked,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Expected Monthly Salary ($moneySymbol)',
-                  filled: isModalLocked,
-                  fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
-                ),
+              if (_error != null) notice(WebIcons.shieldAlert, '', _error!),
+              field(
+                'Salary Credited Account *',
+                banks.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: p.surfaceSubtle, borderRadius: BorderRadius.circular(8)),
+                        child: Text('No bank accounts registered yet. Please create a bank account first.',
+                            style: AppTypography.inter(fontSize: 12, color: p.textSecondary)),
+                      )
+                    : DropdownButtonFormField<String>(
+                        key: const ValueKey('salary-credited-bank-select'),
+                        initialValue: _bankId,
+                        isExpanded: true,
+                        borderRadius: BorderRadius.circular(8),
+                        decoration: const InputDecoration(isDense: true),
+                        items: [
+                          for (final b in banks)
+                            DropdownMenuItem(
+                              value: b.id,
+                              child: Text(
+                                '${b.name.isEmpty ? 'Account' : b.name} (${(b.institution ?? '').isEmpty ? 'Bank' : b.institution}) ${b.isPrimary ? '[Primary]' : ''}'.trim(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: locked ? null : (v) => setState(() => _bankId = v),
+                      ),
               ),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
-                initialValue: _selectedBankId != null && banks.any((b) => b.id == _selectedBankId)
-                    ? _selectedBankId
-                    : (banks.isNotEmpty ? banks.first.id : null),
-                decoration: InputDecoration(
-                  labelText: 'Salary Bank Account',
-                  filled: isModalLocked,
-                  fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
-                ),
-                items: banks.map<DropdownMenuItem<String>>((b) {
-                  final id = b.id;
-                  final name = b.name.isEmpty ? 'Account' : b.name;
-                  return DropdownMenuItem<String>(value: id, child: Text(name));
-                }).toList(),
-                onChanged: isModalLocked ? null : (v) => setState(() => _selectedBankId = v),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: _floorCtrl,
-                enabled: !isModalLocked,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Safety Floor Threshold ($moneySymbol)',
-                  filled: isModalLocked,
-                  fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
+              const SizedBox(height: 14),
+              field(
+                'Monthly Salary Amount ($sym) *',
+                TextField(
+                  key: const ValueKey('salary-amount-input'),
+                  controller: _incomeCtrl,
+                  enabled: !locked,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: box(),
                 ),
               ),
               const SizedBox(height: 14),
-
-              // Salary Credit Date Picker Field
-              InkWell(
-                onTap: isModalLocked ? null : _pickSalaryDate,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isModalLocked
-                        ? (isDark ? Colors.white10 : Colors.black12)
-                        : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_month_outlined, size: 20, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date of Salary Credit',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _salaryCreditedDateStr ?? 'Select Date',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'monospace',
-                                color: isDark ? AppColors.darkText : AppColors.lightText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!isModalLocked)
-                        TextButton(
-                          onPressed: _pickSalaryDate,
-                          child: const Text('Change'),
-                        ),
-                    ],
-                  ),
+              field(
+                'Safety floor ($sym) *',
+                TextField(
+                  key: const ValueKey('safeline-floor-input'),
+                  controller: _floorCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: box(),
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Salary already credited toggle
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isModalLocked
-                      ? (isDark ? Colors.white10 : Colors.black12)
-                      : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
+              const SizedBox(height: 14),
+              field(
+                'Date of Salary Credit *',
+                InkWell(
+                  key: const ValueKey('salary-credit-date-input'),
+                  onTap: locked ? null : () => _pickDate(m.year, m.month),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                  child: InputDecorator(
+                    decoration: InputDecoration(isDense: true, enabled: !locked),
+                    child: Text(_creditedDate,
+                        style: AppTypography.inter(fontSize: 14, color: locked ? p.textMuted : p.text)),
+                  ),
+                ),
+                hint: 'The exact calendar date your salary is credited (can also be on previous month-end).',
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: p.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: p.border),
                 ),
                 child: CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _isSalaryCredited,
+                  key: const ValueKey('salary-credited-checkbox'),
                   dense: true,
-                  title: Text(
-                    'Salary already credited for this month',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                    ),
-                  ),
-                  activeColor: context.palette.goodInk,
-                  onChanged: isModalLocked
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _isSalaryCredited,
+                  onChanged: locked
                       ? null
-                      : (val) {
-                          setState(() => _isSalaryCredited = val ?? false);
-                        },
+                      : (v) => setState(() {
+                            _isSalaryCredited = v ?? false;
+                            _creditedDirty = true;
+                          }),
+                  title: Text('Salary already credited for this month',
+                      style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.text)),
                 ),
               ),
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isModalLocked ? Colors.grey : (Theme.of(context).colorScheme.primary),
-                    foregroundColor: isModalLocked ? Colors.white70 : (Theme.of(context).colorScheme.onPrimary),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(height: 22),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _loading ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
                   ),
-                  onPressed: (isModalLocked || _submitting)
-                      ? null
-                      : () async {
-                          setState(() => _submitting = true);
-                          final inc = toMinorUnits(num.tryParse(_incomeCtrl.text) ?? 0);
-                          final flr = toMinorUnits(num.tryParse(_floorCtrl.text) ?? 0);
-                          final day = int.tryParse(_creditDayCtrl.text) ?? 1;
-
-                          final navigator = Navigator.of(context);
-                          await budget.updateSalaryFloor(
-                            income: inc,
-                            floor: flr,
-                            creditDay: day,
-                            bankAccountId: _selectedBankId,
-                            salaryCreditedDate: _salaryCreditedDateStr,
-                            isSalaryCredited: _isSalaryCredited,
-                          );
-                          if (mounted) navigator.pop();
-                        },
-                  child: _submitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(isModalLocked ? 'Locked' : 'Save Settings', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(child: FilledButton(
+                  key: const ValueKey('salary-save'),
+                  onPressed: _loading || (!locked && banks.isEmpty) ? null : () => _submit(locked),
+                  child: Text(locked
+                      ? (_loading ? 'Updating...' : 'Update safety floor')
+                      : (_loading ? 'Saving...' : 'Save salary schedule')),
+                )),
+              ]),
             ],
           ),
         ),
+      ),
       ),
     );
   }

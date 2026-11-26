@@ -260,6 +260,16 @@ class _PlanScreenState extends State<PlanScreen> {
                   },
                 ),
               ),
+              const SizedBox(height: 12),
+              AllowancePaceMeter(
+                unplannedAllowance: activeSimulation.unplannedAllowance,
+                totalUnplannedSpent: activeSimulation.totalUnplannedSpent,
+                daysElapsed: activeSimulation.daysElapsed ?? _unifiedSimulation(budget).daysElapsed ?? 1,
+                daysInMonth: activeSimulation.daysInMonth ??
+                    _unifiedSimulation(budget).daysInMonth ??
+                    (activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30),
+                currencySymbol: currencySymbol,
+              ),
               ],
               const SizedBox(height: 12),
 

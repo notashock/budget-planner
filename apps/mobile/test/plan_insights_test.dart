@@ -50,4 +50,24 @@ void main() {
     expect(r.overdueCount, 1);
     expect(r.daysToSalary, 5);
   });
+
+  group('getAllowancePace (same cases as the engine)', () {
+    test('null without an allowance', () {
+      expect(getAllowancePace(unplannedAllowance: 0, totalUnplannedSpent: 0), isNull);
+    });
+    test('flags spending ahead of the expected line', () {
+      final p = getAllowancePace(unplannedAllowance: 1000000, totalUnplannedSpent: 620000, daysElapsed: 15, daysInMonth: 30)!;
+      expect(p.expectedByToday, 500000);
+      expect(p.delta, 120000);
+      expect(p.status, 'over');
+      expect(p.left, 380000);
+    });
+    test('a small deviation is on pace, a large underspend is under', () {
+      expect(getAllowancePace(unplannedAllowance: 1000, totalUnplannedSpent: 520, daysElapsed: 15, daysInMonth: 30)!.status, 'on');
+      expect(getAllowancePace(unplannedAllowance: 1000, totalUnplannedSpent: 100, daysElapsed: 15, daysInMonth: 30)!.status, 'under');
+    });
+    test('caps the used ratio at 1 when overspent', () {
+      expect(getAllowancePace(unplannedAllowance: 1000, totalUnplannedSpent: 1500, daysElapsed: 30, daysInMonth: 30)!.usedRatio, 1);
+    });
+  });
 }
