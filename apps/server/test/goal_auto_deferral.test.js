@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { db, runMigrations } from '../src/db/index.js';
@@ -13,6 +13,7 @@ describe('Newly created (logged) goals', () => {
   let app;
   let userId;
   let auth;
+  let email;
   let bankId;
   let goalId;
 
@@ -21,7 +22,7 @@ describe('Newly created (logged) goals', () => {
     app = createApp();
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ email: `logged_goal_${Date.now()}@example.com`, password: 'Password123!' });
+      .send({ email: (email = `logged_goal_${Date.now()}@example.com`), password: 'Password123!' });
     expect(reg.status).toBe(201);
     auth = { Authorization: `Bearer ${reg.body.data.token}` };
     userId = reg.body.data.user.id;
@@ -69,15 +70,24 @@ describe('Newly created (logged) goals', () => {
   });
 
   it('is auto-deferred when a heavy expense leaves no safe day for it', async () => {
+    // A spend can't be dated in the future (entryDateRules): log it on its own day
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2030-06-05T06:00:00Z'), shouldAdvanceTime: true });
+    try {
+    // A token signed today would read as expired in 2030: sign in again there
+    const login = await request(app).post('/api/auth/login').send({ email, password: 'Password123!' });
+    const auth2030 = { Authorization: `Bearer ${login.body.data.token}` };
     // ₹500 - ₹300 spent = ₹200 left; ₹200 goal + ₹150 floor no longer fits
     const tx = await request(app)
       .post('/api/months/2030/6/transactions')
-      .set(auth)
+      .set(auth2030)
       .send({ amount: 30000, category: 'Emergency', note: 'Repair', date: '2030-06-05', accountId: bankId });
     expect(tx.status).toBe(201);
 
     const goal = await db.query.goals.findFirst({ where: eq(s.goals.id, goalId) });
     expect(goal.status).toBe('deferred');
     expect(goal.deferredReason).toContain('Auto-deferred');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

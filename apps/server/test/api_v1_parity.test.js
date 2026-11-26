@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { runMigrations } from '../src/db/index.js';
@@ -218,7 +218,7 @@ async function runScenario(api) {
 
   // --- Transactions ---------------------------------------------------------
   const planned = await record('tx.createForMonth.planned', api.createMonthTransaction(2026, 11, {
-    name: 'Rent', amount: 25000, date: '2026-11-05', category: 'Housing', accountId: bankA.id, origin: 'planned', status: 'planned'
+    name: 'Rent', amount: 25000, date: '2026-11-10', category: 'Housing', accountId: bankA.id, origin: 'planned', status: 'planned'
   }));
   const plannedToCancel = await record('tx.createForMonth.toCancel', api.createMonthTransaction(2026, 11, {
     name: 'Gym', amount: 1500, date: '2026-11-20', category: 'Health', accountId: bankA.id, origin: 'planned', status: 'planned'
@@ -280,6 +280,11 @@ async function runScenario(api) {
 describe('Legacy routes and /api/v1 give the same results', () => {
   let legacySteps;
   let v1Steps;
+
+  // The scenario's November 2026 dates must read as "now": spends can't be in
+  // the future and plans can't be in the past (entryDateRules)
+  beforeAll(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-08T06:00:00Z'), shouldAdvanceTime: true }));
+  afterAll(() => vi.useRealTimers());
 
   beforeAll(async () => {
     await runMigrations();
