@@ -16,10 +16,35 @@ void main() {
       expect(formatCurrency(-250000, symbol: '₹'), '-₹2,500.00');
     });
 
-    test('formatCompactCurrency scales correctly', () {
+    test('formatCompactCurrency uses the Indian system (k, L, Cr), like the web chart', () {
       expect(formatCompactCurrency(50000, symbol: '₹'), '₹500');
+      expect(formatCompactCurrency(950000, symbol: '₹'), '₹9,500');
       expect(formatCompactCurrency(1500000, symbol: '₹'), '₹15k');
-      expect(formatCompactCurrency(100000000, symbol: '₹'), '₹1m');
+      expect(formatCompactCurrency(1250000, symbol: '₹'), '₹12.5k');
+      expect(formatCompactCurrency(13000000, symbol: '₹'), '₹1.3L');
+      expect(formatCompactCurrency(100000000, symbol: '₹'), '₹10L');
+      expect(formatCompactCurrency(2000000000, symbol: '₹'), '₹2Cr');
+      expect(formatCompactCurrency(-1500000, symbol: '₹'), '-₹15k');
+    });
+
+    test('headline figures are whole rupees; auto drops paise only when there are none', () {
+      expect(formatCurrencyWhole(1090909, symbol: '₹'), '₹10,909');
+      expect(formatCurrencyWhole(13000000, symbol: '₹'), '₹1,30,000');
+      expect(formatCurrency(125000, symbol: '₹', digits: MoneyDigits.auto), '₹1,250');
+      expect(formatCurrency(125050, symbol: '₹', digits: MoneyDigits.auto), '₹1,250.50');
+      expect(formatCurrencyWhole(-40, symbol: '₹'), '₹0', reason: 'no "-₹0"');
+    });
+
+    test('without a symbol, amounts use the month on screen', () {
+      addTearDown(() => moneySymbol = kDefaultCurrencySymbol);
+      moneySymbol = r'$';
+      expect(formatCurrency(5050), r'$50.50');
+      expect(formatCompactCurrency(1500000), r'$15k');
+    });
+
+    test('dates are day-month, the Indian order', () {
+      expect(formatDisplayDate('2026-09-18'), 'Fri, 18 Sep');
+      expect(formatDisplayDate('2026-09-18', includeWeekday: false), '18 Sep');
     });
   });
 

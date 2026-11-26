@@ -5,6 +5,7 @@ import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 
 class SalarySafelineModal extends StatefulWidget {
   const SalarySafelineModal({super.key});
@@ -108,11 +109,11 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
 
     Color badgeColor;
     if (isAlreadyCredited) {
-      badgeColor = AppColors.green;
+      badgeColor = context.palette.goodInk;
     } else if (status.status == 'in_window') {
-      badgeColor = AppColors.green;
+      badgeColor = context.palette.goodInk;
     } else if (status.status == 'before_window') {
-      badgeColor = AppColors.amber;
+      badgeColor = context.palette.warnInk;
     } else {
       badgeColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
     }
@@ -185,8 +186,8 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.green,
-                      side: const BorderSide(color: AppColors.green),
+                      foregroundColor: context.palette.goodInk,
+                      side: BorderSide(color: context.palette.goodInk),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     icon: const Icon(Icons.account_balance_wallet, size: 18),
@@ -204,7 +205,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 enabled: !isModalLocked,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Expected Monthly Salary (₹)',
+                  labelText: 'Expected Monthly Salary ($moneySymbol)',
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
@@ -234,7 +235,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 enabled: !isModalLocked,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Safety Floor Threshold (₹)',
+                  labelText: 'Safety Floor Threshold ($moneySymbol)',
                   filled: isModalLocked,
                   fillColor: isModalLocked ? (isDark ? Colors.white10 : Colors.black12) : null,
                 ),
@@ -315,7 +316,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                       color: isDark ? AppColors.darkText : AppColors.lightText,
                     ),
                   ),
-                  activeColor: AppColors.green,
+                  activeColor: context.palette.goodInk,
                   onChanged: isModalLocked
                       ? null
                       : (val) {
@@ -329,8 +330,8 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isModalLocked ? Colors.grey : (isDark ? Colors.white : Colors.black),
-                    foregroundColor: isModalLocked ? Colors.white70 : (isDark ? Colors.black : Colors.white),
+                    backgroundColor: isModalLocked ? Colors.grey : (Theme.of(context).colorScheme.primary),
+                    foregroundColor: isModalLocked ? Colors.white70 : (Theme.of(context).colorScheme.onPrimary),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),

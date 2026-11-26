@@ -18,10 +18,12 @@ import '../services/outbox.dart';
 import '../widgets/confirm_dialog.dart';
 import '../theme/app_form.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import 'held_lent_modal.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/account_selector.dart';
+import '../widgets/entry_summary_chips.dart';
 
 enum EntryType { transaction, income, item, goal, transfer }
 
@@ -570,7 +572,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   child: Text(
                     '$_sessionCount added · ${formatCurrency(_sessionTotal)}',
                     key: const ValueKey('entry-session'),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.green),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.goodInk),
                   ),
                 ),
 
@@ -618,11 +620,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                           ),
                           Text(
                             '+${formatCurrency(salaryAmt)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
-                              color: AppColors.green,
+                              color: context.palette.goodInk,
                             ),
                           ),
                         ],
@@ -759,7 +761,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       ),
                     ),
                     value: _isFixed,
-                    activeTrackColor: AppColors.green,
+                    activeTrackColor: context.palette.goodInk,
                     onChanged: (val) => setState(() => _isFixed = val),
                   ),
                 ),
@@ -816,7 +818,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: _activeType == EntryType.income ? 'Income (₹) *' : 'Amount (₹) *',
+                  labelText: _activeType == EntryType.income ? 'Income ($moneySymbol) *' : 'Amount ($moneySymbol) *',
                 ),
               ),
               if (_activeType != EntryType.goal) ...[
@@ -833,13 +835,40 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               const SizedBox(height: 12),
 
               // Date Picker or Recurring Day
-              if (isRecurring)
+              if (isRecurring) ...[
                 TextField(
                   controller: _dayCtrl,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Day of Month (1-31)'),
+                ),
+                const SizedBox(height: 12),
+              ],
+              // Spend, Income and Plan: date and account as one row of chips
+              // (entry-forms plan 5.1). Move has two accounts and Goal a target
+              // date, so they keep their full fields.
+              if (_usesSummaryChips)
+                EntrySummaryChips(
+                  showDate: !isRecurring,
+                  date: _selectedDate,
+                  onDate: (d) => setState(() {
+                    _selectedDate = d;
+                    _dayCtrl.text = '${d.day}';
+                  }),
+                  accountLabel: _activeType == EntryType.income ? 'Deposited to' : 'Paid from',
+                  accountType: _accountType,
+                  accountId: _selectedAccountId,
+                  banks: budget.bankAccountModels,
+                  wallets: budget.walletModels,
+                  cards: _activeType == EntryType.transaction || _activeType == EntryType.item
+                      ? budget.cardAccountModels
+                      : const [],
+                  accountRequired: _activeType == EntryType.income,
+                  onAccount: (type, id) => setState(() {
+                    _accountType = type;
+                    _selectedAccountId = id;
+                  }),
                 )
-              else
+              else if (!isRecurring)
                 AppDatePickerField(
                   label: _activeType == EntryType.goal
                       ? 'Target Date'
@@ -890,10 +919,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: goalRec.feasible ? AppColors.green.withAlpha(20) : AppColors.red.withAlpha(20),
+                          color: goalRec.feasible ? context.palette.good.withAlpha(20) : context.palette.bad.withAlpha(20),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: goalRec.feasible ? AppColors.green.withAlpha(100) : AppColors.red.withAlpha(100),
+                            color: goalRec.feasible ? context.palette.good.withAlpha(100) : context.palette.bad.withAlpha(100),
                           ),
                         ),
                         child: Row(
@@ -901,7 +930,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                             Icon(
                               goalRec.feasible ? Icons.auto_awesome : Icons.warning_amber_rounded,
                               size: 18,
-                              color: goalRec.feasible ? AppColors.green : AppColors.red,
+                              color: goalRec.feasible ? context.palette.goodInk : context.palette.badInk,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -915,7 +944,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      color: goalRec.feasible ? AppColors.green : AppColors.red,
+                                      color: goalRec.feasible ? context.palette.goodInk : context.palette.badInk,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -953,24 +982,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 const SizedBox(height: 12),
               ],
 
-              // Account Selector (Bank Account / Wallet)
-              if (_activeType != EntryType.goal && _activeType != EntryType.transfer) ...[
-                AccountSelector(
-                  label: _activeType == EntryType.income ? 'Deposited To Account' : 'Payment Account',
-                  accountType: _accountType,
-                  selectedAccountId: _selectedAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  creditCards: _activeType == EntryType.transaction || _activeType == EntryType.item ? budget.cardAccountModels : const [],
-                  isRequired: _activeType == EntryType.income,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _accountType = newType;
-                      _selectedAccountId = newId;
-                    });
-                  },
-                ),
-              ] else if (_activeType == EntryType.transfer) ...[
+              // Account: Spend / Income / Plan use the summary chip above
+              if (_activeType == EntryType.transfer) ...[
                 AccountSelector(
                   label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
                   accountType: _sourceAccountType,
@@ -1149,11 +1162,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _activeType == EntryType.income
-                        ? AppColors.green
-                        : (isDark ? Colors.white : Colors.black),
+                        ? context.palette.goodInk
+                        : (Theme.of(context).colorScheme.primary),
                     foregroundColor: _activeType == EntryType.income
                         ? Colors.white
-                        : (isDark ? Colors.black : Colors.white),
+                        : (Theme.of(context).colorScheme.onPrimary),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -1192,9 +1205,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           margin: const EdgeInsets.only(top: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: warn ? AppColors.amber.withAlpha(25) : AppColors.primary.withAlpha(20),
+            color: warn ? context.palette.warn.withAlpha(25) : context.palette.indigo.withAlpha(20),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: warn ? AppColors.amber.withAlpha(90) : AppColors.primary.withAlpha(70)),
+            border: Border.all(color: warn ? context.palette.warn.withAlpha(90) : context.palette.indigo.withAlpha(70)),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(message, style: const TextStyle(fontSize: 13, height: 1.35)),
@@ -1295,6 +1308,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
 
+  bool get _usesSummaryChips =>
+      _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item;
+
   SimulatedCard? _selectedCard(BudgetProvider budget) {
     for (final c in budget.simulatedCards) {
       if (c.account.id == _cardId) return c;
@@ -1318,7 +1334,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (type == EntryType.income ? AppColors.green : (isDark ? Colors.white : Colors.black))
+              ? (type == EntryType.income ? context.palette.goodInk : (Theme.of(context).colorScheme.primary))
               : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
           borderRadius: BorderRadius.circular(6),
         ),
@@ -1330,7 +1346,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
-                ? (type == EntryType.income ? Colors.white : (isDark ? Colors.black : Colors.white))
+                ? (type == EntryType.income ? Colors.white : (Theme.of(context).colorScheme.onPrimary))
                 : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
           ),
         ),
