@@ -19,7 +19,11 @@ class AppTheme {
     final isDark = brightness == Brightness.dark;
     final base = isDark ? AppPalette.dark : AppPalette.light;
     final p = accent == null ? base : base.copyWith(accent: accent);
-    final onAccent = ThemeData.estimateBrightnessForColor(p.accent) == Brightness.dark ? Colors.white : Colors.black;
+    // Text on the accent: white or web's --brand-contrast, whichever contrasts
+    // more (Flutter's brightness estimate calls #8B85FF dark and picks white, 3:1).
+    const ink = Color(0xFF0B0A1F);
+    final l = p.accent.computeLuminance();
+    final onAccent = (1.05 / (l + 0.05)) >= ((l + 0.05) / (ink.computeLuminance() + 0.05)) ? Colors.white : ink;
 
     return ThemeData(
       useMaterial3: true,

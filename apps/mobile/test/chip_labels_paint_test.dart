@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:budget_mobile/modals/unified_entry_modal.dart';
@@ -62,11 +63,27 @@ void main() {
         return hi - lo;
       }
 
-      for (final label in ['100', '500', '1k', 'Travel', 'Health', 'Credit / Refund', 'Food']) {
+      // Unselected chips (the bug). The selected one ("Food") is checked by
+      // colour below: its pixels measure differently on CI's Linux renderer.
+      for (final label in ['100', '500', '1k', 'Travel', 'Health', 'Credit / Refund']) {
         // Blank labels measure ~0; 50 leaves room for softer anti-aliasing on CI's Linux fonts.
         expect(spread(label), greaterThan(50), reason: '"$label" is not visible');
       }
     });
   }
+
+  test('a selected chip label reads on the accent (AA 4.5:1) in both themes', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance(), lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    for (final theme in [AppTheme.lightTheme, AppTheme.darkTheme]) {
+      final label = theme.chipTheme.labelStyle!.color as WidgetStateColor;
+      final onAccent = label.resolve({WidgetState.selected});
+      expect(contrast(onAccent, theme.colorScheme.primary), greaterThanOrEqualTo(4.5),
+          reason: '${theme.brightness.name}: $onAccent on ${theme.colorScheme.primary}');
+    }
+  });
 }
 
