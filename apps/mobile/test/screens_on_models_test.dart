@@ -182,6 +182,25 @@ void main() {
   });
 
   group('Plan', () {
+    testWidgets('web order: hero, cash split, Due soon, then Details hides the chart and tiles', (tester) async {
+      final fb = FixtureBudget();
+      final budget = (await tester.runAsync(fb.load))!;
+      await pump(tester, budget, const PlanScreen(), wide: true);
+
+      expect(find.textContaining('safe to spend today'), findsOneWidget);
+      expect(find.text("After today's bills"), findsOneWidget);
+      expect(find.text('Due soon'), findsOneWidget);
+      expect(find.text('CASHFLOW TRAJECTORY'), findsNothing);
+      final hero = tester.getRect(find.byKey(const Key('plan-hero')));
+      expect(hero.top, lessThan(tester.getRect(find.text("After today's bills")).top));
+      expect(tester.getRect(find.text("After today's bills")).top, lessThan(tester.getRect(find.text('Due soon')).top));
+
+      await tester.tap(find.byKey(const Key('plan-details-toggle')));
+      await tester.pump();
+      expect(find.text('CASHFLOW TRAJECTORY'), findsOneWidget);
+      expect(find.text('Hide details'), findsOneWidget);
+    });
+
     testWidgets("an account view uses that account's simulation and says so", (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
@@ -189,7 +208,7 @@ void main() {
 
       await tester.tap(find.text('Main').first);
       await tester.pump();
-      expect(find.textContaining('Viewing isolated trajectory for', findRichText: true), findsOneWidget);
+      expect(find.textContaining('Showing only', findRichText: true), findsOneWidget);
     });
 
     testWidgets("without that account's simulation, it does not label all-accounts numbers as one account",
@@ -202,7 +221,7 @@ void main() {
 
       await tester.tap(find.text('Main').first);
       await tester.pump();
-      expect(find.textContaining('Viewing isolated trajectory for', findRichText: true), findsNothing);
+      expect(find.textContaining('Showing only', findRichText: true), findsNothing);
     });
   });
 }

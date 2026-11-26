@@ -90,15 +90,13 @@ void main() {
   // the phone: a Wrap stretched "Month Review" to full width on its own line).
   testWidgets('Plan at 1x: reflowing rows keep their one-line layout', (tester) async {
     await pump(tester, const PlanScreen());
+    await tester.tap(find.byKey(const Key('plan-details-toggle')));
+    await tester.pump();
     final review = tester.getRect(find.text('Month Review'));
     final title = tester.getRect(find.text('CASHFLOW TRAJECTORY'));
     expect(review.top, lessThan(title.bottom), reason: 'Month Review stays on the title line');
     expect(tester.getRect(find.ancestor(of: find.text('Month Review'), matching: find.byType(InkWell)).first).width,
         lessThan(200));
-    final daysLeft = tester.getRect(find.textContaining('days left'));
-    final velocity = tester.getRect(find.text('Dynamic Safe Velocity'));
-    expect(daysLeft.top, lessThan(velocity.bottom), reason: 'days-left pill on the same line');
-    expect(daysLeft.right, greaterThan(393 - 60), reason: 'pushed to the right edge');
   });
 
   double contrast(Color a, Color b) {
