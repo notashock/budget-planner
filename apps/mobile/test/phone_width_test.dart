@@ -86,7 +86,7 @@ void main() {
     final handle = tester.ensureSemantics();
     final budget = await loaded(tester);
     await pumpAt(tester, shell(), budget, width: 393);
-    for (final label in ['Add spend', 'Plan', 'Transactions', 'Goals', 'Accounts']) {
+    for (final label in ['Quick Add Entry', 'Plan', 'Transactions', 'Goals', 'Accounts']) {
       final node = tester.getSemantics(find.descendant(of: find.byType(AppDock), matching: find.bySemanticsLabel(label)));
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue, reason: label);
     }

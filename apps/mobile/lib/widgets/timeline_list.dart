@@ -124,7 +124,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
           _empty(p, WebIcons.calendar, 'No Timeline Events',
               widget.accountName != null
                   ? 'No timeline events recorded for ${widget.accountName} this month.'
-                  : 'No timeline events generated for this month.')
+                  : 'No timeline events generated for this month.',
+              dayReset: widget.accountName != null && widget.selectedDay != null)
         else ...[
           _filters(p, counts),
           const SizedBox(height: 10),
@@ -177,7 +178,13 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
   }
 
   /// web's segmented bar: a 36 px track, 28 px tabs; each tab takes taps over 48 dp.
-  Widget _filters(AppPalette p, Map<String, int> counts) {
+  Widget _filters(AppPalette p, Map<String, int> counts) => Semantics(
+        container: true,
+        label: 'Timeline Filters',
+        child: _filterTabs(p, counts),
+      );
+
+  Widget _filterTabs(AppPalette p, Map<String, int> counts) {
     final tabs = [
       ('all', 'All'),
       ('incomes', 'Income'),
@@ -259,7 +266,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     );
   }
 
-  Widget _empty(AppPalette p, WebIconData icon, String? title, String body, {bool reset = false}) {
+  Widget _empty(AppPalette p, WebIconData icon, String? title, String body, {bool reset = false, bool dayReset = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(children: [
@@ -278,6 +285,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
             },
             child: const Text('Reset all filters'),
           ),
+        if (dayReset)
+          TextButton(onPressed: () => widget.onSelectDay?.call(null), child: const Text('Reset day filter')),
       ]),
     );
   }
@@ -365,9 +374,15 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.text)),
               ),
-              if (date == today) ...[
+              if (relativeDateBadge(date, today) case final badge?) ...[
                 const SizedBox(width: 8),
-                Text('Today', style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w700, color: p.accent)),
+                Flexible(
+                  child: Text(badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.inter(
+                          fontSize: 11, fontWeight: FontWeight.w700, color: date == today ? p.accent : p.textMuted)),
+                ),
               ],
             ]),
           ),
@@ -590,4 +605,19 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
       ),
     );
   }
+}
+
+/// Web's getRelativeDateBadge: Today, Tomorrow, Yesterday, "In 3 days", "In 2w", "4d ago", "2w ago" (up to four weeks).
+String? relativeDateBadge(String date, String today) {
+  final a = DateTime.tryParse(date), b = DateTime.tryParse(today);
+  if (a == null || b == null) return null;
+  final diff = DateTime.utc(a.year, a.month, a.day).difference(DateTime.utc(b.year, b.month, b.day)).inDays;
+  if (diff == 0) return 'Today';
+  if (diff == 1) return 'Tomorrow';
+  if (diff == -1) return 'Yesterday';
+  if (diff > 1 && diff <= 7) return 'In $diff days';
+  if (diff > 7 && diff <= 28) return 'In ${(diff / 7).round()}w';
+  if (diff < -1 && diff >= -7) return '${-diff}d ago';
+  if (diff < -7 && diff >= -28) return '${(-diff / 7).round()}w ago';
+  return null;
 }
