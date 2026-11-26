@@ -278,6 +278,13 @@ class ApiService {
     return Map<String, dynamic>.from(data);
   }
 
+  /// First-run setup's salary: amount, expectedCreditDay, receivingAccountId,
+  /// periodType, effectiveDate (as web's api.saveSalaryTemplate).
+  Future<Map<String, dynamic>> saveSalaryTemplate(Map<String, dynamic> body) async {
+    final data = await _request('POST', '/api/salary-templates', body: body);
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> updates) async {
     final data = await _request('PUT', '/api/settings', body: updates);
     return Map<String, dynamic>.from(data);

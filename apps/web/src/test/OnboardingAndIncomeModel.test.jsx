@@ -8,50 +8,46 @@ import { api } from '../api.js';
 vi.mock('../api.js', () => ({
   api: {
     createAccount: vi.fn(),
+    updateBankAccount: vi.fn(),
     saveSalaryTemplate: vi.fn(),
     updateSettings: vi.fn()
   }
 }));
+
+const toAccount = () => fireEvent.click(screen.getByRole('button', { name: /Get Started/i }));
+const fillAccount = (name, balance) => {
+  fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: name } });
+  if (balance != null) fireEvent.change(screen.getByLabelText(/^Balance/i), { target: { value: balance } });
+};
 
 describe('OnboardingModal & Dual Income Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('Step 1 blocks submission when account name is empty', async () => {
+  it('opens on a welcome page, then blocks an account with no name', async () => {
     const handleCompleted = vi.fn();
     render(<OnboardingModal currencySymbol="₹" onCompleted={handleCompleted} />);
 
-    expect(screen.getByText(/Set Up Your Initial Account/i)).toBeInTheDocument();
-    expect(screen.getByText(/Step 1 of 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome to Budget Planner/i)).toBeInTheDocument();
+    toAccount();
+    expect(screen.getByText(/Add your main account/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Step 1 of 3/i })).toBeInTheDocument();
 
-    const form = screen.getByRole('button', { name: /Continue to Step 2/i }).closest('form');
-    fireEvent.submit(form);
-
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
     expect(await screen.findByText(/Please provide an account name/i)).toBeInTheDocument();
     expect(api.createAccount).not.toHaveBeenCalled();
     expect(handleCompleted).not.toHaveBeenCalled();
   });
 
-  it('Step 1 succeeds and moves to Step 2 when valid account details are submitted', async () => {
-    api.createAccount.mockResolvedValueOnce({
-      id: 'acc-1',
-      name: 'Main Checking',
-      type: 'bank',
-      openingBalance: 50000
-    });
+  it('creates the account once, even after going back to fix it', async () => {
+    api.createAccount.mockResolvedValueOnce({ id: 'acc-1', name: 'Main Checking', type: 'bank', openingBalance: 5000000 });
+    api.updateBankAccount.mockResolvedValueOnce({ id: 'acc-1', name: 'Main', openingBalance: 6000000 });
+    render(<OnboardingModal currencySymbol="₹" onCompleted={vi.fn()} />);
 
-    const handleCompleted = vi.fn();
-    render(<OnboardingModal currencySymbol="₹" onCompleted={handleCompleted} />);
-
-    fireEvent.change(screen.getByLabelText(/ACCOUNT NAME/i), {
-      target: { value: 'Main Checking' }
-    });
-    fireEvent.change(screen.getByLabelText(/OPENING BALANCE/i), {
-      target: { value: '50000' }
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Continue to Step 2/i }));
+    toAccount();
+    fillAccount('Main Checking', '50000');
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
 
     await waitFor(() => {
       expect(api.createAccount).toHaveBeenCalledWith({
@@ -63,82 +59,58 @@ describe('OnboardingModal & Dual Income Flow', () => {
         isPrimary: true
       });
     });
+    expect(await screen.findByText(/How are you paid/i)).toBeInTheDocument();
 
-    expect(await screen.findByText(/Income Configuration/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }));
+    fillAccount('Main', '60000');
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+    await waitFor(() => expect(api.updateBankAccount).toHaveBeenCalledWith('acc-1', expect.objectContaining({ name: 'Main', openingBalance: 6000000 })));
+    expect(api.createAccount).toHaveBeenCalledTimes(1);
   });
 
-  it('Step 2 irregular income skips template/month creation and completes onboarding', async () => {
-    api.createAccount.mockResolvedValueOnce({
-      id: 'acc-2',
-      name: 'Digital Wallet Pay',
-      type: 'wallet',
-      openingBalance: 1000000
-    });
+  it('variable income skips the salary page and completes onboarding', async () => {
+    api.createAccount.mockResolvedValueOnce({ id: 'acc-2', name: 'Paytm', type: 'wallet', openingBalance: 0 });
     api.updateSettings.mockResolvedValueOnce({ incomeMode: 'irregular' });
 
     const handleCompleted = vi.fn();
     render(<OnboardingModal currencySymbol="₹" onCompleted={handleCompleted} />);
 
-    // Step 1: select Digital Wallet (role="radio")
-    fireEvent.click(screen.getByRole('radio', { name: /Digital Wallet/i }));
-    fireEvent.change(screen.getByLabelText(/ACCOUNT NAME/i), {
-      target: { value: 'Digital Wallet Pay' }
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Continue to Step 2/i }));
+    toAccount();
+    fireEvent.click(screen.getByRole('radio', { name: /Wallet/i }));
+    fillAccount('Paytm');
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+    expect(await screen.findByText(/How are you paid/i)).toBeInTheDocument();
 
-    // Step 2
-    expect(await screen.findByText(/Income Configuration/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /Variable or freelance/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Finish$/i }));
+    expect(await screen.findByText(/You’re all set/i)).toBeInTheDocument();
+    expect(api.updateSettings).toHaveBeenCalledWith({ incomeMode: 'irregular' });
+    expect(api.saveSalaryTemplate).not.toHaveBeenCalled();
+    expect(handleCompleted).not.toHaveBeenCalled();
 
-    // Select "Variable / Freelance" (role="radio")
-    fireEvent.click(screen.getByRole('radio', { name: /Variable \/ Freelance/i }));
-
-    const finishBtn = screen.getByRole('button', { name: /Complete Setup & Enter App/i });
-    fireEvent.click(finishBtn);
-
-    await waitFor(() => {
-      expect(api.updateSettings).toHaveBeenCalledWith({ incomeMode: 'irregular' });
-      expect(api.saveSalaryTemplate).not.toHaveBeenCalled();
-      expect(handleCompleted).toHaveBeenCalledWith(
-        expect.objectContaining({
-          incomeMode: 'irregular',
-          account: expect.objectContaining({ id: 'acc-2' })
-        })
-      );
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Start Planning/i }));
+    expect(handleCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ incomeMode: 'irregular', account: expect.objectContaining({ id: 'acc-2' }) })
+    );
   });
 
-  it('Step 2 fixed regular salary creates salary template with versioning', async () => {
-    api.createAccount.mockResolvedValueOnce({
-      id: 'acc-salary',
-      name: 'Salary Account',
-      type: 'bank',
-      openingBalance: 2500000
-    });
-    api.saveSalaryTemplate.mockResolvedValueOnce({
-      id: 'tmpl-1',
-      amount: 12000000,
-      expectedCreditDay: 1,
-      periodType: 'salary_cycle'
-    });
+  it('a regular salary saves the salary template', async () => {
+    api.createAccount.mockResolvedValueOnce({ id: 'acc-salary', name: 'Salary Account', type: 'bank', openingBalance: 2500000 });
+    api.updateBankAccount.mockResolvedValueOnce({});
+    api.saveSalaryTemplate.mockResolvedValueOnce({ id: 'tmpl-1', amount: 12000000, expectedCreditDay: 1, periodType: 'salary_cycle' });
 
     const handleCompleted = vi.fn();
     render(<OnboardingModal currencySymbol="₹" onCompleted={handleCompleted} />);
 
-    // Step 1
-    fireEvent.change(screen.getByLabelText(/ACCOUNT NAME/i), {
-      target: { value: 'Salary Account' }
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Continue to Step 2/i }));
+    toAccount();
+    fillAccount('Salary Account', '25000');
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+    expect(await screen.findByText(/How are you paid/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
 
-    // Step 2
-    expect(await screen.findByText(/Income Configuration/i)).toBeInTheDocument();
-
-    // Salary inputs
-    const salaryInput = screen.getByLabelText(/EXPECTED AMOUNT/i);
-    fireEvent.change(salaryInput, { target: { value: '120000' } });
-
-    const finishBtn = screen.getByRole('button', { name: /Complete Setup & Enter App/i });
-    fireEvent.click(finishBtn);
+    expect(await screen.findByText(/Your salary/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/^Amount/i), { target: { value: '120000' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Finish$/i }));
 
     await waitFor(() => {
       expect(api.saveSalaryTemplate).toHaveBeenCalledWith({
@@ -148,14 +120,15 @@ describe('OnboardingModal & Dual Income Flow', () => {
         periodType: 'salary_cycle',
         effectiveDate: expect.any(String)
       });
-      expect(handleCompleted).toHaveBeenCalledWith(
-        expect.objectContaining({
-          incomeMode: 'salary',
-          account: expect.objectContaining({ id: 'acc-salary' }),
-          template: expect.objectContaining({ id: 'tmpl-1' })
-        })
-      );
     });
+    fireEvent.click(await screen.findByRole('button', { name: /Start Planning/i }));
+    expect(handleCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        incomeMode: 'salary',
+        account: expect.objectContaining({ id: 'acc-salary' }),
+        template: expect.objectContaining({ id: 'tmpl-1' })
+      })
+    );
   });
 });
 

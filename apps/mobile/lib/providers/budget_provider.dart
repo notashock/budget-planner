@@ -106,6 +106,14 @@ class BudgetProvider with ChangeNotifier {
   List<dynamic> _goals = [];
   List<dynamic> _evaluatedGoals = [];
   List<dynamic> _bankAccounts = [];
+  bool _accountsKnown = false;
+
+  /// The server answered and the user has no bank account or wallet yet:
+  /// first-run setup (web's showOnboarding).
+  bool get needsSetup => _accountsKnown && _bankAccounts.isEmpty && _wallets.isEmpty;
+
+  /// Setup creates accounts and settings through the API directly.
+  ApiService get api => _api;
   List<dynamic> _wallets = [];
   List<dynamic> _transfers = [];
   List<dynamic> _creditCards = [];
@@ -432,6 +440,7 @@ class BudgetProvider with ChangeNotifier {
     }
     _bankAccounts = banks;
     _wallets = wallets;
+    _accountsKnown = true;
     _transfers = transfers;
     _seed('goals', _evaluatedGoals, goalModels);
     _seed('banks', banks, bankModels);

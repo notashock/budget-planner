@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { SparklesIcon } from './Icons.jsx';
 
+/** Sign in / create account, in the same grouped style as first-run setup. */
 export function AuthScreen({ onLogin, onRegister }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -11,13 +13,9 @@ export function AuthScreen({ onLogin, onRegister }) {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      if (isRegister) {
-        await onRegister(email, password);
-      } else {
-        await onLogin(email, password);
-      }
+      if (isRegister) await onRegister(email, password);
+      else await onLogin(email, password);
     } catch (err) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -26,75 +24,48 @@ export function AuthScreen({ onLogin, onRegister }) {
   };
 
   return (
-    <div style={{ maxWidth: '380px', margin: '60px auto', padding: '20px' }}>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
-            {isRegister ? 'Create an account' : 'Sign in to your planner'}
-          </h2>
-          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Deterministic monthly cash flow and safety floor monitoring.
+    <div className="ob-screen">
+      <div className="ob-card">
+        <form className="ob-page ob-auth" onSubmit={handleSubmit}>
+          <div className="ob-appmark ob-auth-mark" aria-hidden="true"><SparklesIcon size={30} /></div>
+          <h1 className="ob-title">{isRegister ? 'Create your account' : 'Budget Planner'}</h1>
+          <p className="ob-subtitle">
+            {isRegister ? 'Plan your month and always know what’s safe to spend.' : 'Sign in to your planner.'}
           </p>
-        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div className="form-group">
-            <label className="form-label">Email address</label>
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+          <div className="ob-segmented" role="radiogroup" aria-label="Sign in or create account">
+            {[['Sign in', false], ['Create account', true]].map(([label, reg]) => (
+              <button key={label} type="button" role="radio" aria-checked={isRegister === reg}
+                className={`ob-segment ${isRegister === reg ? 'on' : ''}`}
+                onClick={() => { setIsRegister(reg); setError(''); }}>
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+          <div className="ob-group">
+            <label className="ob-row" htmlFor="auth-email">
+              <span className="ob-row-label">Email</span>
+              <input id="auth-email" className="ob-input" type="email" autoComplete="username" required autoFocus
+                placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </label>
+            <label className="ob-row" htmlFor="auth-password">
+              <span className="ob-row-label">Password</span>
+              <input id="auth-password" className="ob-input" type="password" required
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                placeholder={isRegister ? 'At least 8 characters' : 'Required'}
+                value={password} onChange={(e) => setPassword(e.target.value)} />
+            </label>
           </div>
 
-          {error && (
-            <div style={{ color: 'var(--danger)', fontSize: 'var(--fs-xs)' }}>
-              {error}
-            </div>
-          )}
+          {error && <p className="ob-error" role="alert" style={{ marginTop: 12 }}>{error}</p>}
 
-          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '6px' }}>
-            {loading ? (
-              <>
-                <span className="btn-spinner" style={{ marginRight: '8px' }} />
-                <span>Please wait...</span>
-              </>
-            ) : (
-              isRegister ? 'Register' : 'Sign in'
-            )}
-          </button>
+          <div className="ob-footer">
+            <button type="submit" className="ob-primary" disabled={loading}>
+              {loading ? 'Please wait…' : isRegister ? 'Create Account' : 'Sign In'}
+            </button>
+          </div>
         </form>
-
-        <div style={{ textAlign: 'center', fontSize: 'var(--fs-xs)', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-          <button
-            type="button"
-            className="btn-subtle"
-            onClick={() => {
-              setIsRegister(!isRegister);
-              setError('');
-            }}
-          >
-            {isRegister
-              ? 'Already have an account? Sign in'
-              : "Don't have an account? Create one"}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,552 +1,329 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { api } from '../api.js';
 import { DatePicker } from './DatePicker.jsx';
-import { CustomSelect } from './CustomSelect.jsx';
 import {
   BuildingLibraryIcon,
   WalletIcon,
   CheckIcon,
-  ArrowRightIcon,
   CalendarIcon,
   TrendingUpIcon,
-  SparklesIcon
+  SparklesIcon,
+  ShieldAlertIcon,
+  ChevronLeftIcon,
+  CheckCircleIcon
 } from './Icons.jsx';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-
-gsap.registerPlugin(useGSAP);
 
 function getTodayIso() {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-const ACCOUNT_TYPES = [
-  {
-    id: 'bank',
-    label: 'Bank Account',
-    desc: 'Salary, savings & checking accounts',
-    icon: BuildingLibraryIcon
-  },
-  {
-    id: 'wallet',
-    label: 'Digital Wallet',
-    desc: 'UPI, prepaid cards & digital wallets',
-    icon: WalletIcon
-  }
+const FEATURES = [
+  { icon: SparklesIcon, title: 'Know what’s safe to spend', desc: 'One number for today, after every bill still to come.' },
+  { icon: CalendarIcon, title: 'See bills before they’re due', desc: 'Your month laid out day by day, from payday on.' },
+  { icon: ShieldAlertIcon, title: 'Keep a minimum balance', desc: 'A warning before any plan would take you below it.' }
 ];
 
 const INCOME_OPTIONS = [
-  {
-    id: 'salary',
-    label: 'Regular Salary',
-    desc: 'Pre-schedules recurring credits with auto-budget cycles',
-    badge: 'Predictable',
-    icon: CalendarIcon
-  },
-  {
-    id: 'irregular',
-    label: 'Variable / Freelance',
-    desc: 'Freelance, seasonal, or harvest revenue with runway tracking',
-    badge: 'Runway',
-    icon: TrendingUpIcon
-  },
-  {
-    id: 'both',
-    label: 'Hybrid / Both',
-    desc: 'Base recurring salary plus variable spot deposits',
-    badge: 'Dual Flow',
-    icon: SparklesIcon
-  }
+  { id: 'salary', label: 'Regular salary', desc: 'The same amount around the same day each month' },
+  { id: 'irregular', label: 'Variable or freelance', desc: 'Income that changes; track your runway instead' },
+  { id: 'both', label: 'Both', desc: 'A salary plus extra income now and then' }
 ];
 
-const ACCOUNT_SUBTYPE_OPTIONS = [
-  { value: 'salary', label: 'Salary Account' },
-  { value: 'savings', label: 'Savings Account' },
-  { value: 'checking', label: 'Checking Account' },
-  { value: 'other', label: 'Other Account' }
+const ACCOUNT_KINDS = [
+  { value: 'salary', label: 'Salary' },
+  { value: 'savings', label: 'Savings' },
+  { value: 'checking', label: 'Checking' },
+  { value: 'other', label: 'Other' }
 ];
 
+
+/**
+ * First-run setup in Apple's setup-assistant style: one question per page,
+ * large title, grouped inset fields and one primary button at the bottom.
+ * Same pages and API calls as the mobile app's OnboardingScreen.
+ */
 export function OnboardingModal({ currencySymbol = '₹', onCompleted }) {
   const todayIso = useMemo(() => getTodayIso(), []);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Step 1 Form State
+  const [accountType, setAccountType] = useState('bank');
   const [accountName, setAccountName] = useState('');
-  const [accountType, setAccountType] = useState('bank'); // 'bank' | 'wallet'
   const [openingBalance, setOpeningBalance] = useState('');
   const [openingBalanceDate, setOpeningBalanceDate] = useState(todayIso);
-
-  // Created Account
   const [createdAccount, setCreatedAccount] = useState(null);
 
-  // Step 2 Form State
-  const [incomeMode, setIncomeMode] = useState('salary'); // 'salary' | 'irregular' | 'both'
-  const [accountSubtype, setAccountSubtype] = useState('salary'); // Requirement 2: default to salary account
+  const [incomeMode, setIncomeMode] = useState('salary');
+  const [accountSubtype, setAccountSubtype] = useState('salary');
   const [salaryAmount, setSalaryAmount] = useState('');
-  // Salary credit date strictly in past or today
   const [salaryCreditDate, setSalaryCreditDate] = useState(todayIso);
+  const [result, setResult] = useState(null);
 
-  const modalCardRef = useRef(null);
-
-  useGSAP(() => {
-    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    if (modalCardRef.current) {
-      gsap.fromTo(
-        modalCardRef.current,
-        { opacity: 0, scale: 0.98, y: 12 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: 'power2.out' }
-      );
-
-      const items = modalCardRef.current.querySelectorAll('.gsap-onboarding-item');
-      if (items.length > 0) {
-        gsap.fromTo(
-          items,
-          { opacity: 0, y: 6 },
-          { opacity: 1, y: 0, duration: 0.28, stagger: 0.04, ease: 'power2.out', delay: 0.05 }
-        );
-      }
-    }
-  }, { scope: modalCardRef, dependencies: [step] });
-
-  // Real-time formatted balance string for ledger preview (Requirement 1: handles exact decimals e.g. 150.02 and large numbers 19,799)
-  const formattedBalancePreview = useMemo(() => {
-    if (!openingBalance || isNaN(Number(openingBalance))) return `${currencySymbol} 0.00`;
-    const num = Number(openingBalance);
-    const hasDecimals = openingBalance.includes('.');
-    const minFrac = hasDecimals ? (openingBalance.split('.')[1]?.length || 2) : 0;
-    return `${currencySymbol} ${num.toLocaleString(undefined, { minimumFractionDigits: Math.min(2, minFrac), maximumFractionDigits: 2 })}`;
-  }, [openingBalance, currencySymbol]);
-
-  // Derive credit day of month from the selected salary credit date (1 - 31)
   const creditDay = useMemo(() => {
-    if (!salaryCreditDate) return 1;
-    const parts = salaryCreditDate.split('-');
+    const parts = (salaryCreditDate || '').split('-');
     return parts.length === 3 ? parseInt(parts[2], 10) || 1 : 1;
   }, [salaryCreditDate]);
 
-  const handleStep1Submit = async (e) => {
+  const go = (s) => { setError(''); setStep(s); };
+  const back = { account: 'welcome', income: 'account', salary: 'income' }[step];
+  const progress = { account: 1, income: 2, salary: 3 }[step];
+  const totalSteps = incomeMode === 'irregular' ? 2 : 3;
+
+  const run = async (fn) => {
+    setError('');
+    setLoading(true);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitAccount = (e) => {
     e.preventDefault();
     if (!accountName.trim()) {
       setError('Please provide an account name.');
       return;
     }
-    setError('');
-    setLoading(true);
-
-    try {
-      // Requirement 1: Store exact value in minor units (cents) so 150.02 -> 15002, 19799 -> 1979900
-      const parsedBalance = openingBalance ? Math.round(Number(openingBalance) * 100) : 0;
-      const payload = {
-        name: accountName.trim(),
-        type: accountType,
-        accountType: accountType === 'wallet' ? 'digital' : 'salary',
-        openingBalance: parsedBalance,
-        openingBalanceDate: openingBalanceDate || todayIso,
-        isPrimary: true
-      };
-
-      const account = await api.createAccount(payload);
-      setCreatedAccount(account);
-      // Pre-seed salary credit date with opening balance date if valid past date
-      if (openingBalanceDate && openingBalanceDate <= todayIso) {
-        setSalaryCreditDate(openingBalanceDate);
-      }
-      setStep(2);
-    } catch (err) {
-      console.error('Failed to create initial account:', err);
-      setError(err.message || 'Failed to create initial account. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStep2Submit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      // Update account subtype in background if user adjusted it on Step 2
-      if (createdAccount?.id && accountSubtype) {
-        try {
-          await api.updateBankAccount(createdAccount.id, {
-            accountType: accountSubtype
-          });
-        } catch (_) {
-          // Non-blocking update
-        }
-      }
-
-      if (incomeMode === 'irregular') {
-        // Irregular: save profile setting, no month created, direct entry to app
-        await api.updateSettings({ incomeMode: 'irregular' });
-        onCompleted({ incomeMode: 'irregular', account: createdAccount });
-      } else {
-        // Requirement 1: store salary amount as minor units (cents) so 150.02 -> 15002, 19799 -> 1979900
-        const parsedSalary = Math.round(Number(salaryAmount) * 100);
-        if (!parsedSalary || parsedSalary <= 0) {
-          setError('Please provide a valid salary amount.');
-          setLoading(false);
-          return;
-        }
-
-        if (!salaryCreditDate) {
-          setError('Please select a valid salary credit date.');
-          setLoading(false);
-          return;
-        }
-
-        if (salaryCreditDate > todayIso) {
-          setError('Salary credit date must be today or in the past.');
-          setLoading(false);
-          return;
-        }
-
-        const template = await api.saveSalaryTemplate({
-          amount: parsedSalary,
-          expectedCreditDay: creditDay,
-          receivingAccountId: createdAccount?.id,
-          periodType: 'salary_cycle',
-          effectiveDate: salaryCreditDate
+    run(async () => {
+      const openingMinor = openingBalance ? Math.round(Number(openingBalance) * 100) : 0;
+      if (createdAccount) {
+        // Came back to fix the account: update it rather than add a second one
+        const updated = await api.updateBankAccount(createdAccount.id, {
+          name: accountName.trim(),
+          openingBalance: openingMinor,
+          openingBalanceDate: openingBalanceDate || todayIso
         });
-
-        if (incomeMode === 'both') {
-          await api.updateSettings({ incomeMode: 'both' });
-        }
-
-        onCompleted({ incomeMode, account: createdAccount, template });
+        setCreatedAccount({ ...createdAccount, ...(updated || {}) });
+      } else {
+        const account = await api.createAccount({
+          name: accountName.trim(),
+          type: accountType,
+          accountType: accountType === 'wallet' ? 'digital' : 'salary',
+          openingBalance: openingMinor,
+          openingBalanceDate: openingBalanceDate || todayIso,
+          isPrimary: true
+        });
+        setCreatedAccount(account);
+        if (openingBalanceDate && openingBalanceDate <= todayIso) setSalaryCreditDate(openingBalanceDate);
       }
-    } catch (err) {
-      console.error('Failed to complete onboarding setup:', err);
-      setError(err.message || 'Failed to finish setup. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      setStep('income');
+    });
   };
+
+  const submitIncome = (e) => {
+    e.preventDefault();
+    if (incomeMode !== 'irregular') {
+      go('salary');
+      return;
+    }
+    run(async () => {
+      await api.updateSettings({ incomeMode: 'irregular' });
+      setResult({ incomeMode: 'irregular', account: createdAccount });
+      setStep('done');
+    });
+  };
+
+  const submitSalary = (e) => {
+    e.preventDefault();
+    const parsedSalary = Math.round(Number(salaryAmount) * 100);
+    if (!parsedSalary || parsedSalary <= 0) {
+      setError('Please provide a valid salary amount.');
+      return;
+    }
+    if (!salaryCreditDate || salaryCreditDate > todayIso) {
+      setError('Salary credit date must be today or in the past.');
+      return;
+    }
+    run(async () => {
+      if (createdAccount?.id && accountType === 'bank') {
+        try {
+          await api.updateBankAccount(createdAccount.id, { accountType: accountSubtype });
+        } catch (_) {
+          // Non-blocking: the account kind is cosmetic
+        }
+      }
+      const template = await api.saveSalaryTemplate({
+        amount: parsedSalary,
+        expectedCreditDay: creditDay,
+        receivingAccountId: createdAccount?.id,
+        periodType: 'salary_cycle',
+        effectiveDate: salaryCreditDate
+      });
+      if (incomeMode === 'both') await api.updateSettings({ incomeMode: 'both' });
+      setResult({ incomeMode, account: createdAccount, template });
+      setStep('done');
+    });
+  };
+
+  const amountField = (id, label, value, onChange) => (
+    <label className="ob-row" htmlFor={id}>
+      <span className="ob-row-label">{label}</span>
+      <span className="ob-amount">
+        <span className="ob-amount-prefix">{currencySymbol}</span>
+        <input id={id} type="number" inputMode="decimal" step="any" autoComplete="off"
+          className="ob-input tabular-nums" placeholder="0.00" value={value} onChange={(e) => onChange(e.target.value)} />
+      </span>
+    </label>
+  );
 
   return (
-    <div
-      className="onboarding-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-    >
-      <div
-        ref={modalCardRef}
-        className="onboarding-card"
-      >
-        {/* Step Indicator Header with Unified Horizontal Baseline */}
-        <header className="onboarding-header">
-          <div className="onboarding-top-meta">
-            <div className="onboarding-step-pill">
-              <span className="onboarding-step-indicator-dot" />
-              Step {step} of 2
+    <div className="ob-screen" role="dialog" aria-modal="true" aria-labelledby="ob-title" data-step={step}>
+      <div className="ob-card">
+        <div className="ob-topbar">
+          {back ? (
+            <button type="button" className="ob-back" onClick={() => go(back)}>
+              <ChevronLeftIcon size={18} /> <span>Back</span>
+            </button>
+          ) : <span />}
+          {progress && (
+            <div className="ob-dots" aria-label={`Step ${progress} of ${totalSteps}`} role="img">
+              {Array.from({ length: totalSteps }, (_, i) => (
+                <span key={i} className={`ob-dot ${i < progress ? 'on' : ''}`} />
+              ))}
             </div>
+          )}
+          <span />
+        </div>
 
-            <div className="onboarding-stepper-bars" aria-hidden="true">
-              <div className={`onboarding-step-bar ${step >= 1 ? 'active' : ''}`} />
-              <div className={`onboarding-step-bar ${step >= 2 ? 'active' : ''}`} />
+        {step === 'welcome' && (
+          <div className="ob-page ob-welcome">
+            <div className="ob-appmark" aria-hidden="true"><SparklesIcon size={30} /></div>
+            <h1 id="ob-title" className="ob-title">Welcome to Budget Planner</h1>
+            <ul className="ob-features">
+              {FEATURES.map(({ icon: Icon, title, desc }) => (
+                <li key={title} className="ob-feature">
+                  <span className="ob-feature-icon"><Icon size={22} /></span>
+                  <span>
+                    <span className="ob-feature-title">{title}</span>
+                    <span className="ob-feature-desc">{desc}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="ob-footer">
+              <button type="button" className="ob-primary" onClick={() => go('account')}>Get Started</button>
             </div>
-          </div>
-
-          <h2 id="onboarding-title" className="onboarding-title">
-            {step === 1 ? 'Set Up Your Initial Account' : 'Income Configuration'}
-          </h2>
-          <p className="onboarding-subtitle">
-            {step === 1
-              ? 'Every transaction belongs to an account. Connect your primary bank account or digital wallet to enter the app.'
-              : 'Select how you receive income to configure your automated cashflow cycle and planning periods.'}
-          </p>
-        </header>
-
-        {error && (
-          <div className="onboarding-error-banner" role="alert">
-            <span>{error}</span>
           </div>
         )}
 
-        {step === 1 && (
-          <form autoComplete="off" onSubmit={handleStep1Submit} className="onboarding-form">
-            {/* Account Type Selector */}
-            <div className="onboarding-field-group gsap-onboarding-item">
-              <label className="onboarding-field-label">
-                ACCOUNT TYPE
-              </label>
-              <div className="onboarding-card-grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }} role="radiogroup" aria-label="Account Type">
-                {ACCOUNT_TYPES.map((t) => {
-                  const Icon = t.icon;
-                  const isSelected = accountType === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => setAccountType(t.id)}
-                      className={`onboarding-account-card ${isSelected ? 'selected' : ''}`}
-                    >
-                      <div className="onboarding-account-card-header">
-                        <div className="onboarding-card-icon-badge">
-                          <Icon size={16} strokeWidth={isSelected ? 2 : 1.75} />
-                        </div>
-                        <div className="onboarding-radio-dot">
-                          {isSelected && <CheckIcon size={10} strokeWidth={3} />}
-                        </div>
-                      </div>
+        {step === 'account' && (
+          <form className="ob-page" autoComplete="off" onSubmit={submitAccount} noValidate>
+            <h1 id="ob-title" className="ob-title">Add your main account</h1>
+            <p className="ob-subtitle">Every transaction belongs to an account. You can add more later.</p>
 
-                      <div>
-                        <div className="onboarding-card-label">
-                          {t.label}
-                        </div>
-                        <div className="onboarding-card-desc">
-                          {t.desc}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="ob-segmented" role="radiogroup" aria-label="Account type">
+              {[{ id: 'bank', label: 'Bank account', icon: BuildingLibraryIcon }, { id: 'wallet', label: 'Wallet', icon: WalletIcon }].map(({ id, label, icon: Icon }) => (
+                <button key={id} type="button" role="radio" aria-checked={accountType === id}
+                  disabled={Boolean(createdAccount)}
+                  className={`ob-segment ${accountType === id ? 'on' : ''}`} onClick={() => setAccountType(id)}>
+                  <Icon size={14} /> {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ob-group">
+              <label className="ob-row" htmlFor="ob-account-name">
+                <span className="ob-row-label">Name</span>
+                <input id="ob-account-name" type="text" autoComplete="off" className="ob-input"
+                  placeholder={accountType === 'bank' ? 'e.g. HDFC Salary' : 'e.g. Paytm'}
+                  value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+              </label>
+              {amountField('ob-opening-balance', 'Balance', openingBalance, setOpeningBalance)}
+              <div className="ob-row">
+                <span className="ob-row-label">As of</span>
+                <span className="ob-row-control">
+                  <DatePicker value={openingBalanceDate} onChange={setOpeningBalanceDate} maxDate={todayIso} placeholder="Select date" required />
+                </span>
               </div>
             </div>
+            <p className="ob-footnote">Enter what the account holds on that day. The app keeps it up to date from your transactions.</p>
 
-            {/* Account Name */}
-            <div className="onboarding-field-group gsap-onboarding-item">
-              <label
-                htmlFor="onboarding-account-name"
-                className="onboarding-field-label"
-              >
-                ACCOUNT NAME *
-              </label>
-              <input autoComplete="off"
-                id="onboarding-account-name"
-                type="text"
-                required
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value)}
-                placeholder={
-                  accountType === 'bank'
-                    ? 'e.g. HDFC Salary Account / Main Checking'
-                    : 'e.g. Apple Pay / Paytm'
-                }
-                className="onboarding-input"
-              />
+            {error && <p className="ob-error" role="alert">{error}</p>}
+            <div className="ob-footer">
+              <button type="submit" className="ob-primary" disabled={loading}>{loading ? 'Saving…' : 'Continue'}</button>
             </div>
+          </form>
+        )}
 
-            {/* Opening Balance & Balance Date (Symmetrical 2-Column Grid) */}
-            <div className="onboarding-two-col gsap-onboarding-item">
-              <div className="onboarding-field-group">
-                <label
-                  htmlFor="onboarding-opening-balance"
-                  className="onboarding-field-label"
-                >
-                  OPENING BALANCE ({currencySymbol})
-                </label>
-                <div className="onboarding-input-wrap">
-                  <span className="onboarding-input-prefix">
-                    {currencySymbol}
+        {step === 'income' && (
+          <form className="ob-page" onSubmit={submitIncome}>
+            <h1 id="ob-title" className="ob-title">How are you paid?</h1>
+            <p className="ob-subtitle">This sets how each month is planned. You can change it in Settings.</p>
+            <div className="ob-group" role="radiogroup" aria-label="Income">
+              {INCOME_OPTIONS.map((o) => (
+                <button key={o.id} type="button" role="radio" aria-checked={incomeMode === o.id}
+                  className="ob-row ob-choice" onClick={() => setIncomeMode(o.id)}>
+                  <span className="ob-choice-text">
+                    <span className="ob-choice-label">{o.label}</span>
+                    <span className="ob-choice-desc">{o.desc}</span>
                   </span>
-                  <input autoComplete="off"
-                    id="onboarding-opening-balance"
-                    type="number"
-                    step="any"
-                    value={openingBalance}
-                    onChange={(e) => setOpeningBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="onboarding-input has-prefix tabular-nums"
-                  />
-                </div>
-              </div>
-
-              <div className="onboarding-field-group">
-                <label className="onboarding-field-label">
-                  BALANCE DATE
-                </label>
-                <div className="onboarding-datepicker-wrapper">
-                  <DatePicker
-                    value={openingBalanceDate}
-                    onChange={(d) => setOpeningBalanceDate(d)}
-                    maxDate={todayIso}
-                    placeholder="Select balance date"
-                    required
-                  />
-                </div>
-              </div>
+                  <span className="ob-check" aria-hidden="true">{incomeMode === o.id && <CheckIcon size={18} strokeWidth={2.5} />}</span>
+                </button>
+              ))}
             </div>
-
-            {/* Signature Domain Ledger Preview Strip */}
-            <div className="onboarding-ledger-strip gsap-onboarding-item">
-              <div className="onboarding-ledger-strip-meta">
-                <span className="onboarding-ledger-strip-tag">Ledger Anchor</span>
-                <span>{accountName.trim() || 'New Account'}</span>
-              </div>
-              <div className="onboarding-ledger-strip-amount">
-                {formattedBalancePreview}
-              </div>
-            </div>
-
-            {/* Submit CTA */}
-            <div className="onboarding-actions gsap-onboarding-item">
-              <button
-                type="submit"
-                disabled={loading}
-                id="onboarding-step1-submit"
-                className="onboarding-btn-submit"
-              >
-                <span>{loading ? 'Creating Account...' : 'Continue to Step 2'}</span>
-                <ArrowRightIcon size={16} />
+            {error && <p className="ob-error" role="alert">{error}</p>}
+            <div className="ob-footer">
+              <button type="submit" className="ob-primary" disabled={loading}>
+                {loading ? 'Saving…' : incomeMode === 'irregular' ? 'Finish' : 'Continue'}
               </button>
             </div>
           </form>
         )}
 
-        {step === 2 && (
-          <form autoComplete="off" onSubmit={handleStep2Submit} className="onboarding-form">
-            {/* Step 2 Income Model Cards */}
-            <div className="onboarding-field-group gsap-onboarding-item">
-              <label className="onboarding-field-label">
-                INCOME MODEL
-              </label>
-              <div className="onboarding-income-grid" role="radiogroup" aria-label="Income Model">
-                {INCOME_OPTIONS.map((opt) => {
-                  const Icon = opt.icon;
-                  const isSelected = incomeMode === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => setIncomeMode(opt.id)}
-                      className={`onboarding-income-card-v2 ${isSelected ? 'selected' : ''}`}
-                    >
-                      <div className="onboarding-income-card-v2-header">
-                        <div className="onboarding-card-icon-badge">
-                          <Icon size={16} strokeWidth={isSelected ? 2 : 1.75} />
-                        </div>
-                        <div className="onboarding-radio-dot">
-                          {isSelected && <CheckIcon size={10} strokeWidth={3} />}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
-                          <span className="onboarding-card-label" style={{ marginBottom: 0 }}>
-                            {opt.label}
-                          </span>
-                        </div>
-                        <div className="onboarding-card-desc">
-                          {opt.desc}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+        {step === 'salary' && (
+          <form className="ob-page" autoComplete="off" onSubmit={submitSalary} noValidate>
+            <h1 id="ob-title" className="ob-title">Your salary</h1>
+            <p className="ob-subtitle">Each month is planned from payday to payday.</p>
+            <div className="ob-group">
+              {amountField('ob-salary-amount', 'Amount', salaryAmount, setSalaryAmount)}
+              <div className="ob-row">
+                <span className="ob-row-label">Last paid on</span>
+                <span className="ob-row-control">
+                  <DatePicker id="ob-salary-date" value={salaryCreditDate} onChange={setSalaryCreditDate} maxDate={todayIso} placeholder="Select date" required />
+                </span>
               </div>
             </div>
+            <p className="ob-footnote">We’ll expect it around day {creditDay} each month, into {createdAccount?.name || 'this account'}.</p>
 
-            {/* Refined Salary Settings subpanel */}
-            {(incomeMode === 'salary' || incomeMode === 'both') && (
-              <div className="onboarding-subpanel gsap-onboarding-item">
-                <div className="onboarding-subpanel-header">
-                  <span className="onboarding-field-label" style={{ marginBottom: 0 }}>
-                    Recurring Salary Parameters
-                  </span>
-                  <span className="onboarding-subpanel-badge">
-                    Day {creditDay} Cadence
-                  </span>
+            {accountType === 'bank' && (
+              <>
+                <p className="ob-group-title">Account kind</p>
+                <div className="ob-segmented" role="radiogroup" aria-label="Account kind">
+                  {ACCOUNT_KINDS.map((k) => (
+                    <button key={k.value} type="button" role="radio" aria-checked={accountSubtype === k.value}
+                      className={`ob-segment ${accountSubtype === k.value ? 'on' : ''}`} onClick={() => setAccountSubtype(k.value)}>
+                      {k.label}
+                    </button>
+                  ))}
                 </div>
-
-                {/* Requirement 2: Account Type included in Step 2, defaulted to Salary Account */}
-                <div className="onboarding-field-group">
-                  <label className="onboarding-field-label" htmlFor="onboarding-account-subtype">
-                    ACCOUNT TYPE / CLASSIFICATION
-                  </label>
-                  <CustomSelect
-                    id="onboarding-account-subtype"
-                    value={accountSubtype}
-                    onChange={(e) => setAccountSubtype(e.target.value)}
-                    options={ACCOUNT_SUBTYPE_OPTIONS}
-                    placeholder="Select account classification"
-                  />
-                </div>
-
-                <div className="onboarding-two-col">
-                  {/* Expected Salary Amount */}
-                  <div className="onboarding-field-group">
-                    <label
-                      htmlFor="onboarding-salary-amount"
-                      className="onboarding-field-label"
-                    >
-                      EXPECTED AMOUNT ({currencySymbol}) *
-                    </label>
-                    <div className="onboarding-input-wrap">
-                      <span className="onboarding-input-prefix">
-                        {currencySymbol}
-                      </span>
-                      <input autoComplete="off"
-                        id="onboarding-salary-amount"
-                        type="number"
-                        step="any"
-                        required
-                        value={salaryAmount}
-                        onChange={(e) => setSalaryAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="onboarding-input has-prefix tabular-nums"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Last Salary Credit Date */}
-                  <div className="onboarding-field-group">
-                    <label
-                      htmlFor="onboarding-salary-credit-date"
-                      className="onboarding-field-label"
-                    >
-                      LAST SALARY CREDIT DATE (PAST / TODAY) *
-                    </label>
-                    <div className="onboarding-datepicker-wrapper">
-                      <DatePicker
-                        id="onboarding-salary-credit-date"
-                        value={salaryCreditDate}
-                        onChange={(d) => setSalaryCreditDate(d)}
-                        maxDate={todayIso}
-                        placeholder="Select past salary date"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              </>
             )}
 
-            {/* Step 2 Actions */}
-            <div className="onboarding-actions gsap-onboarding-item">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="onboarding-btn-back"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                id="onboarding-finish-btn"
-                className="onboarding-btn-submit"
-              >
-                <span>{loading ? 'Finalizing Setup...' : 'Complete Setup & Enter App'}</span>
-                <CheckIcon size={16} strokeWidth={2.5} />
-              </button>
+            {error && <p className="ob-error" role="alert">{error}</p>}
+            <div className="ob-footer">
+              <button type="submit" className="ob-primary" disabled={loading}>{loading ? 'Saving…' : 'Finish'}</button>
             </div>
           </form>
+        )}
+
+        {step === 'done' && (
+          <div className="ob-page ob-welcome">
+            <div className="ob-appmark ob-appmark-done" aria-hidden="true"><CheckCircleIcon size={34} /></div>
+            <h1 id="ob-title" className="ob-title">You’re all set</h1>
+            <p className="ob-subtitle ob-center">
+              {result?.incomeMode === 'irregular'
+                ? 'Log income as it arrives. Your runway shows how long your balance lasts.'
+                : 'Your first month starts on your last payday. Add bills and spending as they come.'}
+            </p>
+            <div className="ob-footer">
+              <button type="button" className="ob-primary" onClick={() => onCompleted?.(result)}>Start Planning</button>
+            </div>
+          </div>
         )}
       </div>
     </div>
