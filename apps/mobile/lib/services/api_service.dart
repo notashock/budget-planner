@@ -480,6 +480,14 @@ class ApiService {
     await _request('DELETE', '$_v1/accounts/$id');
   }
 
+  /// The month-end review (web getMonthEndReview): unplanned and matched spend,
+  /// the category breakdown and the suggested cushion for next month.
+  Future<Map<String, dynamic>> getMonthEndReview(int year, int month, {String? accountId}) async {
+    final qs = accountId != null && accountId != 'all' ? '?accountId=${Uri.encodeQueryComponent(accountId)}' : '';
+    final data = await _request('GET', '$_v1/periods/$year/$month/month-end-review$qs');
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   /// The month summary; its netWorth is { total, cash, lent, cardsOwed, held } (web getMonthSummary).
   Future<Map<String, dynamic>> getMonthSummary(int year, int month) async {
     final data = await _request('GET', '$_v1/periods/$year/$month/summary');
