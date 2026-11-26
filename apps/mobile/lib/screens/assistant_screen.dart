@@ -206,14 +206,15 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   style: TextStyle(color: p.text),
                 ),
                 const SizedBox(height: 6),
-                Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+                // Align: a Wrap in a start-aligned Column shrinks to its buttons.
+                Align(alignment: Alignment.centerRight, child: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
                   TextButton(onPressed: () => setState(() => _draft = null), child: const Text('Discard')),
                   FilledButton(
                     key: const ValueKey('ai-save-draft'),
                     onPressed: _saving ? null : () => _confirmDraft(budget),
                     child: Text(_saving ? 'Saving...' : 'Confirm and save item'),
                   ),
-                ]),
+                ])),
               ]),
             ),
         ]),
