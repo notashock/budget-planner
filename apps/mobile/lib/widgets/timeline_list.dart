@@ -1,10 +1,12 @@
+// The Plan page's day-by-day list, drawn like web's TimelineList
+// (apps/web/src/components/TimelineList.jsx; sizes measured at 393 px).
 import 'package:flutter/material.dart';
-import '../engine/currency.dart';
-import '../models/simulation.dart';
-import '../theme/app_colors.dart';
+
+import '../engine/engine.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
-import '../modals/transaction_detail_modal.dart';
+import 'min_tap.dart';
+import 'web_icons.dart';
 
 class TimelineListWidget extends StatefulWidget {
   final SimulationResult simulation;
@@ -13,7 +15,15 @@ class TimelineListWidget extends StatefulWidget {
   final int? currentDay;
   final ValueChanged<int?>? onSelectDay;
   final String currencySymbol;
-  final void Function(TimelineEvent event)? onEventTap;
+
+  /// Account id → name, for the account line under each entry.
+  final Map<String, String> accountNames;
+
+  /// The account the page is filtered to, if any (shown next to the title).
+  final String? accountName;
+  final bool accountIsWallet;
+  final void Function(TimelineEvent event)? onPay;
+  final void Function(TimelineEvent event)? onEdit;
 
   const TimelineListWidget({
     super.key,
@@ -23,744 +33,561 @@ class TimelineListWidget extends StatefulWidget {
     this.currentDay,
     this.onSelectDay,
     this.currencySymbol = kDefaultCurrencySymbol,
-    this.onEventTap,
+    this.accountNames = const {},
+    this.accountName,
+    this.accountIsWallet = false,
+    this.onPay,
+    this.onEdit,
   });
 
   @override
   State<TimelineListWidget> createState() => _TimelineListWidgetState();
 }
 
-class _TimelineDayGroup {
-  final int day;
-  final String date;
-  final List<TimelineEvent> events;
+/// One timeline entry with web's derived flags.
+class _Row {
+  _Row(this.e, String today, int? currentDay, int floor) {
+    final r = e.raw;
+    itemType = r['itemType']?.toString() ?? '';
+    isTransfer = itemType == 'transfer' || e.type == 'transfer';
+    isSalary = r['isSalary'] == true || itemType == 'salary';
+    isActual = r['isActual'] == true;
+    isPaid = r['isPaid'] == true;
+    isPending = r['isPending'] == true;
+    isGoal = r['origin'] == 'goal' || e.origin == 'goal';
+    isPlanned = !isTransfer &&
+        !isActual &&
+        !isPaid &&
+        (itemType == 'planned-item' ||
+            itemType == 'planned-transaction' ||
+            r['isPlanned'] == true ||
+            isPending ||
+            r['status'] == 'planned' ||
+            e.amount < 0);
+    isOverdue = isPlanned && (isPending || (e.date.isNotEmpty ? e.date.compareTo(today) < 0 : e.day < (currentDay ?? 30)));
+    isDue = isPlanned && !isOverdue && (e.date.isNotEmpty ? e.date == today : e.day == currentDay);
+    isCredit = e.amount > 0 || isSalary;
+    isWallet = r['walletId'] != null || e.accountType == 'wallet' || r['sourceType'] == 'wallet';
+    isBreach = e.runningBalance < floor;
+    isNearFloor = !isBreach && floor > 0 && e.runningBalance <= floor * 1.15;
+  }
 
-  _TimelineDayGroup({required this.day, required this.date, required this.events});
+  final TimelineEvent e;
+  late final String itemType;
+  late final bool isTransfer, isSalary, isActual, isPaid, isPending, isGoal, isPlanned, isOverdue, isDue;
+  late final bool isCredit, isWallet, isBreach, isNearFloor;
 
-  int get netAmount => events.fold(0, (sum, e) => sum + e.amount);
+  String get label => (e.raw['label'] ?? e.name).toString();
 }
 
 class _TimelineListWidgetState extends State<TimelineListWidget> {
-  String _filterType = 'all'; // 'all', 'incomes', 'planned', 'pending', 'actuals', 'breaches'
-  final Set<String> _expandedDays = {};
-
-  String _normalizeSpendingCategory(String? cat) {
-    if (cat == null || cat.trim().isEmpty) return 'General';
-    final lower = cat.trim().toLowerCase();
-    if (lower == 'food') return 'Food';
-    if (lower == 'travel') return 'Travel';
-    if (lower == 'health') return 'Health';
-    if (lower == 'other') return 'Other';
-    return 'General';
-  }
+  String _filter = 'all';
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final p = context.palette;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final today = '${now.year}-${two(now.month)}-${two(now.day)}';
+    final rows = [
+      for (final e in widget.simulation.allEvents) _Row(e, today, widget.currentDay, widget.safetyFloor),
+    ];
 
-    final allEvents = widget.simulation.allEvents;
-
-    final baseEvents = widget.selectedDay != null
-        ? allEvents.where((e) => e.day == widget.selectedDay).toList()
-        : allEvents;
-
-    // Calculate counts
     final counts = {
-      'all': baseEvents.length,
-      'incomes': baseEvents.where((e) => e.amount > 0).length,
-      'planned': baseEvents.where((e) => (!e.isPaid || e.status == 'planned') && e.amount < 0).length,
-      'successful': baseEvents.where((e) => e.isPaid || e.status == 'successful').length,
-      'breaches': baseEvents.where((e) => e.runningBalance < widget.safetyFloor).length,
+      'all': rows.length,
+      'incomes': rows.where((r) => r.e.amount > 0).length,
+      'planned': rows.where((r) => !r.isActual && r.e.amount < 0).length,
+      'pending': rows.where((r) => r.isPending).length,
+      'actuals': rows.where((r) => r.isActual).length,
+      'breaches': rows.where((r) => r.isBreach).length,
     };
-
-    // Filter events
-    final filteredEvents = allEvents.where((e) {
-      if (widget.selectedDay != null && e.day != widget.selectedDay) {
-        return false;
-      }
-      switch (_filterType) {
-        case 'incomes':
-          return e.amount > 0;
-        case 'planned':
-          return (!e.isPaid || e.status == 'planned') && e.amount < 0;
-        case 'successful':
-        case 'actuals':
-          return e.isPaid || e.status == 'successful';
-        case 'breaches':
-          return e.runningBalance < widget.safetyFloor;
-        default:
-          return true;
-      }
-    }).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: border, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Card Header: Title + Day filter pill
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'INTERACTIVE TIMELINE',
-                      style: AppTypography.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                        color: textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                if (widget.selectedDay != null)
-                  InkWell(
-                    onTap: () => widget.onSelectDay?.call(null),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: border, width: 1),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Day ${widget.selectedDay} (${filteredEvents.length})',
-                            style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w600, color: text),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.close, size: 12, color: textMuted),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Filter Tabs (Horizontal scroll)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            child: Row(
-              children: [
-                _buildFilterPill('all', 'All (${counts['all']})', isDark, border, text),
-                const SizedBox(width: 6),
-                _buildFilterPill('incomes', 'Incomes (${counts['incomes']})', isDark, border, text),
-                const SizedBox(width: 6),
-                _buildFilterPill('planned', 'Planned (${counts['planned']})', isDark, border, text),
-                const SizedBox(width: 6),
-                _buildFilterPill('successful', 'Successful (${counts['successful']})', isDark, border, text),
-                const SizedBox(width: 6),
-                _buildFilterPill('breaches', 'Breaches (${counts['breaches']})', isDark, border, text, isBreachPill: true),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Divider(color: border, height: 1, thickness: 1),
-
-          // Events List
-          if (filteredEvents.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  'No transactions match the selected filter.',
-                  style: AppTypography.inter(fontSize: 12, color: textMuted),
-                ),
-              ),
-            )
-          else
-            _buildEventsListWithTodayMarker(filteredEvents, isDark, border, text, textSecondary, textMuted),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterPill(
-    String type,
-    String label,
-    bool isDark,
-    Color border,
-    Color text, {
-    bool isBreachPill = false,
-  }) {
-    final isActive = _filterType == type;
-    final activeBg = Theme.of(context).colorScheme.primary;
-    final activeText = Theme.of(context).colorScheme.onPrimary;
-
-    Color inactiveBg = isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle;
-    Color inactiveBorder = isBreachPill ? context.palette.bad.withAlpha(100) : border;
-
-    return InkWell(
-      onTap: () => setState(() => _filterType = type),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-        decoration: BoxDecoration(
-          color: isActive ? activeBg : inactiveBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isActive ? activeBg : inactiveBorder, width: 1),
-        ),
-        child: Text(
-          label,
-          style: AppTypography.inter(
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? activeText : (isBreachPill ? context.palette.badInk : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventsListWithTodayMarker(
-    List<TimelineEvent> events,
-    bool isDark,
-    Color border,
-    Color text,
-    Color textSecondary,
-    Color textMuted,
-  ) {
-    final currentDay = widget.currentDay;
-    bool todayMarkerInserted = false;
-
-    // Group events occurring on the same date/day together
-    final groups = <_TimelineDayGroup>[];
-    for (final ev in events) {
-      if (groups.isNotEmpty &&
-          (groups.last.date.isNotEmpty && ev.date.isNotEmpty
-              ? groups.last.date == ev.date
-              : groups.last.day == ev.day)) {
-        groups.last.events.add(ev);
-      } else {
-        groups.add(_TimelineDayGroup(day: ev.day, date: ev.date, events: [ev]));
-      }
+    bool keep(_Row r) {
+      if (widget.selectedDay != null && r.e.day != widget.selectedDay) return false;
+      return switch (_filter) {
+        'incomes' => r.e.amount > 0,
+        'planned' => !r.isActual && r.e.amount < 0,
+        'pending' => r.isPending,
+        'actuals' => r.isActual,
+        'breaches' => r.isBreach,
+        _ => true,
+      };
     }
 
-    final widgets = <Widget>[];
-
-    for (int i = 0; i < groups.length; i++) {
-      final grp = groups[i];
-
-      // Insert TODAY pin if passing today
-      if (currentDay != null && !todayMarkerInserted && grp.day >= currentDay) {
-        widgets.add(_buildTodayDivider(isDark, border));
-        todayMarkerInserted = true;
-      }
-
-      if (grp.events.length == 1) {
-        widgets.add(_buildEventRow(grp.events.first, isDark, border, text, textSecondary, textMuted));
-      } else {
-        widgets.add(_buildGroupedDayRow(grp, isDark, border, text, textSecondary, textMuted));
-      }
-
-      if (i < groups.length - 1) {
-        widgets.add(Divider(color: border.withAlpha(60), height: 1, thickness: 0.5));
-      }
-    }
-
-    // If all events are before today, insert today at end
-    if (currentDay != null && !todayMarkerInserted) {
-      widgets.add(_buildTodayDivider(isDark, border));
-    }
-
-    return Column(children: widgets);
-  }
-
-  Widget _buildTodayDivider(bool isDark, Color border) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: context.palette.warnSubtle,
-        border: Border.symmetric(
-          horizontal: BorderSide(color: context.palette.warn.withAlpha(80), width: 1),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, size: 13, color: context.palette.warnInk),
-              const SizedBox(width: 5),
-              Text(
-                'TODAY',
-                style: AppTypography.inter(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: context.palette.warnInk,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            widget.currentDay != null ? 'Day ${widget.currentDay}' : '',
-            style: AppTypography.mono(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: context.palette.warnInk,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGroupedDayRow(
-    _TimelineDayGroup grp,
-    bool isDark,
-    Color border,
-    Color text,
-    Color textSecondary,
-    Color textMuted,
-  ) {
-    final groupKey = grp.date.isNotEmpty ? grp.date : 'day_${grp.day}';
-    final isExpanded = _expandedDays.contains(groupKey);
-    final net = grp.netAmount;
-    final isNetPositive = net > 0;
-    final isNetNegative = net < 0;
-
-    String dayPart = '${grp.day}';
-    String monthPart = '';
-    if (grp.date.isNotEmpty) {
-      final parts = grp.date.split('-');
-      if (parts.length >= 3) {
-        dayPart = '${int.tryParse(parts[2]) ?? grp.day}';
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        final mIdx = (int.tryParse(parts[1]) ?? 1) - 1;
-        if (mIdx >= 0 && mIdx < 12) {
-          monthPart = months[mIdx];
-        }
-      }
-    }
-
-    final summaryNames = grp.events
-        .map((e) => (e.description != null && e.description!.isNotEmpty) ? e.description! : e.name)
-        .join(', ');
+    final shown = rows.where(keep).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          onTap: () {
-            setState(() {
-              if (isExpanded) {
-                _expandedDays.remove(groupKey);
-              } else {
-                _expandedDays.add(groupKey);
-              }
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Date Chip
-                Container(
-                  width: 46,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: border, width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        monthPart.isNotEmpty ? monthPart : (grp.day < 0 ? 'Prev' : 'Day'),
-                        style: AppTypography.inter(fontSize: 8.5, fontWeight: FontWeight.w600, color: textMuted),
-                      ),
-                      Text(
-                        dayPart,
-                        style: AppTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: text,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-
-                // Middle: Transaction count & descriptions
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${grp.events.length} transactions',
-                        style: AppTypography.inter(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: text,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        summaryNames,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.inter(fontSize: 11, color: textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Net amount & chevron
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${isNetPositive ? '+' : ''}${formatCurrency(net, symbol: widget.currencySymbol)}',
-                          style: AppTypography.mono(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isNetPositive ? context.palette.goodInk : (isNetNegative ? context.palette.badInk : textSecondary),
-                          ),
-                        ),
-                        Text(
-                          'net for day',
-                          style: AppTypography.inter(fontSize: 9, color: textMuted),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedRotation(
-                      turns: isExpanded ? 0.5 : 0.0,
-                      duration: const Duration(milliseconds: 240),
-                      curve: Curves.easeInOutCubic,
-                      child: Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 20,
-                        color: textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Sleek Animated Expansion for Transactions
-        AnimatedCrossFade(
-          firstChild: const SizedBox(width: double.infinity, height: 0),
-          secondChild: Container(
-            margin: const EdgeInsets.fromLTRB(20, 0, 14, 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withAlpha(6) : Colors.black.withAlpha(5),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: border.withAlpha(80), width: 0.8),
-            ),
-            child: Column(
-              children: [
-                for (int j = 0; j < grp.events.length; j++) ...[
-                  _buildEventRow(grp.events[j], isDark, border, text, textSecondary, textMuted, isGroupChild: true),
-                  if (j < grp.events.length - 1)
-                    Divider(color: border.withAlpha(40), height: 1, thickness: 0.5),
-                ],
-              ],
-            ),
-          ),
-          crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 240),
-          firstCurve: Curves.easeInOutCubic,
-          secondCurve: Curves.easeInOutCubic,
-          sizeCurve: Curves.easeInOutCubic,
-        ),
+        _header(p),
+        const SizedBox(height: 10),
+        if (rows.isEmpty)
+          _empty(p, WebIcons.calendar, 'No Timeline Events',
+              widget.accountName != null
+                  ? 'No timeline events recorded for ${widget.accountName} this month.'
+                  : 'No timeline events generated for this month.')
+        else ...[
+          _filters(p, counts),
+          const SizedBox(height: 10),
+          if (shown.isEmpty)
+            _empty(p, WebIcons.checkCircle, null, 'No events match the selected filter.', reset: true)
+          else
+            _list(p, shown, today),
+        ],
       ],
     );
   }
 
-  Widget _buildEventRow(
-    TimelineEvent ev,
-    bool isDark,
-    Color border,
-    Color text,
-    Color textSecondary,
-    Color textMuted, {
-    bool isGroupChild = false,
-  }) {
-    final isIncome = ev.amount > 0;
-    final isBreached = ev.runningBalance < widget.safetyFloor;
+  Widget _header(AppPalette p) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Semantics(
+          header: true,
+          child: Text('Timeline',
+              style: AppTypography.inter(fontSize: 18, fontWeight: FontWeight.w700, color: p.text, letterSpacing: -0.36)),
+        ),
+        if (widget.accountName != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: p.surfaceSubtle,
+              border: Border.all(color: p.border),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              WebIcon(widget.accountIsWallet ? WebIcons.wallet : WebIcons.buildingLibrary, size: 11, color: p.textSecondary),
+              const SizedBox(width: 4),
+              Text(widget.accountName!, style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w600, color: p.text)),
+              if (widget.safetyFloor > 0)
+                Text(' • Min Floor ${formatCurrency(widget.safetyFloor, symbol: widget.currencySymbol)}',
+                    style: AppTypography.inter(fontSize: 11, color: p.textMuted)),
+            ]),
+          ),
+        if (widget.selectedDay != null)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('Day ${widget.selectedDay} filtered',
+                style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary)),
+            const SizedBox(width: 6),
+            TextButton(onPressed: () => widget.onSelectDay?.call(null), child: const Text('Show all days')),
+          ]),
+      ],
+    );
+  }
 
-    return InkWell(
-      onTap: () {
-        if (widget.onEventTap != null) {
-          widget.onEventTap!(ev);
-        } else {
-          _showEventDetailSheet(context, ev);
-        }
-      },
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: isGroupChild ? 10 : 14, vertical: isGroupChild ? 8 : 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (isGroupChild)
-              Container(
-                width: 24,
-                alignment: Alignment.center,
-                child: Icon(Icons.subdirectory_arrow_right, size: 16, color: textMuted),
-              )
-            else
-              // Date Chip (Calendar Date)
-              Builder(
-                builder: (_) {
-                  String dayPart = '${ev.day}';
-                  String monthPart = '';
-                  if (ev.date.isNotEmpty) {
-                    final parts = ev.date.split('-');
-                    if (parts.length >= 3) {
-                      dayPart = '${int.tryParse(parts[2]) ?? ev.day}';
-                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                      final mIdx = (int.tryParse(parts[1]) ?? 1) - 1;
-                      if (mIdx >= 0 && mIdx < 12) {
-                        monthPart = months[mIdx];
-                      }
-                    }
-                  }
-                  return Container(
-                    width: 46,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: border, width: 1),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          monthPart.isNotEmpty ? monthPart : (ev.day < 0 ? 'Prev' : 'Day'),
-                          style: AppTypography.inter(fontSize: 8.5, fontWeight: FontWeight.w600, color: textMuted),
-                        ),
-                        Text(
-                          dayPart,
-                          style: AppTypography.mono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: text,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(width: 10),
-
-            // Middle Column: Description/Name with ellipsis, Category, Pills
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    (ev.description != null && ev.description!.isNotEmpty) ? ev.description! : ev.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.inter(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: text,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 2,
-                    children: [
-                      if (isIncome)
-                        _buildStatusPill(
-                          'Inflow • ${ev.category != null && ev.category!.isNotEmpty ? ev.category! : 'Income'}',
-                          context.palette.goodInk,
-                          isDark,
-                          context.palette.good.withAlpha(80),
-                          bg: context.palette.good.withAlpha(25),
-                        )
-                      else
-                        _buildStatusPill(
-                          _normalizeSpendingCategory(ev.category),
-                          textMuted,
-                          isDark,
-                          border,
-                        ),
-                      if (ev.isPaid)
-                        _buildStatusPill(
-                          isIncome ? 'Credited' : 'Paid',
-                          context.palette.goodInk,
-                          isDark,
-                          context.palette.good.withAlpha(80),
-                          bg: context.palette.good.withAlpha(25),
-                          icon: Icons.check_circle_rounded,
-                        )
-                      else if (ev.derivedStatus == 'overdue')
-                        _buildStatusPill(
-                          'Overdue',
-                          context.palette.badInk,
-                          isDark,
-                          context.palette.bad.withAlpha(80),
-                          bg: context.palette.bad.withAlpha(25),
-                          icon: Icons.error_outline,
-                        )
-                      else if (ev.derivedStatus == 'due')
-                        _buildStatusPill(
-                          'Due',
-                          context.palette.warnInk,
-                          isDark,
-                          context.palette.warn.withAlpha(80),
-                          bg: context.palette.warn.withAlpha(25),
-                          icon: Icons.schedule,
-                        )
-                      else
-                        _buildStatusPill(
-                          'Planned',
-                          textSecondary,
-                          isDark,
-                          border,
-                        ),
-                      if (ev.type == 'transfer')
-                        _buildStatusPill(
-                          'Transfer',
-                          context.palette.warnInk,
-                          isDark,
-                          context.palette.warn.withAlpha(80),
-                          bg: context.palette.warn.withAlpha(25),
-                        ),
-                    ],
-                  ),
-                ],
+  /// web's segmented bar: a 36 px track, 28 px tabs; each tab takes taps over 48 dp.
+  Widget _filters(AppPalette p, Map<String, int> counts) {
+    final tabs = [
+      ('all', 'All'),
+      ('incomes', 'Income'),
+      ('planned', 'Planned'),
+      if (counts['pending']! > 0) ('pending', 'Pending'),
+      ('actuals', 'Paid'),
+      ('breaches', 'Below minimum'),
+    ];
+    return SizedBox(
+      height: 48,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Stack(children: [
+          Positioned.fill(
+            top: 6,
+            bottom: 6,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: p.surfaceSubtle,
+                border: Border.all(color: p.border),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            const SizedBox(width: 8),
-
-            // Right Column: Amount & Running Balance Pill
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Builder(
-                  builder: (_) {
-                    final isTransfer = ev.type == 'transfer' || ev.raw['itemType'] == 'transfer';
-                    final trAmt = (num.tryParse('${ev.raw['transferAmount']}') ?? 0).toInt();
-                    final displayAmt = (isTransfer && ev.amount == 0 && trAmt > 0) ? trAmt : ev.amount.abs();
-                    final String amountLabel = isTransfer && ev.amount == 0
-                        ? formatCurrency(displayAmt, symbol: widget.currencySymbol)
-                        : '${isIncome ? '+' : '-'}${formatCurrency(displayAmt, symbol: widget.currencySymbol)}';
-                    return Text(
-                      amountLabel,
-                      style: AppTypography.mono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isTransfer
-                            ? context.palette.warnInk
-                            : (isIncome ? context.palette.goodInk : context.palette.badInk),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 3),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: isBreached ? context.palette.bad.withAlpha(20) : (isDark ? Colors.white.withAlpha(12) : Colors.black.withAlpha(8)),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: isBreached ? context.palette.bad.withAlpha(100) : border,
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Bal: ${formatCurrency(ev.runningBalance, symbol: widget.currencySymbol)}',
-                        style: AppTypography.mono(
-                          fontSize: 10,
-                          color: isBreached ? context.palette.badInk : (isDark ? Colors.white70 : Colors.black87),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (isBreached) ...[
-                        const SizedBox(width: 3),
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          size: 9,
-                          color: context.palette.badInk,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Row(children: [
+              for (final (i, (id, label)) in tabs.indexed) ...[
+                if (i > 0) const SizedBox(width: 2),
+                _tab(p, id, label, counts[id]!),
               ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _tab(AppPalette p, String id, String label, int count) {
+    final active = _filter == id;
+    return Semantics(
+      selected: active,
+      button: true,
+      label: '$label, $count',
+      excludeSemantics: true,
+      onTap: () => setState(() => _filter = id),
+      child: InkWell(
+        key: Key('timeline-filter-$id'),
+        onTap: () => setState(() => _filter = id),
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: active
+                  ? BoxDecoration(
+                      color: p.surface,
+                      borderRadius: BorderRadius.circular(7),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x14000000), blurRadius: 3, offset: Offset(0, 1)),
+                        BoxShadow(color: Color(0x0A000000), blurRadius: 1, offset: Offset(0, 0.5)),
+                      ],
+                    )
+                  : null,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(label,
+                    style: AppTypography.inter(
+                        fontSize: 12,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                        color: active ? p.text : p.textSecondary)),
+                const SizedBox(width: 6),
+                Text('$count', style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w600, color: p.textMuted)),
+              ]),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusPill(
-    String label,
-    Color textColor,
-    bool isDark,
-    Color borderColor, {
-    Color? bg,
-    IconData? icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: bg ?? (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: borderColor, width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 9, color: textColor),
-            const SizedBox(width: 3),
-          ],
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.inter(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-          ),
+  Widget _empty(AppPalette p, WebIconData icon, String? title, String body, {bool reset = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Column(children: [
+        WebIcon(icon, size: 24, color: p.textMuted),
+        if (title != null) ...[
+          const SizedBox(height: 8),
+          Text(title, style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w600, color: p.text)),
         ],
+        const SizedBox(height: 4),
+        Text(body, textAlign: TextAlign.center, style: AppTypography.inter(fontSize: 13, color: p.textSecondary)),
+        if (reset)
+          TextButton(
+            onPressed: () {
+              setState(() => _filter = 'all');
+              widget.onSelectDay?.call(null);
+            },
+            child: const Text('Reset all filters'),
+          ),
+      ]),
+    );
+  }
+
+  Widget _list(AppPalette p, List<_Row> rows, String today) {
+    final groups = <String, ({int net, int count})>{};
+    for (final r in rows) {
+      final g = groups[r.e.date] ?? (net: 0, count: 0);
+      groups[r.e.date] = (net: g.net + r.e.amount, count: g.count + 1);
+    }
+    final cd = widget.currentDay;
+    final children = <Widget>[];
+    for (final (i, r) in rows.indexed) {
+      final prev = i == 0 ? null : rows[i - 1];
+      if (cd != null && widget.selectedDay == null && r.e.day >= cd && (prev == null || prev.e.day < cd)) {
+        children.add(_todayDivider(p, today, first: i == 0));
+      }
+      if (prev == null || prev.e.date != r.e.date) {
+        children.add(_dayHeader(p, r.e.date, groups[r.e.date]!, today));
+      } else {
+        children.add(Padding(
+          padding: const EdgeInsets.only(left: 60, right: 14),
+          child: Divider(height: 1, thickness: 1, color: p.border),
+        ));
+      }
+      children.add(_row(p, r));
+    }
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border.all(color: p.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+    );
+  }
+
+  Widget _todayDivider(AppPalette p, String today, {required bool first}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      decoration: BoxDecoration(
+        color: p.surfaceSubtle,
+        border: Border(
+          top: first ? BorderSide.none : BorderSide(color: p.border),
+          bottom: BorderSide(color: p.border),
+        ),
+      ),
+      child: Row(children: [
+        Expanded(child: Container(height: 1, color: p.border)),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            color: p.surface,
+            border: Border.all(color: p.border),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            WebIcon(WebIcons.mapPin, size: 12, color: p.text),
+            const SizedBox(width: 5),
+            Text('TODAY (${formatDisplayDate(today).toUpperCase()})',
+                style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w700, color: p.text, letterSpacing: 0.44)),
+          ]),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Container(height: 1, color: p.border)),
+      ]),
+    );
+  }
+
+  Widget _dayHeader(AppPalette p, String date, ({int net, int count}) g, String today) {
+    final netColour = g.net > 0 ? p.good : (g.net < 0 ? p.bad : p.textSecondary);
+    return Semantics(
+      header: true,
+      child: Container(
+        color: p.surfaceSubtle,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        child: Row(children: [
+          Expanded(
+            child: Row(children: [
+              Flexible(
+                child: Text(formatDisplayDate(date),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.text)),
+              ),
+              if (date == today) ...[
+                const SizedBox(width: 8),
+                Text('Today', style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w700, color: p.accent)),
+              ],
+            ]),
+          ),
+          const SizedBox(width: 10),
+          Text('${g.count} ${g.count == 1 ? 'entry' : 'entries'}',
+              style: AppTypography.inter(fontSize: 12, color: p.textMuted)),
+          const SizedBox(width: 10),
+          Text('${g.net > 0 ? '+' : ''}${formatCurrency(g.net, symbol: widget.currencySymbol)}',
+              style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w700, color: netColour)),
+        ]),
       ),
     );
   }
 
-  void _showEventDetailSheet(BuildContext context, TimelineEvent ev) {
-    TransactionDetailModal.show(context, timelineEvent: ev, currencySymbol: widget.currencySymbol);
+  // web's glyph tones (transactions-inset-list.css), the same in both themes.
+  static const _glyph = {
+    'transfer': Color(0xFF6366F1),
+    'goal': Color(0xFF8B5CF6),
+    'credit': Color(0xFF10B981),
+    'overdue': Color(0xFFEF4444),
+    'due': Color(0xFFF59E0B),
+    'wallet': Color(0xFFF59E0B),
+    'upcoming': Color(0xFF6366F1),
+    'debit': Color(0xFF3B82F6),
+  };
+
+  /// web's getCategoryInfo(): which icon the glyph box draws.
+  WebIconData _categoryIcon(_Row r) {
+    final cat = (r.e.raw['category'] ?? r.e.raw['tag'] ?? '').toString().toLowerCase();
+    final label = r.label.toLowerCase();
+    bool any(String s, List<String> words) => words.any(s.contains);
+    if (r.isTransfer) return WebIcons.arrowRightLeft;
+    if (r.isSalary || cat.contains('salary') || label.contains('salary')) return WebIcons.trendingUp;
+    if (r.isGoal || cat.contains('goal')) return WebIcons.target;
+    if (cat.contains('travel') ||
+        any(label, ['travel', 'uber', 'ola', 'fuel', 'petrol', 'flight', 'metro'])) {
+      return WebIcons.mapPin;
+    }
+    if (cat.contains('util') || any(label, ['bill', 'electric', 'wifi', 'rent', 'water'])) return WebIcons.zap;
+    if (r.e.amount > 0 || r.itemType.contains('income')) return WebIcons.banknote;
+    return WebIcons.tag;
+  }
+
+  String _accountLine(_Row r) {
+    final raw = r.e.raw;
+    final name = widget.accountName ??
+        widget.accountNames[(raw['bankAccountId'] ?? raw['walletId'] ?? r.e.accountId ?? '').toString()] ??
+        (r.isWallet ? 'Wallet' : 'Bank Account');
+    if (r.isTransfer) {
+      String n(Object? id) => widget.accountNames['${id ?? ''}'] ?? 'Account';
+      return 'transfer • ${n(raw['sourceBankAccountId'] ?? raw['sourceWalletId'])} → '
+          '${n(raw['destinationBankAccountId'] ?? raw['destinationWalletId'])}';
+    }
+    final income = r.isSalary || r.itemType == 'actual-income' || r.e.type == 'income' || r.itemType == 'income';
+    if (!income) return name;
+    final base = r.itemType == 'actual-income'
+        ? 'income • actual credited'
+        : r.isSalary
+            ? (r.isActual ? 'salary • credited' : 'salary • planned')
+            : '${(r.itemType.isEmpty ? 'planned' : r.itemType).replaceFirst('-', ' ')} ${r.isActual ? '• actual' : '• planned'}';
+    return '$base • $name';
+  }
+
+  Widget _tag(String text, Color fg, Color bg, Color border, {WebIconData? icon, FontWeight weight = FontWeight.w600}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: bg, border: Border.all(color: border), borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (icon != null) ...[WebIcon(icon, size: 10, color: fg, strokeWidth: 2.6), const SizedBox(width: 3)],
+        Flexible(
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.inter(fontSize: 11, fontWeight: weight, color: fg, letterSpacing: 0.22)),
+        ),
+      ]),
+    );
+  }
+
+  List<Widget> _tags(AppPalette p, _Row r) {
+    const red = Color(0xFFEF4444), amber = Color(0xFFD97706);
+    final originalDay = r.e.raw['originalDay'];
+    return [
+      if (r.isTransfer)
+        _tag('Transfer', p.accent, const Color(0x1F6366F1), const Color(0x406366F1), icon: WebIcons.arrowRightLeft),
+      if (r.isGoal) _tag('Goal', const Color(0xFF8B5CF6), const Color(0x1A8B5CF6), const Color(0x408B5CF6), icon: WebIcons.target),
+      if (r.isPending) _tag('Pending', red, const Color(0x1FEF4444), const Color(0x47EF4444), weight: FontWeight.w700),
+      if (r.isSalary && r.isActual)
+        _tag('Credited', p.good, p.good.withValues(alpha: 0.12), p.good.withValues(alpha: 0.25), icon: WebIcons.check),
+      if (r.isPaid && originalDay != null && originalDay != r.e.day && !r.isPending)
+        _tag('Orig Day $originalDay', p.textMuted, p.surfaceSubtle, p.border),
+      if (r.isPlanned && r.isOverdue)
+        _tag('Overdue', red, const Color(0x1FEF4444), const Color(0x47EF4444), icon: WebIcons.alertTriangle, weight: FontWeight.w700),
+      if (r.isPlanned && r.isDue) _tag('Due', amber, const Color(0x1FF59E0B), const Color(0x47F59E0B), icon: WebIcons.calendar),
+      if (r.isPlanned && !r.isOverdue && !r.isDue) _tag('Upcoming', p.textMuted, p.surfaceSubtle, p.border, weight: FontWeight.w500),
+      if (!r.isPlanned && !r.isTransfer && !r.isSalary && (r.isActual || r.isPaid || r.e.status == 'successful'))
+        _tag('Settled', p.textMuted, p.surfaceSubtle, p.border),
+    ].map((t) => Padding(padding: const EdgeInsets.only(left: 7), child: t)).toList();
+  }
+
+  Widget _row(AppPalette p, _Row r) {
+    final glyph = _glyph[r.isTransfer
+        ? 'transfer'
+        : r.isGoal
+            ? 'goal'
+            : r.isCredit
+                ? 'credit'
+                : r.isOverdue
+                    ? 'overdue'
+                    : r.isDue
+                        ? 'due'
+                        : r.isWallet
+                            ? 'wallet'
+                            : r.isPlanned
+                                ? 'upcoming'
+                                : 'debit']!;
+    final selected = widget.selectedDay == r.e.day;
+    final transferAmount = (num.tryParse('${r.e.raw['transferAmount']}') ?? 0).round();
+    final (amount, amountColour) = r.isTransfer && widget.accountName == null
+        ? ('⇄ ${formatCurrency(transferAmount, symbol: widget.currencySymbol)}', p.accent)
+        : r.e.amount > 0
+            ? ('+${formatCurrency(r.e.amount, symbol: widget.currencySymbol)}', p.good)
+            : (formatCurrency(r.e.amount, symbol: widget.currencySymbol), p.text);
+    final (chipFg, chipBg, chipBorder) = r.isBreach
+        ? (p.bad, const Color(0x1FF43F5E), const Color(0x59F43F5E))
+        : r.isNearFloor
+            ? (p.warn, const Color(0x1FF59E0B), const Color(0x4DF59E0B))
+            : (p.good, p.good.withValues(alpha: 0.1), p.good.withValues(alpha: 0.25));
+    final edge = r.isOverdue ? const Color(0xFFEF4444) : (r.isDue ? const Color(0xFFF59E0B) : null);
+    final rowBg = selected ? p.surfaceHover : (r.isBreach ? p.badSubtle : null);
+
+    return Material(
+      color: rowBg ?? Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onSelectDay?.call(selected ? null : r.e.day),
+        child: Container(
+          decoration: edge == null ? null : BoxDecoration(border: Border(left: BorderSide(color: edge, width: 3))),
+          padding: EdgeInsets.fromLTRB(edge == null ? 14 : 11, 11, 14, 11),
+          child: Row(children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: glyph.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
+              child: WebIcon(_categoryIcon(r), color: glyph),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Tags drop under the title when large text leaves no room.
+                Wrap(crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 3, children: [
+                  Text(r.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w600, color: p.text, height: 1.3)),
+                  ..._tags(p, r),
+                ]),
+                const SizedBox(height: 3),
+                Row(children: [
+                  WebIcon(
+                      r.isTransfer ? WebIcons.arrowRightLeft : (r.isWallet ? WebIcons.wallet : WebIcons.buildingLibrary),
+                      size: 11,
+                      color: p.textSecondary),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(_accountLine(r),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.inter(fontSize: 12, color: p.textSecondary)),
+                  ),
+                ]),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                      color: chipBg, border: Border.all(color: chipBorder), borderRadius: BorderRadius.circular(4)),
+                  child: Text('${r.isBreach ? '▲ ' : ''}bal: ${formatCurrency(r.e.runningBalance, symbol: widget.currencySymbol)}',
+                      style: AppTypography.mono(
+                          fontSize: 11, fontWeight: r.isBreach ? FontWeight.w700 : FontWeight.w600, color: chipFg)),
+                ),
+              ]),
+            ),
+            const SizedBox(width: 12),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(amount,
+                  style: AppTypography.mono(fontSize: 15, fontWeight: FontWeight.w700, color: amountColour, letterSpacing: -0.15)),
+              if (r.isPlanned && widget.onPay != null)
+                MinTap(
+                  child: Semantics(
+                    button: true,
+                    label: 'Mark as Paid (Settle)',
+                    excludeSemantics: true,
+                    onTap: () => widget.onPay!(r.e),
+                    child: InkWell(
+                      onTap: () => widget.onPay!(r.e),
+                      borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                        height: 24,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(color: p.text, borderRadius: BorderRadius.circular(5)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          WebIcon(WebIcons.checkCircle, size: 12, color: p.bg, strokeWidth: 2.4),
+                          const SizedBox(width: 4),
+                          Text('Mark as Paid', style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w600, color: p.bg)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              if (widget.onEdit != null && r.e.transactionId != null)
+                IconButton(
+                  tooltip: 'Edit entry',
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  onPressed: () => widget.onEdit!(r.e),
+                  icon: WebIcon(WebIcons.edit, size: 13, color: p.textMuted),
+                ),
+            ]),
+          ]),
+        ),
+      ),
+    );
   }
 }

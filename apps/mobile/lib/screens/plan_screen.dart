@@ -13,6 +13,7 @@ import '../theme/app_typography.dart';
 import '../widgets/tab_states.dart';
 import '../engine/plan_insights.dart';
 import '../services/outbox.dart' show WriteResult;
+import '../modals/transaction_detail_modal.dart' show canEditTransaction, openEditTransaction;
 import '../widgets/plan_glance.dart';
 import '../widgets/web_icons.dart';
 
@@ -268,6 +269,18 @@ class _PlanScreenState extends State<PlanScreen> {
                 currentDay: currentDay,
                 onSelectDay: (day) => setState(() => _selectedDay = day),
                 currencySymbol: currencySymbol,
+                accountNames: {for (final a in [...budget.bankAccountModels, ...budget.walletModels]) a.id: a.name},
+                accountName: isFilteringAccount ? selectedAccount!.name : null,
+                accountIsWallet: selectedAccount?.kind == AccountKind.wallet,
+                onPay: (e) => _payUpcoming(context, budget, e, realToday, selectedAccount?.id),
+                onEdit: (e) {
+                  for (final t in budget.transactionModels) {
+                    if (t.id == e.transactionId && canEditTransaction(t)) {
+                      openEditTransaction(context, t);
+                      return;
+                    }
+                  }
+                },
               ),
             ],
           ),
