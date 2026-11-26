@@ -61,27 +61,28 @@ String getDateFromRelativeDay(int relativeDay, int year, int monthNum) {
 class SalaryWindowStatus {
   final bool isLocked;
   final bool isUnconfigured;
+  /// First-time setup after this month's window closed: saving locks it at once.
+  final bool isMidMonthSetup;
   final String status;
   final String reason;
   final String tooltip;
   final String? windowStartDate;
   final String? windowEndDate;
-  final String? expectedDate;
 
   SalaryWindowStatus({
     required this.isLocked,
     required this.isUnconfigured,
+    this.isMidMonthSetup = false,
     required this.status,
     required this.reason,
     required this.tooltip,
     this.windowStartDate,
     this.windowEndDate,
-    this.expectedDate,
   });
 }
 
-/// Calculates the active 10-day salary logging window and lock status.
-/// Window: 5 days before the last date of the respective month through 5 days after (inclusive).
+/// The 10-day salary logging window and lock status (getSalaryWindowStatus on web):
+/// 5 days before day 1 of the month through day 5.
 SalaryWindowStatus getSalaryWindowStatus(Map<String, dynamic>? month, [DateTime? currentDate]) {
   if (month == null || month['year'] == null || month['month'] == null) {
     return SalaryWindowStatus(
@@ -93,78 +94,48 @@ SalaryWindowStatus getSalaryWindowStatus(Map<String, dynamic>? month, [DateTime?
     );
   }
 
-  final incomeAmount = num.tryParse('${month['incomeAmount'] ?? 0}') ?? 0;
-  final salaryBankAccountId = month['salaryBankAccountId'];
-  final isConfigured = incomeAmount > 0 && salaryBankAccountId != null && salaryBankAccountId.toString().isNotEmpty;
-
-  if (!isConfigured) {
-    return SalaryWindowStatus(
-      isLocked: false,
-      isUnconfigured: true,
-      status: 'unconfigured',
-      reason: 'Configure monthly salary',
-      tooltip: 'Configure monthly salary',
-    );
-  }
-
   final int year = (month['year'] as num).toInt();
   final int monthNum = (month['month'] as num).toInt();
-
-  // Anchor window to the last date of the respective month (5 days before through 5 days after)
-  final lastDay = getDaysInMonth(year, monthNum);
-  final expectedDate = DateTime.utc(year, monthNum, lastDay);
-  final windowStart = DateTime.utc(year, monthNum, lastDay - 5);
-  final windowEnd = DateTime.utc(year, monthNum, lastDay + 5, 23, 59, 59, 999);
-
-  final now = currentDate ?? DateTime.now().toUtc();
+  final windowStart = DateTime.utc(year, monthNum, 1 - 5);
+  final windowEnd = DateTime.utc(year, monthNum, 5, 23, 59, 59, 999);
+  final today = currentDate ?? DateTime.now();
+  final now = DateTime.utc(today.year, today.month, today.day, 12);
 
   final startStr = formatDate(windowStart.year, windowStart.month, windowStart.day);
   final endStr = formatDate(windowEnd.year, windowEnd.month, windowEnd.day);
-  final expStr = formatDate(expectedDate.year, expectedDate.month, expectedDate.day);
+  const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  String friendly(DateTime d) => '${monthsShort[d.month - 1]} ${d.day}';
 
-  final monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  String formatFriendly(DateTime d) => '${monthsShort[d.month - 1]} ${d.day}';
+  final incomeAmount = num.tryParse('${month['incomeAmount'] ?? 0}') ?? 0;
+  final bankId = month['salaryBankAccountId'];
+  final isConfigured = incomeAmount > 0 && bankId != null && bankId.toString().isNotEmpty;
 
-  final friendlyStart = formatFriendly(windowStart);
-  final friendlyEnd = formatFriendly(windowEnd);
+  SalaryWindowStatus result(String status, String tip, {bool locked = false, bool unconfigured = false, bool midMonth = false}) =>
+      SalaryWindowStatus(
+        isLocked: locked,
+        isUnconfigured: unconfigured,
+        isMidMonthSetup: midMonth,
+        status: status,
+        reason: tip,
+        tooltip: tip,
+        windowStartDate: startStr,
+        windowEndDate: endStr,
+      );
 
+  if (!isConfigured) {
+    final mid = now.isAfter(windowEnd);
+    return result(
+      'unconfigured',
+      mid ? 'Configure monthly salary (mid-month setup will lock immediately until next month-end)' : 'Configure monthly salary',
+      unconfigured: true,
+      midMonth: mid,
+    );
+  }
   if (now.isBefore(windowStart)) {
-    final tip = 'Unlocks on $friendlyStart — 5 days before month-end';
-    return SalaryWindowStatus(
-      isLocked: true,
-      isUnconfigured: false,
-      status: 'before_window',
-      reason: tip,
-      tooltip: tip,
-      windowStartDate: startStr,
-      windowEndDate: endStr,
-      expectedDate: expStr,
-    );
+    return result('before_window', 'Unlocks on ${friendly(windowStart)} — 5 days before month start', locked: true);
   }
-
   if (now.isAfter(windowEnd)) {
-    final tip = 'Window closed on $friendlyEnd';
-    return SalaryWindowStatus(
-      isLocked: true,
-      isUnconfigured: false,
-      status: 'after_window',
-      reason: tip,
-      tooltip: tip,
-      windowStartDate: startStr,
-      windowEndDate: endStr,
-      expectedDate: expStr,
-    );
+    return result('after_window', 'Window closed on ${friendly(windowEnd)}', locked: true);
   }
-
-  final tip = 'Salary logging open until $friendlyEnd';
-  return SalaryWindowStatus(
-    isLocked: false,
-    isUnconfigured: false,
-    status: 'in_window',
-    reason: tip,
-    tooltip: tip,
-    windowStartDate: startStr,
-    windowEndDate: endStr,
-    expectedDate: expStr,
-  );
+  return result('in_window', 'Salary logging open until ${friendly(windowEnd)}');
 }
