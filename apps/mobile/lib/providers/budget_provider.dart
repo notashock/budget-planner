@@ -689,6 +689,13 @@ class BudgetProvider with ChangeNotifier {
       await _api.deleteTransaction(id);
   });
 
+  Future<Map<String, dynamic>> getMigrationStatus() => _api.getMigrationStatus();
+
+  /// Moves calculations-only numbers into a new bank account, then reloads everything.
+  Future<void> migrateLegacyData(Map<String, dynamic> body) => _write(() async {
+      await _api.migrateLegacyData(body);
+  }, reload: loadInitialData);
+
   // Credit cards
   Future<List<dynamic>> getCards() => _api.getCards();
 
@@ -737,6 +744,14 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> createPersonFund(Map<String, dynamic> body) => _write(() async {
       await _api.createPersonFund(body);
+  });
+
+  Future<void> updatePersonFund(String id, Map<String, dynamic> body) => _write(() async {
+      await _api.updatePersonFund(id, body);
+  });
+
+  Future<void> deletePersonFund(String id, {bool withEntries = false}) => _write(() async {
+      await _api.deletePersonFund(id, withEntries: withEntries);
   });
 
   Future<void> addPersonFundEntry(String id, Map<String, dynamic> body) => _write(() async {

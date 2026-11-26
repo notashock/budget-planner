@@ -6,6 +6,7 @@ import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
+import '../modals/transfer_calculations_modal.dart';
 import '../modals/month_review_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
@@ -112,6 +113,9 @@ class _PlanScreenState extends State<PlanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Web's "Move your balance into a bank account" banner: only a user with no accounts can need it
+              if (budget.bankAccountModels.isEmpty && budget.walletModels.isEmpty)
+                MoveBalanceBanner(todayBalance: _unifiedSimulation(budget).todaysBalance),
               // 1. Account Filter Pill Track (Horizontal Scroll)
               _buildAccountFilterBar(budget, isDark, border, text, textSecondary, currencySymbol),
               const SizedBox(height: 10),

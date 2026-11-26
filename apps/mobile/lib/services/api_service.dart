@@ -510,6 +510,16 @@ class ApiService {
     await _request('DELETE', '$_v1/transfers/$id');
   }
 
+  /// Whether the user's numbers predate accounts and can move into a bank account.
+  Future<Map<String, dynamic>> getMigrationStatus() async {
+    final data = await _request('GET', '$_v1/accounts/migration-status');
+    return data is Map ? Map<String, dynamic>.from(data) : {'eligible': false};
+  }
+
+  Future<void> migrateLegacyData(Map<String, dynamic> body) async {
+    await _request('POST', '$_v1/accounts/migrate', body: body);
+  }
+
   // Credit cards (ADR 0070): created as accounts with type 'credit_card'
   Future<List<dynamic>> getCards() async {
     final data = await _request('GET', '$_v1/cards');
@@ -545,6 +555,14 @@ class ApiService {
   Future<Map<String, dynamic>> createPersonFund(Map<String, dynamic> body) async {
     final data = await _request('POST', '$_v1/person-funds', body: body);
     return Map<String, dynamic>.from(data);
+  }
+
+  Future<void> updatePersonFund(String id, Map<String, dynamic> body) async {
+    await _request('PATCH', '$_v1/person-funds/$id', body: body);
+  }
+
+  Future<void> deletePersonFund(String id, {bool withEntries = false}) async {
+    await _request('DELETE', '$_v1/person-funds/$id${withEntries ? '?withEntries=true' : ''}');
   }
 
   Future<Map<String, dynamic>> addPersonFundEntry(String id, Map<String, dynamic> body) async {

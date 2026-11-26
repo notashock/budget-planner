@@ -79,6 +79,8 @@ class FixtureBudget {
       if (path == '/api/v1/transfers') return okJson(fixtures['transfers']);
       if (path == '/api/v1/cards') return okJson(fixtures['cards']);
       if (path == '/api/v1/person-funds') return okJson(fixtures['person_funds']);
+      // A test can serve any other GET by putting its path in [fixtures]
+      if (fixtures.containsKey(path)) return okJson(fixtures[path]);
       return okJson([]);
     });
     budget = BudgetProvider(api: api);

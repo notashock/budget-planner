@@ -74,8 +74,8 @@ class AccountsAddMenu extends StatelessWidget {
       tooltip: 'Add',
       onSelected: (apply) => apply(),
       itemBuilder: (_) => [
-        PopupMenuItem(value: () => showAddAccountDialog(context, isBank: true), child: const Text('Bank account')),
-        PopupMenuItem(value: () => showAddAccountDialog(context, isBank: false), child: const Text('Wallet')),
+        PopupMenuItem(value: () => showAccountForm(context, isBank: true), child: const Text('Bank account')),
+        PopupMenuItem(value: () => showAccountForm(context, isBank: false), child: const Text('Wallet')),
         PopupMenuItem(value: () => _sheet(context, const AddCardModal()), child: const Text('Card')),
         PopupMenuItem(value: () => _sheet(context, const HeldLentModal(initialAction: 'hold')), child: const Text('Person')),
       ],
@@ -175,8 +175,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
               ],
             ]),
           ),
-          list('Bank accounts', banks, 'Add a bank account', () => showAddAccountDialog(context, isBank: true)),
-          list('Wallets', wallets, 'Add a wallet', () => showAddAccountDialog(context, isBank: false)),
+          list('Bank accounts', banks, 'Add a bank account', () => showAccountForm(context, isBank: true)),
+          list('Wallets', wallets, 'Add a wallet', () => showAccountForm(context, isBank: false)),
           CardsSection(reload: accountPanelsReload),
           HeldLentSection(reload: accountPanelsReload),
         ],
@@ -253,7 +253,7 @@ class AccountPage extends StatelessWidget {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (_) => const UnifiedEntryModal(initialType: EntryType.transfer),
+                        builder: (_) => UnifiedEntryModal(initialType: EntryType.transfer, initialSourceAccountId: acc.id),
                       )),
               const SizedBox(width: 8),
               PopupMenuButton<VoidCallback>(
@@ -262,12 +262,7 @@ class AccountPage extends StatelessWidget {
                 onSelected: (apply) => apply(),
                 itemBuilder: (_) => [
                   PopupMenuItem(
-                    value: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => EditAccountModal(account: acc, isBank: isBank),
-                    ),
+                    value: () => showAccountForm(context, isBank: isBank, account: acc),
                     child: Text(isBank ? 'Edit account' : 'Edit wallet'),
                   ),
                   PopupMenuItem(value: archive, child: Text('Archive', style: TextStyle(color: p.bad))),
@@ -366,79 +361,4 @@ class AccountPage extends StatelessWidget {
           child: Row(children: [Expanded(child: left), const SizedBox(width: 12), right]),
         ),
       );
-}
-
-/// Add a bank account or wallet: name, opening balance, last 4 digits (banks).
-void showAddAccountDialog(BuildContext context, {required bool isBank}) {
-  final nameCtrl = TextEditingController();
-  final balCtrl = TextEditingController(text: '0');
-  final maskCtrl = TextEditingController();
-  String? nameError;
-
-  showDialog(
-    context: context,
-    builder: (dialogCtx) => StatefulBuilder(
-      builder: (dialogCtx, setDialogState) => AlertDialog(
-        title: Text('Add ${isBank ? 'Bank Account' : 'Wallet'}', style: AppTypography.cardTitle()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              key: const ValueKey('add-account-name'),
-              controller: nameCtrl,
-              decoration: InputDecoration(labelText: '${isBank ? 'Bank' : 'Wallet'} Name', errorText: nameError),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: balCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Opening Balance ($moneySymbol)'),
-            ),
-            if (isBank) ...[
-              const SizedBox(height: 8),
-              TextField(
-                key: const ValueKey('add-account-mask'),
-                controller: maskCtrl,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                decoration: const InputDecoration(labelText: 'Last 4 Digits (Optional)'),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
-          ElevatedButton(
-            key: const ValueKey('add-account-submit'),
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              if (name.isEmpty) {
-                setDialogState(() => nameError = 'Enter a name');
-                return;
-              }
-              final budget = context.read<BudgetProvider>();
-              final messenger = ScaffoldMessenger.of(context);
-              final bal = toMinorUnits(num.tryParse(balCtrl.text) ?? 0);
-              try {
-                if (isBank) {
-                  await budget.addBankAccount({
-                    'name': name,
-                    'openingBalance': bal,
-                    // The server's field name; it ignored the old 'accountNumberMask'.
-                    'accountNumberMasked': maskCtrl.text.trim(),
-                  });
-                } else {
-                  await budget.addWallet({'name': name, 'openingBalance': bal});
-                }
-                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-              } catch (e) {
-                messenger.showSnackBar(SnackBar(content: Text('Could not add: $e')));
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    ),
-  );
 }

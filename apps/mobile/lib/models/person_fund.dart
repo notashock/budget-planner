@@ -15,6 +15,10 @@ class PersonFund {
   final int outstanding;
   final String? expectedSettleDate;
   final String? lastActivityDate;
+  final String? note;
+
+  /// How many entries the person has; deleting them deletes those too.
+  final int entryCount;
   final Map<String, dynamic> raw;
 
   const PersonFund({
@@ -25,6 +29,8 @@ class PersonFund {
     required this.outstanding,
     this.expectedSettleDate,
     this.lastActivityDate,
+    this.note,
+    this.entryCount = 0,
     this.raw = const {},
   });
 
@@ -49,6 +55,8 @@ class PersonFund {
       outstanding: r.optMoney('outstanding') ?? 0,
       expectedSettleDate: r.optDate('expectedSettleDate'),
       lastActivityDate: r.optDate('lastActivityDate'),
+      note: r.optString('note'),
+      entryCount: (r.json['entryCount'] as num?)?.toInt() ?? 0,
       raw: r.json,
     );
   }

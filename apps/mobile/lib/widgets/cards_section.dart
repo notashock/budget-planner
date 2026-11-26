@@ -75,13 +75,18 @@ class _CardsSectionState extends State<CardsSection> {
   }
 
   Future<void> _sheet(Widget child) async {
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => child,
     );
-    if (saved == true) await _load();
+    if (saved != true && saved != 'pay') return;
+    await _load();
+    if (saved == 'pay' && child is ConfirmBillModal && mounted) {
+      final fresh = _cards.where((c) => c.account.id == child.card.account.id).firstOrNull;
+      if (fresh?.openBill != null) await _sheet(PayBillModal(card: fresh!, bill: fresh.openBill!));
+    }
   }
 
   static String _money(int minor) => formatCurrency(minor, digits: MoneyDigits.auto);
