@@ -58,16 +58,17 @@ void main() {
     expect(find.byType(LoadErrorView), findsOneWidget);
     expect(find.text("Couldn't load this month"), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('No Active Budget Month'), findsNothing);
+    expect(find.byKey(const ValueKey('runway-card')), findsNothing);
   });
 
-  testWidgets('a month that does not exist (404) shows the "no month" state', (tester) async {
+  testWidgets('a month that does not exist (404) shows the runway view, as web', (tester) async {
     final budget = await tester.runAsync(() => providerWith(404));
     await tester.pumpWidget(host(budget!, const TabStates(child: PlanScreen())));
     await tester.pump();
 
     expect(find.byType(LoadErrorView), findsNothing);
-    expect(find.text('No Active Budget Month'), findsOneWidget);
+    expect(find.byKey(const ValueKey('runway-card')), findsOneWidget);
+    expect(find.text('Cashflow & Earnings Analysis'), findsOneWidget);
   });
 
   testWidgets('the banner stays hidden when there is no stale data to label', (tester) async {
