@@ -122,7 +122,10 @@ export function PlanScreen({
 
   const now = new Date();
   const isCurrentCalendarMonth = month ? (month.year === now.getFullYear() && month.month === (now.getMonth() + 1)) : false;
-  const currentDay = isCurrentCalendarMonth ? now.getDate() : null;
+  // The engine counts a salary cycle from its first day, so take today's day from it
+  const currentDay = typeof simulation?.currentDay === 'number'
+    ? (simulation.currentDay >= 1 ? simulation.currentDay : null)
+    : (isCurrentCalendarMonth ? now.getDate() : null);
 
   // Filtered daily balances curve
   const activeDailyBalances = useMemo(() => {

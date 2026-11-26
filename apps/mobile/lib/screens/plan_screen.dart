@@ -100,7 +100,9 @@ class _PlanScreenState extends State<PlanScreen> {
     final monthYear = month.year;
     final monthNum = month.month;
     final isCurrentMonth = monthYear == now.year && monthNum == now.month;
-    final currentDay = isCurrentMonth ? now.day : null;
+    // The engine counts a salary cycle from its first day, so take today's day from it
+    final engineDay = _unifiedSimulation(budget).currentDay;
+    final currentDay = engineDay != null ? (engineDay >= 1 ? engineDay : null) : (isCurrentMonth ? now.day : null);
 
     int? salaryCreditDay;
     final salaryCreditedDate = month.salaryCreditedDate;

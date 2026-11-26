@@ -80,7 +80,7 @@ export const SimulationService = {
         currencySymbol: month.currencySymbol || '₹'
       },
       serialize(items),
-      { year: month.year, month: month.month },
+      { year: month.year, month: month.month, startDate: month.startDate, endDate: month.endDate },
       txsForSim,
       goals || [],
       serialize(transfers),

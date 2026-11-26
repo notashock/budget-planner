@@ -1,9 +1,9 @@
 import {
   getDaysInMonth,
   clampDayToMonth,
-  formatDate,
-  getRelativeDay,
-  getDateFromRelativeDay
+  formatDate as calendarDate,
+  getRelativeDay as calendarDay,
+  getDateFromRelativeDay as calendarDateFromDay
 } from './calendar.js';
 import { getGoalMonthlyReserve, isSpendRefundEvent } from './planInsights.js';
 import {
@@ -45,7 +45,10 @@ export { deriveTransactionState, isDiscretionarySpend, summarizeLowPoints };
  * @param {Array<object>} [settings.transfers=[]] - Logged Paired Account Transfers
  * 
  * @param {Array<object>} items - List of transactions or planned records for the month
- * @param {object} month - { year, month } (month 1 - 12)
+ * @param {object} month - { year, month, startDate?, endDate? } (month 1 - 12). A period
+ *   whose dates cross into the next month (a salary cycle, 26 Nov - 25 Dec) is counted
+ *   from its start: day 1 is its first day, and day-of-month inputs (currentDay,
+ *   dayOfMonth) mean that day's date inside the period.
  * @param {Array<object>} [transactions=[]] - Logged transactions
  * @param {Array<object>} [goals=[]] - Active purchase goals
  * @param {Array<object>} [transfers=[]] - Optional direct transfers parameter
@@ -63,7 +66,21 @@ export function simulate(
   accounts = []
 ) {
   const { year, month: monthNum } = month;
-  const daysInMonth = getDaysInMonth(year, monthNum);
+  const frame = cycleFrame(month);
+  const daysInMonth = frame ? frame.length : getDaysInMonth(year, monthNum);
+  // Within a crossing period these replace the calendar helpers: same call shape,
+  // days counted from the period's start (day before it = -1, as the calendar does)
+  const getRelativeDay = (dateStr, y, m) => (frame ? frame.dayOf(dateStr) : calendarDay(dateStr, y, m));
+  const getDateFromRelativeDay = (d, y, m) => (frame ? frame.dateOf(d) : calendarDateFromDay(d, y, m));
+  const formatDate = (y, m, d) => (frame ? frame.dateOf(d) : calendarDate(y, m, d));
+  // A day-of-month (rent on the 5th) as a day of this period
+  const domDay = (dom) => (frame ? frame.domDay(dom) : clampDayToMonth(dom, daysInMonth));
+  // The day of a 'YYYY-MM-DD' date, clamped into the period
+  const dateDay = (dateStr) => {
+    if (frame) return clampDayToMonth(frame.dayOf(dateStr), daysInMonth);
+    const d = parseInt(String(dateStr).split('-')[2], 10);
+    return clampDayToMonth(isNaN(d) ? 1 : d, daysInMonth);
+  };
   const normalizeId = (val) => {
     if (!val) return null;
     if (typeof val === 'string') return val.trim();
@@ -192,7 +209,7 @@ export function simulate(
 
   // Determine current day for today's balance calculation (0 = future month opening, null = past month ending, 1-31 = today)
   const currentDay = typeof settings.currentDay === 'number'
-    ? (settings.currentDay === 0 ? 0 : Math.max(1, Math.min(daysInMonth, Math.floor(settings.currentDay))))
+    ? (settings.currentDay === 0 ? 0 : (frame ? domDay(Math.floor(settings.currentDay)) : Math.max(1, Math.min(daysInMonth, Math.floor(settings.currentDay)))))
     : null;
 
   /** @type {Array<object>} */
@@ -252,14 +269,12 @@ export function simulate(
         incomeDate = firstOfMonth;
         incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
       } else {
-        const parts = parsedDate.split('-');
-        const parsedD = parseInt(parts[2], 10);
-        incomeDay = clampDayToMonth(isNaN(parsedD) ? 1 : parsedD, daysInMonth);
+        incomeDay = dateDay(parsedDate);
         incomeDate = formatDate(year, monthNum, incomeDay);
         incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
       }
     } else {
-      incomeDay = clampDayToMonth(incomeCreditDay, daysInMonth);
+      incomeDay = domDay(incomeCreditDay);
       incomeDate = formatDate(year, monthNum, incomeDay);
       incomeLabel = isSalaryMarkedCredited ? 'Salary (Credited)' : defaultSalaryLabel;
     }
@@ -340,10 +355,9 @@ export function simulate(
   plannedRecords.forEach((it) => {
     let td = 1;
     if (it.date || it.plannedDate) {
-      const parts = (it.plannedDate || it.date).split('-');
-      if (parts.length === 3) td = clampDayToMonth(parseInt(parts[2], 10), daysInMonth);
-    } else if (it.type === 'recurring' || it.dayOfMonth) td = clampDayToMonth(it.dayOfMonth ?? 1, daysInMonth);
-    else if (it.type === 'one-time' || it.day) td = clampDayToMonth(it.day ?? 1, daysInMonth);
+      if ((it.plannedDate || it.date).split('-').length === 3) td = dateDay(it.plannedDate || it.date);
+    } else if (it.type === 'recurring' || it.dayOfMonth) td = domDay(it.dayOfMonth ?? 1);
+    else if (it.type === 'one-time' || it.day) td = domDay(it.day ?? 1);
     if (td >= rollStartDay) {
       if (!it.isIncome && it.origin !== 'salary' && passThroughCashSign(it.origin) <= 0) {
         forwardRollDayMap[td] = (forwardRollDayMap[td] || 0) + Math.abs(Math.round(it.plannedAmount ?? it.amount ?? 0));
@@ -391,7 +405,7 @@ export function simulate(
           targetDay = item.day;
           targetDate = dateVal || getDateFromRelativeDay(item.day, year, monthNum);
         } else {
-          targetDay = clampDayToMonth(item.day, daysInMonth);
+          targetDay = domDay(item.day);
           targetDate = dateVal || formatDate(year, monthNum, targetDay);
         }
       } else if (dateVal) {
@@ -456,7 +470,7 @@ export function simulate(
         walletId: wallId
       });
     } else if (item.type === 'recurring') {
-      const targetDay = clampDayToMonth(item.dayOfMonth ?? 1, daysInMonth);
+      const targetDay = domDay(item.dayOfMonth ?? 1);
       const targetDate = formatDate(year, monthNum, targetDay);
       const amount = Math.round(item.amount ?? 0);
       let effectiveDay = targetDay;
@@ -1772,6 +1786,7 @@ export function simulate(
     salaryCreditedDate: salaryTx ? salaryTx.date : (settings.salaryCreditedDate || (isSalaryMarkedCredited ? formatDate(year, monthNum, 1) : null)),
     salaryTransactionId: salaryTx ? (salaryTx.id || salaryTx._id || null) : null,
     daysInMonth,
+    currentDay,
     itemNetMap,
     unplannedAllowance: dynamicAllowance,
     totalUnplannedSpent,
@@ -1842,4 +1857,34 @@ export function simulate(
     accountDailyBalances,
     accountSimulations
   };
+}
+
+/**
+ * The day frame for a period whose dates cross into the next month, or null when
+ * the calendar of its named month already fits (calendar months, a clipped start).
+ */
+export function cycleFrame(month) {
+  const { startDate, endDate } = month || {};
+  if (typeof startDate !== 'string' || typeof endDate !== 'string' || startDate.slice(0, 7) === endDate.slice(0, 7)) return null;
+  const DAY = 86400000;
+  const utc = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const start = utc(startDate);
+  const length = Math.round((utc(endDate) - start) / DAY) + 1;
+  const dayOf = (dateStr) => {
+    if (typeof dateStr !== 'string' || dateStr.split('-').length < 3) return 1;
+    const diff = Math.round((utc(dateStr.slice(0, 10)) - start) / DAY);
+    return diff >= 0 ? diff + 1 : diff;
+  };
+  const dateOf = (d) => iso(start + (d >= 1 ? d - 1 : d) * DAY);
+  const domDay = (dom) => {
+    if (!(dom >= 1)) return 1;
+    // The one date in the period with this day of month (a period is at most a month long)
+    for (let d = 1; d <= length; d++) if (Number(dateOf(d).slice(8)) === dom) return d;
+    // A day the short month lacks (the 31st): its month's last day in the period
+    const s = new Date(start);
+    const firstMonthEnd = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 0)).getUTCDate();
+    return dom > firstMonthEnd && dom >= s.getUTCDate() ? dayOf(iso(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), firstMonthEnd))) : length;
+  };
+  return { length, dayOf, dateOf, domDay };
 }
