@@ -138,6 +138,8 @@ void main() {
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const CardsSection());
       await settle(tester);
+      await tester.tap(find.text('Amex')); // rows expand in place, as on web
+      await tester.pump();
 
       final amex = cardId(fb, 'Amex');
       final action = find.byKey(ValueKey('card-bill-action-$amex'));
@@ -170,6 +172,8 @@ void main() {
           })))!;
       await pump(tester, budget, const CardsSection());
       await settle(tester);
+      await tester.tap(find.text('Amex'));
+      await tester.pump();
 
       final action = find.byKey(ValueKey('card-bill-action-${cardId(fb, 'Amex')}'));
       expect(find.descendant(of: action, matching: find.text('Pay bill')), findsOneWidget);

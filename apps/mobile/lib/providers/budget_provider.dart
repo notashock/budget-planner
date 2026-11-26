@@ -688,6 +688,16 @@ class BudgetProvider with ChangeNotifier {
   // Held & Lent money: someone's money with you, or yours with them (never income or expense)
   Future<Map<String, dynamic>> getPersonFunds() => _api.getPersonFunds();
 
+  /// The server's net worth for the open month (bank + wallets + lent − cards − held), or null.
+  Future<Map<String, dynamic>?> getNetWorth() async {
+    try {
+      final nw = (await _api.getMonthSummary(_currentYear, _currentMonth))['netWorth'];
+      return nw is Map<String, dynamic> ? nw : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// GET /api/v1/person-funds, typed.
   Future<PersonFunds> getPersonFundsTyped() async => PersonFunds.fromJson(await getPersonFunds());
 

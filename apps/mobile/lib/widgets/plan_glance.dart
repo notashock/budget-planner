@@ -109,7 +109,7 @@ class MonthHealthHero extends StatelessWidget {
                   SizedBox(
                     height: 48,
                     width: double.infinity,
-                    child: CustomPaint(painter: _Sparkline(balances, currentDay, p.borderStrong, p.text)),
+                    child: CustomPaint(painter: BalanceSparkline(balances, currentDay, p.borderStrong, p.text)),
                   ),
                 ],
               ],
@@ -121,8 +121,8 @@ class MonthHealthHero extends StatelessWidget {
   }
 }
 
-class _Sparkline extends CustomPainter {
-  _Sparkline(this.values, this.currentDay, this.planColor, this.pastColor);
+class BalanceSparkline extends CustomPainter {
+  BalanceSparkline(this.values, this.currentDay, this.planColor, this.pastColor);
   final List<int> values;
   final int? currentDay;
   final Color planColor, pastColor;
@@ -155,7 +155,7 @@ class _Sparkline extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_Sparkline old) =>
+  bool shouldRepaint(BalanceSparkline old) =>
       old.values != values || old.currentDay != currentDay || old.planColor != planColor || old.pastColor != pastColor;
 }
 

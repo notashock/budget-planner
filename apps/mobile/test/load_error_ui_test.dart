@@ -83,7 +83,7 @@ void main() {
   for (final (name, tab, emptyText) in [
     ('Transactions', const TransactionsScreen() as Widget, 'No successful transactions recorded'),
     ('Goals', const GoalsScreen() as Widget, 'No purchase goals'),
-    ('Accounts', const AccountsScreen() as Widget, 'No bank accounts configured.'),
+    ('Accounts', const AccountsScreen() as Widget, 'Add a bank account'),
   ]) {
     testWidgets('$name: a failed first load shows the error, not an empty list', (tester) async {
       final budget = await tester.runAsync(() => providerWith(500));
