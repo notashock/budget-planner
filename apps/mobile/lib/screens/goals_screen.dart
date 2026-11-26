@@ -51,7 +51,7 @@ class GoalsScreen extends StatelessWidget {
             )
           : ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              padding: EdgeInsets.fromLTRB(14, 14, 14, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
               itemCount: goals.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
@@ -235,20 +235,6 @@ class GoalsScreen extends StatelessWidget {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add goal',
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        child: const Icon(Icons.add),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(initialType: EntryType.goal),
-          );
-        },
-      ),
     );
   }
 }
