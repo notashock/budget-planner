@@ -1,7 +1,7 @@
 import { eq, and, desc, asc, or, lt } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
-import { simulate, recommendPurchaseDate as engineRecommendDate, deriveTransactionState } from '@budget/engine';
+import { simulate, recommendPurchaseDate as engineRecommendDate, deriveTransactionState, isFuturePeriod } from '@budget/engine';
 import { validateUserAccount } from '../services/accountValidation.js';
 import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { SimulationService, loadGoalsForUser } from './simulationService.js';
@@ -40,7 +40,11 @@ export const MonthLifecycle = {
       if (isCurrentCalendar) {
         const lastDay = new Date(Date.UTC(currentYear, currentMonthNum, 0)).getUTCDate();
         const expectedEndDate = `${currentYear}-${pad(currentMonthNum)}-${pad(lastDay)}`;
-        if (!m.endDate || m.endDate < todayIso || (m.startDate && m.endDate < m.startDate)) {
+        // A salary cycle named after this month can end before today while the next
+        // cycle (named after next month) already covers today: leave that one alone.
+        const coveredByAnother = allMonths.some((o) => o.id !== m.id && o.startDate && o.endDate
+          && o.startDate <= todayIso && o.endDate >= todayIso);
+        if (!m.endDate || (m.endDate < todayIso && !coveredByAnother) || (m.startDate && m.endDate < m.startDate)) {
           await db.update(s.months)
             .set({ endDate: expectedEndDate, isClosed: false, closedAt: null, closingBalances: null, updatedAt: new Date() })
             .where(eq(s.months.id, m.id));
@@ -69,8 +73,7 @@ export const MonthLifecycle = {
       }
 
       // 2. Prune ghost future months (e.g. December 2026 when in November 2026)
-      const isFuture = (m.startDate && m.startDate > todayIso) ||
-        (m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum));
+      const isFuture = isFuturePeriod(m, todayIso);
 
       if (isFuture) {
         const txsList = await db.query.transactions.findMany({
@@ -210,7 +213,11 @@ export const MonthLifecycle = {
     const viewingYearMonth = year * 12 + monthNum;
 
     let currentDay = null;
-    if (viewingYearMonth === currentYearMonth) {
+    if (month.startDate && month.endDate) {
+      // By the period's dates: a salary cycle can be named after the next month
+      if (month.startDate > todayStr) currentDay = 0;
+      else if (month.endDate >= todayStr) currentDay = now.getDate();
+    } else if (viewingYearMonth === currentYearMonth) {
       currentDay = now.getDate();
     } else if (viewingYearMonth < currentYearMonth) {
       currentDay = null;

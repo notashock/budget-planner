@@ -37,10 +37,33 @@ class BudgetLoadError {
 /// The month to open when the current calendar month has no plan: the latest
 /// month on or before [today], else the earliest one after it.
 /// Returns null when [months] is empty. Does not depend on the server's order.
+/// Web's isFuturePeriod: not started yet. A month named after a later month
+/// than today is future unless 15 days after its start fall in that month (a
+/// salary cycle named December can start on 30 Nov; a ghost month cannot).
+bool isFuturePeriod(Map m, DateTime today) {
+  String iso(DateTime d) => '${d.year}-${'${d.month}'.padLeft(2, '0')}-${'${d.day}'.padLeft(2, '0')}';
+  final start = m['startDate'] is String ? m['startDate'] as String : null;
+  if (start != null && start.compareTo(iso(today)) > 0) return true;
+  final y = num.tryParse('${m['year']}')?.toInt() ?? 0;
+  final mo = num.tryParse('${m['month']}')?.toInt() ?? 0;
+  final namedLater = y > today.year || (y == today.year && mo > today.month);
+  if (!namedLater || start == null) return namedLater;
+  final p = start.split('-').map(int.parse).toList();
+  final mid = DateTime.utc(p[0], p[1], p[2] + 15);
+  return !(mid.year == y && mid.month == mo);
+}
+
 ({int year, int month})? pickInitialMonth(List<dynamic> months, DateTime today) {
   final parsed = <({int year, int month})>[];
+  final today0 = '${today.year}-${'${today.month}'.padLeft(2, '0')}-${'${today.day}'.padLeft(2, '0')}';
   for (final m in months) {
     if (m is! Map) continue;
+    // The cycle that contains today wins (a salary cycle can be named after the next month)
+    final start = m['startDate'], end = m['endDate'];
+    if (start is String && end is String && end.compareTo(today0) >= 0 && !isFuturePeriod(m, today) && m['isClosed'] != true) {
+      final y = num.tryParse('${m['year']}')?.toInt(), mo = num.tryParse('${m['month']}')?.toInt();
+      if (y != null && mo != null) return (year: y, month: mo);
+    }
     final y = num.tryParse('${m['year']}')?.toInt();
     final mo = num.tryParse('${m['month']}')?.toInt();
     if (y == null || mo == null || mo < 1 || mo > 12) continue;

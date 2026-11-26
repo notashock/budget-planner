@@ -17,6 +17,19 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+/**
+ * The (year, month) a period is filed under. A salary cycle is named after the
+ * month it mostly covers, so a cycle paid on the 30th (30 Oct - 29 Nov) is
+ * November, not October; a calendar month is itself.
+ */
+export function periodMonthKey(bounds, periodType) {
+  const ref = bounds.originalStartDate || bounds.startDate;
+  const [y, m, d] = ref.split('-').map((n) => parseInt(n, 10));
+  if (periodType !== 'salary_cycle') return { year: y, month: m };
+  const mid = new Date(Date.UTC(y, m - 1, d + 15));
+  return { year: mid.getUTCFullYear(), month: mid.getUTCMonth() + 1 };
+}
+
 function getTodayIso() {
   const now = new Date();
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -114,7 +127,9 @@ export const SalaryTemplateService = {
       .where(eq(s.settings.userId, userId));
 
     // Provision rolling 2-period horizon
-    await this.ensureRollingPeriods(userId, effDate);
+    // The current cycle: a last salary further back would otherwise give only a finished month
+    const today = getTodayIso();
+    await this.ensureRollingPeriods(userId, effDate > today ? effDate : today);
 
     return serialize(created);
   },
@@ -192,12 +207,13 @@ export const SalaryTemplateService = {
    * Internal helper: finds or creates month and planned salary transaction for a period boundary.
    */
   async _ensurePeriodMonthAndSalary(userId, template, bounds, targetDate) {
-    const cycleStartRef = bounds.originalStartDate || bounds.startDate;
-    const parts = cycleStartRef.split('-');
-    const year = parseInt(parts[0], 10);
-    const monthNum = parseInt(parts[1], 10);
+    const { year, month: monthNum } = periodMonthKey(bounds, template.periodType);
 
+    // The same cycle by its dates first: months filed under their start month
+    // (before periodMonthKey) must not get a second copy under the new name.
     let month = await db.query.months.findFirst({
+      where: and(eq(s.months.userId, userId), eq(s.months.endDate, bounds.endDate))
+    }) || await db.query.months.findFirst({
       where: and(
         eq(s.months.userId, userId),
         eq(s.months.year, year),

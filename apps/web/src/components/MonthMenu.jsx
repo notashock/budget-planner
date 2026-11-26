@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { isFuturePeriod } from '@budget/engine';
 import { PlusIcon, ChevronDownIcon } from './Icons.jsx';
 
 const MONTH_NAMES = [
@@ -43,8 +44,7 @@ export function MonthMenu({
       const isPast = m.endDate
         ? m.endDate < todayIso
         : (m.year < currentYear || (m.year === currentYear && m.month < currentMonthNum));
-      const isFuture = (m.startDate && m.startDate > todayIso) ||
-        (m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum));
+      const isFuture = isFuturePeriod(m, todayIso);
       return !isPast && !isFuture && !m.isClosed;
     });
   }, [months]);

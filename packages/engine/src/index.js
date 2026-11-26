@@ -6,7 +6,7 @@ export { getNetWorth } from './netWorth.js';
 export { getRefundedAmount, getRefundableRemaining } from './refunds.js';
 export { recommendPurchaseDate, evaluateGoalsWithReservation } from './recommender.js';
 export { getDaysInMonth, clampDayToMonth, formatDate, getRelativeDay, getDateFromRelativeDay, getSalaryWindowStatus } from './calendar.js';
-export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoundaries, isPeriodExpired } from './incomeEngine.js';
+export { calculateIrregularMetrics, calculatePeriodBoundaries, getNextPeriodBoundaries, isPeriodExpired, isFuturePeriod } from './incomeEngine.js';
 export {
   buildCashAllocation,
   getNetPosition,
