@@ -132,9 +132,16 @@ class _AppShellState extends State<AppShell> {
   // Every tab: the large-title header (Apple-style plan §3) over the shared
   // loading / failed-load / pull-to-refresh states (upgrade plan 3.5). The
   // assistant moved to the You sheet.
+  // Shared by the Transactions header's ⋯ filter menu and the screen (web's header menu).
+  static final _txFilters = TxFilters();
+
   static final List<Widget> _screens = [
     const ScreenHeader(title: 'Plan', actions: [MonthMenu()], child: TabStates(child: PlanScreen())),
-    const ScreenHeader(title: 'Transactions', actions: [MonthMenu()], child: TabStates(child: TransactionsScreen())),
+    ScreenHeader(
+      title: 'Transactions',
+      actions: [TxFilterMenu(filters: _txFilters)],
+      child: TabStates(child: TransactionsScreen(filters: _txFilters)),
+    ),
     const ScreenHeader(title: 'Goals', actions: [GoalsHeaderActions()], child: TabStates(child: GoalsScreen())),
     const ScreenHeader(title: 'Accounts', actions: [AccountsAddMenu()], child: TabStates(child: AccountsScreen())),
   ];

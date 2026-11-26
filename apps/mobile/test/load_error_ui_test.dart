@@ -81,7 +81,7 @@ void main() {
   // Upgrade plan 3.5: the other tabs used to fall through to their empty
   // states, so a failed first load read as "no transactions" / "no goals".
   for (final (name, tab, emptyText) in [
-    ('Transactions', const TransactionsScreen() as Widget, 'No successful transactions recorded'),
+    ('Transactions', const TransactionsScreen() as Widget, 'Nothing here yet'),
     ('Goals', const GoalsScreen() as Widget, 'Add something you want to buy'),
     ('Accounts', const AccountsScreen() as Widget, 'Add a bank account'),
   ]) {

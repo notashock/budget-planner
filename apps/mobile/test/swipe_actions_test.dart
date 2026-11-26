@@ -32,7 +32,7 @@ void main() {
   }
 
   Future<void> openPlanned(WidgetTester tester) async {
-    await tester.tap(find.textContaining('Planned ('));
+    await tester.tap(find.byKey(const ValueKey('tab-planned')));
     await tester.pumpAndSettle();
   }
 
