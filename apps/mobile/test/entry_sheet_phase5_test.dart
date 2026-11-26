@@ -94,7 +94,7 @@ void main() {
 
   testWidgets('a spend close to a planned bill asks "Paying Rent?"', (tester) async {
     await pumpSheet(tester);
-    await tester.enterText(field('Amount (₹) *'), '14500');
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '14500');
     await tester.pump();
     expect(find.byKey(const ValueKey('assist-bill')), findsOneWidget);
     expect(find.textContaining('Paying Rent'), findsOneWidget);
@@ -107,7 +107,7 @@ void main() {
 
   testWidgets('income that looks like salary warns', (tester) async {
     await pumpSheet(tester, type: EntryType.income);
-    await tester.enterText(field('Note / Payer Reference (optional)'), 'November salary');
+    await tester.enterText(find.byKey(const ValueKey('entry-name')), 'November salary');
     await tester.pump();
     expect(find.byKey(const ValueKey('assist-salary')), findsOneWidget);
     expect(find.textContaining('already in the plan'), findsOneWidget);
@@ -115,8 +115,8 @@ void main() {
 
   testWidgets('someone else\'s money: Track as held opens Held & Lent with the name', (tester) async {
     await pumpSheet(tester, type: EntryType.income);
-    await tester.enterText(field('Income (₹) *'), '2000');
-    await tester.enterText(field('Note / Payer Reference (optional)'), 'Cash from Meera to keep');
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '2000');
+    await tester.enterText(find.byKey(const ValueKey('entry-name')), 'Cash from Meera to keep');
     await tester.pump();
     expect(find.byKey(const ValueKey('assist-person')), findsOneWidget);
     await tester.ensureVisible(find.text('Track as held'));

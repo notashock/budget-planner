@@ -44,12 +44,17 @@ class FloorBreachNotice extends StatelessWidget {
   /// Also show a neutral "After this: …" line when the floor is not breached.
   final bool showWhenSafe;
 
+  /// Part of the amount the balance already reflects (the saved spend being
+  /// edited), so it isn't taken off twice.
+  final int alreadyCounted;
+
   const FloorBreachNotice({
     super.key,
     required this.amountController,
     required this.accountId,
     this.fixedAmount,
     this.showWhenSafe = false,
+    this.alreadyCounted = 0,
   });
 
   @override
@@ -65,12 +70,13 @@ class FloorBreachNotice extends StatelessWidget {
             break;
           }
         }
-        final amount = fixedAmount ?? toMinorUnits(num.tryParse(value.text) ?? 0);
+        final typed = fixedAmount ?? toMinorUnits(num.tryParse(value.text) ?? 0);
+        final amount = typed - alreadyCounted;
         final sim = accountId == null ? null : budget.getAccountSimulation(accountId!);
         final check = checkFloor(account, amount, simulatedBalance: sim?.todaysBalance);
         if (check == null || !check.breaches) {
           final balance = sim?.todaysBalance ?? account?.currentBalance;
-          if (!showWhenSafe || account == null || amount <= 0 || balance == null) return const SizedBox.shrink();
+          if (!showWhenSafe || account == null || typed <= 0 || balance == null) return const SizedBox.shrink();
           final after = balance - amount;
           final margin = check != null ? check.balanceAfter - check.minimumBalance : null;
           final isDark = Theme.of(context).brightness == Brightness.dark;
