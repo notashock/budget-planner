@@ -57,7 +57,7 @@ describe('QA Incident: Editing Income Transaction opens Plan form instead of Inc
     expect(activeTab).toHaveAttribute('data-active', 'true');
 
     // It should render the Income submission button
-    const submitBtn = screen.getByRole('button', { name: /Update Income Credit|Record Income/i });
+    const submitBtn = screen.getByRole('button', { name: /^(Save|Add)$/ });
     expect(submitBtn).toBeInTheDocument();
 
     // The hero amount input should be pre-filled with 4500
@@ -97,7 +97,7 @@ describe('QA Incident: Editing Income Transaction opens Plan form instead of Inc
       />
     );
 
-    const submitBtn = screen.getByRole('button', { name: /Update Income Credit|Record Income/i });
+    const submitBtn = screen.getByRole('button', { name: /^(Save|Add)$/ });
     fireEvent.click(submitBtn);
 
     expect(handleLogTransaction).toHaveBeenCalledWith(expect.objectContaining({

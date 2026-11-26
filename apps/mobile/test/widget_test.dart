@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:budget_mobile/theme/app_colors.dart';
 import 'package:budget_mobile/widgets/step_line_chart.dart';
 import 'package:budget_mobile/models/simulation.dart';
 
@@ -56,12 +55,6 @@ class _TestHttpOverrides extends HttpOverrides {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _TestHttpOverrides();
-
-  test('AppColors verify constants', () {
-    expect(AppColors.green, isNotNull);
-    expect(AppColors.amber, isNotNull);
-    expect(AppColors.red, isNotNull);
-  });
 
   testWidgets('StepLineChartWidget renders with salaryCreditDay and displays Salary Credit legend', (tester) async {
     final simulation = SimulationResult(

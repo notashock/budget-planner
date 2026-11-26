@@ -56,7 +56,7 @@ describe('B2: editing a planned item keeps its category', () => {
         month={{ year: 2026, month: 11 }}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Update Planned Item/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^(Save|Add)$/ }));
     await waitFor(() => expect(onSaveItem).toHaveBeenCalled());
     expect(onSaveItem.mock.calls[0][0]).toMatchObject({ category: 'Utilities', tag: 'Utilities' });
   });
@@ -81,7 +81,9 @@ describe('B3: income opens with a category selected', () => {
         month={{ year: 2026, month: 11 }}
       />
     );
-    const selected = screen.getAllByRole('button').filter((b) => b.classList.contains('category-pill-btn') && b.classList.contains('btn-primary'));
+    expect(screen.getByTestId('category-row')).toHaveTextContent(/Source\s*Other/);
+    fireEvent.click(screen.getByTestId('category-row'));
+    const selected = screen.getAllByRole('option').filter((o) => o.getAttribute('aria-selected') === 'true');
     expect(selected).toHaveLength(1);
   });
 });

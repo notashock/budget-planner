@@ -2,6 +2,7 @@ import { eq, and, isNull, asc, count } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { serialize } from '../utils/serializer.js';
+import { LedgerService } from '../domain/ledgerService.js';
 
 const inFlightMigrations = new Map();
 
@@ -244,6 +245,13 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
     where: and(eq(s.accounts.userId, userId), eq(s.accounts.isArchived, false))
   });
   const validAccountIds = activeAccounts.map(a => a.id);
+  // Rows on an archived account are still assigned: archiving keeps an account's history where it is
+  const ownedAccounts = await db.query.accounts.findMany({
+    where: eq(s.accounts.userId, userId),
+    columns: { id: true }
+  });
+  const ownedAccountIds = new Set(ownedAccounts.map(a => a.id));
+  const touchedAccountIds = new Set();
 
   // Find unassigned transactions
   const allTxs = await db.query.transactions.findMany({
@@ -252,7 +260,7 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
 
   let updatedCount = 0;
   for (const tx of allTxs) {
-    const isUnassigned = !tx.accountId || !validAccountIds.includes(tx.accountId);
+    const isUnassigned = !tx.accountId || !ownedAccountIds.has(tx.accountId);
     if (isUnassigned) {
       let assignedAccountId = primaryBank.id;
       if (tx.plannedItemId) {
@@ -270,8 +278,13 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
           updatedAt: new Date()
         })
         .where(eq(s.transactions.id, tx.id));
+      touchedAccountIds.add(assignedAccountId);
       updatedCount++;
     }
+  }
+  // The moved rows now count toward these accounts' ledgers
+  for (const accountId of touchedAccountIds) {
+    await LedgerService.recomputeAccountBalance(accountId);
   }
 
   // Backfill unassigned items
@@ -279,7 +292,7 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
     where: eq(s.items.userId, userId)
   });
   for (const itm of allItems) {
-    const isUnassigned = !itm.accountId || !validAccountIds.includes(itm.accountId);
+    const isUnassigned = !itm.accountId || !ownedAccountIds.has(itm.accountId);
     if (isUnassigned) {
       await db.update(s.items)
         .set({
@@ -303,7 +316,9 @@ export async function backfillUnassignedTransactions(userId, targetBank = null) 
     const openings = await db.query.monthAccountOpenings.findMany({
       where: eq(s.monthAccountOpenings.monthId, m.id)
     });
-    if (openings.length === 0) {
+    // A month without a legacy total keeps no override, so the simulator uses each account's own
+    // opening balance; writing 0 here made the Plan page start the month from nothing.
+    if (openings.length === 0 && m.openingBalance) {
       await db.insert(s.monthAccountOpenings).values({
         monthId: m.id,
         accountId: primaryBank.id,

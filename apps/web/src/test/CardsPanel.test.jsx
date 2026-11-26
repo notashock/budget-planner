@@ -30,7 +30,9 @@ describe('CardsPanel', () => {
     api.getCards.mockResolvedValue([draftCard]);
     render(<CardsPanel bankAccounts={[bank]} simulationCards={[{ id: 'c1', payability }]} />);
     expect(await screen.findByText('Visa')).toBeInTheDocument();
-    expect(screen.getByText(/Bill ready/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
+    expect(screen.getByText(/^Bill ready to check · due /)).toBeInTheDocument();
+    expect(screen.getByText(/Bill ready:/)).toBeInTheDocument();
     expect(screen.getByText('Payability: Over')).toBeInTheDocument();
     expect(screen.getByText(/₹500 over/)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /Payability score 32 of 100/ })).toBeInTheDocument();
@@ -40,6 +42,7 @@ describe('CardsPanel', () => {
     api.getCards.mockResolvedValue([draftCard]);
     api.confirmCardStatement.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     fireEvent.change(await screen.findByLabelText(/Bill amount/), { target: { value: '2100' } });
     expect(screen.getByText(/difference as card charges/)).toBeInTheDocument();
@@ -54,6 +57,7 @@ describe('CardsPanel', () => {
     api.getCards.mockResolvedValue([{ ...draftCard, openBill: { ...draftCard.openBill, isDraft: false }, statements: [{ ...draftCard.statements[0], isDraft: false }] }]);
     api.payCardStatement.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Pay bill' }));
     fireEvent.submit(await screen.findByTestId('pay-bill-form'));
     await waitFor(() => expect(api.payCardStatement).toHaveBeenCalledWith('s1', expect.objectContaining({ amount: 200000, fromAccountId: 'b1' })));
@@ -62,7 +66,7 @@ describe('CardsPanel', () => {
   it('will not add a card without the bill and due days', async () => {
     api.getCards.mockResolvedValue([]);
     render(<CardsPanel bankAccounts={[bank]} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Add card/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Add a credit card/ }));
     fireEvent.change(await screen.findByLabelText('Card name'), { target: { value: 'Amex' } });
     fireEvent.submit(screen.getByTestId('card-form'));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Bill generation day/);

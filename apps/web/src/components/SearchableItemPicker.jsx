@@ -165,7 +165,7 @@ export function SearchableItemPicker({
           {/* Quick Search Input */}
           {(items || []).length > 2 && (
             <div style={{ padding: '2px 4px 6px 4px' }}>
-              <input
+              <input autoComplete="off"
                 ref={searchInputRef}
                 type="text"
                                 placeholder={searchPlaceholder}

@@ -22,7 +22,9 @@ import {
   WalletIcon,
   AlertTriangleIcon,
   CalendarIcon,
-  LockIcon
+  LockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from './Icons.jsx';
 import { DatePicker } from './DatePicker.jsx';
 import { HeldLentForm } from './HeldLentForm.jsx';
@@ -155,6 +157,8 @@ export function UnifiedEntryModal({
   const [tagSuggested, setTagSuggested] = useState(false);
   // "Discard this entry?" before closing a half-filled form
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // A picker pushed inside the sheet (plan §5.1): null | 'account' | 'date'
+  const [picker, setPicker] = useState(null);
   // Editing: the values the record opened with, to show what is changing
   const [editSnapshot, setEditSnapshot] = useState(null);
   const [snapshotPending, setSnapshotPending] = useState(false);
@@ -183,7 +187,6 @@ export function UnifiedEntryModal({
   const [settleError, setSettleError] = useState('');
   // Inline form error (replaces alert())
   const [formError, setFormError] = useState('');
-  const [floorBreachData, setFloorBreachData] = useState(null);
 
   // Earliest date a planned item may use: the first day of the month being planned
   const planMinDate = month?.year && month?.month
@@ -276,6 +279,8 @@ export function UnifiedEntryModal({
   const touchStartTime = useRef(0);
   const touchStartScrollTop = useRef(0);
   const isDraggingSheet = useRef(false);
+  // A touch that starts inside an open dropdown list scrolls that list, never the sheet
+  const touchInDropdown = useRef(false);
 
   // Initialize or reset state on open / initialItem change
   useEffect(() => {
@@ -286,6 +291,7 @@ export function UnifiedEntryModal({
       setIsSubmitting(false);
       setFormError('');
       setConfirmDiscard(false);
+      setPicker(null);
       setConfirmDelete(false);
       setDismissedAssists({});
       setPersonPreset(null);
@@ -298,7 +304,6 @@ export function UnifiedEntryModal({
       setSettleItem(null);
       setSettleError('');
       setMoveTarget('account');
-      setFloorBreachData(null);
       setTransferError('');
       setCascadeScope('single');
       setUpdateSalaryTemplate(false);
@@ -661,12 +666,19 @@ export function UnifiedEntryModal({
     if (typeof window === 'undefined' || window.innerWidth >= 768) return;
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
-    touchStartScrollTop.current = contentRef.current ? contentRef.current.scrollTop : 0;
+    touchInDropdown.current = Boolean(e.target.closest?.('.app-dropdown-menu, .datepicker-popover, [role="listbox"]'));
+    // Drag the sheet down only when whatever is under the finger is scrolled to its top
+    let scroller = e.target;
+    while (scroller && scroller !== contentRef.current && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) {
+      scroller = scroller.parentElement;
+    }
+    touchStartScrollTop.current = (scroller || contentRef.current)?.scrollTop ?? 0;
     isDraggingSheet.current = false;
   };
 
   const handleTouchMove = (e) => {
     if (typeof window === 'undefined' || window.innerWidth >= 768 || !contentRef.current) return;
+    if (touchInDropdown.current) return;
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY.current;
 
@@ -746,6 +758,10 @@ export function UnifiedEntryModal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (picker) {
+          setPicker(null);
+          return;
+        }
         if (confirmDiscard) {
           setConfirmDiscard(false);
           return;
@@ -842,7 +858,6 @@ export function UnifiedEntryModal({
     setTagSuggested(false);
     setTag('Food');
     setFormError('');
-    setFloorBreachData(null);
     requestAnimationFrame?.(() => amountInputRef.current?.focus?.());
   };
 
@@ -1003,7 +1018,7 @@ export function UnifiedEntryModal({
   }, [accountSimulations, simulation]);
 
   // Mode 1: Log Spending Submission
-  const handleTransactionSubmit = async (e, bypassFloorCheck = false, again = false) => {
+  const handleTransactionSubmit = async (e, again = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     if (!amount || isNaN(Number(amount))) return;
@@ -1023,30 +1038,6 @@ export function UnifiedEntryModal({
         ? `Only ${formatCurrency(refundTarget.remaining, currencySymbol)} of ${refundTarget.name} is left to refund.`
         : `${refundTarget.name} is already fully refunded.`);
       return;
-    }
-
-    // Safety Floor Check
-    if (!isRefund && !bypassFloorCheck) {
-      const selectedAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
-        : wallets.find((w) => String(w.id || w._id) === String(accountId));
-
-      if (selectedAccount) {
-        const accBal = getAccountLiveBalance(selectedAccount);
-        const minBal = getAccountMinimumBalance(selectedAccount);
-        const existingDebit = initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
-        const netDebitChange = baseAmount - existingDebit;
-        if (minBal > 0 && (accBal - netDebitChange) < minBal) {
-          setFloorBreachData({
-            type: 'spending',
-            accountName: selectedAccount.name,
-            minimumBalance: minBal,
-            projectedBalance: accBal - netDebitChange,
-            again
-          });
-          return;
-        }
-      }
     }
 
     isSubmittingRef.current = true;
@@ -1210,7 +1201,7 @@ export function UnifiedEntryModal({
   };
 
   // Mode 4: Transfer Submission
-  const handleTransferSubmit = async (e, bypassFloorCheck = false) => {
+  const handleTransferSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmittingRef.current) return;
     setTransferError('');
@@ -1241,27 +1232,6 @@ export function UnifiedEntryModal({
     }
 
     const xferAmt = Math.round(Number(amount) * 100);
-
-    // Safety Floor Check on source account
-    if (!bypassFloorCheck) {
-      const sourceAccount = accountType === 'bank'
-        ? bankAccounts.find((b) => String(b.id || b._id) === String(accountId))
-        : wallets.find((w) => String(w.id || w._id) === String(accountId));
-
-      if (sourceAccount) {
-        const sourceBal = getAccountLiveBalance(sourceAccount);
-        const sourceMin = getAccountMinimumBalance(sourceAccount);
-        if (sourceMin > 0 && (sourceBal - xferAmt) < sourceMin) {
-          setFloorBreachData({
-            type: 'transfer',
-            accountName: sourceAccount.name,
-            minimumBalance: sourceMin,
-            projectedBalance: sourceBal - xferAmt
-          });
-          return;
-        }
-      }
-    }
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -1306,11 +1276,43 @@ export function UnifiedEntryModal({
   const handleSubmitRouter = (e) => {
     const again = againRef.current && canAddAnother;
     againRef.current = false;
-    if (mode === 'log') handleTransactionSubmit(e, false, again);
+    if (mode === 'log') handleTransactionSubmit(e, again);
     else if (mode === 'income') handleIncomeSubmit(e, again);
     else if (mode === 'plan') handlePlanSubmit(e, again);
     else if (mode === 'transfer') handleTransferSubmit(e);
   };
+
+  // Would this spend or move leave the account under its minimum balance?
+  const floorBreach = (() => {
+    if (settleItem || !(mode === 'log' || mode === 'transfer')) return null;
+    if (mode === 'log' && isRefund) return null;
+    if (mode === 'transfer' && moveTarget === 'person') return null;
+    const amt = Math.round(Math.abs(Number(amount) || 0) * 100);
+    if (!amt) return null;
+    const pool = accountType === 'bank' ? bankAccounts : accountType === 'wallet' ? wallets : [];
+    const acc = pool.find((a) => String(a.id || a._id) === String(accountId));
+    if (!acc) return null;
+    const minBal = getAccountMinimumBalance(acc);
+    if (!(minBal > 0)) return null;
+    // Editing a spend only moves the balance by the difference
+    const existing = mode === 'log' && initialItem ? Math.abs(Number(initialItem.amount || 0)) : 0;
+    const projected = getAccountLiveBalance(acc) - (amt - existing);
+    return projected < minBal ? { accountName: acc.name, minimumBalance: minBal, projectedBalance: projected } : null;
+  })();
+
+  const categoryRowLabel = mode === 'income' ? 'Source' : 'Category';
+  const accountRowLabel =mode === 'log' ? 'Paid from' : mode === 'income' ? 'Into' : (mode === 'plan' || moveTarget === 'card') ? 'Pay from' : 'From';
+  const sheetTitle = settleItem ? 'Mark paid'
+    : (mode === 'transfer' && moveTarget === 'person') ? 'Held & Lent'
+    : mode === 'log' ? `${initialItem ? 'Edit' : 'New'} ${isRefund ? 'refund' : 'spend'}`
+    : mode === 'income' ? `${initialItem ? 'Edit' : 'New'} income`
+    : mode === 'plan' ? (initialItem ? 'Edit plan' : (itemType === 'recurring' ? 'New recurring bill' : 'New plan'))
+    : initialItem ? 'Edit transfer' : (moveTarget === 'card' ? 'Pay a card' : 'Move money');
+  const showFormAction = !settleItem && !(mode === 'transfer' && moveTarget === 'person');
+  const sheetAction = isSubmitting
+    ? (initialItem ? 'Saving…' : 'Adding…')
+    : floorBreach ? (initialItem ? 'Save anyway' : 'Add anyway')
+    : (initialItem ? 'Save' : (mode === 'transfer' && moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Add'));
 
   // Rendered on <body> so no parent stacking context can put it under the
   // header or bottom nav; its order comes from --z-modal.
@@ -1323,7 +1325,7 @@ export function UnifiedEntryModal({
       >
         <div
           ref={contentRef}
-          className={`modal-content ${isExpanded ? 'is-expanded' : ''} entry-box`}
+          className={`modal-content ${isExpanded ? 'is-expanded' : ''} entry-box ${picker ? 'has-picker' : ''}`}
           onClick={(e) => e.stopPropagation()}
           onScroll={handleScroll}
           onTouchStart={handleTouchStart}
@@ -1333,6 +1335,101 @@ export function UnifiedEntryModal({
           {/* Mobile bottom-sheet grab zone & handle */}
           <div className="modal-drag-zone">
             <div className="modal-drag-handle" />
+          </div>
+
+          {/* A picker pushed inside the sheet: back arrow, then the list or calendar; the form stays mounted underneath */}
+          {picker && (
+            <div className="sheet-picker" data-testid="sheet-picker">
+              <div className="sheet-topbar">
+                <button type="button" className="sheet-topbar-btn sheet-back-btn" onClick={() => setPicker(null)}>
+                  <ChevronLeftIcon size={14} /> Back
+                </button>
+                <h2 className="sheet-topbar-title">
+                  {{ date: 'When', dest: 'To', category: categoryRowLabel }[picker] || accountRowLabel}
+                </h2>
+                <span className="sheet-topbar-btn" aria-hidden="true" />
+              </div>
+              {picker === 'account' || picker === 'dest' ? (
+                <AccountSelect
+                  inline
+                  accountType={picker === 'dest' ? destAccountType : accountType}
+                  accountId={picker === 'dest' ? destAccountId : accountId}
+                  onChange={({ accountType: newType, accountId: newId }) => {
+                    if (picker === 'dest') {
+                      setDestAccountType(newType);
+                      setDestAccountId(newId);
+                    } else {
+                      setAccountType(newType);
+                      setAccountId(newId);
+                    }
+                    setPicker(null);
+                  }}
+                  bankAccounts={bankAccounts}
+                  wallets={wallets}
+                  creditCards={picker === 'account' && (mode === 'log' || mode === 'plan') ? creditCards : []}
+                  currencySymbol={currencySymbol}
+                  simulation={simulation}
+                  accountSimulations={accountSimulations}
+                />
+              ) : picker === 'category' ? (
+                <div className="sheet-choice-list" role="listbox" aria-label={categoryRowLabel}>
+                  {(mode === 'income' ? INCOME_CATEGORIES : SPEND_CATEGORIES).map((t) => {
+                    const selected = (mode === 'income' ? incomeTag : tag) === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={`sheet-choice ${selected ? 'is-selected' : ''}`}
+                        onClick={() => {
+                          if (mode === 'income') {
+                            setIncomeTag(t);
+                          } else {
+                            setTag(t);
+                            setCategoryTouched(true);
+                            setTagSuggested(false);
+                          }
+                          setPicker(null);
+                        }}
+                      >
+                        <span>{t}</span>
+                        {selected && <CheckCircleIcon size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <DatePicker
+                  inline
+                  value={date}
+                  onChange={(d) => {
+                    setDate(d);
+                    setPicker(null);
+                  }}
+                  month={month}
+                  required={mode !== 'plan'}
+                  minDate={mode === 'plan' ? planMinDate : null}
+                  maxDate={mode === 'plan' ? null : todayStr}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Sheet top bar: Cancel, what this is, and the one action */}
+          <div className="sheet-topbar">
+            <button type="button" className="sheet-topbar-btn" onClick={() => requestClose()}>Cancel</button>
+            <h2 className="sheet-topbar-title">{sheetTitle}</h2>
+            {showFormAction ? (
+              <button
+                type="submit"
+                form="entry-sheet-form"
+                className={`sheet-topbar-btn is-primary ${mode === 'log' && isRefund ? 'is-positive' : ''} ${floorBreach ? 'is-warn' : ''}`}
+                disabled={(mode !== 'transfer' && hasZeroAccounts) || isSubmitting}
+              >
+                {sheetAction}
+              </button>
+            ) : <span className="sheet-topbar-btn" aria-hidden="true" />}
           </div>
 
           {/* Modal Header & Symmetrical Mode Switcher */}
@@ -1418,15 +1515,6 @@ export function UnifiedEntryModal({
               </div>
             )}
 
-            <button
-              type="button"
-              className="btn-icon modal-close-btn entry-btn-2"
-              onClick={() => requestClose()}
-              title="Close modal"
-              aria-label="Close"
-            >
-              <XIcon size={16} />
-            </button>
           </div>
 
           {confirmDiscard && (
@@ -1526,7 +1614,8 @@ export function UnifiedEntryModal({
               />
             </div>
           ) : (
-          <form className="entry-stack"
+          <form autoComplete="off" className="entry-stack"
+            id="entry-sheet-form"
             ref={formRef}
             onSubmit={handleSubmitRouter}
             onKeyDown={(e) => {
@@ -1615,7 +1704,7 @@ export function UnifiedEntryModal({
                 <div className="modal-amount-date-grid">
                   <div className="modal-amount-dock">
                     <span className="modal-amount-prefix">{currencySymbol}</span>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       inputMode="decimal"
                       step="0.01"
@@ -1640,35 +1729,6 @@ export function UnifiedEntryModal({
                     )}
                   </div>
 
-                  {/* Docked Date Companion */}
-                  {mode === 'plan' && itemType === 'recurring' ? (
-                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
-                      <CalendarIcon size={14} color="var(--text-secondary)" />
-                      <span>Day</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max="31"
-                        required
-                        value={dayOfMonth}
-                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
-                      />
-                    </div>
-                  ) : (
-                    <DatePicker
-                      compact
-                      value={date}
-                      onChange={(d) => setDate(d)}
-                      placeholder="Date"
-                      month={month}
-                      required={mode !== 'plan'}
-                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
-                      // anything already paid or received can't be in the future.
-                      minDate={mode === 'plan' ? planMinDate : null}
-                      maxDate={mode === 'plan' ? null : todayStr}
-                    />
-                  )}
                 </div>
 
                 {/* Quick Increment Shortcut Chips & Compact Variable Checkbox */}
@@ -1695,7 +1755,7 @@ export function UnifiedEntryModal({
                       aria-checked={!isFixed}
                       title={!isFixed ? 'Variable expense (click to make Fixed)' : 'Fixed expense (click to make Variable)'}
                     >
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={!isFixed}
                         onChange={(e) => setIsFixed(!e.target.checked)}
@@ -1764,17 +1824,49 @@ export function UnifiedEntryModal({
                 </div>
               </div>
 
-            {/* ---------------------------------------------------------------------
-                SLOT 2: PRIMARY ACCOUNT SELECTOR
-               --------------------------------------------------------------------- */}
-            <div className="form-group entry-box-3">
-              <label className="form-label">
-                {mode === 'log' && 'Payment Account *'}
-                {mode === 'income' && 'Deposited To (Account) *'}
-                {mode === 'plan' && 'Dedicated Account *'}
-                {mode === 'transfer' && (moveTarget === 'card' ? 'Pay from *' : 'Source Account (Outflow) *')}
-              </label>
-
+            {/* Grouped rows (Phase E §5.1): label left, value right */}
+            <div className="sheet-group" role="group" aria-label="Details">
+              <div className="sheet-row">
+                <label className="sheet-row-label" htmlFor="entry-what-for">
+                  {mode === 'plan' ? 'Name *' : mode === 'transfer' ? 'Note' : 'What for'}
+                </label>
+                <input autoComplete="off" className="sheet-row-input"
+                  id="entry-what-for"
+                  type="text"
+                  required={mode === 'plan'}
+                  placeholder={
+                    mode === 'log'
+                      ? 'Grocery, metro…'
+                      : mode === 'income'
+                      ? 'Salary payout…'
+                      : mode === 'plan'
+                      ? 'Rent, electricity…'
+                      : 'Optional'
+                  }
+                  value={description}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
+                />
+              </div>
+              {mode !== 'transfer' && (
+                <button
+                  type="button"
+                  className="sheet-row sheet-row-button"
+                  data-testid="category-row"
+                  onClick={() => setPicker('category')}
+                >
+                  <span className="sheet-row-label">
+                    {categoryRowLabel}
+                    {mode !== 'income' && tagSuggested && <span className="field-suggested"> · suggested</span>}
+                  </span>
+                  <span className="sheet-row-value">
+                    {mode === 'income' ? incomeTag : tag}
+                    <ChevronRightIcon size={14} />
+                  </span>
+                </button>
+              )}
+              <div className="sheet-row sheet-row-stack">
+                <span className="sheet-row-label">{accountRowLabel}</span>
+                <div className="sheet-row-value">
               {hasZeroAccounts ? (
                 <div className="entry-box-4"
                 >
@@ -1810,8 +1902,45 @@ export function UnifiedEntryModal({
                   currencySymbol={currencySymbol}
                   simulation={simulation}
                   accountSimulations={accountSimulations}
+                  onOpen={() => setPicker('account')}
                 />
               )}
+                </div>
+              </div>
+              <div className="sheet-row">
+                <span className="sheet-row-label">When</span>
+                <div className="sheet-row-value">
+                  {mode === 'plan' && itemType === 'recurring' ? (
+                    <div className="modal-day-stepper-dock" title="Day of month (1 - 31)">
+                      <CalendarIcon size={14} color="var(--text-secondary)" />
+                      <span>Day</span>
+                      <input autoComplete="off"
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="31"
+                        required
+                        value={dayOfMonth}
+                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
+                      />
+                    </div>
+                  ) : (
+                    <DatePicker
+                      compact
+                      value={date}
+                      onChange={(d) => setDate(d)}
+                      placeholder="Date"
+                      month={month}
+                      required={mode !== 'plan'}
+                      // Plans may be dated earlier this month (an unpaid bill shows as overdue);
+                      // anything already paid or received can't be in the future.
+                      minDate={mode === 'plan' ? planMinDate : null}
+                      maxDate={mode === 'plan' ? null : todayStr}
+                      onOpen={() => setPicker('date')}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* ---------------------------------------------------------------------
@@ -1820,37 +1949,6 @@ export function UnifiedEntryModal({
             <div className="form-group entry-box-3">
               {mode !== 'transfer' ? (
                 <>
-                  <label className="form-label">
-                    {mode === 'log' && 'Category tag'}
-                    {(mode === 'log' || mode === 'plan') && tagSuggested && <span className="field-suggested"> · suggested</span>}
-                    {mode === 'income' && 'Income Category / Source'}
-                    {mode === 'plan' && 'Category & Classification'}
-                  </label>
-                  <div className="category-pill-grid">
-                    {mode === 'income'
-                      ? INCOME_CATEGORIES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={`category-pill-btn ${incomeTag === t ? 'btn-primary' : 'btn-subtle'}`}
-                            aria-pressed={incomeTag === t}
-                            onClick={(e) => handleMicroPress(e, () => setIncomeTag(t))}
-                          >
-                            {t}
-                          </button>
-                        ))
-                      : SPEND_CATEGORIES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={`category-pill-btn ${tag === t ? 'btn-primary' : 'btn-subtle'}`}
-                            aria-pressed={tag === t}
-                            onClick={(e) => handleMicroPress(e, () => { setTag(t); setCategoryTouched(true); setTagSuggested(false); })}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                  </div>
                   {mode === 'income' && (
                     <span className="entry-note-5">
                       Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.
@@ -1906,7 +2004,7 @@ export function UnifiedEntryModal({
               ) : (
                 <>
                   <div className="entry-row-8">
-                    <label className="form-label entry-box-3">Destination Account (Inflow) *</label>
+                    <label className="form-label entry-box-3">To</label>
                     <button
                       type="button"
                       className="btn-subtle modal-conduit-swap-btn entry-btn-5"
@@ -1935,6 +2033,7 @@ export function UnifiedEntryModal({
                     currencySymbol={currencySymbol}
                     simulation={simulation}
                     accountSimulations={accountSimulations}
+                    onOpen={() => setPicker('dest')}
                   />
                 </>
               )}
@@ -1944,24 +2043,6 @@ export function UnifiedEntryModal({
                 SLOT 4: DESCRIPTION & CONTEXTUAL DETAILS
                --------------------------------------------------------------------- */}
             <div className="form-group entry-box-3">
-              <label className="form-label">
-                {mode === 'plan' ? 'Name / Description *' : 'Description note (optional)'}
-              </label>
-              <input className="entry-box-5"
-                type="text"
-                required={mode === 'plan'}
-                placeholder={
-                  mode === 'log'
-                    ? 'e.g. Grocery, Metro pass, Doctor checkup'
-                    : mode === 'income'
-                    ? 'e.g. Monthly salary payout, client invoice, dividends'
-                    : mode === 'plan'
-                    ? 'e.g. Rent, Electricity, Groceries'
-                    : 'e.g. ATM withdrawal, emergency savings, envelope funding'
-                }
-                value={description}
-                onChange={(e) => handleDescriptionChange(e.target.value)}
-              />
 
               {/* Mode-Specific Contextual Details below Description */}
 
@@ -2141,7 +2222,7 @@ export function UnifiedEntryModal({
                         Applies this salary amount to upcoming months' safe-to-spend projections.
                       </div>
                     </div>
-                    <input className="entry-box-8"
+                    <input autoComplete="off" className="entry-box-8"
                       type="checkbox"
                       checked={updateSalaryTemplate}
                       onChange={(e) => setUpdateSalaryTemplate(e.target.checked)}
@@ -2252,60 +2333,6 @@ export function UnifiedEntryModal({
               );
             })()}
 
-            {/* Safety floor: confirm inline before saving (PreFlightSafetyFloor.test.jsx) */}
-            {floorBreachData && (
-              <div className="floor-confirm"
-                data-testid="floor-breach-modal"
-                role="alertdialog"
-                aria-label="Safety floor warning"
-              >
-                <div className="floor-confirm-body">
-                  <div className="entry-row-15">
-                    <AlertTriangleIcon size={20} color="var(--rose)" />
-                    <h3 className="entry-heading">
-                      Safety Floor Warning
-                    </h3>
-                  </div>
-                  <p className="entry-text-5">
-                    This {floorBreachData.type === 'transfer' ? 'transfer' : 'transaction'} will drop{' '}
-                    <strong className="entry-text-4">{floorBreachData.accountName}</strong> below your safety floor of{' '}
-                    <strong className="entry-text-6">
-                      {formatCurrency(floorBreachData.minimumBalance, currencySymbol)}
-                    </strong>.
-                    <br />
-                    Projected balance:{' '}
-                    <strong className="entry-text-6">
-                      {formatCurrency(floorBreachData.projectedBalance, currencySymbol)}
-                    </strong>.
-                  </p>
-                  <div className="entry-row-16">
-                    <button
-                      type="button"
-                      className="btn-subtle entry-btn-9"
-                      onClick={() => setFloorBreachData(null)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary entry-btn-10"
-                      onClick={() => {
-                        const data = floorBreachData;
-                        setFloorBreachData(null);
-                        if (data.type === 'transfer') {
-                          handleTransferSubmit(null, true);
-                        } else {
-                          handleTransactionSubmit(null, true, data.again);
-                        }
-                      }}
-                    >
-                      Confirm Anyway
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {initialItem && (
               <div className="edit-summary" data-testid="edit-summary">
                 <p className="edit-summary-text">
@@ -2398,6 +2425,7 @@ export function UnifiedEntryModal({
             {/* ---------------------------------------------------------------------
                 SLOT 6: UNIFIED ACTION FOOTER (FIXED DOCKED FOOTER)
                --------------------------------------------------------------------- */}
+            {(mode === 'plan' || canAddAnother) && (
             <div className="modal-footer-row">
               {/* Left corner: a new bill that's already paid is a spend; editing keeps the paid toggle */}
               {mode === 'plan' && !initialItem ? (
@@ -2429,79 +2457,19 @@ export function UnifiedEntryModal({
                 <div />
               )}
 
-              {/* Right corner: Symmetrical Cancel & Submit Actions */}
-              <div className="entry-row-13">
-                <button type="button" className="btn-subtle" onClick={() => requestClose()}>
-                  Cancel
+              {canAddAnother && (
+                <button
+                  type="button"
+                  className="btn-subtle entry-add-another"
+                  onClick={submitAndAddAnother}
+                  disabled={hasZeroAccounts || isSubmitting}
+                  title="Ctrl + Enter (⌘ + Enter on Mac)"
+                >
+                  Add &amp; log another
                 </button>
-
-                {canAddAnother && (
-                  <button
-                    type="button"
-                    className="btn-subtle entry-add-another"
-                    onClick={submitAndAddAnother}
-                    disabled={hasZeroAccounts || isSubmitting}
-                    title="Ctrl + Enter (⌘ + Enter on Mac)"
-                  >
-                    Save &amp; add another
-                  </button>
-                )}
-
-                {mode === 'log' && (
-                  <button
-                    type="submit"
-                    className={`btn-primary entry-submit ${isRefund ? 'is-positive' : ''}`}
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Logging...')
-                      : (initialItem
-                          ? (isRefund ? 'Update credit inflow' : 'Update expense debit')
-                          : (isRefund ? 'Log credit inflow' : 'Log expense debit'))}
-                  </button>
-                )}
-
-                {mode === 'income' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-7"
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Recording...')
-                      : (initialItem ? 'Update Income Credit' : 'Record Income')}
-                  </button>
-                )}
-
-                {mode === 'plan' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-8"
-                    disabled={hasZeroAccounts || isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Saving...')
-                      : (initialItem
-                          ? 'Update Planned Item'
-                          : (itemType === 'recurring' ? 'Save recurring item' : 'Save planned item'))}
-                  </button>
-                )}
-
-                {mode === 'transfer' && (
-                  <button
-                    type="submit"
-                    className="btn-primary entry-btn-8"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? (initialItem ? 'Updating...' : 'Recording...')
-                      : (initialItem
-                          ? 'Update Transfer'
-                          : (moveTarget === 'card' ? `Pay ${selectedCard?.name || 'card'}` : 'Record Transfer'))}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
+            )}
           </form>
           )}
 

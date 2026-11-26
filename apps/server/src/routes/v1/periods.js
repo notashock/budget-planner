@@ -13,6 +13,8 @@ v1PeriodsRouter.post('/', monthHandlers.create);
 v1PeriodsRouter.post('/rollover', monthHandlers.rollover);
 
 v1PeriodsRouter.get('/:year/:month', monthHandlers.detail);
+v1PeriodsRouter.get('/:year/:month/summary', monthHandlers.summary);
+v1PeriodsRouter.get('/:year/:month/timeline', monthHandlers.timeline);
 v1PeriodsRouter.patch('/:year/:month', monthHandlers.update);
 v1PeriodsRouter.delete('/:year/:month', monthHandlers.remove);
 v1PeriodsRouter.post('/:year/:month/credit-salary', monthHandlers.creditSalary);

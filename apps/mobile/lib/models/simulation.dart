@@ -146,6 +146,11 @@ class SafeVelocity {
   final String status; // 'healthy' | 'tight' | 'breached'
   final int committedUpcomingItems;
   final int burnRatePerDay;
+  // The parts of today's balance already promised (web's CashAllocationBar)
+  final int goalReserve;
+  final int heldReserve;
+  final int cardReserve;
+  final int? freeSurplus;
 
   SafeVelocity({
     required this.safeDailyAmount,
@@ -154,6 +159,10 @@ class SafeVelocity {
     required this.status,
     this.committedUpcomingItems = 0,
     this.burnRatePerDay = 0,
+    this.goalReserve = 0,
+    this.heldReserve = 0,
+    this.cardReserve = 0,
+    this.freeSurplus,
   });
 
   factory SafeVelocity.fromJson(Map<String, dynamic> json) {
@@ -171,6 +180,10 @@ class SafeVelocity {
       status: stat.toString(),
       committedUpcomingItems: (num.tryParse('$committed') ?? 0).round(),
       burnRatePerDay: (num.tryParse('$burn') ?? 0).round(),
+      goalReserve: (num.tryParse('${json['goalReserve'] ?? 0}') ?? 0).round(),
+      heldReserve: (num.tryParse('${json['heldReserve'] ?? 0}') ?? 0).round(),
+      cardReserve: (num.tryParse('${json['cardReserve'] ?? 0}') ?? 0).round(),
+      freeSurplus: num.tryParse('${json['freeSurplus']}')?.round(),
     );
   }
 }

@@ -47,7 +47,6 @@
   ],
   "month": {
     "id": "00000000-0000-4000-8000-000000000001",
-    "userId": "00000000-0000-4000-8000-000000000002",
     "year": 2026,
     "month": 11,
     "startDate": null,
@@ -64,8 +63,6 @@
     "isClosed": false,
     "closedAt": null,
     "closingBalances": null,
-    "createdAt": "2026-01-01T00:00:00.000Z",
-    "updatedAt": "2026-01-01T00:00:00.000Z",
     "accountOpeningBalances": [],
     "_id": "00000000-0000-4000-8000-000000000001",
     "salaryBankAccountId": "00000000-0000-4000-8000-000000000003",
@@ -75,7 +72,6 @@
   "transactions": [
     {
       "id": "00000000-0000-4000-8000-000000000007",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Freelance",
       "status": "successful",
@@ -96,21 +92,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000007",
       "tag": "Other",
       "day": 18,
       "dayOfMonth": 18,
       "originalDay": 18,
-      "originalDate": "2026-11-18",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000008",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Groceries",
       "status": "successful",
@@ -131,21 +123,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000008",
       "tag": "Food",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000009",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Coffee",
       "status": "successful",
@@ -166,21 +154,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000009",
       "tag": "Food",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000010",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000011",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Shoes",
       "status": "successful",
@@ -201,21 +185,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000011",
       "tag": "Shopping",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000004",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000012",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Inter-Account Transfer",
       "status": "successful",
@@ -236,15 +216,12 @@
       "refundTargetTransactionId": null,
       "transferId": "00000000-0000-4000-8000-000000000013",
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000012",
       "tag": "Transfer",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank",
       "destinationBankAccountId": "00000000-0000-4000-8000-000000000010",
@@ -253,7 +230,6 @@
     },
     {
       "id": "00000000-0000-4000-8000-000000000014",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Holding for Ravi",
       "status": "successful",
@@ -274,21 +250,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": "00000000-0000-4000-8000-000000000015",
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000014",
       "tag": "Held & Lent",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000016",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Lent to Asha",
       "status": "successful",
@@ -309,21 +281,17 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": "00000000-0000-4000-8000-000000000017",
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "successful",
       "_id": "00000000-0000-4000-8000-000000000016",
       "tag": "Held & Lent",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "bankAccountId": "00000000-0000-4000-8000-000000000010",
       "accountType": "bank"
     },
     {
       "id": "00000000-0000-4000-8000-000000000018",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "name": "Rent",
       "status": "planned",
@@ -344,15 +312,12 @@
       "refundTargetTransactionId": null,
       "transferId": null,
       "personFundId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "derivedStatus": "planned",
       "_id": "00000000-0000-4000-8000-000000000018",
       "tag": "Housing",
       "day": 28,
       "dayOfMonth": 28,
       "originalDay": 28,
-      "originalDate": "2026-11-28",
       "bankAccountId": "00000000-0000-4000-8000-000000000003",
       "accountType": "bank"
     }
@@ -360,20 +325,16 @@
   "transfers": [
     {
       "id": "00000000-0000-4000-8000-000000000013",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "monthId": "00000000-0000-4000-8000-000000000001",
       "date": "2026-11-19",
       "amount": 100000,
       "sourceAccountId": "00000000-0000-4000-8000-000000000003",
       "destinationAccountId": "00000000-0000-4000-8000-000000000010",
       "note": "",
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "_id": "00000000-0000-4000-8000-000000000013",
       "day": 19,
       "dayOfMonth": 19,
       "originalDay": 19,
-      "originalDate": "2026-11-19",
       "sourceBankAccountId": "00000000-0000-4000-8000-000000000003",
       "sourceId": "00000000-0000-4000-8000-000000000003",
       "sourceType": "bank",
@@ -385,7 +346,6 @@
   "bankAccounts": [
     {
       "id": "00000000-0000-4000-8000-000000000003",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "name": "Main",
       "type": "bank",
       "subtype": "checking",
@@ -402,8 +362,6 @@
       "statementDay": null,
       "dueDay": null,
       "payFromAccountId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "_id": "00000000-0000-4000-8000-000000000003",
       "accountType": "checking",
       "bankAccountId": "00000000-0000-4000-8000-000000000003"
@@ -412,7 +370,6 @@
   "wallets": [
     {
       "id": "00000000-0000-4000-8000-000000000010",
-      "userId": "00000000-0000-4000-8000-000000000002",
       "name": "UPI",
       "type": "wallet",
       "subtype": "digital",
@@ -429,8 +386,6 @@
       "statementDay": null,
       "dueDay": null,
       "payFromAccountId": null,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
       "_id": "00000000-0000-4000-8000-000000000010",
       "accountType": "digital",
       "walletType": "digital",
@@ -443,7 +398,6 @@
         "date": "2026-11-01",
         "day": 1,
         "originalDay": 1,
-        "originalDate": "2026-11-01",
         "label": "Salary",
         "name": "Salary",
         "description": "Salary",
@@ -507,7 +461,6 @@
         "date": "2026-11-18",
         "day": 18,
         "originalDay": 18,
-        "originalDate": "2026-11-18",
         "label": "Income: Other",
         "name": "Freelance",
         "description": "Freelance",
@@ -571,7 +524,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Holding for Ravi",
         "name": "Holding for Ravi",
         "description": "Holding for Ravi",
@@ -635,7 +587,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Food",
         "name": "Groceries",
         "description": "Groceries",
@@ -699,7 +650,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Food",
         "name": "Coffee",
         "description": "Coffee",
@@ -763,7 +713,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Shopping",
         "name": "Shoes",
         "description": "Shoes",
@@ -827,7 +776,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Inter-Account Transfer",
         "name": "Inter-Account Transfer",
         "description": "Inter-Account Transfer",
@@ -893,7 +841,6 @@
         "date": "2026-11-19",
         "day": 19,
         "originalDay": 19,
-        "originalDate": "2026-11-19",
         "label": "Lent to Asha",
         "name": "Lent to Asha",
         "description": "Lent to Asha",
@@ -960,145 +907,64 @@
         "date": "2026-11-01",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [
-          {
-            "date": "2026-11-01",
-            "day": 1,
-            "originalDay": 1,
-            "originalDate": "2026-11-01",
-            "label": "Salary",
-            "name": "Salary",
-            "description": "Salary",
-            "category": "Salary",
-            "tag": "Salary",
-            "amount": 8000000,
-            "balanceAfter": 13250000,
-            "accountBalanceAfter": 13000000,
-            "sourceAccountBalanceAfter": null,
-            "destinationAccountBalanceAfter": null,
-            "itemType": "salary",
-            "isSalary": true,
-            "isIncome": true,
-            "isActual": false,
-            "itemId": null,
-            "transactionId": null,
-            "plannedItemId": null,
-            "accountId": "00000000-0000-4000-8000-000000000003",
-            "accountType": "bank",
-            "bankAccountId": "00000000-0000-4000-8000-000000000003",
-            "walletId": null,
-            "transferId": null,
-            "transferAmount": null,
-            "sourceType": null,
-            "sourceAccountId": null,
-            "sourceBankAccountId": null,
-            "sourceWalletId": null,
-            "destinationType": null,
-            "destinationAccountId": null,
-            "destinationBankAccountId": null,
-            "destinationWalletId": null,
-            "origin": null,
-            "passThroughKind": null,
-            "personFundId": null,
-            "heldAfter": 0,
-            "lentAfter": 0,
-            "isCardSpend": false,
-            "cardAccountId": null,
-            "cardPaymentFor": null,
-            "sourceIsCard": false,
-            "destinationIsCard": false,
-            "cardSourceId": null,
-            "cardDestinationId": null,
-            "statementId": null,
-            "cardLiabilityAfter": 1200000,
-            "cardBalances": {
-              "00000000-0000-4000-8000-000000000004": 0,
-              "00000000-0000-4000-8000-000000000005": 1200000
-            },
-            "accountHeld": {
-              "00000000-0000-4000-8000-000000000003": 0,
-              "00000000-0000-4000-8000-000000000010": 0
-            },
-            "accountBalances": {
-              "00000000-0000-4000-8000-000000000003": 13000000,
-              "00000000-0000-4000-8000-000000000010": 250000
-            },
-            "dayOfMonth": 1
-          }
-        ],
         "dayOfMonth": 1,
-        "originalDay": 1,
-        "originalDate": "2026-11-01"
+        "originalDay": 1
       },
       {
         "day": 2,
         "date": "2026-11-02",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 2,
-        "originalDay": 2,
-        "originalDate": "2026-11-02"
+        "originalDay": 2
       },
       {
         "day": 3,
         "date": "2026-11-03",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 3,
-        "originalDay": 3,
-        "originalDate": "2026-11-03"
+        "originalDay": 3
       },
       {
         "day": 4,
         "date": "2026-11-04",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 4,
-        "originalDay": 4,
-        "originalDate": "2026-11-04"
+        "originalDay": 4
       },
       {
         "day": 5,
         "date": "2026-11-05",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 5,
-        "originalDay": 5,
-        "originalDate": "2026-11-05"
+        "originalDay": 5
       },
       {
         "day": 6,
         "date": "2026-11-06",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 6,
-        "originalDay": 6,
-        "originalDate": "2026-11-06"
+        "originalDay": 6
       },
       {
         "day": 7,
         "date": "2026-11-07",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 7,
-        "originalDay": 7,
-        "originalDate": "2026-11-07"
+        "originalDay": 7
       },
       {
         "day": 8,
         "date": "2026-11-08",
         "balance": 13250000,
         "heldForOthers": 0,
-        "intradayEvents": [],
         "dayOfMonth": 8,
-        "originalDay": 8,
-        "originalDate": "2026-11-08"
+        "originalDay": 8
       }
     ],
     "days": [
@@ -1115,7 +981,6 @@
             "date": "2026-11-01",
             "day": 1,
             "originalDay": 1,
-            "originalDate": "2026-11-01",
             "label": "Salary",
             "name": "Salary",
             "description": "Salary",
@@ -1179,8 +1044,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 1,
-        "originalDay": 1,
-        "originalDate": "2026-11-01"
+        "originalDay": 1
       },
       {
         "day": 2,
@@ -1194,8 +1058,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 2,
-        "originalDay": 2,
-        "originalDate": "2026-11-02"
+        "originalDay": 2
       },
       {
         "day": 3,
@@ -1209,8 +1072,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 3,
-        "originalDay": 3,
-        "originalDate": "2026-11-03"
+        "originalDay": 3
       },
       {
         "day": 4,
@@ -1224,8 +1086,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 4,
-        "originalDay": 4,
-        "originalDate": "2026-11-04"
+        "originalDay": 4
       },
       {
         "day": 5,
@@ -1239,8 +1100,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 5,
-        "originalDay": 5,
-        "originalDate": "2026-11-05"
+        "originalDay": 5
       },
       {
         "day": 6,
@@ -1254,8 +1114,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 6,
-        "originalDay": 6,
-        "originalDate": "2026-11-06"
+        "originalDay": 6
       },
       {
         "day": 7,
@@ -1269,8 +1128,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 7,
-        "originalDay": 7,
-        "originalDate": "2026-11-07"
+        "originalDay": 7
       },
       {
         "day": 8,
@@ -1284,8 +1142,7 @@
         "heldForOthers": 0,
         "hasBreach": false,
         "dayOfMonth": 8,
-        "originalDay": 8,
-        "originalDate": "2026-11-08"
+        "originalDay": 8
       }
     ],
     "endingBalance": 10937000,
@@ -1309,7 +1166,6 @@
     "salaryCreditedDate": null,
     "salaryTransactionId": null,
     "daysInMonth": 30,
-    "itemNetMap": {},
     "unplannedAllowance": 10500000,
     "totalUnplannedSpent": 613000,
     "allowanceLeft": 9887000,
@@ -1450,38 +1306,6 @@
     "heldReserve": 200000,
     "heldForOthers": 200000,
     "lentOutstanding": 50000,
-    "heldByDay": {
-      "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 0,
-      "5": 0,
-      "6": 0,
-      "7": 0,
-      "8": 0,
-      "9": 0,
-      "10": 0,
-      "11": 0,
-      "12": 0,
-      "13": 0,
-      "14": 0,
-      "15": 0,
-      "16": 0,
-      "17": 0,
-      "18": 0,
-      "19": 200000,
-      "20": 200000,
-      "21": 200000,
-      "22": 200000,
-      "23": 200000,
-      "24": 200000,
-      "25": 200000,
-      "26": 200000,
-      "27": 200000,
-      "28": 200000,
-      "29": 200000,
-      "30": 200000
-    },
     "passThrough": {
       "heldIn": 200000,
       "heldReturned": 0,
@@ -1584,404 +1408,6 @@
         "walletType": "cash",
         "walletId": "00000000-0000-4000-8000-000000000010"
       }
-    },
-    "accountSummaries": [
-      {
-        "id": "00000000-0000-4000-8000-000000000003",
-        "altId": null,
-        "type": "bank",
-        "name": "Main",
-        "institution": "",
-        "accountType": "bank",
-        "accountNumberMasked": "",
-        "openingBalance": 5000000,
-        "endingBalance": 10655000,
-        "todayBalance": 14355000,
-        "lowestBalance": 10455000,
-        "lowestDate": "2026-11-28",
-        "lowestUpcomingBalance": 10455000,
-        "lowestUpcomingDate": "2026-11-28",
-        "pastBreach": null,
-        "minimumBalance": 0,
-        "floorBreached": false,
-        "heldForOthers": 200000,
-        "incomeAmount": 9500000,
-        "totalExpenses": 2745000,
-        "isPrimary": true,
-        "isArchived": false,
-        "isSalaryCredited": false,
-        "salaryCreditedDate": null,
-        "safeVelocity": {
-          "rate": 871250,
-          "safeVelocityPerDay": 871250,
-          "status": "expanding",
-          "paceStatus": "expanding",
-          "freeSurplus": 10455000,
-          "burnRate": 12895,
-          "burnRatePerDay": 12895,
-          "committedBills": 3700000,
-          "committedUpcomingItems": 3700000,
-          "totalAllowance": 10700000,
-          "allowanceLeft": 10455000,
-          "activeGoalsCost": 0,
-          "heldReserve": 200000,
-          "daysLeft": 12,
-          "daysElapsed": 19
-        },
-        "_id": "00000000-0000-4000-8000-000000000003",
-        "bankAccountId": "00000000-0000-4000-8000-000000000003"
-      },
-      {
-        "id": "00000000-0000-4000-8000-000000000010",
-        "altId": null,
-        "type": "wallet",
-        "name": "UPI",
-        "institution": "",
-        "accountType": "wallet",
-        "accountNumberMasked": "",
-        "openingBalance": 250000,
-        "endingBalance": 282000,
-        "todayBalance": 282000,
-        "lowestBalance": 250000,
-        "lowestDate": "2026-11-01",
-        "lowestUpcomingBalance": 282000,
-        "lowestUpcomingDate": "2026-11-19",
-        "pastBreach": null,
-        "minimumBalance": 0,
-        "floorBreached": false,
-        "heldForOthers": 0,
-        "incomeAmount": 0,
-        "totalExpenses": 18000,
-        "isPrimary": false,
-        "isArchived": false,
-        "isSalaryCredited": false,
-        "salaryCreditedDate": null,
-        "safeVelocity": {
-          "rate": 23500,
-          "safeVelocityPerDay": 23500,
-          "status": "expanding",
-          "paceStatus": "expanding",
-          "freeSurplus": 282000,
-          "burnRate": 947,
-          "burnRatePerDay": 947,
-          "committedBills": 0,
-          "committedUpcomingItems": 0,
-          "totalAllowance": 300000,
-          "allowanceLeft": 282000,
-          "activeGoalsCost": 0,
-          "heldReserve": 0,
-          "daysLeft": 12,
-          "daysElapsed": 19
-        },
-        "_id": "00000000-0000-4000-8000-000000000010",
-        "walletType": "cash",
-        "walletId": "00000000-0000-4000-8000-000000000010"
-      }
-    ],
-    "accountDailyBalances": {
-      "00000000-0000-4000-8000-000000000003": [
-        {
-          "day": 1,
-          "date": "2026-11-01",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [
-            {
-              "date": "2026-11-01",
-              "day": 1,
-              "originalDay": 1,
-              "originalDate": "2026-11-01",
-              "label": "Salary",
-              "name": "Salary",
-              "description": "Salary",
-              "category": "Salary",
-              "tag": "Salary",
-              "amount": 8000000,
-              "balanceAfter": 13000000,
-              "accountBalanceAfter": 13000000,
-              "sourceAccountBalanceAfter": null,
-              "destinationAccountBalanceAfter": null,
-              "itemType": "salary",
-              "isSalary": true,
-              "isIncome": true,
-              "isActual": false,
-              "itemId": null,
-              "transactionId": null,
-              "plannedItemId": null,
-              "accountId": "00000000-0000-4000-8000-000000000003",
-              "accountType": "bank",
-              "bankAccountId": "00000000-0000-4000-8000-000000000003",
-              "walletId": null,
-              "transferId": null,
-              "transferAmount": null,
-              "sourceType": null,
-              "sourceAccountId": null,
-              "sourceBankAccountId": null,
-              "sourceWalletId": null,
-              "destinationType": null,
-              "destinationAccountId": null,
-              "destinationBankAccountId": null,
-              "destinationWalletId": null,
-              "origin": null,
-              "passThroughKind": null,
-              "personFundId": null,
-              "heldAfter": 0,
-              "lentAfter": 0,
-              "isCardSpend": false,
-              "cardAccountId": null,
-              "cardPaymentFor": null,
-              "sourceIsCard": false,
-              "destinationIsCard": false,
-              "cardSourceId": null,
-              "cardDestinationId": null,
-              "statementId": null,
-              "cardLiabilityAfter": 1200000,
-              "cardBalances": {
-                "00000000-0000-4000-8000-000000000004": 0,
-                "00000000-0000-4000-8000-000000000005": 1200000
-              },
-              "accountHeld": {
-                "00000000-0000-4000-8000-000000000003": 0,
-                "00000000-0000-4000-8000-000000000010": 0
-              },
-              "accountBalances": {
-                "00000000-0000-4000-8000-000000000003": 13000000,
-                "00000000-0000-4000-8000-000000000010": 250000
-              },
-              "dayOfMonth": 1
-            }
-          ],
-          "dayOfMonth": 1,
-          "originalDay": 1,
-          "originalDate": "2026-11-01"
-        },
-        {
-          "day": 2,
-          "date": "2026-11-02",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 2,
-          "originalDay": 2,
-          "originalDate": "2026-11-02"
-        },
-        {
-          "day": 3,
-          "date": "2026-11-03",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 3,
-          "originalDay": 3,
-          "originalDate": "2026-11-03"
-        },
-        {
-          "day": 4,
-          "date": "2026-11-04",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 4,
-          "originalDay": 4,
-          "originalDate": "2026-11-04"
-        },
-        {
-          "day": 5,
-          "date": "2026-11-05",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 5,
-          "originalDay": 5,
-          "originalDate": "2026-11-05"
-        },
-        {
-          "day": 6,
-          "date": "2026-11-06",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 6,
-          "originalDay": 6,
-          "originalDate": "2026-11-06"
-        },
-        {
-          "day": 7,
-          "date": "2026-11-07",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 7,
-          "originalDay": 7,
-          "originalDate": "2026-11-07"
-        },
-        {
-          "day": 8,
-          "date": "2026-11-08",
-          "balance": 13000000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 8,
-          "originalDay": 8,
-          "originalDate": "2026-11-08"
-        }
-      ],
-      "00000000-0000-4000-8000-000000000010": [
-        {
-          "day": 1,
-          "date": "2026-11-01",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 1,
-          "originalDay": 1,
-          "originalDate": "2026-11-01"
-        },
-        {
-          "day": 2,
-          "date": "2026-11-02",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 2,
-          "originalDay": 2,
-          "originalDate": "2026-11-02"
-        },
-        {
-          "day": 3,
-          "date": "2026-11-03",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 3,
-          "originalDay": 3,
-          "originalDate": "2026-11-03"
-        },
-        {
-          "day": 4,
-          "date": "2026-11-04",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 4,
-          "originalDay": 4,
-          "originalDate": "2026-11-04"
-        },
-        {
-          "day": 5,
-          "date": "2026-11-05",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 5,
-          "originalDay": 5,
-          "originalDate": "2026-11-05"
-        },
-        {
-          "day": 6,
-          "date": "2026-11-06",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 6,
-          "originalDay": 6,
-          "originalDate": "2026-11-06"
-        },
-        {
-          "day": 7,
-          "date": "2026-11-07",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 7,
-          "originalDay": 7,
-          "originalDate": "2026-11-07"
-        },
-        {
-          "day": 8,
-          "date": "2026-11-08",
-          "balance": 250000,
-          "heldForOthers": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 8,
-          "originalDay": 8,
-          "originalDate": "2026-11-08"
-        }
-      ],
-      "unassigned": [
-        {
-          "day": 1,
-          "date": "2026-11-01",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 1,
-          "originalDay": 1,
-          "originalDate": "2026-11-01"
-        },
-        {
-          "day": 2,
-          "date": "2026-11-02",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 2,
-          "originalDay": 2,
-          "originalDate": "2026-11-02"
-        },
-        {
-          "day": 3,
-          "date": "2026-11-03",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 3,
-          "originalDay": 3,
-          "originalDate": "2026-11-03"
-        },
-        {
-          "day": 4,
-          "date": "2026-11-04",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 4,
-          "originalDay": 4,
-          "originalDate": "2026-11-04"
-        },
-        {
-          "day": 5,
-          "date": "2026-11-05",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 5,
-          "originalDay": 5,
-          "originalDate": "2026-11-05"
-        },
-        {
-          "day": 6,
-          "date": "2026-11-06",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 6,
-          "originalDay": 6,
-          "originalDate": "2026-11-06"
-        },
-        {
-          "day": 7,
-          "date": "2026-11-07",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 7,
-          "originalDay": 7,
-          "originalDate": "2026-11-07"
-        },
-        {
-          "day": 8,
-          "date": "2026-11-08",
-          "balance": 0,
-          "intradayEvents": [],
-          "dayOfMonth": 8,
-          "originalDay": 8,
-          "originalDate": "2026-11-08"
-        }
-      ]
     }
   },
   "accountSimulations": {
@@ -2001,145 +1427,64 @@
           "date": "2026-11-01",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [
-            {
-              "date": "2026-11-01",
-              "day": 1,
-              "originalDay": 1,
-              "originalDate": "2026-11-01",
-              "label": "Salary",
-              "name": "Salary",
-              "description": "Salary",
-              "category": "Salary",
-              "tag": "Salary",
-              "amount": 8000000,
-              "balanceAfter": 13000000,
-              "accountBalanceAfter": 13000000,
-              "sourceAccountBalanceAfter": null,
-              "destinationAccountBalanceAfter": null,
-              "itemType": "salary",
-              "isSalary": true,
-              "isIncome": true,
-              "isActual": false,
-              "itemId": null,
-              "transactionId": null,
-              "plannedItemId": null,
-              "accountId": "00000000-0000-4000-8000-000000000003",
-              "accountType": "bank",
-              "bankAccountId": "00000000-0000-4000-8000-000000000003",
-              "walletId": null,
-              "transferId": null,
-              "transferAmount": null,
-              "sourceType": null,
-              "sourceAccountId": null,
-              "sourceBankAccountId": null,
-              "sourceWalletId": null,
-              "destinationType": null,
-              "destinationAccountId": null,
-              "destinationBankAccountId": null,
-              "destinationWalletId": null,
-              "origin": null,
-              "passThroughKind": null,
-              "personFundId": null,
-              "heldAfter": 0,
-              "lentAfter": 0,
-              "isCardSpend": false,
-              "cardAccountId": null,
-              "cardPaymentFor": null,
-              "sourceIsCard": false,
-              "destinationIsCard": false,
-              "cardSourceId": null,
-              "cardDestinationId": null,
-              "statementId": null,
-              "cardLiabilityAfter": 1200000,
-              "cardBalances": {
-                "00000000-0000-4000-8000-000000000004": 0,
-                "00000000-0000-4000-8000-000000000005": 1200000
-              },
-              "accountHeld": {
-                "00000000-0000-4000-8000-000000000003": 0,
-                "00000000-0000-4000-8000-000000000010": 0
-              },
-              "accountBalances": {
-                "00000000-0000-4000-8000-000000000003": 13000000,
-                "00000000-0000-4000-8000-000000000010": 250000
-              },
-              "dayOfMonth": 1
-            }
-          ],
           "dayOfMonth": 1,
-          "originalDay": 1,
-          "originalDate": "2026-11-01"
+          "originalDay": 1
         },
         {
           "day": 2,
           "date": "2026-11-02",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 2,
-          "originalDay": 2,
-          "originalDate": "2026-11-02"
+          "originalDay": 2
         },
         {
           "day": 3,
           "date": "2026-11-03",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 3,
-          "originalDay": 3,
-          "originalDate": "2026-11-03"
+          "originalDay": 3
         },
         {
           "day": 4,
           "date": "2026-11-04",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 4,
-          "originalDay": 4,
-          "originalDate": "2026-11-04"
+          "originalDay": 4
         },
         {
           "day": 5,
           "date": "2026-11-05",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 5,
-          "originalDay": 5,
-          "originalDate": "2026-11-05"
+          "originalDay": 5
         },
         {
           "day": 6,
           "date": "2026-11-06",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 6,
-          "originalDay": 6,
-          "originalDate": "2026-11-06"
+          "originalDay": 6
         },
         {
           "day": 7,
           "date": "2026-11-07",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 7,
-          "originalDay": 7,
-          "originalDate": "2026-11-07"
+          "originalDay": 7
         },
         {
           "day": 8,
           "date": "2026-11-08",
           "balance": 13000000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 8,
-          "originalDay": 8,
-          "originalDate": "2026-11-08"
+          "originalDay": 8
         }
       ],
       "openingBalance": 5000000,
@@ -2181,80 +1526,64 @@
           "date": "2026-11-01",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 1,
-          "originalDay": 1,
-          "originalDate": "2026-11-01"
+          "originalDay": 1
         },
         {
           "day": 2,
           "date": "2026-11-02",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 2,
-          "originalDay": 2,
-          "originalDate": "2026-11-02"
+          "originalDay": 2
         },
         {
           "day": 3,
           "date": "2026-11-03",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 3,
-          "originalDay": 3,
-          "originalDate": "2026-11-03"
+          "originalDay": 3
         },
         {
           "day": 4,
           "date": "2026-11-04",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 4,
-          "originalDay": 4,
-          "originalDate": "2026-11-04"
+          "originalDay": 4
         },
         {
           "day": 5,
           "date": "2026-11-05",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 5,
-          "originalDay": 5,
-          "originalDate": "2026-11-05"
+          "originalDay": 5
         },
         {
           "day": 6,
           "date": "2026-11-06",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 6,
-          "originalDay": 6,
-          "originalDate": "2026-11-06"
+          "originalDay": 6
         },
         {
           "day": 7,
           "date": "2026-11-07",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 7,
-          "originalDay": 7,
-          "originalDate": "2026-11-07"
+          "originalDay": 7
         },
         {
           "day": 8,
           "date": "2026-11-08",
           "balance": 250000,
           "heldForOthers": 0,
-          "intradayEvents": [],
           "dayOfMonth": 8,
-          "originalDay": 8,
-          "originalDate": "2026-11-08"
+          "originalDay": 8
         }
       ],
       "openingBalance": 250000,

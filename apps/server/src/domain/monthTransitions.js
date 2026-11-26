@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, or, ne } from 'drizzle-orm';
+import { eq, and, desc, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { simulate, getSalaryWindowStatus } from '@budget/engine';
@@ -6,7 +6,7 @@ import { SalaryTemplateService } from '../services/salaryTemplateService.js';
 import { loadGoalsForUser } from './simulationService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
-import { pad, attachAccountOpeningsToMonth } from './monthHelpers.js';
+import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 
 /**
  * Month transitions: crediting the salary and rolling over to the next month.
@@ -68,19 +68,8 @@ export const MonthTransitions = {
       where: and(
         eq(s.transactions.userId, userId),
         eq(s.transactions.monthId, month.id),
-        ne(s.transactions.status, 'cancelled'),
-        // Same rules the salary cycle job and month update use to write the
-        // salary row, so crediting reuses it instead of adding a second one.
-        // A bare category 'Income' is left out: that is any logged income.
-        or(
-          eq(s.transactions.category, 'Salary'),
-          eq(s.transactions.origin, 'salary'),
-          eq(s.transactions.name, 'Monthly Salary'),
-          eq(s.transactions.name, 'Expected Monthly Salary'),
-          eq(s.transactions.note, 'Monthly Salary')
-        )
-      ),
-      orderBy: [desc(s.transactions.date), desc(s.transactions.createdAt)]
+        salaryTxCondition()
+      )
     });
 
     if (salaryTx) {
@@ -102,6 +91,9 @@ export const MonthTransitions = {
         monthId: month.id,
         amount: salaryAmt,
         date: creditDate,
+        name: 'Monthly Salary',
+        origin: 'salary',
+        status: 'successful',
         note: 'Monthly Salary',
         category: 'Salary',
         accountId: targetBank ? targetBank.id : null,

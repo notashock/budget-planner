@@ -11,13 +11,14 @@ import {
 import { MonthHealthHero } from '../components/MonthHealthHero.jsx';
 import { AllowancePaceMeter } from '../components/AllowancePaceMeter.jsx';
 import { UpcomingOutflows } from '../components/UpcomingOutflows.jsx';
-import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 import { RunwayGauge } from '../components/RunwayGauge.jsx';
 import { StepLineChart } from '../components/StepLineChart.jsx';
 import { TimelineList } from '../components/TimelineList.jsx';
 import { PlusIcon, BuildingLibraryIcon, WalletIcon, ArrowRightLeftIcon, AlertTriangleIcon, EyeIcon } from '../components/Icons.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
+import { liveBalance } from '../utils/liveBalance.js';
+import { CashAllocationBar } from '../components/CashAllocationBar.jsx';
 
 gsap.registerPlugin(useGSAP);
 
@@ -39,11 +40,25 @@ export function PlanScreen({
   onTogglePaid = null,
   onPayTransaction = null,
   onEditTransaction = null,
-  onVerdictChange = null
+  onVerdictChange = null,
+  selectedAccountId: controlledAccountId,
+  onSelectAccount,
+  monthMenu = null
 }) {
   const containerRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [localAccountId, setLocalAccountId] = useState('all');
+  // App controls it so the sidebar's account list and these pills agree
+  const selectedAccountId = controlledAccountId ?? localAccountId;
+  const setSelectedAccountId = onSelectAccount ?? setLocalAccountId;
+  // Chart, tiles and timeline sit one tap below the summary; remembered per browser
+  const [detailsOpen, setDetailsOpen] = useState(() => {
+    try { return localStorage.getItem('plan.detailsOpen') === '1'; } catch { return false; }
+  });
+  const toggleDetails = () => setDetailsOpen((open) => {
+    try { localStorage.setItem('plan.detailsOpen', open ? '0' : '1'); } catch { /* storage blocked */ }
+    return !open;
+  });
   const [timeframe, setTimeframe] = useState('trailing12m'); // 'trailing12m' | 'ytd' | 'quarterly'
   const [viewSubmode, setViewSubmode] = useState('monthly'); // 'monthly' | 'irregular'
 
@@ -95,7 +110,6 @@ export function PlanScreen({
   const {
     events: simEvents = [],
     dailyBalances = [],
-    endingBalance = 0,
     todayBalance,
     lowestBalance = 0,
     lowestDate = '',
@@ -113,30 +127,10 @@ export function PlanScreen({
   // Filtered daily balances curve
   const activeDailyBalances = useMemo(() => {
     if (!isFilteringAccount) return dailyBalances;
-    if (accountSimulations?.[selectedAccountId]?.dailyBalances?.length) {
-      return accountSimulations[selectedAccountId].dailyBalances;
-    }
-    const sid = String(selectedAccountId || '');
-    const alt1 = String(selectedAccount?._id || '');
-    const alt2 = String(selectedAccount?.id || '');
-
-    let acctCurve =
-      simulation?.accountDailyBalances?.[selectedAccountId] ||
-      (selectedAccount?._id ? simulation?.accountDailyBalances?.[selectedAccount._id] : null) ||
-      (selectedAccount?.id ? simulation?.accountDailyBalances?.[selectedAccount.id] : null);
-
-    if (!acctCurve && simulation?.accountDailyBalances) {
-      const matchEntry = Object.entries(simulation.accountDailyBalances).find(
-        ([key]) => key === sid || (alt1 && key === alt1) || (alt2 && key === alt2)
-      );
-      if (matchEntry) {
-        acctCurve = matchEntry[1];
-      }
-    }
-
-    if (acctCurve && acctCurve.length) {
-      return acctCurve;
-    }
+    const acctCurve = [selectedAccountId, selectedAccount?._id, selectedAccount?.id]
+      .map((id) => (id ? accountSimulations?.[id]?.dailyBalances : null))
+      .find((curve) => curve?.length);
+    if (acctCurve) return acctCurve;
 
     // Isolated account curve fallback: when no transactions are recorded for this account,
     // draw an accurate flat curve at its opening balance instead of falling back to global daily balances
@@ -202,8 +196,9 @@ export function PlanScreen({
         }
       }
 
-      // If an event has no bank or wallet assigned, fallback to primary bank, designated salary bank, or sole bank
-      if (!bId && !wId && !sBankId && !sWalletId && selectedBank) {
+      // If an event has no bank or wallet assigned, fallback to primary bank, designated salary bank, or sole bank.
+      // A card swipe has none either, but it moves no bank cash (the bill payment does), so it never falls back.
+      if (!bId && !wId && !sBankId && !sWalletId && selectedBank && !ev.isCardSpend) {
         if (selectedBank.isPrimary || isDesignatedSalaryBank || isSoleBank) {
           return true;
         }
@@ -250,8 +245,8 @@ export function PlanScreen({
   const activeAccountSummary = simulation?.accounts?.[selectedAccountId] ||
     (selectedAccount?._id ? simulation?.accounts?.[selectedAccount._id] : null) ||
     (selectedAccount?.id ? simulation?.accounts?.[selectedAccount.id] : null) ||
-    (Array.isArray(simulation?.accountSummaries)
-      ? simulation.accountSummaries.find((a) => {
+    (simulation?.accounts
+      ? Object.values(simulation.accounts).find((a) => {
           const sid = String(selectedAccountId || '');
           const alt1 = String(selectedAccount?._id || '');
           const alt2 = String(selectedAccount?.id || '');
@@ -317,9 +312,6 @@ export function PlanScreen({
 
   // Unified sums across all registered bank accounts and wallets (deduplicated by ID)
   const accountsList = useMemo(() => {
-    if (Array.isArray(simulation?.accountSummaries) && simulation.accountSummaries.length > 0) {
-      return simulation.accountSummaries;
-    }
     const map = new Map();
     Object.values(simulation?.accounts || {}).forEach((a) => {
       if (a && a.id && !map.has(a.id)) {
@@ -341,12 +333,6 @@ export function PlanScreen({
         ? accountsList.reduce((sum, a) => sum + (a.todayBalance || 0), 0)
         : todayBalance);
 
-  const unifiedEndingBalance = simulation?.endingBalance !== undefined
-    ? simulation.endingBalance
-    : (hasAccounts && accountsList.length > 0
-        ? accountsList.reduce((sum, a) => sum + (a.endingBalance || 0), 0)
-        : endingBalance);
-
   // Safe Velocity: isolated for filtered account, unified for all accounts
   const activeSafeVelocity = isFilteringAccount
     ? (activeAccountSummary?.safeVelocity || simulation?.safeVelocity)
@@ -361,9 +347,6 @@ export function PlanScreen({
   const activeTodayBalance = isFilteringAccount
     ? (activeAccountSummary?.todayBalance ?? todayBalance)
     : (simulation?.todayBalance ?? unifiedTodayBalance);
-  const activeEndingBalance = isFilteringAccount
-    ? (activeAccountSummary?.endingBalance ?? endingBalance)
-    : unifiedEndingBalance;
   // Forward-looking low (what the user can still act on); past breach shown separately
   const activeLowestBalance = activeLows.upcoming.balance;
   const activeLowestDate = activeLows.upcoming.date;
@@ -467,7 +450,7 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === (b._id || b.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(b._id || b.id)}
               >
-                <span>{b.name} ({formatCurrency(b.openingBalance, currencySymbol)})</span>
+                <span>{b.name} ({formatCurrency(b.currentBalance ?? b.openingBalance, currencySymbol)})</span>
               </button>
             ))}
             {wallets.map((w) => (
@@ -477,7 +460,7 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === (w._id || w.id) ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId(w._id || w.id)}
               >
-                <span>{w.name} ({formatCurrency(w.openingBalance, currencySymbol)})</span>
+                <span>{w.name} ({formatCurrency(w.currentBalance ?? w.openingBalance, currencySymbol)})</span>
               </button>
             ))}
           </div>
@@ -681,10 +664,7 @@ export function PlanScreen({
         </div>
       )}
 
-      <PageTitle
-        title="Plan"
-        subtitle={`${new Date(month.year, month.month - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })} · where your money stands`}
-      />
+      <ScreenHeader title="Plan" actions={monthMenu} />
 
       {/* Account Filter & Action Toolbar */}
       <div className="account-filter-wrapper plan-stack-2">
@@ -697,14 +677,20 @@ export function PlanScreen({
                 className={`filter-pill account-filter-pill ${selectedAccountId === 'all' ? 'active' : ''}`}
                 onClick={() => setSelectedAccountId('all')}
               >
-                <span>All accounts</span>
+                <span>All</span>
+                <span className="tabular-nums" style={{ opacity: selectedAccountId === 'all' ? 1 : 0.8, fontWeight: 700 }}>
+                  {formatCurrencyWhole(
+                    [...bankAccounts, ...wallets].reduce((sum, a) => sum + liveBalance(a, simulation?.accounts?.[a._id || a.id], month), 0),
+                    month.currencySymbol
+                  )}
+                </span>
               </button>
 
               {bankAccounts.map((b) => {
                 const accId = b._id || b.id;
                 const isSelected = selectedAccountId === accId;
                 const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (b.openingBalance || 0);
+                const bal = liveBalance(b, accSim, month);
                 const hasBreach = accSim?.floorBreached;
                 const minBal = Number(b.minimumBalance) || 0;
                 const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
@@ -740,7 +726,7 @@ export function PlanScreen({
                 const accId = w._id || w.id;
                 const isSelected = selectedAccountId === accId;
                 const accSim = simulation?.accounts?.[accId];
-                const bal = accSim ? accSim.todayBalance : (w.openingBalance || 0);
+                const bal = liveBalance(w, accSim, month);
                 const hasBreach = accSim?.floorBreached;
                 const minBal = Number(w.minimumBalance) || 0;
                 const headroom = minBal > 0 ? getHeadroom(bal, minBal) : null;
@@ -776,19 +762,10 @@ export function PlanScreen({
         </div>
 
         <div className="account-toolbar-actions">
-          {isReviewMode ? (
+          {isReviewMode && (
             <span className="review-badge-tag plan-row-9">
               <EyeIcon size={13} /> Historical Preview
             </span>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary desktop-only-btn plan-btn-5"
-              onClick={() => onOpenUnifiedEntry?.('log')}
-            >
-              <PlusIcon size={14} />
-              <span>New Entry</span>
-            </button>
           )}
         </div>
       </div>
@@ -801,8 +778,6 @@ export function PlanScreen({
             {selectedBank ? <BuildingLibraryIcon size={13} /> : <WalletIcon size={13} />}
             <span>
               Showing only <strong>{selectedAccount.name}</strong>
-              {selectedAccount?.minimumBalance ? ` • Minimum balance ${formatCurrency(selectedAccount.minimumBalance, month.currencySymbol)}` : ''}
-              {activeAccountSummary ? ` • Month-end ${formatCurrency(activeAccountSummary.endingBalance, month.currencySymbol)}` : ''}
             </span>
           </div>
           <button
@@ -816,25 +791,62 @@ export function PlanScreen({
       )}
       </div>
 
-      {/* Top Split: Symmetrical Bento Left Insights and Right Timeline Curve */}
-      <div className="dashboard-top-grid">
-        {/* COMPONENT 1: TOP-LEFT INSIGHTS */}
-        <div className="dashboard-insights-panel">
-          {/* Month Health hero: daily safe-to-spend, verdict and where today's balance goes */}
-          <MonthHealthHero
-            safeVelocity={activeSafeVelocity}
-            daysLeft={daysLeft}
-            safeToSpendPerDay={activeSafeToSpend}
-            todayBalance={activeTodayBalance}
-            endingBalance={activeEndingBalance}
-            lowestBalance={activeLowestBalance}
-            lowestDate={activeLowestDate}
-            safetyFloor={activeSafetyFloor}
-            verdict={scopeVerdict}
-            currencySymbol={month.currencySymbol}
-          />
+      {/* At a glance: one number, then what's due. Everything else is one tap deeper. */}
+      <div className="plan-glance">
+        <div className="plan-glance-main">
+        <MonthHealthHero
+          safeVelocity={activeSafeVelocity}
+          daysLeft={daysLeft}
+          safeToSpendPerDay={activeSafeToSpend}
+          lowestBalance={activeLowestBalance}
+          safetyFloor={activeSafetyFloor}
+          verdict={scopeVerdict}
+          currencySymbol={month.currencySymbol}
+          dailyBalances={activeDailyBalances}
+          currentDay={currentDay}
+          detailsOpen={detailsOpen}
+          onToggleDetails={toggleDetails}
+        />
+        <CashAllocationBar
+          todayBalance={activeTodayBalance}
+          committedUpcomingItems={activeSafeVelocity?.committedUpcomingItems ?? activeSafeVelocity?.committedBills ?? 0}
+          safetyFloor={activeSafetyFloor}
+          goalReserve={activeSafeVelocity?.goalReserve ?? 0}
+          heldReserve={activeSafeVelocity?.heldReserve ?? 0}
+          cardReserve={activeSafeVelocity?.cardReserve ?? 0}
+          freeSurplus={activeSafeVelocity?.freeSurplus}
+          currencySymbol={month.currencySymbol}
+        />
+        </div>
 
-          {/* Detailed KPI Cards */}
+      <ErrorBoundary title="Upcoming payments unavailable">
+        <UpcomingOutflows
+          events={activeEvents}
+          todayStr={upcomingTodayStr}
+          currencySymbol={month.currencySymbol}
+          isReviewMode={isReviewMode}
+          onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
+          title="Due soon"
+          maxRows={3}
+        />
+      </ErrorBoundary>
+      </div>
+
+      <button
+        type="button"
+        className="plan-details-toggle"
+        onClick={toggleDetails}
+        aria-expanded={detailsOpen}
+        aria-controls="plan-details"
+      >
+        {detailsOpen ? 'Hide details' : 'Details'}
+        <span aria-hidden="true" className={`plan-details-chev ${detailsOpen ? 'open' : ''}`}>›</span>
+      </button>
+
+      {detailsOpen && (
+      <div id="plan-details" className="plan-details">
+      <div className="dashboard-top-grid">
+        <div className="dashboard-insights-panel">
           <DetailedKpiGrid
             incomeAmount={isFilteringAccount ? (activeAccountSummary?.incomeAmount ?? 0) : unifiedIncome}
             incomeCreditDay={month.incomeCreditDay}
@@ -856,7 +868,6 @@ export function PlanScreen({
           />
         </div>
 
-        {/* COMPONENT 2: TOP-RIGHT TIMELINE CHART (CURVED LINE) */}
         <div className="dashboard-chart-panel">
           <ErrorBoundary title="Chart unavailable">
             <StepLineChart
@@ -879,17 +890,7 @@ export function PlanScreen({
         </div>
       </div>
 
-      {/* Planner insights: what's due next and how the allowance is pacing */}
       <div className="plan-insights-row">
-        <ErrorBoundary title="Upcoming payments unavailable">
-          <UpcomingOutflows
-            events={activeEvents}
-            todayStr={upcomingTodayStr}
-            currencySymbol={month.currencySymbol}
-            isReviewMode={isReviewMode}
-            onPay={onPayTransaction || onTogglePaid ? handlePayUpcoming : null}
-          />
-        </ErrorBoundary>
         <ErrorBoundary title="Allowance pace unavailable">
           <AllowancePaceMeter
             unplannedAllowance={activeSim?.unplannedAllowance ?? 0}
@@ -899,12 +900,12 @@ export function PlanScreen({
             currencySymbol={month.currencySymbol}
           />
         </ErrorBoundary>
-        <ErrorBoundary title="Category breakdown unavailable">
-          <CategoryBreakdown events={activeEvents} currencySymbol={month.currencySymbol} />
-        </ErrorBoundary>
       </div>
 
-      {/* COMPONENT 3: BOTTOM FULL-WIDTH INTERACTIVE TIMELINE */}
+      </div>
+      )}
+
+      {/* The day-by-day timeline stays on the page, below Details (chart and breakdowns) */}
       <div className="dashboard-bottom-timeline">
         <ErrorBoundary title="Transactions timeline encountered an issue">
           <TimelineList

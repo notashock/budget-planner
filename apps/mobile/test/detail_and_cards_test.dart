@@ -138,11 +138,13 @@ void main() {
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const CardsSection());
       await settle(tester);
+      await tester.tap(find.text('Amex')); // rows expand in place, as on web
+      await tester.pump();
 
       final amex = cardId(fb, 'Amex');
       final action = find.byKey(ValueKey('card-bill-action-$amex'));
       expect(find.descendant(of: action, matching: find.text('Confirm')), findsOneWidget);
-      expect(find.textContaining('Bill ready: ₹12,000.00'), findsOneWidget);
+      expect(find.textContaining('Bill ready: ₹12,000,'), findsOneWidget, reason: 'card figures are whole rupees (3.4)');
       expect(find.byKey(ValueKey('card-bill-action-${cardId(fb, 'Visa')}')), findsNothing, reason: 'Visa has no bill yet');
 
       await tester.tap(action);
@@ -170,6 +172,8 @@ void main() {
           })))!;
       await pump(tester, budget, const CardsSection());
       await settle(tester);
+      await tester.tap(find.text('Amex'));
+      await tester.pump();
 
       final action = find.byKey(ValueKey('card-bill-action-${cardId(fb, 'Amex')}'));
       expect(find.descendant(of: action, matching: find.text('Pay bill')), findsOneWidget);

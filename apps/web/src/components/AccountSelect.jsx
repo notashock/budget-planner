@@ -22,7 +22,9 @@ export function AccountSelect({
   dataTestId,
   className = '',
   style = {},
-  dropUp = false
+  dropUp = false,
+  inline = false, // list only, laid flat (a page pushed inside the entry sheet)
+  onOpen = null // when set, the trigger calls it instead of opening the dropdown
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -140,13 +142,14 @@ export function AccountSelect({
         ...style
       }}
     >
+      {!inline && (
       <button
         id={id}
         type="button"
         disabled={disabled}
         data-testid={dataTestId}
         className={`app-select-trigger ${isOpen ? 'active' : ''}`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => !disabled && (onOpen ? onOpen() : setIsOpen(!isOpen))}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         style={disabled ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
@@ -214,12 +217,13 @@ export function AccountSelect({
           </span>
         </div>
       </button>
+      )}
 
-      {isOpen && (
+      {(isOpen || inline) && (
         <div
-          className="app-dropdown-menu custom-select-dropdown"
+          className={`app-dropdown-menu custom-select-dropdown ${inline ? 'is-inline' : ''}`}
           role="listbox"
-          style={{
+          style={inline ? undefined : {
             position: 'absolute',
             ...(computedDropUp ? { bottom: '100%', top: 'auto', marginBottom: '6px' } : { top: '100%', marginTop: '6px' }),
             left: 0,

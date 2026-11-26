@@ -53,7 +53,8 @@ describe('Phase 4: what an edit changes', () => {
     expect(summary).toHaveTextContent('No changes yet');
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '25' } });
     expect(screen.getByTestId('edit-summary')).toHaveTextContent(/Changing: Amount ₹20\.00 → ₹25\.00/);
-    fireEvent.click(screen.getByRole('button', { name: 'Travel' }));
+    fireEvent.click(screen.getByTestId('category-row'));
+    fireEvent.click(screen.getByRole('option', { name: 'Travel' }));
     expect(screen.getByTestId('edit-summary')).toHaveTextContent(/Category Food → Travel/);
   });
 
@@ -134,7 +135,8 @@ describe('Phase 4: held & lent entries are changed by logging again', () => {
       <TransactionsScreen transactions={[lent]} bankAccounts={[bank]} wallets={[wallet]} currencySymbol="₹"
         onRelogHeldLent={onRelogHeldLent} onDeleteTransaction={vi.fn()} />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Change held or lent entry' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Actions for / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change held or lent entry' }));
     const modal = await screen.findByTestId('relog-held-lent');
     expect(modal).toHaveTextContent(/can't be edited directly/);
     fireEvent.click(within(modal).getByRole('button', { name: 'Delete and log again' }));
@@ -159,7 +161,9 @@ describe('Phase 4: held & lent entries are changed by logging again', () => {
 describe('Phase 4: edits that rewrite history say so', () => {
   it('editing a bank opening balance shows how much every balance shifts', () => {
     render(<AccountsScreen bankAccounts={[bank]} wallets={[wallet]} transfers={[]} simulation={null} currencySymbol="₹" />);
-    fireEvent.click(screen.getAllByTitle('Edit Account')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Main Bank/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'More actions for Main Bank' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit account' }));
     expect(screen.queryByTestId('opening-balance-warning')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Opening Balance/), { target: { value: '51000' } });
     expect(screen.getByTestId('opening-balance-warning')).toHaveTextContent(/Main Bank.*\+₹1,000\.00/);
@@ -178,6 +182,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
 
     it('warns when "Owed when added" changes', async () => {
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.change(await screen.findByLabelText(/Owed when added/), { target: { value: '1500' } });
       expect(screen.getByTestId('card-owed-warning')).toHaveTextContent(/\+/);
@@ -186,6 +191,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
     it('removes a card after confirming', async () => {
       api.archiveCard.mockResolvedValue({});
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Remove card' }));
       fireEvent.click(within(screen.getByTestId('card-remove-confirm')).getByRole('button', { name: 'Remove' }));
@@ -194,6 +200,7 @@ describe('Phase 4: edits that rewrite history say so', () => {
 
     it('card forms have a close button', async () => {
       render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+      fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit Visa' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
       await waitFor(() => expect(screen.queryByTestId('card-form')).not.toBeInTheDocument());

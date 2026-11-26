@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Header } from '../components/Header.jsx';
+import { YouMenu } from '../components/YouMenu.jsx';
 import { SalarySafelineModal } from '../components/SalarySafelineModal.jsx';
 import { getSalaryWindowStatus } from '@budget/engine';
 
@@ -49,7 +49,7 @@ describe('Month-End Salary Window (5 Days Before to 5 Days After Month-End)', ()
   it('renders "Salary schedule" unlocked in Header during the active window on Nov 4', () => {
     const handleOpenSalarySafeline = vi.fn();
     render(
-      <Header
+      <YouMenu
         currentMonth={novemberMonth}
         months={[novemberMonth]}
         user={mockUser}

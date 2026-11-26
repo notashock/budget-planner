@@ -1,29 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
-import { formatCurrency, formatDisplayDate } from '@budget/engine';
-import {
-  BuildingLibraryIcon,
-  WalletIcon,
-  TrashIcon,
-  CheckCircleIcon,
-  AlertTriangleIcon,
-  CalendarIcon,
-  XIcon,
-  TargetIcon,
-  SearchIcon,
-  EditIcon,
-  PlusIcon,
-  InboxIcon,
-  SendIcon,
-  ArrowRightLeftIcon,
-  EyeIcon,
-  UserIcon,
-  CreditCardIcon
-} from '../components/Icons.jsx';
+import { formatCurrency, formatCurrencyWhole, formatDisplayDate, groupSpendByCategory } from '@budget/engine';
+import { XIcon, SearchIcon, EyeIcon, CheckIcon } from '../components/Icons.jsx';
 import { SortMenu } from '../components/SortMenu.jsx';
-import { PageTitle } from '../components/PageTitle.jsx';
+import { ScreenHeader } from '../components/ScreenHeader.jsx';
 import { AnimatedModal } from '../components/AnimatedModal.jsx';
 import { ReclassifyHeldLentModal } from '../components/ReclassifyHeldLentModal.jsx';
 import { SettleForm } from '../components/SettleForm.jsx';
+import { ActionMenu } from '../components/ActionMenu.jsx';
+import { CategoryBreakdown } from '../components/CategoryBreakdown.jsx';
 
 // Held & Lent money (ADR 0069): moves cash, never income or spending
 const PASS_THROUGH_IN = ['held_in', 'lent_repaid'];
@@ -41,6 +25,39 @@ const SORT_OPTIONS = [
   { value: 'amount-asc', label: 'Amount: low to high', short: 'Amount ↑' }
 ];
 
+const PLANNED_FILTERS = [['all', 'All statuses'], ['due', 'Due'], ['overdue', 'Overdue'], ['upcoming', 'Upcoming']];
+
+/** Day header for a YYYY-MM-DD date: "Today · Mon 23", "Yesterday · Sun 22", else "Thu, Nov 5". */
+export function dayLabel(dateStr, todayStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const diff = Math.round((d - new Date(`${todayStr}T00:00:00`)) / 86400000);
+  const short = `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.getDate()}`;
+  if (diff === 0) return `Today · ${short}`;
+  if (diff === -1) return `Yesterday · ${short}`;
+  if (diff === 1) return `Tomorrow · ${short}`;
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/** Groups an already-sorted list by day, keeping its order. pinOverdue puts overdue items first under "Overdue". */
+export function groupByDay(list, getDate, todayStr, { pinOverdue = false } = {}) {
+  const groups = [];
+  const byKey = new Map();
+  for (const tx of list) {
+    const overdue = pinOverdue && tx.derivedStatus === 'overdue';
+    const day = (getDate(tx) || '').slice(0, 10);
+    const key = overdue ? 'overdue' : (day || 'none');
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, label: overdue ? 'Overdue' : (day ? dayLabel(day, todayStr) : 'No date'), overdue, items: [] };
+      byKey.set(key, group);
+      if (overdue) groups.unshift(group); else groups.push(group);
+    }
+    group.items.push(tx);
+  }
+  return groups;
+}
+
 export function TransactionsScreen({
   transactions = [],
   currencySymbol = '₹',
@@ -56,7 +73,8 @@ export function TransactionsScreen({
   // Held/lent rows: delete and open the form again with the same details
   onRelogHeldLent,
   creditCards = [],
-  simulation = null
+  simulation = null,
+  month = null
 }) {
   // Main view segment: 'transactions' (successful) vs 'planned' (commitments)
   const [activeSegment, setActiveSegment] = useState('transactions'); // 'transactions' | 'planned'
@@ -71,6 +89,7 @@ export function TransactionsScreen({
   const [plannedFilter, setPlannedFilter] = useState('all'); // 'all' | 'due' | 'overdue' | 'upcoming'
   const [selectedAccountFilter, setSelectedAccountFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest' | 'amount-desc' | 'amount-asc'
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Modals for Actions
   const [payingTx, setPayingTx] = useState(null);
@@ -306,6 +325,182 @@ export function TransactionsScreen({
 
   const hasUrgentCommitments = overdueCount > 0 || dueCount > 0;
 
+  const accountName = (id) => accountLookupMap.get(String(id))?.name;
+  // Day headers only make sense when the list is in date order
+  const isGrouped = sortBy === 'recent' || sortBy === 'oldest';
+  const groupsFor = (list, getDate, pinOverdue) => (isGrouped
+    ? groupByDay(list, getDate, todayStr, { pinOverdue })
+    : [{ key: 'all', label: null, items: list }]);
+
+  // "Spending in November": gross paid spend this month, by category
+  const spendEvents = useMemo(() => successfulTransactions
+    .filter((t) => !t.isIncome && t.origin !== 'transfer'
+      && !PASS_THROUGH_IN.includes(t.origin) && !PASS_THROUGH_OUT.includes(t.origin) && t.amount > 0)
+    .map((t) => ({ amount: -Math.abs(t.amount), category: t.category, origin: t.origin, isActual: true })), [successfulTransactions]);
+  const spending = useMemo(() => groupSpendByCategory(spendEvents, { topN: 5 }), [spendEvents]);
+  const monthName = month?.month
+    ? new Date(month.year, month.month - 1, 1).toLocaleDateString('en-US', { month: 'long' })
+    : 'this month';
+
+  const filterItems = [
+    { heading: 'Account' },
+    { label: 'All accounts', checked: selectedAccountFilter === 'all', onClick: () => setSelectedAccountFilter('all') },
+    ...allAccounts.map((a) => {
+      const id = a.id || a._id;
+      return { label: a.name, checked: selectedAccountFilter === id, onClick: () => setSelectedAccountFilter(id) };
+    }),
+    ...(activeSegment === 'planned' ? [
+      { heading: 'Status' },
+      ...PLANNED_FILTERS.map(([value, label]) => ({
+        label,
+        checked: plannedFilter === value,
+        onClick: () => setPlannedFilter(value),
+      })),
+    ] : []),
+  ];
+
+  const activeFilterChips = [
+    selectedAccountFilter !== 'all' && {
+      key: 'account',
+      label: accountName(selectedAccountFilter) || 'Account',
+      clear: () => setSelectedAccountFilter('all'),
+    },
+    activeSegment === 'planned' && plannedFilter !== 'all' && {
+      key: 'status',
+      label: PLANNED_FILTERS.find(([value]) => value === plannedFilter)?.[1],
+      clear: () => setPlannedFilter('all'),
+    },
+  ].filter(Boolean);
+
+  const renderPaidRow = (tx) => {
+    const isTransfer = tx.origin === 'transfer';
+    const isPassThrough = PASS_THROUGH_IN.includes(tx.origin) || PASS_THROUGH_OUT.includes(tx.origin);
+    const isIncome = Boolean(tx.isIncome);
+    const isRefund = tx.amount < 0 && !isIncome && !isPassThrough;
+    const isCredit = isIncome || isRefund || PASS_THROUGH_IN.includes(tx.origin);
+    const canReclassify = !isPassThrough && !isTransfer && tx.origin !== 'goal' && tx.origin !== 'salary' && !tx.goalId;
+
+    const amount = formatCurrency(Math.abs(tx.amount), currencySymbol);
+    const formattedAmount = isTransfer ? amount : `${isCredit ? '+' : '-'}${amount}`;
+    const amountClass = isTransfer ? 'amount-neutral' : (isCredit ? 'amount-credit' : 'amount-debit');
+    const title = isTransfer ? (tx.name || 'Inter-Account Transfer') : (tx.name || tx.note || tx.category || 'Transaction');
+    const accountText = isTransfer
+      ? `${accountName(tx.accountId) || 'Source'} → ${accountName(tx.destinationAccountId) || 'Destination'}`
+      : (accountName(tx.accountId) || 'Default Account');
+    const categoryText = isTransfer ? 'Transfer'
+      : isPassThrough ? PASS_THROUGH_TAG[tx.origin]
+        : isIncome ? 'Income' : (tx.category || 'Uncategorised');
+    const refundOriginal = isRefund && tx.refundTargetTransactionId
+      ? transactions.find((o) => String(o.id || o._id) === String(tx.refundTargetTransactionId))
+      : undefined;
+    const caption = [accountText, categoryText, !isGrouped && formatDisplayDate(tx.date, true), tx.note && tx.note !== tx.name && tx.note]
+      .filter(Boolean).join(' · ');
+
+    const actions = isReviewMode ? [] : [
+      !isPassThrough && { label: 'Edit', ariaLabel: 'Edit transaction', onClick: () => onEditTransaction?.(tx) },
+      isPassThrough && onRelogHeldLent && {
+        label: 'Change',
+        ariaLabel: 'Change held or lent entry',
+        onClick: () => { setRelogError(''); setRelogTx(tx); },
+      },
+      canReclassify && { label: 'Move to Held & Lent', ariaLabel: 'Move to Held and Lent', onClick: () => setReclassifyTx(tx) },
+      { label: 'Delete', ariaLabel: 'Delete transaction', danger: true, onClick: () => onDeleteTransaction?.(tx.id || tx._id) },
+    ].filter(Boolean);
+
+    return (
+      <div key={tx.id || tx._id} className="tx-row">
+        <div className="tx-row-main">
+          <div className="tx-row-title">
+            <span className="tx-card-title">{title}</span>
+            {tx.origin === 'goal' && <span className="apple-tx-tag tag-goal tx-tag">Goal</span>}
+            {isPassThrough && (
+              <span className="apple-tx-tag tag-held tx-tag" title="Not income or spending">{PASS_THROUGH_TAG[tx.origin]}</span>
+            )}
+            {isRefund && tx.refundTargetTransactionId && (
+              <span className="apple-tx-tag tx-tag" data-testid="refund-for-tag">
+                Refund for {refundOriginal ? (refundOriginal.title || refundOriginal.name || 'a spend') : 'an earlier spend'}
+              </span>
+            )}
+          </div>
+          <div className="tx-row-caption">{caption}</div>
+        </div>
+        <span className="tx-col tx-col-category">{categoryText}</span>
+        <span className="tx-col tx-col-account">{accountText}</span>
+        <span className="tx-col tx-col-date tabular-nums">{formatDisplayDate(tx.date, true)}</span>
+        <span className={`tx-amount-display tabular-nums ${amountClass}`}>{formattedAmount}</span>
+        <div className="tx-row-actions">
+          {actions.length > 0 && <ActionMenu label={`Actions for ${title}`} items={actions} />}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPlannedRow = (tx) => {
+    const isOverdue = tx.derivedStatus === 'overdue';
+    const isDue = tx.derivedStatus === 'due';
+    const plannedAmt = tx.plannedAmount !== undefined && tx.plannedAmount !== null ? tx.plannedAmount : Math.abs(tx.amount || 0);
+    const date = tx.plannedDate || tx.date;
+    const title = tx.name || tx.category;
+    const accountText = accountName(tx.accountId) || 'Default Account';
+    const categoryText = tx.isIncome ? 'Income' : (tx.category || 'Uncategorised');
+    const caption = [accountText, categoryText, (!isGrouped || isOverdue) && formatDisplayDate(date, true)]
+      .filter(Boolean).join(' · ');
+
+    return (
+      <div key={tx.id || tx._id} className={`tx-row planned${isOverdue ? ' overdue' : ''}${isDue ? ' due' : ''}`}>
+        {isReviewMode ? <span className="tx-mark-paid-spacer" aria-hidden="true" /> : (
+          <button
+            type="button"
+            className="tx-mark-paid"
+            onClick={() => openPayPrompt(tx)}
+            title={tx.isIncome ? 'Confirm salary deposit' : 'Mark as paid'}
+            aria-label="Mark Paid"
+          >
+            <CheckIcon size={12} />
+          </button>
+        )}
+        <div className="tx-row-main">
+          <div className="tx-row-title">
+            <span className="tx-card-title">{title}</span>
+            {isDue && <span className="apple-tx-tag tag-due tx-tag">Due</span>}
+            {tx.origin === 'goal' && <span className="apple-tx-tag tag-goal tx-tag">Goal</span>}
+          </div>
+          <div className="tx-row-caption">{caption}</div>
+        </div>
+        <span className="tx-col tx-col-category">{categoryText}</span>
+        <span className="tx-col tx-col-account">{accountText}</span>
+        <span className="tx-col tx-col-date tabular-nums">{formatDisplayDate(date, true)}</span>
+        <span className="tx-amount-display tabular-nums">
+          {tx.origin === 'salary' && plannedAmt === 0 ? '—' : formatCurrency(plannedAmt, currencySymbol)}
+        </span>
+        <div className="tx-row-actions">
+          {!isReviewMode && (
+            <ActionMenu
+              label={`Actions for ${title}`}
+              items={[{ label: 'Cancel', ariaLabel: 'Cancel commitment', danger: true, onClick: () => handlePromptCancel(tx) }]}
+            />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderList = (list, getDate, renderRow, planned) => (
+    <div className={`tx-list${planned ? ' planned' : ''}`}>
+      <div className="tx-col-head" aria-hidden="true">
+        {planned && <span />}
+        <span>Name</span><span>Category</span><span>Account</span><span>Date</span>
+        <span className="tx-col-amount">Amount</span><span />
+      </div>
+      {groupsFor(list, getDate, planned).map((group) => (
+        <section key={group.key} className="tx-day" aria-label={group.label || 'Transactions'}>
+          {group.label && <h3 className={`tx-day-header${group.overdue ? ' overdue' : ''}`}>{group.label}</h3>}
+          {group.items.map(renderRow)}
+        </section>
+      ))}
+    </div>
+  );
+
   return (
     <div className="transactions-screen" style={{ paddingBottom: '90px' }}>
       {actionError && (
@@ -316,69 +511,36 @@ export function TransactionsScreen({
           </button>
         </div>
       )}
-      {/* =========================================================================
-          ROW 1: APPLE TITLE & EMBEDDED SEARCH-SORT CAPSULE
-          ========================================================================= */}
+
       <div className="apple-tx-header-row-1">
-        {/* Left: Cupertino Large Title & Subtitle */}
-        <PageTitle
+        <ScreenHeader
           className="apple-tx-title-group tx-desktop-header"
           title="Transactions"
-          subtitle="Everything you have paid, and everything still planned."
+          actions={<ActionMenu label="Filter transactions" className="tx-filter-menu" items={filterItems} />}
         />
 
-        {/* Right: Integrated Search-Sort Capsule + Desktop-only Action */}
         <div className="apple-tx-row1-actions">
-          {/* NOTE: intentionally no legacy `tx-search-*` classes here — their higher-specificity
-              rules (e.g. `.tx-search-box.compact .tx-search-input`) re-add a border, pill radius
-              and 32px left padding to the input, and absolutely position the clear button over
-              the sort control, which misaligns the whole capsule. */}
+          {/* No legacy `tx-search-*` classes here: their rules re-add a border and padding to the input */}
           <div className="apple-search-sort-capsule">
             <span className="apple-search-icon">
               <SearchIcon size={14} />
             </span>
-            <input
+            <input autoComplete="off"
               type="text"
               className="apple-search-input"
-              placeholder="Search transactions, notes..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search transactions"
             />
             {searchQuery && (
-              <button
-                type="button"
-                className="apple-search-clear"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >
+              <button type="button" className="apple-search-clear" onClick={() => setSearchQuery('')} title="Clear search">
                 <XIcon size={12} />
               </button>
             )}
-
             <span className="apple-search-sort-divider" />
-
-            {/* Styled sort menu (replaces the OS-native select popup) */}
-            <SortMenu
-              value={sortBy}
-              onChange={setSortBy}
-              label="Sort transactions"
-              options={SORT_OPTIONS}
-            />
+            <SortMenu value={sortBy} onChange={setSortBy} label="Sort transactions" options={SORT_OPTIONS} />
           </div>
-
-          {/* Desktop-only New Entry Button (Hidden on Mobile as bottom nav handles entry) */}
-          {!isReviewMode && (
-            <button
-              type="button"
-              className="btn-primary apple-tx-add-btn desktop-only"
-              onClick={() => onOpenUnifiedEntry?.('log')}
-              title="Add a new transaction or planned expense"
-            >
-              <PlusIcon size={13} />
-              <span className="apple-tx-add-label">New Entry</span>
-            </button>
-          )}
 
           {isReviewMode && (
             <span className="review-badge-tag desktop-only" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}>
@@ -388,11 +550,7 @@ export function TransactionsScreen({
         </div>
       </div>
 
-      {/* =========================================================================
-          ROW 2: UNIFIED CONTINUOUS INLINE FILTER STRIP (NO BACKGROUND CONTAINER)
-          ========================================================================= */}
-      <div className="apple-filter-strip-row account-filter-scroll-row" role="toolbar" aria-label="Filters and Sections">
-        {/* Apple Segmented Switcher in Title Case (First letter caps) */}
+      <div className="tx-segment-row">
         <div className="apple-segmented-bar tx-section-tabs-bar" role="tablist" aria-label="Transaction Sections">
           <button
             type="button"
@@ -404,8 +562,7 @@ export function TransactionsScreen({
             className={`apple-segmented-tab tx-section-tab ${activeSegment === 'transactions' ? 'active' : ''}`}
             onClick={() => setActiveSegment('transactions')}
           >
-            <InboxIcon size={14} />
-            <span className="tx-section-tab-label">Transactions</span>
+            <span className="tx-section-tab-label">Paid</span>
             <span className="apple-segmented-count tx-section-tab-count">{displayedSuccessful.length}</span>
           </button>
           <button
@@ -418,7 +575,6 @@ export function TransactionsScreen({
             className={`apple-segmented-tab tx-section-tab ${activeSegment === 'planned' ? 'active' : ''}`}
             onClick={() => setActiveSegment('planned')}
           >
-            <SendIcon size={13} />
             <span className="tx-section-tab-label">Planned</span>
             {hasUrgentCommitments ? (
               <span className="tx-tab-urgent-pill">
@@ -430,408 +586,57 @@ export function TransactionsScreen({
           </button>
         </div>
 
-        {/* Subtle Hairline Separator */}
-        <span className="apple-filter-strip-divider" aria-hidden="true" />
-
-        {/* Continuous Account Filter Quick-Chips */}
-        <div className="apple-account-chips-inline">
-          <button
-            type="button"
-            className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setSelectedAccountFilter('all')}
-          >
-            All Accounts
+        {activeFilterChips.map((chip) => (
+          <button key={chip.key} type="button" className="tx-active-filter" onClick={chip.clear} aria-label={`Remove filter ${chip.label}`}>
+            <span>{chip.label}</span>
+            <XIcon size={11} />
           </button>
-          {bankAccounts.map((b) => (
-            <button
-              key={b.id || b._id}
-              type="button"
-              className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === (b.id || b._id) ? 'active' : ''}`}
-              onClick={() => setSelectedAccountFilter(b.id || b._id)}
-            >
-              <BuildingLibraryIcon size={12} />
-              <span>{b.name}</span>
-            </button>
-          ))}
-          {wallets.map((w) => (
-            <button
-              key={w.id || w._id}
-              type="button"
-              className={`filter-pill account-filter-pill apple-chip ${selectedAccountFilter === (w.id || w._id) ? 'active' : ''}`}
-              onClick={() => setSelectedAccountFilter(w.id || w._id)}
-            >
-              <WalletIcon size={12} />
-              <span>{w.name}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Contextual Commitment Status Chips when in Planned view */}
-        {activeSegment === 'planned' && (
-          <>
-            <span className="apple-filter-strip-divider" aria-hidden="true" />
-            <div className="apple-status-chips-inline">
-              <button
-                type="button"
-                className={`filter-pill apple-chip ${plannedFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setPlannedFilter('all')}
-              >
-                All Status
-              </button>
-              <button
-                type="button"
-                className={`filter-pill apple-chip ${plannedFilter === 'due' ? 'active' : ''}`}
-                onClick={() => setPlannedFilter('due')}
-              >
-                Due Only
-              </button>
-              <button
-                type="button"
-                className={`filter-pill apple-chip ${plannedFilter === 'overdue' ? 'active' : ''}`}
-                onClick={() => setPlannedFilter('overdue')}
-              >
-                Overdue Only
-              </button>
-              <button
-                type="button"
-                className={`filter-pill apple-chip ${plannedFilter === 'upcoming' ? 'active' : ''}`}
-                onClick={() => setPlannedFilter('upcoming')}
-              >
-                Upcoming
-              </button>
-            </div>
-          </>
-        )}
+        ))}
       </div>
 
-      {/* Main Content Area */}
       {activeSegment === 'transactions' ? (
         <div id="panel-transactions" role="tabpanel" aria-labelledby="tab-transactions">
+          {spending.total > 0 && (
+            <>
+              <button
+                type="button"
+                className="tx-spend-shelf"
+                aria-expanded={showBreakdown}
+                aria-controls="tx-category-breakdown"
+                onClick={() => setShowBreakdown((v) => !v)}
+              >
+                <span className="tx-spend-shelf-label">Spending in {monthName}</span>
+                <span className={`tx-spend-shelf-chev${showBreakdown ? ' open' : ''}`} aria-hidden="true">›</span>
+                <span className="tx-spend-shelf-bars" aria-hidden="true">
+                  {spending.categories.map((c) => (
+                    <span key={c.name} style={{ height: `${Math.max(18, (c.total / spending.max) * 100)}%` }} />
+                  ))}
+                </span>
+                <span className="tx-spend-shelf-total tabular-nums">{formatCurrencyWhole(spending.total, currencySymbol)}</span>
+              </button>
+              {showBreakdown && (
+                <div id="tx-category-breakdown" className="tx-category-breakdown">
+                  <CategoryBreakdown events={spendEvents} currencySymbol={currencySymbol} />
+                </div>
+              )}
+            </>
+          )}
+
           {displayedSuccessful.length === 0 ? (
             <div className="apple-tx-empty-state tx-empty-state">
-              <div className="apple-tx-empty-icon">
-                <CheckCircleIcon size={24} />
-              </div>
-              <div className="apple-tx-empty-title tx-empty-text">ALL TRANSACTIONS LOGGED</div>
-              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-                No completed transactions found for the selected filter.
-              </p>
+              <div className="apple-tx-empty-title tx-empty-text">Nothing here yet</div>
+              <p className="apple-tx-empty-sub">No paid transactions match this filter.</p>
             </div>
-          ) : (
-            <div className="apple-tx-group tx-cards-container">
-              {displayedSuccessful.map((tx) => {
-                const isTransfer = tx.origin === 'transfer';
-                const sourceAcc = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
-                const destAcc = allAccounts.find((a) => (a.id || a._id) === tx.destinationAccountId);
-                const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
-
-                const isPassThrough = PASS_THROUGH_IN.includes(tx.origin) || PASS_THROUGH_OUT.includes(tx.origin);
-                const isIncome = Boolean(tx.isIncome);
-                const isRefund = tx.amount < 0 && !isIncome && !isPassThrough;
-                const isCredit = isIncome || isRefund || PASS_THROUGH_IN.includes(tx.origin);
-                const canReclassify = !isPassThrough && !isTransfer && tx.origin !== 'goal' && tx.origin !== 'salary' && !tx.goalId;
-
-                // Sign formatting: +XXX for credit, -XXX for debit, XXXX for transfer/neutral
-                let formattedAmount = '';
-                let amountClass = 'amount-debit';
-                if (isTransfer) {
-                  formattedAmount = formatCurrency(Math.abs(tx.amount), currencySymbol);
-                  amountClass = 'amount-neutral';
-                } else if (isCredit) {
-                  formattedAmount = `+${formatCurrency(Math.abs(tx.amount), currencySymbol)}`;
-                  amountClass = 'amount-credit';
-                } else {
-                  formattedAmount = `-${formatCurrency(Math.abs(tx.amount), currencySymbol)}`;
-                  amountClass = 'amount-debit';
-                }
-
-                let glyphClass = 'bank';
-                let glyphIcon = <BuildingLibraryIcon size={16} />;
-                if (isTransfer) {
-                  glyphClass = 'transfer';
-                  glyphIcon = <ArrowRightLeftIcon size={16} />;
-                } else if (tx.origin === 'goal') {
-                  glyphClass = 'goal';
-                  glyphIcon = <TargetIcon size={16} />;
-                } else if (isCredit) {
-                  glyphClass = 'income';
-                  glyphIcon = <BuildingLibraryIcon size={16} />;
-                } else if (account?.accountType === 'wallet') {
-                  glyphClass = 'wallet';
-                  glyphIcon = <WalletIcon size={16} />;
-                }
-
-                return (
-                  <div key={tx.id || tx._id} className="apple-tx-row tx-card">
-                    {/* Left Glyph Badge */}
-                    <div className={`apple-tx-icon-box ${glyphClass}`}>
-                      {glyphIcon}
-                    </div>
-
-                    {/* Left Zone: Description (Title) + Bank Account Underneath */}
-                    <div className="tx-card-left">
-                      <div className="tx-card-headline">
-                        <span className="tx-card-title">
-                          {isTransfer ? (tx.name || 'Inter-Account Transfer') : (tx.name || tx.note || tx.category || 'Transaction')}
-                        </span>
-                        {isTransfer && (
-                          <span className="apple-tx-tag tag-transfer tx-tag">
-                            ⇄ Transfer
-                          </span>
-                        )}
-                        {tx.origin === 'goal' && (
-                          <span className="apple-tx-tag tag-goal tx-tag">
-                            <TargetIcon size={10} />
-                            <span>Goal</span>
-                          </span>
-                        )}
-                        {tx.origin === 'planned' && (
-                          <span className="apple-tx-tag tag-settled tx-tag">
-                            Settled
-                          </span>
-                        )}
-                        {isPassThrough && (
-                          <span className="apple-tx-tag tag-held tx-tag" title="Not income or spending">
-                            <UserIcon size={10} />
-                            <span>{PASS_THROUGH_TAG[tx.origin]}</span>
-                          </span>
-                        )}
-                        {isRefund && tx.refundTargetTransactionId && (() => {
-                          const original = transactions.find((o) => String(o.id || o._id) === String(tx.refundTargetTransactionId));
-                          return (
-                            <span className="apple-tx-tag tx-tag" data-testid="refund-for-tag">
-                              Refund for {original ? (original.title || original.name || 'a spend') : 'an earlier spend'}
-                            </span>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="tx-card-account">
-                        {isTransfer ? (
-                          <span className="tx-account-name">
-                            {sourceAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (sourceAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
-                            <span>{sourceAcc?.name || 'Source'}</span>
-                            <span className="tx-arrow">&rarr;</span>
-                            {destAcc?.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (destAcc?.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
-                            <span>{destAcc?.name || 'Destination'}</span>
-                          </span>
-                        ) : account ? (
-                          <span className="tx-account-name">
-                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
-                            <span>{account.name}</span>
-                          </span>
-                        ) : (
-                          <span className="tx-account-name muted">Default Account</span>
-                        )}
-                        <span className="tx-meta-dot">•</span>
-                        <span className="tx-date-inline tabular-nums">{formatDisplayDate(tx.date, true)}</span>
-                        {tx.note && tx.note !== tx.name && (
-                          <span className="tx-note-snippet" title={tx.note}>• {tx.note}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Center Zone: Date */}
-                    <div className="tx-card-center">
-                      <span className="tx-date-badge tabular-nums">
-                        {formatDisplayDate(tx.date, true)}
-                      </span>
-                    </div>
-
-                    {/* Right Zone: Amount on Top Right, Edit & Delete Underneath */}
-                    <div className="tx-card-right">
-                      <span className={`tx-amount-display tabular-nums ${amountClass}`}>
-                        {formattedAmount}
-                      </span>
-
-                      {!isReviewMode && (
-                        <div className="tx-card-actions">
-                          {canReclassify && (
-                            <button
-                              type="button"
-                              className="apple-tx-btn-action tx-btn-action"
-                              onClick={() => setReclassifyTx(tx)}
-                              title="Move to Held & Lent (not income or spending)"
-                              aria-label="Move to Held and Lent"
-                            >
-                              <UserIcon size={13} />
-                            </button>
-                          )}
-                          {!isPassThrough && (
-                            <button
-                              type="button"
-                              className="apple-tx-btn-action tx-btn-action"
-                              onClick={() => onEditTransaction?.(tx)}
-                              title="Edit transaction"
-                              aria-label="Edit transaction"
-                            >
-                              <EditIcon size={13} />
-                            </button>
-                          )}
-                          {isPassThrough && onRelogHeldLent && (
-                            <button
-                              type="button"
-                              className="apple-tx-btn-action tx-btn-action"
-                              onClick={() => {
-                                setRelogError('');
-                                setRelogTx(tx);
-                              }}
-                              title="Change (delete and log again)"
-                              aria-label="Change held or lent entry"
-                            >
-                              <EditIcon size={13} />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="apple-tx-btn-action delete tx-btn-action"
-                            onClick={() => onDeleteTransaction?.(tx.id || tx._id)}
-                            title={isTransfer ? "Delete transfer" : "Delete transaction"}
-                            aria-label="Delete transaction"
-                          >
-                            <TrashIcon size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          ) : renderList(displayedSuccessful, (tx) => tx.date, renderPaidRow, false)}
         </div>
       ) : (
         <div id="panel-planned" role="tabpanel" aria-labelledby="tab-planned">
           {displayedPlanned.length === 0 ? (
             <div className="apple-tx-empty-state tx-empty-state">
-              <div className="apple-tx-empty-icon">
-                <SendIcon size={24} />
-              </div>
-              <div className="apple-tx-empty-title tx-empty-text">ALL COMMITMENTS SETTLED</div>
-              <p className="apple-tx-empty-sub" style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-                No planned commitments found for this filter.
-              </p>
+              <div className="apple-tx-empty-title tx-empty-text">All settled</div>
+              <p className="apple-tx-empty-sub">No planned payments match this filter.</p>
             </div>
-          ) : (
-            <div className="apple-tx-group tx-cards-container">
-              {displayedPlanned.map((tx) => {
-                const account = allAccounts.find((a) => (a.id || a._id) === tx.accountId);
-                const isOverdue = tx.derivedStatus === 'overdue';
-                const isDue = tx.derivedStatus === 'due';
-                const plannedAmt = tx.plannedAmount !== undefined && tx.plannedAmount !== null ? tx.plannedAmount : Math.abs(tx.amount || 0);
-
-                let glyphClass = 'upcoming';
-                let glyphIcon = <CalendarIcon size={16} />;
-                if (isOverdue) {
-                  glyphClass = 'overdue';
-                  glyphIcon = <AlertTriangleIcon size={16} />;
-                } else if (isDue) {
-                  glyphClass = 'due';
-                  glyphIcon = <CalendarIcon size={16} />;
-                } else if (tx.origin === 'goal') {
-                  glyphClass = 'goal';
-                  glyphIcon = <TargetIcon size={16} />;
-                } else if (account?.accountType === 'wallet') {
-                  glyphClass = 'wallet';
-                  glyphIcon = <WalletIcon size={16} />;
-                }
-
-                return (
-                  <div
-                    key={tx.id || tx._id}
-                    className={`apple-tx-row tx-card planned ${isOverdue ? 'overdue' : (isDue ? 'due' : '')}`}
-                  >
-                    {/* Left Glyph Badge */}
-                    <div className={`apple-tx-icon-box ${glyphClass}`}>
-                      {glyphIcon}
-                    </div>
-
-                    {/* Left Zone: Description + Bank Account Underneath */}
-                    <div className="tx-card-left">
-                      <div className="tx-card-headline">
-                        <span className="tx-card-title">{tx.name || tx.category}</span>
-                        {isOverdue && (
-                          <span className="apple-tx-tag tag-overdue tx-tag">
-                            <AlertTriangleIcon size={10} />
-                            <span>Overdue</span>
-                          </span>
-                        )}
-                        {isDue && (
-                          <span className="apple-tx-tag tag-due tx-tag">
-                            <CalendarIcon size={10} />
-                            <span>Due</span>
-                          </span>
-                        )}
-                        {!isOverdue && !isDue && (
-                          <span className="apple-tx-tag tag-upcoming tx-tag">
-                            Upcoming
-                          </span>
-                        )}
-                        {tx.origin === 'goal' && (
-                          <span className="apple-tx-tag tag-goal tx-tag">
-                            <TargetIcon size={10} />
-                            <span>Goal</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="tx-card-account">
-                        {account ? (
-                          <span className="tx-account-name">
-                            {account.accountType === 'credit_card' ? <CreditCardIcon size={11} /> : (account.accountType === 'wallet' ? <WalletIcon size={11} /> : <BuildingLibraryIcon size={11} />)}
-                            <span>{account.name}</span>
-                          </span>
-                        ) : (
-                          <span className="tx-account-name muted">Default Account</span>
-                        )}
-                        <span className="tx-meta-dot">•</span>
-                        <span className="tx-date-inline tabular-nums">{formatDisplayDate(tx.plannedDate || tx.date, true)}</span>
-                      </div>
-                    </div>
-
-                    {/* Center Zone: Planned Date */}
-                    <div className="tx-card-center">
-                      <span className={`tx-date-badge tabular-nums ${isOverdue ? 'date-overdue' : (isDue ? 'date-due' : '')}`}>
-                        {formatDisplayDate(tx.plannedDate || tx.date, true)}
-                      </span>
-                    </div>
-
-                    {/* Right Zone: Planned Amount on Top Right, Actions Directly Below */}
-                    <div className="tx-card-right">
-                      <span className="tx-amount-display tabular-nums">
-                        {tx.origin === 'salary' && plannedAmt === 0 ? '—' : formatCurrency(plannedAmt, currencySymbol)}
-                      </span>
-
-                      {!isReviewMode && (
-                        <div className="tx-card-actions">
-                          <button
-                            type="button"
-                            className="apple-tx-btn-settle tx-btn-settle"
-                            onClick={() => openPayPrompt(tx)}
-                            title={tx.isIncome ? "Confirm salary deposit" : "Mark as paid (confirm actual amount and date)"}
-                            aria-label="Mark Paid"
-                          >
-                            <CheckCircleIcon size={12} />
-                            <span>Mark as Paid</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            className="apple-tx-btn-action delete tx-btn-action"
-                            onClick={() => handlePromptCancel(tx)}
-                            title="Cancel planned transaction"
-                            aria-label="Cancel commitment"
-                          >
-                            <TrashIcon size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          ) : renderList(displayedPlanned, (tx) => tx.plannedDate || tx.date, renderPlannedRow, true)}
         </div>
       )}
 

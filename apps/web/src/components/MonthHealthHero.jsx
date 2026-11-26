@@ -1,111 +1,76 @@
 import React from 'react';
-import { formatCurrency, formatCurrencyWhole, formatDisplayDate, getMonthVerdict } from '@budget/engine';
-import { CheckCircleIcon, AlertTriangleIcon, ShieldAlertIcon } from './Icons.jsx';
-import { CashAllocationBar } from './CashAllocationBar.jsx';
+import { formatCurrencyWhole, getMonthVerdict } from '@budget/engine';
 
 // Re-exported for existing imports; the verdict now lives in the engine.
 export { getMonthVerdict };
 
-const VERDICT_ICON = {
-  good: CheckCircleIcon,
-  tight: AlertTriangleIcon,
-  critical: ShieldAlertIcon
-};
+/** Past days drawn in the accent colour, planned days muted; a dot marks today. */
+export function Sparkline({ dailyBalances = [], currentDay = null }) {
+  const values = dailyBalances.map((d) => Number(d.balance) || 0);
+  if (values.length < 2) return null;
+  const W = 300, H = 48, P = 3;
+  const min = Math.min(...values), max = Math.max(...values);
+  const x = (i) => P + (i / (values.length - 1)) * (W - 2 * P);
+  const y = (v) => P + (1 - (v - min) / (max - min || 1)) * (H - 2 * P);
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const today = currentDay ? Math.min(Math.max(currentDay, 1), values.length) - 1 : values.length - 1;
+  return (
+    <svg className="mh-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={pts.join(' ')} className="mh-spark-plan" />
+      <polyline points={pts.slice(0, today + 1).join(' ')} className="mh-spark-past" />
+      <circle cx={x(today)} cy={y(values[today])} r="3.5" className="mh-spark-dot" />
+    </svg>
+  );
+}
 
+/**
+ * The top of the Plan page: one number (safe to spend today), one caption line and a sparkline.
+ * Tapping it opens the details (chart, tiles, timeline). Explanations live one tap deeper.
+ */
 export function MonthHealthHero({
   safeVelocity = null,
   safeToSpendPerDay = 0,
   daysLeft = 1,
-  todayBalance = 0,
-  endingBalance = 0,
   lowestBalance = 0,
-  lowestDate = '',
   safetyFloor = 0,
   verdict: verdictProp = null,
-  currencySymbol = '₹'
+  currencySymbol = '₹',
+  dailyBalances = [],
+  currentDay = null,
+  detailsOpen = false,
+  onToggleDetails = null
 }) {
   const rate = safeVelocity?.safeVelocityPerDay ?? safeVelocity?.rate ?? safeToSpendPerDay ?? 0;
   const remainingDays = safeVelocity?.daysLeft || daysLeft || 1;
-  const committed = safeVelocity?.committedUpcomingItems ?? safeVelocity?.committedBills ?? 0;
-  const burn = safeVelocity?.burnRatePerDay ?? safeVelocity?.burnRate ?? 0;
   const paceStatus = safeVelocity?.paceStatus || safeVelocity?.status || '';
-  const goalReserve = safeVelocity?.goalReserve ?? 0;
-  const heldReserve = safeVelocity?.heldReserve ?? 0;
-  const cardReserve = safeVelocity?.cardReserve ?? 0;
-
   const verdict = verdictProp || getMonthVerdict({ lowestBalance, safetyFloor, paceStatus, safeRate: rate });
-  const VerdictIcon = VERDICT_ICON[verdict.key];
-  const lowDateLabel = lowestDate ? formatDisplayDate(lowestDate, true) : null;
-  const gap = Math.abs(verdict.headroom.amount);
+  const amount = formatCurrencyWhole(Math.floor(Math.max(0, rate) / 100) * 100, currencySymbol);
 
-  let verdictLine;
-  if (verdict.key === 'critical') {
-    verdictLine = (
-      <>
-        Balance drops to <strong className="tabular-nums">{formatCurrency(lowestBalance, currencySymbol)}</strong>
-        {lowDateLabel ? <> on {lowDateLabel}</> : null}, {' '}
-        <strong className="tabular-nums">{formatCurrency(gap, currencySymbol)}</strong> under your safety floor.
-      </>
-    );
-  } else if (endingBalance === lowestBalance) {
-    verdictLine = (
-      <>
-        Ends the month at its lowest point, <strong className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</strong>,{' '}
-        {formatCurrency(gap, currencySymbol)} above floor.
-      </>
-    );
-  } else {
-    verdictLine = (
-      <>
-        Month-end <strong className="tabular-nums">{formatCurrency(endingBalance, currencySymbol)}</strong>
-        {' · '}lowest point <strong className="tabular-nums">{formatCurrency(lowestBalance, currencySymbol)}</strong>
-        {lowDateLabel ? <> on {lowDateLabel}</> : null}, {' '}
-        {formatCurrency(gap, currencySymbol)} above floor.
-      </>
-    );
-  }
+  const body = (
+    <>
+      <span className="mh-value tabular-nums">{amount}</span>
+      <span className="mh-caption">
+        <span className={`mh-dot verdict-${verdict.key}`} aria-hidden="true" />
+        safe to spend today · {remainingDays} {remainingDays === 1 ? 'day' : 'days'} left
+      </span>
+      <Sparkline dailyBalances={dailyBalances} currentDay={currentDay} />
+    </>
+  );
 
   return (
     <section className={`summary-card month-health-hero verdict-${verdict.key}`} aria-label="Month health">
-      <div className="mh-top">
-        <span className={`mh-verdict verdict-${verdict.key}`}>
-          <VerdictIcon size={13} />
-          <span>{verdict.label}</span>
-        </span>
-        <span className="days-remaining-pill">{remainingDays} days left</span>
-      </div>
-
-      <div className="mh-figure">
-        <span className="mh-label">Safe to spend</span>
-        <div className="mh-value-row">
-          <span className="mh-value">{formatCurrencyWhole(Math.floor(Math.max(0, rate) / 100) * 100, currencySymbol)}</span>
-          <span className="mh-unit">/ day</span>
-        </div>
-        <p className="mh-explain">
-          After {formatCurrency(committed, currencySymbol)} of upcoming bills, your{' '}
-          {formatCurrency(safetyFloor, currencySymbol)} safety floor
-          {goalReserve > 0 && <> and {formatCurrency(goalReserve, currencySymbol)} set aside for goals this month</>}
-          {heldReserve > 0 && <>, keeping aside {formatCurrency(heldReserve, currencySymbol)} you hold for others</>}
-          {cardReserve > 0 && <>, setting aside {formatCurrency(cardReserve, currencySymbol)} owed on cards</>}
-          , spread over {remainingDays} days.
-          {burn > 0 && (
-            <> You have averaged <span className="tabular-nums">{formatCurrency(burn, currencySymbol)}</span>/day so far.</>
-          )}
-        </p>
-      </div>
-
-      <p className={`mh-verdict-line verdict-${verdict.key}`}>{verdictLine}</p>
-
-      <CashAllocationBar
-        todayBalance={todayBalance}
-        committedUpcomingItems={committed}
-        safetyFloor={safetyFloor}
-        goalReserve={goalReserve}
-        heldReserve={heldReserve}
-        cardReserve={cardReserve}
-        freeSurplus={safeVelocity?.freeSurplus}
-        currencySymbol={currencySymbol}
-      />
+      {onToggleDetails ? (
+        <button
+          type="button"
+          className="mh-hit"
+          onClick={onToggleDetails}
+          aria-expanded={detailsOpen}
+          aria-controls="plan-details"
+          aria-label={`${amount} safe to spend today, ${verdict.label}, ${remainingDays} days left. ${detailsOpen ? 'Hide' : 'Show'} details`}
+        >
+          {body}
+        </button>
+      ) : <div className="mh-hit">{body}</div>}
     </section>
   );
 }

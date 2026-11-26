@@ -6,11 +6,16 @@ import '../models/account.dart';
 import '../widgets/summary_cards.dart';
 import '../widgets/step_line_chart.dart';
 import '../widgets/timeline_list.dart';
-import '../widgets/load_error_banner.dart';
 import '../modals/month_review_modal.dart';
-import '../modals/unified_entry_modal.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import '../widgets/tab_states.dart';
+import '../engine/plan_insights.dart';
+import '../services/outbox.dart' show WriteResult;
+import '../modals/transaction_detail_modal.dart' show canEditTransaction, openEditTransaction;
+import '../widgets/plan_glance.dart';
+import '../widgets/web_icons.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -22,6 +27,26 @@ class PlanScreen extends StatefulWidget {
 class _PlanScreenState extends State<PlanScreen> {
   int? _selectedDay;
   String _selectedAccountId = 'all';
+  // shortcut: not remembered across launches (web keeps it in localStorage); persist if users ask.
+  bool _detailsOpen = false;
+
+  void _toggleDetails() => setState(() => _detailsOpen = !_detailsOpen);
+
+  Future<void> _payUpcoming(BuildContext context, BudgetProvider budget, TimelineEvent e, String today, String? scopeAccountId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final id = e.transactionId ?? e.id;
+    final name = e.name.isEmpty ? 'Payment' : e.name;
+    try {
+      final result = await budget.payTransaction(id, accountId: e.accountId ?? scopeAccountId, amount: -e.amount, date: today);
+      messenger.showSnackBar(SnackBar(
+        content: Text(result == WriteResult.queued
+            ? 'No connection. The payment is saved on this phone and will sync.'
+            : 'Marked “$name” paid'),
+      ));
+    } catch (err) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn’t mark “$name” paid: $err')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,18 +58,9 @@ class _PlanScreenState extends State<PlanScreen> {
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    if (budget.isLoading && budget.simulation == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // A failed load is never shown as "no month": that is only for a real 404.
-    if (budget.monthInfo == null && budget.loadError != null && !budget.monthMissing) {
-      return LoadErrorView(error: budget.loadError!);
-    }
-
     final month = budget.monthInfo;
     if (month == null) {
-      return Center(
+      return ScrollableEmpty(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -55,8 +71,10 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: AppTypography.cardTitle(color: text),
               ),
               const SizedBox(height: 8),
+              // Months are never created by hand (same as web): they start from
+              // the income setup, and the next one from "Rollover Month".
               Text(
-                'Create or select a budget month to view your cashflow plan.',
+                'Months start on their own from your income setup. Pick another month from the menu above.',
                 textAlign: TextAlign.center,
                 style: AppTypography.inter(fontSize: 13, color: textMuted),
               ),
@@ -91,12 +109,23 @@ class _PlanScreenState extends State<PlanScreen> {
     }
     salaryCreditDay ??= month.incomeCreditDay;
 
+    final sv = activeSimulation.safeVelocity;
+    final verdict = getMonthVerdict(
+      lowestBalance: upcomingLow(activeSimulation, currentDay),
+      safetyFloor: activeSafetyFloor,
+      paceStatus: sv.status,
+      safeRate: sv.safeDailyAmount,
+    );
+    String iso(int y, int m, int d) => '$y-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+    final realToday = iso(now.year, now.month, now.day);
+    // "Today" for Due soon: the real date this month, day 1 when planning ahead, none for past months.
+    final isFutureMonth = monthYear > now.year || (monthYear == now.year && monthNum > now.month);
+    final upcomingToday = isCurrentMonth ? realToday : (isFutureMonth ? iso(monthYear, monthNum, 1) : null);
+
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => budget.refresh(),
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+          padding: EdgeInsets.fromLTRB(10, 2, 10, MediaQuery.paddingOf(context).bottom + 16), // clears the dock
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -119,13 +148,93 @@ class _PlanScreenState extends State<PlanScreen> {
                 const SizedBox(height: 12),
               ],
 
-              // 3. Safe Velocity Hero Card
-              SafeVelocityCard(
-                safeVelocity: activeSimulation.safeVelocity,
+              // 3. At a glance (web's .plan-glance): one number, where today's
+              // money is promised, and what's due. The rest is behind Details.
+              MonthHealthHero(
+                rate: activeSimulation.safeVelocity.safeDailyAmount,
+                daysLeft: activeSimulation.safeVelocity.remainingDays,
+                verdict: verdict,
+                balances: [for (final d in activeSimulation.days) d.closingBalance],
+                currentDay: currentDay,
+                currencySymbol: currencySymbol,
+                detailsOpen: _detailsOpen,
+                onToggleDetails: _toggleDetails,
+              ),
+              const SizedBox(height: 12),
+              CashAllocationBar(
+                todayBalance: activeSimulation.todaysBalance,
+                allocation: buildCashAllocation(
+                  todayBalance: activeSimulation.todaysBalance,
+                  committedUpcomingItems: sv.committedUpcomingItems,
+                  safetyFloor: activeSafetyFloor,
+                  goalReserve: sv.goalReserve,
+                  heldReserve: sv.heldReserve,
+                  cardReserve: sv.cardReserve,
+                  freeSurplus: sv.freeSurplus,
+                ),
+                currencySymbol: currencySymbol,
+              ),
+              if (upcomingToday != null) ...[
+                const SizedBox(height: 12),
+                DueSoonCard(
+                  events: activeSimulation.allEvents,
+                  today: upcomingToday,
+                  currencySymbol: currencySymbol,
+                  onPay: (e) => _payUpcoming(context, budget, e, realToday, selectedAccount?.id),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Semantics(
+                  button: true,
+                  expanded: _detailsOpen,
+                  excludeSemantics: true,
+                  label: _detailsOpen ? 'Hide details' : 'Details',
+                  onTap: _toggleDetails,
+                  child: InkWell(
+                    key: const Key('plan-details-toggle'),
+                    onTap: _toggleDetails,
+                    borderRadius: BorderRadius.circular(8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(_detailsOpen ? 'Hide details' : 'Details',
+                              style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: textSecondary)),
+                          const SizedBox(width: 4),
+                          AnimatedRotation(
+                            turns: _detailsOpen ? 0.25 : 0,
+                            duration: const Duration(milliseconds: 150),
+                            child: Text('›',
+                                style: AppTypography.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textSecondary)),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_detailsOpen) ...[
+              const SizedBox(height: 10),
+              DetailedKpiGrid(
+                incomeAmount: activeSimulation.totalIncome,
+                incomeCreditDay: month.incomeCreditDay,
+                isSalaryCredited: month.isSalaryCredited,
+                salaryCreditedDate: salaryCreditedDate,
+                totalExpenses: activeSimulation.totalPlannedExpenses + activeSimulation.totalActualExpenses,
+                expenseOccurrencesCount: activeSimulation.allEvents.where((e) => e.amount < 0).length,
+                todayBalance: activeSimulation.todaysBalance,
+                endingBalance: activeSimulation.closingBalance,
+                lowestBalance: activeSimulation.lowestBalance,
+                lowestDate: activeSimulation.days.isNotEmpty
+                    ? activeSimulation.days.firstWhere((d) => d.day == activeSimulation.lowestBalanceDay, orElse: () => activeSimulation.days.first).date
+                    : '',
+                safetyFloor: activeSafetyFloor,
                 currencySymbol: currencySymbol,
               ),
               const SizedBox(height: 12),
-
               // 4. Cashflow Trajectory Chart (Curved Spline). Own layer, so
               // scrolling the page doesn't repaint it (upgrade plan 2.9).
               RepaintBoundary(
@@ -149,25 +258,7 @@ class _PlanScreenState extends State<PlanScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // 5. Detailed KPI Grid (2x2 Bento)
-              DetailedKpiGrid(
-                incomeAmount: activeSimulation.totalIncome,
-                incomeCreditDay: month.incomeCreditDay,
-                isSalaryCredited: month.isSalaryCredited,
-                salaryCreditedDate: salaryCreditedDate,
-                totalExpenses: activeSimulation.totalPlannedExpenses + activeSimulation.totalActualExpenses,
-                expenseOccurrencesCount: activeSimulation.allEvents.where((e) => e.amount < 0).length,
-                todayBalance: activeSimulation.todaysBalance,
-                endingBalance: activeSimulation.closingBalance,
-                lowestBalance: activeSimulation.lowestBalance,
-                lowestDate: activeSimulation.days.isNotEmpty
-                    ? activeSimulation.days.firstWhere((d) => d.day == activeSimulation.lowestBalanceDay, orElse: () => activeSimulation.days.first).date
-                    : '',
-                safetyFloor: activeSafetyFloor,
-                currencySymbol: currencySymbol,
-              ),
+              ],
               const SizedBox(height: 12),
 
               // 6. Interactive Timeline Card
@@ -178,26 +269,22 @@ class _PlanScreenState extends State<PlanScreen> {
                 currentDay: currentDay,
                 onSelectDay: (day) => setState(() => _selectedDay = day),
                 currencySymbol: currencySymbol,
+                accountNames: {for (final a in [...budget.bankAccountModels, ...budget.walletModels]) a.id: a.name},
+                accountName: isFilteringAccount ? selectedAccount!.name : null,
+                accountIsWallet: selectedAccount?.kind == AccountKind.wallet,
+                onPay: (e) => _payUpcoming(context, budget, e, realToday, selectedAccount?.id),
+                onEdit: (e) {
+                  for (final t in budget.transactionModels) {
+                    if (t.id == e.transactionId && canEditTransaction(t)) {
+                      openEditTransaction(context, t);
+                      return;
+                    }
+                  }
+                },
               ),
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: isDark ? Colors.white : Colors.black,
-        foregroundColor: isDark ? Colors.black : Colors.white,
-        elevation: 2,
-        icon: const Icon(Icons.add, size: 18),
-        label: Text('New Entry', style: AppTypography.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const UnifiedEntryModal(),
-          );
-        },
-      ),
     );
   }
 
@@ -209,158 +296,108 @@ class _PlanScreenState extends State<PlanScreen> {
     Color textSecondary,
     String currencySymbol,
   ) {
-    final bankAccounts = budget.bankAccountModels;
-    final wallets = budget.walletModels;
-    final hasAccounts = bankAccounts.isNotEmpty || wallets.isNotEmpty;
+    final accounts = [
+      for (final b in budget.bankAccountModels) (b, WebIcons.buildingLibrary, 'Bank'),
+      for (final w in budget.walletModels) (w, WebIcons.wallet, 'Wallet'),
+    ];
+    if (accounts.isEmpty) return const SizedBox.shrink();
 
-    if (!hasAccounts) return const SizedBox.shrink();
+    // web's liveBalance(): this month, the account's own balance; other months,
+    // the simulation's. Never the opening balance in place of today's.
+    final now = DateTime.now();
+    final month = budget.monthInfo;
+    final isThisMonth = month == null || (month.year == now.year && month.month == now.month);
+    int? todayOf(Account a) => isThisMonth && a.currentBalance != null
+        ? a.currentBalance
+        : budget.accountSimulations[a.id]?.todaysBalance ?? budget.simulation?.accountBalances[a.id] ?? a.currentBalance;
+    // web's "All" pill is the sum of the account pills.
+    final all = accounts.fold<int>(0, (sum, x) => sum + (todayOf(x.$1) ?? 0));
 
-    final int unifiedTodayBal = budget.simulation?.todaysBalance ?? 0;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
         children: [
-          // All Accounts (Unified)
-          _buildFilterPill(
-            id: 'all',
-            label: 'All Accounts',
-            amount: unifiedTodayBal,
-            isSelected: _selectedAccountId == 'all',
-            isDark: isDark,
-            border: border,
-            text: text,
-            textSecondary: textSecondary,
-            currencySymbol: currencySymbol,
-          ),
-          const SizedBox(width: 6),
-
-          // Bank Accounts
-          for (final b in bankAccounts) ...[
+          _buildFilterPill(id: 'all', label: 'All', amount: all, currencySymbol: currencySymbol),
+          for (final (a, icon, fallback) in accounts) ...[
+            const SizedBox(width: 6),
             Builder(builder: (_) {
-              final accId = b.id;
-              // Never the opening balance in place of today's: unknown shows no amount.
-              final int? todayBal = budget.accountSimulations[accId]?.todaysBalance ??
-                  budget.simulation?.accountBalances[accId] ??
-                  b.currentBalance;
-              final isBreached = todayBal != null && todayBal < b.minimumBalance;
-
+              final bal = todayOf(a);
               return _buildFilterPill(
-                id: accId,
-                label: b.name.isEmpty ? 'Bank' : b.name,
-                amount: todayBal,
-                icon: Icons.account_balance,
-                hasBreach: isBreached,
-                isSelected: _selectedAccountId == accId,
-                isDark: isDark,
-                border: border,
-                text: text,
-                textSecondary: textSecondary,
+                id: a.id,
+                label: a.name.isEmpty ? fallback : a.name,
+                amount: bal,
+                icon: icon,
+                hasBreach: bal != null && bal < a.minimumBalance,
+                headroom: a.minimumBalance > 0 && bal != null ? getHeadroom(bal, a.minimumBalance) : null,
                 currencySymbol: currencySymbol,
               );
             }),
-            const SizedBox(width: 6),
-          ],
-
-          // Wallets
-          for (final w in wallets) ...[
-            Builder(builder: (_) {
-              final accId = w.id;
-              // Never the opening balance in place of today's: unknown shows no amount.
-              final int? todayBal = budget.accountSimulations[accId]?.todaysBalance ??
-                  budget.simulation?.accountBalances[accId] ??
-                  w.currentBalance;
-              final isBreached = todayBal != null && todayBal < w.minimumBalance;
-
-              return _buildFilterPill(
-                id: accId,
-                label: w.name.isEmpty ? 'Wallet' : w.name,
-                amount: todayBal,
-                icon: Icons.account_balance_wallet_outlined,
-                hasBreach: isBreached,
-                isSelected: _selectedAccountId == accId,
-                isDark: isDark,
-                border: border,
-                text: text,
-                textSecondary: textSecondary,
-                currencySymbol: currencySymbol,
-              );
-            }),
-            const SizedBox(width: 6),
           ],
         ],
       ),
     );
   }
 
+  /// web's `.account-filter-pill`: surface pill, the selected one inverted
+  /// (text colour background), with a 2 px headroom bar along the bottom.
   Widget _buildFilterPill({
     required String id,
     required String label,
     int? amount,
-    IconData? icon,
+    WebIconData? icon,
     bool hasBreach = false,
-    required bool isSelected,
-    required bool isDark,
-    required Color border,
-    required Color text,
-    required Color textSecondary,
-    String currencySymbol = '₹',
+    Headroom? headroom,
+    String currencySymbol = kDefaultCurrencySymbol,
   }) {
-    final activeBg = isDark ? Colors.white : Colors.black;
-    final activeText = isDark ? Colors.black : Colors.white;
-    final inactiveBg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-
-    return InkWell(
-      onTap: () => setState(() {
-        _selectedAccountId = id;
-        _selectedDay = null; // reset day filter when switching account
-      }),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isSelected ? activeBg : inactiveBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? activeBg : (hasBreach ? AppColors.red.withAlpha(120) : border),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: isSelected ? activeText : textSecondary),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              label,
-              style: AppTypography.inter(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? activeText : text,
-              ),
+    final p = context.palette;
+    final isSelected = _selectedAccountId == id;
+    final fg = isSelected ? p.bg : p.textSecondary;
+    final headroomColour = switch (headroom?.status) { 'breached' => p.bad, 'warning' => p.warn, _ => p.good };
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      child: Material(
+        color: isSelected ? p.text : p.surface,
+        shape: StadiumBorder(side: BorderSide(color: isSelected ? p.text : (hasBreach ? p.bad : p.border))),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => setState(() {
+            _selectedAccountId = id;
+            _selectedDay = null; // reset day filter when switching account
+          }),
+          child: Stack(children: [
+            Container(
+              constraints: const BoxConstraints(minHeight: 34),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (icon != null) ...[WebIcon(icon, size: 12, color: fg), const SizedBox(width: 6)],
+                Text(label,
+                    style: AppTypography.inter(
+                        fontSize: 12, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500, color: fg)),
+                if (amount != null) ...[
+                  const SizedBox(width: 6),
+                  Opacity(
+                    opacity: isSelected ? 1 : 0.8,
+                    child: Text(formatCurrencyWhole(amount, symbol: currencySymbol),
+                        style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+                  ),
+                ],
+                if (hasBreach) ...[const SizedBox(width: 6), WebIcon(WebIcons.alertTriangle, size: 10, color: p.bad)],
+              ]),
             ),
-            if (amount != null) ...[
-              const SizedBox(width: 5),
-              Text(
-                '• ${formatCurrency(amount, symbol: currencySymbol)}',
-                style: AppTypography.mono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? activeText : (hasBreach ? AppColors.red : (isDark ? Colors.white.withAlpha(220) : Colors.black.withAlpha(200))),
+            if (headroom != null)
+              Positioned(
+                left: 0,
+                bottom: 0,
+                right: 0,
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: headroom.ratio < 0.06 ? 0.06 : headroom.ratio,
+                  child: Container(height: 2, color: headroomColour),
                 ),
               ),
-            ],
-            if (hasBreach) ...[
-              const SizedBox(width: 3),
-              Icon(
-                Icons.warning_amber_rounded,
-                size: 9,
-                color: isSelected ? activeText : AppColors.red,
-              ),
-            ],
-          ],
+          ]),
         ),
       ),
     );
@@ -389,8 +426,8 @@ class _PlanScreenState extends State<PlanScreen> {
           Expanded(
             child: Row(
               children: [
-                Icon(
-                  account.kind == AccountKind.wallet ? Icons.account_balance_wallet_outlined : Icons.account_balance,
+                WebIcon(
+                  account.kind == AccountKind.wallet ? WebIcons.wallet : WebIcons.buildingLibrary,
                   size: 13,
                   color: textSecondary,
                 ),
@@ -402,19 +439,10 @@ class _PlanScreenState extends State<PlanScreen> {
                     text: TextSpan(
                       style: AppTypography.inter(fontSize: 11, color: textSecondary),
                       children: [
-                        const TextSpan(text: 'Viewing isolated trajectory for '),
+                        const TextSpan(text: 'Showing only '),
                         TextSpan(
-                          text: '${account.name} ',
+                          text: account.name,
                           style: AppTypography.inter(fontSize: 11, fontWeight: FontWeight.w700, color: text),
-                        ),
-                        if (safetyFloor > 0)
-                          TextSpan(
-                            text: '• Min: ${formatCurrency(safetyFloor, symbol: currencySymbol)} ',
-                            style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
-                          ),
-                        TextSpan(
-                          text: '• End: ${formatCurrency(endingBalance, symbol: currencySymbol)}',
-                          style: AppTypography.mono(fontSize: 10.5, color: textSecondary),
                         ),
                       ],
                     ),

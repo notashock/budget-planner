@@ -162,6 +162,7 @@ class AccountSelector extends StatelessWidget {
           )
         else
           DropdownButtonFormField<String>(
+            borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
             key: ValueKey('$accountType-$validAccountId'),
             initialValue: validAccountId,
             decoration: InputDecoration(

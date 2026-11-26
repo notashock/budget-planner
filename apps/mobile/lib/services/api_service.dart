@@ -473,6 +473,12 @@ class ApiService {
     await _request('DELETE', '$_v1/accounts/$id');
   }
 
+  /// The month summary; its netWorth is { total, cash, lent, cardsOwed, held } (web getMonthSummary).
+  Future<Map<String, dynamic>> getMonthSummary(int year, int month) async {
+    final data = await _request('GET', '$_v1/periods/$year/$month/summary');
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   // Transfers
   Future<List<dynamic>> getTransfers([String? monthId]) async {
     final qs = monthId != null ? '?monthId=${Uri.encodeQueryComponent(monthId)}' : '';

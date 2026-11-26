@@ -428,6 +428,7 @@ class BudgetProvider with ChangeNotifier {
       _goals = goals;
       _evaluatedGoals = goals;
       _monthInfo = monthInfo;
+      moneySymbol = monthInfo?.currencySymbol ?? kDefaultCurrencySymbol;
     }
     _bankAccounts = banks;
     _wallets = wallets;
@@ -575,18 +576,6 @@ class BudgetProvider with ChangeNotifier {
   }
 
   // Month actions
-  Future<void> createMonth(int year, int month, {num opening = 0, num income = 0, num floor = 0, int creditDay = 1, bool carryoverBalance = false}) => _write(() async {
-      await _api.createMonth({
-        'year': year,
-        'month': month,
-        'openingBalance': opening,
-        'incomeAmount': income,
-        'safetyFloor': floor,
-        'incomeCreditDay': creditDay,
-        'carryoverBalance': carryoverBalance,
-      });
-  }, reload: loadInitialData);
-
   Future<void> rolloverMonth({bool carryBalance = true, bool rolloverUnpaid = false}) => _write(() async {
       await _api.rolloverMonth(_currentYear, _currentMonth, carryBalance: carryBalance, rolloverUnpaid: rolloverUnpaid);
   }, reload: loadInitialData);
@@ -698,6 +687,16 @@ class BudgetProvider with ChangeNotifier {
 
   // Held & Lent money: someone's money with you, or yours with them (never income or expense)
   Future<Map<String, dynamic>> getPersonFunds() => _api.getPersonFunds();
+
+  /// The server's net worth for the open month (bank + wallets + lent − cards − held), or null.
+  Future<Map<String, dynamic>?> getNetWorth() async {
+    try {
+      final nw = (await _api.getMonthSummary(_currentYear, _currentMonth))['netWorth'];
+      return nw is Map<String, dynamic> ? nw : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// GET /api/v1/person-funds, typed.
   Future<PersonFunds> getPersonFundsTyped() async => PersonFunds.fromJson(await getPersonFunds());

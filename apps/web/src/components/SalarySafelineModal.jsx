@@ -188,7 +188,7 @@ export function SalarySafelineModal({
           </div>
         )}
 
-        <form onSubmit={(e) => handleSubmit(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form autoComplete="off" onSubmit={(e) => handleSubmit(e, requestClose)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Salary Credited Bank Account */}
           <div>
             <label className="form-label" htmlFor="salary-credited-bank-select">
@@ -221,7 +221,7 @@ export function SalarySafelineModal({
             <label className="form-label" htmlFor="salary-amount-input">
               Monthly Salary Amount ({currencySymbol}) *
             </label>
-            <input
+            <input autoComplete="off"
               id="salary-amount-input"
               type="number"
               step="0.01"
@@ -239,7 +239,7 @@ export function SalarySafelineModal({
             <label className="form-label" htmlFor="safeline-floor-input">
               Safety floor ({currencySymbol}) *
             </label>
-            <input
+            <input autoComplete="off"
               id="safeline-floor-input"
               type="number"
               step="0.01"
@@ -256,7 +256,7 @@ export function SalarySafelineModal({
             <label className="form-label" htmlFor="salary-credit-date-input">
               Date of Salary Credit *
             </label>
-            <input
+            <input autoComplete="off"
               id="salary-credit-date-input"
               type="date"
               max={maxDate}
@@ -280,7 +280,7 @@ export function SalarySafelineModal({
 
           {/* Salary already credited checkbox */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'var(--surface-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            <input
+            <input autoComplete="off"
               id="salary-credited-checkbox"
               type="checkbox"
               checked={isSalaryCredited}

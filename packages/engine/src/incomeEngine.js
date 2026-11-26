@@ -153,6 +153,12 @@ export function calculateIrregularMetrics({
     }
   }
 
+  // For "now", the accounts' ledger balances are the truth: the caller usually passes only one
+  // month's transactions (or none), so replaying them over opening balances misses the rest.
+  if (!asOfDate && accounts.length > 0 && accounts.every((a) => a && typeof a.currentBalance === 'number')) {
+    currentBalance = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+  }
+
   // Average over the months of history actually present, not always 12.
   // Dividing a 3-month history by 12 made income and spending look 4x smaller
   // and the runway 4x longer. History starts at the later of the window start

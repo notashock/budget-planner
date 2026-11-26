@@ -109,14 +109,36 @@ void main() {
   });
 
   group('Accounts', () {
-    testWidgets('a transfer shows the real account names, not "Source → Destination"', (tester) async {
+    Future<void> openAccount(WidgetTester tester, String id) async {
+      await tester.tap(find.byKey(ValueKey('account-$id')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('web layout: total, then inset Bank accounts and Wallets sections', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const AccountsScreen());
 
-      expect(find.text('Main → UPI'), findsOneWidget);
-      expect(find.textContaining('Source'), findsNothing);
-      expect(find.textContaining('Day 19'), findsOneWidget);
+      expect(find.text('BANK & WALLETS'), findsOneWidget, reason: 'no server net worth in the fixture');
+      expect(find.text('BANK ACCOUNTS'), findsOneWidget);
+      expect(find.text('WALLETS'), findsOneWidget);
+      expect(find.text('Inter-Account Transfers (1)'), findsNothing, reason: 'web has no transfers list here');
+    });
+
+    testWidgets('the account page lists recent activity, in and out', (tester) async {
+      final fb = FixtureBudget();
+      final budget = (await tester.runAsync(fb.load))!;
+      await pump(tester, budget, const AccountsScreen());
+
+      await openAccount(tester, bankId);
+      expect(find.text('RECENT ACTIVITY'), findsOneWidget);
+      expect(find.text('Keep at least'), findsOneWidget);
+      expect(find.textContaining('−₹1,000.00'), findsOneWidget, reason: 'the transfer leaves Main');
+
+      await tester.tap(find.byKey(const ValueKey('account-back')));
+      await tester.pumpAndSettle();
+      await openAccount(tester, walletId);
+      expect(find.textContaining('+₹1,000.00'), findsOneWidget, reason: 'and arrives in UPI');
     });
 
     testWidgets('shows the saved last 4 digits (server field accountNumberMasked)', (tester) async {
@@ -125,7 +147,7 @@ void main() {
         () => fb.load(edit: (f) => (f['accounts_bank'] as List).first['accountNumberMasked'] = '4321'),
       ))!;
       await pump(tester, budget, const AccountsScreen());
-      expect(find.text('•••• 4321'), findsOneWidget);
+      expect(find.textContaining('•••• 4321'), findsOneWidget);
     });
 
     testWidgets('an unknown balance is shown as unavailable, never as the opening balance', (tester) async {
@@ -150,7 +172,10 @@ void main() {
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const AccountsScreen());
 
-      await tester.tap(find.byKey(ValueKey('delete-account-$bankId')));
+      await openAccount(tester, bankId);
+      await tester.tap(find.byKey(ValueKey('account-menu-$bankId')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Archive'));
       await tester.pumpAndSettle();
       expect(find.text('Archive Main?'), findsOneWidget);
       await tester.tap(find.text('Keep'));
@@ -161,9 +186,11 @@ void main() {
     testWidgets('adding a bank needs a name and sends the digits as accountNumberMasked', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
-      await pump(tester, budget, const AccountsScreen());
+      await pump(tester, budget, Scaffold(appBar: AppBar(actions: const [AccountsAddMenu()]), body: const AccountsScreen()));
 
-      await tester.tap(find.text('Add Bank'));
+      await tester.tap(find.byKey(const ValueKey('accounts-add-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bank account'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('add-account-submit')));
       await tester.pump();
@@ -182,6 +209,43 @@ void main() {
   });
 
   group('Plan', () {
+    testWidgets('Timeline like web: title, filter tabs with counts, day headers; Income shows only money in',
+        (tester) async {
+      final budget = (await tester.runAsync(FixtureBudget().load))!;
+      await pump(tester, budget, const PlanScreen(), wide: true);
+
+      expect(find.text('Timeline'), findsOneWidget);
+      for (final id in ['all', 'incomes', 'planned', 'actuals', 'breaches']) {
+        expect(find.byKey(Key('timeline-filter-$id')), findsOneWidget);
+      }
+      expect(find.textContaining(RegExp(r'^\d+ (entry|entries)$')), findsWidgets);
+      expect(find.textContaining(RegExp(r'^-.\d')), findsWidgets);
+
+      await tester.tap(find.byKey(const Key('timeline-filter-incomes')));
+      await tester.pump();
+      expect(find.textContaining(RegExp(r'^-.\d')), findsNothing, reason: 'no money-out rows under Income');
+      expect(find.textContaining(RegExp(r'^\+.\d')), findsWidgets);
+    });
+
+    testWidgets('web order: hero, cash split, Due soon, then Details hides the chart and tiles', (tester) async {
+      final fb = FixtureBudget();
+      final budget = (await tester.runAsync(fb.load))!;
+      await pump(tester, budget, const PlanScreen(), wide: true);
+
+      expect(find.textContaining('safe to spend today'), findsOneWidget);
+      expect(find.text("After today's bills"), findsOneWidget);
+      expect(find.text('Due soon'), findsOneWidget);
+      expect(find.text('CASHFLOW TRAJECTORY'), findsNothing);
+      final hero = tester.getRect(find.byKey(const Key('plan-hero')));
+      expect(hero.top, lessThan(tester.getRect(find.text("After today's bills")).top));
+      expect(tester.getRect(find.text("After today's bills")).top, lessThan(tester.getRect(find.text('Due soon')).top));
+
+      await tester.tap(find.byKey(const Key('plan-details-toggle')));
+      await tester.pump();
+      expect(find.text('CASHFLOW TRAJECTORY'), findsOneWidget);
+      expect(find.text('Hide details'), findsOneWidget);
+    });
+
     testWidgets("an account view uses that account's simulation and says so", (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
@@ -189,7 +253,7 @@ void main() {
 
       await tester.tap(find.text('Main').first);
       await tester.pump();
-      expect(find.textContaining('Viewing isolated trajectory for', findRichText: true), findsOneWidget);
+      expect(find.textContaining('Showing only', findRichText: true), findsOneWidget);
     });
 
     testWidgets("without that account's simulation, it does not label all-accounts numbers as one account",
@@ -202,7 +266,7 @@ void main() {
 
       await tester.tap(find.text('Main').first);
       await tester.pump();
-      expect(find.textContaining('Viewing isolated trajectory for', findRichText: true), findsNothing);
+      expect(find.textContaining('Showing only', findRichText: true), findsNothing);
     });
   });
 }

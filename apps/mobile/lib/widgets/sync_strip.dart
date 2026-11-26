@@ -7,6 +7,7 @@ import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
 import '../services/outbox.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import 'load_error_banner.dart' show formatLoadedAt;
 
@@ -71,7 +72,7 @@ class _SyncStripState extends State<SyncStrip> {
       liveRegion: true,
       button: true,
       child: Material(
-        color: refused > 0 ? AppColors.amberSubtle : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+        color: refused > 0 ? context.palette.warnSubtle : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         child: InkWell(
           key: const ValueKey('sync-strip'),
           onTap: () => showSyncSheet(context),
@@ -83,7 +84,7 @@ class _SyncStripState extends State<SyncStrip> {
                   const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
                 else
                   Icon(refused > 0 ? Icons.error_outline : Icons.cloud_upload_outlined,
-                      size: 16, color: refused > 0 ? AppColors.amber : textColor),
+                      size: 16, color: refused > 0 ? context.palette.warnInk : textColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(label,

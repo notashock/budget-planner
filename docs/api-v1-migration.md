@@ -54,6 +54,33 @@ envelope. `request()` in `api.js` unwraps it.
 | `/api/transfers` | `/api/v1/transfers` (`PUT` becomes `PATCH`; `DELETE` returns the transfer) |
 | (new, v1 only) | `/api/v1/cards` (list, get) and `POST /api/v1/cards/statements/:id/{confirm,pay}`; cards are created through `/api/v1/accounts` with `type: 'credit_card'`, see ADR 0070 |
 | (new, v1 only) | `/api/v1/person-funds` (list, create, get, `PATCH`, `DELETE`, `POST /:id/entries`) and `POST /api/v1/transactions/:id/reclassify`, see ADR 0069 |
+| (new, v1 only) | `GET /api/v1/periods/:y/:m/summary` and `GET /api/v1/periods/:y/:m/timeline?accountId=`, see below |
+
+## Plan page views: `summary` and `timeline`
+
+Both are cut from the month detail (`apps/server/src/domain/monthViews.js`), so their numbers always match it. They
+use canonical names only: no `_id`, `bankAccountId`, `dayOfMonth` or other aliases.
+
+`GET /api/v1/periods/:y/:m/summary` (about 1.5 KB):
+
+| Field | Meaning |
+| --- | --- |
+| `safeToSpendToday`, `daysLeft` | `simulation.safeToSpendPerDay`, `simulation.daysLeft` |
+| `verdict` | `{ key: good \| tight \| critical, label }`, from the engine's `getUnifiedVerdict` |
+| `afterTodaysBills` | `simulation.todayBalance`: all cash accounts after today's unpaid bills |
+| `lowest` | `{ balance, date }` of the upcoming low point |
+| `safetyFloor` | the month's floor |
+| `accounts[]` | `{ id, name, type, balance, minimumBalance }` for active banks and wallets. `balance` is the ledger balance in the current month and the simulated balance in other months |
+| `nextDue[]` | up to 3 planned transactions from today on: `{ id, name, amount, date, accountId, isIncome }` |
+| `netWorth` | `null` until roadmap phase 6 |
+
+`GET /api/v1/periods/:y/:m/timeline` returns `{ accountId, dailyBalances[{ day, date, balance }], events[], lowest,
+safetyFloor }` for all accounts. With `?accountId=` it returns that account's curve, only the events that touch it
+(each `balanceAfter` is that account's balance), its lowest point and its minimum balance. An account not in the
+month is a 404.
+
+The month detail stays as it is: the web and the installed mobile app still load it. It gets a `Deprecation` header
+only once both clients have moved off it.
 
 ## Client calls not on v1 yet
 

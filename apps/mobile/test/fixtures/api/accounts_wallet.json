@@ -1,7 +1,6 @@
 [
   {
     "id": "00000000-0000-4000-8000-000000000010",
-    "userId": "00000000-0000-4000-8000-000000000002",
     "name": "UPI",
     "type": "wallet",
     "subtype": "digital",
@@ -18,8 +17,6 @@
     "statementDay": null,
     "dueDay": null,
     "payFromAccountId": null,
-    "createdAt": "2026-01-01T00:00:00.000Z",
-    "updatedAt": "2026-01-01T00:00:00.000Z",
     "_id": "00000000-0000-4000-8000-000000000010",
     "accountType": "digital",
     "walletType": "digital",

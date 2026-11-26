@@ -134,16 +134,17 @@ button:disabled {
 }
 
 .btn-primary {
-  background: var(--text);
-  color: var(--bg);
-  border-color: var(--text);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  border-color: var(--brand);
   font-weight: 600;
 }
 
 .btn-primary:hover {
-  background: var(--text-secondary);
-  border-color: var(--text-secondary);
-  color: var(--bg);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-contrast);
+  filter: brightness(1.08);
 }
 
 .btn-danger {

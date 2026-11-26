@@ -7,6 +7,7 @@ import '../models/transaction.dart';
 import '../models/transfer.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../widgets/confirm_dialog.dart';
 import 'mark_paid_modal.dart';
@@ -30,7 +31,7 @@ class TransactionDetailModal extends StatelessWidget {
     this.transaction,
     this.transfer,
     this.timelineEvent,
-    this.currencySymbol = '₹',
+    this.currencySymbol = kDefaultCurrencySymbol,
   });
 
   static void show(
@@ -38,7 +39,7 @@ class TransactionDetailModal extends StatelessWidget {
     Transaction? transaction,
     Transfer? transfer,
     TimelineEvent? timelineEvent,
-    String currencySymbol = '₹',
+    String currencySymbol = kDefaultCurrencySymbol,
   }) {
     showModalBottomSheet(
       context: context,
@@ -101,9 +102,9 @@ class TransactionDetailModal extends StatelessWidget {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final accent = switch (v.flow) {
-      MoneyFlow.moved => AppColors.amber,
-      MoneyFlow.moneyIn => AppColors.green,
-      MoneyFlow.moneyOut => AppColors.red,
+      MoneyFlow.moved => context.palette.warnInk,
+      MoneyFlow.moneyIn => context.palette.goodInk,
+      MoneyFlow.moneyOut => context.palette.badInk,
     };
     final sign = switch (v.flow) {
       MoneyFlow.moved => '',
@@ -217,7 +218,7 @@ class TransactionDetailModal extends StatelessWidget {
               _buildDetailRow('Account', v.accountLabel, text, textSecondary),
               const SizedBox(height: 10),
             ],
-            _buildDetailRow('Status', v.statusLabel, v.isPlanned ? AppColors.amber : AppColors.green, textSecondary),
+            _buildDetailRow('Status', v.statusLabel, v.isPlanned ? context.palette.warnInk : context.palette.goodInk, textSecondary),
 
             if (runningBalance != null && runningBalance != 0) ...[
               const SizedBox(height: 10),
@@ -241,17 +242,7 @@ class TransactionDetailModal extends StatelessWidget {
                     final rootContext = navigator.context;
                     final t = v.editable!;
                     navigator.pop();
-                    showModalBottomSheet(
-                      context: rootContext,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => UnifiedEntryModal(
-                        initialType: t.isPlanned
-                            ? EntryType.item
-                            : (t.kind == TxKind.income ? EntryType.income : EntryType.transaction),
-                        initialTransaction: t,
-                      ),
-                    );
+                    openEditTransaction(rootContext, t);
                   },
                 ),
               ),
@@ -266,7 +257,7 @@ class TransactionDetailModal extends StatelessWidget {
                     child: ElevatedButton.icon(
                       key: const ValueKey('detail-mark-paid'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.green,
+                        backgroundColor: context.palette.goodInk,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -293,13 +284,13 @@ class TransactionDetailModal extends StatelessWidget {
                     child: ElevatedButton.icon(
                       key: const ValueKey('detail-remove'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.red.withAlpha(25),
-                        foregroundColor: AppColors.red,
+                        backgroundColor: context.palette.bad.withAlpha(25),
+                        foregroundColor: context.palette.badInk,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: AppColors.red.withAlpha(80), width: 1),
+                          side: BorderSide(color: context.palette.bad.withAlpha(80), width: 1),
                         ),
                       ),
                       icon: const Icon(Icons.delete_outline, size: 16),
@@ -418,7 +409,7 @@ class _DetailView {
         },
     };
     final cancelled = t.status == TxStatus.cancelled;
-    final canEdit = !cancelled && !t.isPassThrough && t.kind != TxKind.transfer;
+    final canEdit = canEditTransaction(t);
     return _DetailView(
       kindLabel: kindLabel,
       flow: t.flow,
@@ -462,3 +453,21 @@ class _DetailView {
         isPlanned: !e.isPaid,
       );
 }
+
+/// Transfers are deleted and logged again, held/lent rows are edited from the
+/// person, and a cancelled row is final: only the rest can be edited.
+bool canEditTransaction(Transaction t) =>
+    t.status != TxStatus.cancelled && !t.isPassThrough && t.kind != TxKind.transfer;
+
+/// The entry sheet, filled from [t] (detail sheet and swipe-to-edit).
+Future<void> openEditTransaction(BuildContext context, Transaction t) => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UnifiedEntryModal(
+        initialType: t.isPlanned
+            ? EntryType.item
+            : (t.kind == TxKind.income ? EntryType.income : EntryType.transaction),
+        initialTransaction: t,
+      ),
+    );

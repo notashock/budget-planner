@@ -164,6 +164,7 @@ export const api = {
   getMonths: () => request(`${V1}/periods`),
   createMonth: (data) => request(`${V1}/periods`, { method: 'POST', body: JSON.stringify(data) }),
   getMonthDetail: (year, month) => request(`${V1}/periods/${year}/${month}`),
+  getMonthSummary: (year, month) => request(`${V1}/periods/${year}/${month}/summary`, { bypassCache: true }),
   updateMonth: (year, month, updates) => request(`${V1}/periods/${year}/${month}`, { method: 'PATCH', body: JSON.stringify(updates) }),
   creditSalary: (year, month, data = {}) => request(`${V1}/periods/${year}/${month}/credit-salary`, { method: 'POST', body: JSON.stringify(data) }),
   rolloverMonth: (year, month, carryBalance = true, rolloverUnpaidOneTimeItems = false) => request(`${V1}/periods/${year}/${month}/rollover`, { method: 'POST', body: JSON.stringify({ carryBalance, rolloverUnpaidOneTimeItems }) }),
@@ -254,7 +255,7 @@ export const api = {
   getPersonFund: (id) => request(`${V1}/person-funds/${id}`),
   createPersonFund: (data) => request(`${V1}/person-funds`, { method: 'POST', body: JSON.stringify(data) }),
   updatePersonFund: (id, data) => request(`${V1}/person-funds/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deletePersonFund: (id) => request(`${V1}/person-funds/${id}`, { method: 'DELETE' }),
+  deletePersonFund: (id, { withEntries = false } = {}) => request(`${V1}/person-funds/${id}${withEntries ? '?withEntries=true' : ''}`, { method: 'DELETE' }),
   addPersonFundEntry: (id, data) => request(`${V1}/person-funds/${id}/entries`, { method: 'POST', body: JSON.stringify(data) }),
   reclassifyTransaction: (id, data) => request(`${V1}/transactions/${id}/reclassify`, { method: 'POST', body: JSON.stringify(data) }),
 

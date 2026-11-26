@@ -84,7 +84,7 @@ describe('Phase 5: duplicate salary guard', () => {
   it('warns in Income and points to the salary schedule', async () => {
     const onOpenSalarySchedule = vi.fn();
     renderEntry({ initialMode: 'income', onOpenSalarySchedule });
-    fireEvent.change(screen.getByPlaceholderText(/salary payout/), { target: { value: 'Salary for November' } });
+    fireEvent.change(screen.getByPlaceholderText(/Salary payout/i), { target: { value: 'Salary for November' } });
     const banner = screen.getByTestId('assist-salary');
     expect(banner).toHaveTextContent(/already in the plan/);
     fireEvent.click(within(banner).getByRole('button', { name: 'Update salary instead' }));
@@ -93,7 +93,7 @@ describe('Phase 5: duplicate salary guard', () => {
 
   it('"It\'s extra income" lets the entry go ahead', () => {
     renderEntry({ initialMode: 'income' });
-    fireEvent.change(screen.getByPlaceholderText(/salary payout/), { target: { value: 'Salary arrears' } });
+    fireEvent.change(screen.getByPlaceholderText(/Salary payout/i), { target: { value: 'Salary arrears' } });
     fireEvent.click(screen.getByRole('button', { name: "It's extra income" }));
     expect(screen.queryByTestId('assist-salary')).not.toBeInTheDocument();
   });
@@ -112,7 +112,7 @@ describe('Phase 5: someone else\'s money?', () => {
   it('"Track as held" opens Move > A person with the action and name filled in', async () => {
     renderEntry({ initialMode: 'income' });
     fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '2000' } });
-    fireEvent.change(screen.getByPlaceholderText(/salary payout/), { target: { value: 'Cash from Meera to keep' } });
+    fireEvent.change(screen.getByPlaceholderText(/Salary payout/i), { target: { value: 'Cash from Meera to keep' } });
     fireEvent.click(within(screen.getByTestId('assist-person')).getByRole('button', { name: 'Track as held' }));
     expect(await screen.findByTestId('held-lent-form')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Receive to hold' })).toHaveAttribute('aria-checked', 'true');
@@ -150,7 +150,7 @@ describe('Phase 5: change type', () => {
   it('the new tab opens with the carried values', () => {
     renderEntry({ initialMode: 'income', initialPreset: { carry: { amount: 300000, date: '2026-11-10', note: 'Refund', accountId: 'w1' }, replaces: { id: 't1' } } });
     expect(screen.getByPlaceholderText('0.00')).toHaveValue(3000);
-    expect(screen.getByPlaceholderText(/salary payout/)).toHaveValue('Refund');
+    expect(screen.getByPlaceholderText(/Salary payout/i)).toHaveValue('Refund');
     expect(document.body.querySelector('.app-select-trigger')).toHaveTextContent('Cash Wallet');
   });
 });
@@ -167,6 +167,7 @@ describe('Phase 5: card bill differences', () => {
     api.getCards.mockResolvedValue([draftCard]);
     api.confirmCardStatement.mockResolvedValue({});
     render(<CardsPanel bankAccounts={[bank]} wallets={[wallet]} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Visa/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     expect(await screen.findByTestId('bill-difference')).toHaveTextContent(/Matches what the app worked out/);
     fireEvent.change(screen.getByLabelText(/Bill amount/), { target: { value: '2041.20' } });

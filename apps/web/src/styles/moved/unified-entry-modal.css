@@ -571,18 +571,6 @@
   font-size: var(--fs-xs);
 }
 
-/* Unselected category pills still read as buttons */
-.category-pill-btn.btn-subtle {
-  border: 1px solid var(--border);
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.category-pill-btn.btn-primary {
-  font-weight: 600;
-}
-
 /* Footer: let the toggle and the buttons wrap as blocks on narrow sheets */
 .modal-footer-row {
   flex-wrap: wrap;
@@ -609,4 +597,256 @@
 
 .settle-intro {
   margin: 0 0 var(--space-1);
+}
+
+/* Narrow sheets: the primary action gets its own full-width row, Cancel and
+   "Save & add another" share the row under it, so nothing runs off the edge */
+@container (max-width: 440px) {
+  .modal-footer-row .entry-row-13 {
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+  }
+  .modal-footer-row .entry-row-13 > .btn-primary {
+    order: -1;
+    flex: 1 1 100%;
+  }
+  .modal-footer-row .entry-row-13 > .btn-subtle {
+    flex: 1 1 0;
+  }
+}
+
+/* Sheet top bar (Phase E): Cancel · title · Add, replacing the ✕ and the footer buttons */
+.sheet-topbar {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) minmax(72px, auto);
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sheet-topbar-title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-base, 15px);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-topbar-btn {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--fs-base, 15px);
+  color: var(--brand, var(--primary));
+  cursor: pointer;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.sheet-topbar-btn.is-primary {
+  justify-self: end;
+  font-weight: 700;
+}
+
+.sheet-topbar-btn.is-positive {
+  color: var(--success, var(--brand));
+}
+
+.sheet-topbar-btn:disabled {
+  color: var(--text-tertiary, var(--text-secondary));
+  cursor: default;
+}
+
+.sheet-topbar-btn:focus-visible {
+  outline: 2px solid var(--brand, var(--primary));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Footer now holds only the paid toggle and "Add & log another" */
+.modal-footer-row .entry-add-another {
+  margin-left: auto;
+}
+
+/* Grouped rows (Phase E §5.1): one inset list, label left and value right */
+.modal-amount-date-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.sheet-row {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 4px 14px;
+}
+
+.sheet-row + .sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-row-label {
+  font-size: var(--fs-sm, 14px);
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sheet-row-value {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.sheet-row-value > * {
+  max-width: 100%;
+}
+
+.sheet-row-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm, 14px);
+  color: var(--text);
+  text-align: right;
+}
+
+.sheet-row-input:focus {
+  outline: none;
+}
+
+.sheet-row:focus-within {
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+
+/* The account picker is wide: let it take the row and sit flush right */
+.sheet-row-stack .sheet-row-value .custom-select-container {
+  width: 100%;
+}
+
+.sheet-group .app-select-trigger,
+.sheet-group .datepicker-trigger.compact {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sheet-group .app-select-trigger {
+  justify-content: flex-end;
+}
+
+@container (max-width: 400px) {
+  .sheet-row-stack {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-top: 10px;
+  }
+}
+
+/* Would drop below the minimum balance: the action still works, in amber */
+.sheet-topbar-btn.is-warn {
+  color: var(--warn-ink);
+}
+
+/* A picker pushed inside the sheet (plan §5.1): it replaces the form, which stays mounted */
+.entry-box.has-picker > :not(.sheet-picker):not(.modal-drag-zone) {
+  display: none;
+}
+
+.sheet-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sheet-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sheet-picker .app-dropdown-menu.is-inline,
+.sheet-picker .datepicker-popover.is-inline {
+  position: static;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  box-shadow: none;
+  animation: none;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+}
+
+/* A row that opens a picker: the whole row is the button, value and chevron on the right */
+.sheet-row-button {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-row-button .sheet-row-value {
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.sheet-row-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* A pushed list of choices (category, source) */
+.sheet-choice-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--field-radius);
+  overflow: hidden;
+}
+
+.sheet-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-choice + .sheet-choice {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-choice.is-selected {
+  font-weight: 600;
+  color: var(--accent);
 }
