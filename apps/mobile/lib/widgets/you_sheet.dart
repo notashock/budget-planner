@@ -25,6 +25,8 @@ class YouSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
     final lockOn = context.watch<AppLockProvider>().isEnabled;
+    final user = context.watch<AuthProvider>().user;
+    final name = '${user?['name'] ?? ''}'.trim(), email = '${user?['email'] ?? ''}'.trim();
     final (themeIcon, themeLabel) = switch (theme.themeMode) {
       ThemeMode.light => (Icons.light_mode_outlined, 'Light'),
       ThemeMode.dark => (Icons.dark_mode_outlined, 'Dark'),
@@ -50,6 +52,13 @@ class YouSheet extends StatelessWidget {
     return SafeArea(
       child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Web's YouMenu header: who is signed in.
+          if (name.isNotEmpty || email.isNotEmpty)
+            ListTile(
+              key: const ValueKey('you-user'),
+              title: Text(name.isEmpty ? email : name, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: name.isEmpty || email.isEmpty ? null : Text(email),
+            ),
           row('salary', Icons.payments_outlined, 'Salary schedule', () => then((c) => showModalBottomSheet(
                 context: c,
                 isScrollControlled: true,
@@ -57,7 +66,7 @@ class YouSheet extends StatelessWidget {
                 builder: (_) => const SalarySafelineModal(),
               ))),
           row('assistant', Icons.auto_awesome_outlined, 'Assistant', () => then((c) => Navigator.of(c).push(MaterialPageRoute(
-                builder: (_) => Scaffold(appBar: AppBar(title: const Text('Assistant')), body: const AssistantScreen()),
+                builder: (_) => Scaffold(appBar: AppBar(title: const Text('AI assistant')), body: const AssistantScreen()),
               )))),
           const Divider(height: 1),
           row('theme', themeIcon, 'Appearance', theme.cycleTheme, value: themeLabel),

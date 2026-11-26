@@ -5,6 +5,7 @@ import '../engine/engine.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import '../modals/mark_paid_modal.dart';
+import '../modals/reclassify_held_lent_sheet.dart';
 import '../modals/transaction_detail_modal.dart';
 import '../models/transaction.dart';
 import '../models/transaction_lists.dart';
@@ -150,17 +151,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       final action = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Cancel Goal Commitment'),
-          content: const Text(
-            'This planned transaction is linked to a purchase goal. What would you like to do with the goal?',
-          ),
+          title: const Text('Cancel Scheduled Goal'),
+          content: Text.rich(TextSpan(children: [
+            const TextSpan(text: 'This planned transaction is linked to your goal '),
+            TextSpan(text: tx.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const TextSpan(text: '. What should happen to the goal?'),
+          ])),
+          // The server reads these two values (BudgetExecution.cancelTransaction).
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Dismiss')),
-            TextButton(onPressed: () => Navigator.pop(ctx, 'keep_logged'), child: const Text('Return to Logged')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: context.palette.badInk),
-              onPressed: () => Navigator.pop(ctx, 'drop'),
-              child: const Text('Mark as Dropped', style: TextStyle(color: Colors.white)),
+            FilledButton(
+              key: const ValueKey('goal-cancel-return'),
+              onPressed: () => Navigator.pop(ctx, 'return_to_logged'),
+              child: const Text('Return to Logged (Keep goal active to schedule later)', textAlign: TextAlign.center),
+            ),
+            TextButton(
+              key: const ValueKey('goal-cancel-drop'),
+              onPressed: () => Navigator.pop(ctx, 'dropped'),
+              child: Text('Mark as Dropped (Cancel the goal)', style: TextStyle(color: context.palette.badInk)),
             ),
           ],
         ),
@@ -180,8 +187,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       await budget.cancelTransaction(tx.id, goalAction: goalAction);
       messenger.showSnackBar(SnackBar(
         content: Text(switch (goalAction) {
-          'keep_logged' => 'Commitment cancelled; Goal returned to logged',
-          'drop' => 'Commitment cancelled; Goal dropped',
+          'return_to_logged' => 'Commitment cancelled; Goal returned to logged',
+          'dropped' => 'Commitment cancelled; Goal dropped',
           _ => 'Commitment cancelled',
         }),
       ));
@@ -850,6 +857,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               )),
           menu: _rowMenu(p, title, [
             if (!isPassThrough && canEdit) ('Edit', false, () => openEditTransaction(context, tx)),
+            if (canMoveToHeldLent(tx)) ('Move to Held & Lent', false, () => showReclassifyHeldLent(context, tx)),
             ('Delete', true, () => _delete(context, tx)),
           ]),
         ),

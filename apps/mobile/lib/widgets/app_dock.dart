@@ -35,7 +35,10 @@ class AppDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final brand = Theme.of(context).colorScheme.primary;
-    return SafeArea(
+    return Semantics(
+      container: true,
+      label: 'Main Navigation',
+      child: SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -57,7 +60,7 @@ class AppDock extends StatelessWidget {
                     Expanded(
                       child: Semantics(
                         button: true,
-                        label: 'Add spend',
+                        label: 'Quick Add Entry',
                         excludeSemantics: true,
                         onTap: () => _openEntry(context), // excludeSemantics drops the InkWell's own action
                         child: Material(
@@ -89,7 +92,7 @@ class AppDock extends StatelessWidget {
                     const SizedBox(width: 4),
                     IconButton(
                       key: const ValueKey('dock-you'),
-                      tooltip: 'You',
+                      tooltip: 'Account Settings',
                       icon: CircleAvatar(
                         radius: 15,
                         backgroundColor: brand.withValues(alpha: 0.14),
@@ -109,7 +112,7 @@ class AppDock extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

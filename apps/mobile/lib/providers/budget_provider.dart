@@ -762,6 +762,14 @@ class BudgetProvider with ChangeNotifier {
       await _api.reclassifyTransaction(id, body);
   });
 
+  /// PUT /api/settings (e.g. the assistant switch); the saved values show at once.
+  Future<void> updateUserSettings(Map<String, dynamic> updates) async {
+    await _api.updateSettings(updates);
+    _userSettings = {..._userSettings, ...updates};
+    _dataVersion++; // screens watching viewState redraw
+    notifyListeners();
+  }
+
   // Legacy item aliases for backwards compatibility
   // A planned bill is not captured offline (ADR 0071): it waits for the server.
   Future<void> addItem(Map<String, dynamic> item) => _write(() async {

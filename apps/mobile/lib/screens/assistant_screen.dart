@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../engine/engine.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
-import '../services/api_service.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_palette.dart';
+import '../widgets/acct_inset.dart';
 
+/// Web's AssistantScreen: off by default; when on, text becomes a draft item
+/// you review before saving, and the month's timeline can be explained.
 class AssistantScreen extends StatefulWidget {
   const AssistantScreen({super.key});
 
@@ -12,207 +15,239 @@ class AssistantScreen extends StatefulWidget {
 }
 
 class _AssistantScreenState extends State<AssistantScreen> {
-  final _inputCtrl = TextEditingController();
-  final List<Map<String, String>> _messages = [
-    {
-      'role': 'assistant',
-      'text': 'Hello! I am your AI Budget Copilot. You can ask me to parse unstructured expenses (e.g. "dinner yesterday 450") or analyze your cashflow trajectory.'
-    }
-  ];
-  bool _thinking = false;
+  final _prompt = TextEditingController();
+  bool _parsing = false;
+  String _parseError = '';
+  Map<String, dynamic>? _draft;
+  bool _saving = false;
+
+  bool _explaining = false;
+  Map<String, dynamic>? _explanation;
+  String _explainError = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _prompt.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
-    _inputCtrl.dispose();
+    _prompt.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggle(BudgetProvider budget, bool on) async {
+    try {
+      await budget.updateUserSettings({'aiAssistantEnabled': on});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _parse(BudgetProvider budget) async {
+    final text = _prompt.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _parsing = true;
+      _parseError = '';
+      _draft = null;
+    });
+    try {
+      final res = await budget.api.parseTextAi(text);
+      final item = res['item'];
+      setState(() => _draft = item is Map ? Map<String, dynamic>.from(item) : null);
+    } catch (e) {
+      setState(() => _parseError = e.toString().isEmpty ? 'Failed to parse text into budget item' : e.toString());
+    } finally {
+      if (mounted) setState(() => _parsing = false);
+    }
+  }
+
+  Future<void> _confirmDraft(BudgetProvider budget) async {
+    final draft = _draft;
+    if (_saving || draft == null) return;
+    setState(() => _saving = true);
+    try {
+      await budget.addItem(draft);
+      if (mounted) {
+        setState(() => _draft = null);
+        _prompt.clear();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _explain(BudgetProvider budget) async {
+    final sim = budget.simulation;
+    if (sim == null) return;
+    setState(() {
+      _explaining = true;
+      _explainError = '';
+      _explanation = null;
+    });
+    try {
+      String? lowestDate;
+      for (final d in sim.days) {
+        if (d.day == sim.lowestBalanceDay) lowestDate = d.date;
+      }
+      final res = await budget.api.explainTimelineAi({
+        'endingBalance': sim.closingBalance,
+        'lowestBalance': sim.lowestBalance,
+        'lowestDate': lowestDate,
+        'floorBreached': sim.breaches.isNotEmpty,
+        'events': [
+          for (final e in sim.allEvents)
+            {'date': e.date, 'label': e.name, 'amount': e.amount, 'balanceAfter': e.runningBalance, 'itemType': e.type},
+        ],
+      }, budget.monthInfo?.safetyFloor ?? 0);
+      setState(() => _explanation = res);
+    } catch (e) {
+      setState(() => _explainError = e.toString().isEmpty ? 'Failed to generate timeline explanation' : e.toString());
+    } finally {
+      if (mounted) setState(() => _explaining = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final budget = context.budgetView();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = context.palette;
+    final muted = TextStyle(fontSize: 13, color: p.textSecondary, height: 1.4);
+    final enabled = budget.userSettings['aiAssistantEnabled'] == true;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // Quick Action Suggestion Chips
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkBg : AppColors.lightBg,
-              border: Border(bottom: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+    if (!enabled) {
+      return ListView(padding: const EdgeInsets.all(16), children: [
+        AcctSection(
+          title: 'Assistant is disabled',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('The AI assistant is strictly optional and off by default. When turned off, zero financial data leaves the server.', style: muted),
+            const SizedBox(height: 10),
+            Text(
+                'When enabled, it parses natural language descriptions into draft budget items (which you review before saving) and provides suggestions on how to resolve safety floor breaches.',
+                style: muted),
+            const SizedBox(height: 14),
+            FilledButton(
+              key: const ValueKey('ai-enable'),
+              onPressed: () => _toggle(budget, true),
+              child: const Text('Enable AI assistant'),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ActionChip(
-                    label: const Text('Explain Cashflow Trajectory'),
-                    onPressed: () => _explainTimeline(budget),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    label: const Text('Parse "Coffee 150 today"'),
-                    onPressed: () {
-                      _inputCtrl.text = 'Coffee 150 today';
-                      _sendMessage();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ]),
+        ),
+      ]);
+    }
 
-          // Chat Messages
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg['role'] == 'user';
+    Widget spinnerLabel(String label) => Row(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 8),
+          Text(label),
+        ]);
+    Widget error(String msg) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text('Error: $msg', style: TextStyle(fontSize: 12, color: p.badInk)),
+        );
+    BoxDecoration box(Color border) => BoxDecoration(
+          color: p.surfaceSubtle,
+          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(8),
+        );
+    final draft = _draft;
+    final explanation = _explanation;
+    final suggestions = (explanation?['suggestions'] as List?) ?? const [];
 
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isUser
-                          ? (Theme.of(context).colorScheme.primary)
-                          : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                      borderRadius: BorderRadius.circular(10),
-                      border: isUser
-                          ? null
-                          : Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                    ),
-                    child: Text(
-                      msg['text'] ?? '',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isUser
-                            ? (Theme.of(context).colorScheme.onPrimary)
-                            : (isDark ? AppColors.darkText : AppColors.lightText),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          if (_thinking)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-                  const SizedBox(width: 8),
-                  Text('Thinking...', style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                ],
-              ),
-            ),
-
-          // Message Input Field
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inputCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Ask or type transaction text...',
-                      hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send, size: 20),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
-          ),
-        ],
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          key: const ValueKey('ai-disable'),
+          onPressed: () => _toggle(budget, false),
+          child: Text('Disable assistant', style: TextStyle(fontSize: 12, color: p.badInk)),
+        ),
       ),
-    );
-  }
-
-  Future<void> _sendMessage() async {
-    final text = _inputCtrl.text.trim();
-    if (text.isEmpty || _thinking) return;
-
-    setState(() {
-      _messages.add({'role': 'user', 'text': text});
-      _thinking = true;
-    });
-    _inputCtrl.clear();
-
-    try {
-      final res = await ApiService().parseTextAi(text);
-      String reply = 'Understood.';
-      if (res['parsed'] != null) {
-        reply = 'Parsed item: ${res['parsed']}';
-      } else if (res['explanation'] != null) {
-        reply = res['explanation'].toString();
-      } else if (res['result'] != null) {
-        reply = res['result'].toString();
-      }
-
-      setState(() {
-        _messages.add({'role': 'assistant', 'text': reply});
-      });
-    } catch (e) {
-      setState(() {
-        _messages.add({'role': 'assistant', 'text': 'Error communicating with AI: $e'});
-      });
-    } finally {
-      setState(() => _thinking = false);
-    }
-  }
-
-  Future<void> _explainTimeline(BudgetProvider budget) async {
-    if (_thinking) return;
-    setState(() {
-      _messages.add({'role': 'user', 'text': 'Explain my cashflow trajectory'});
-      _thinking = true;
-    });
-
-    try {
-      final sim = budget.simulation;
-      final floor = budget.monthInfo?.safetyFloor ?? 0;
-
-      final res = await ApiService().explainTimelineAi({
-        'lowestBalance': sim?.lowestBalance ?? 0,
-        'lowestDay': sim?.lowestBalanceDay ?? 1,
-        'safeVelocity': sim?.safeVelocity.safeDailyAmount ?? 0,
-        'status': sim?.safeVelocity.status ?? 'healthy',
-      }, floor);
-
-      setState(() {
-        _messages.add({
-          'role': 'assistant',
-          'text': res['explanation']?.toString() ?? 'Your projected trajectory maintains a steady safety buffer across this month.'
-        });
-      });
-    } catch (e) {
-      setState(() {
-        _messages.add({'role': 'assistant', 'text': 'Could not generate explanation: $e'});
-      });
-    } finally {
-      setState(() => _thinking = false);
-    }
+      AcctSection(
+        title: 'Convert text to budget item',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Describe an expense in plain language. The assistant converts it into a draft item for your review before saving.',
+              style: muted),
+          const SizedBox(height: 10),
+          TextField(
+            key: const ValueKey('ai-prompt'),
+            controller: _prompt,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(hintText: 'e.g. Internet bill of 999 on the 15th every month, or groceries 2500 on day 5'),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              key: const ValueKey('ai-parse'),
+              onPressed: _parsing || _prompt.text.trim().isEmpty ? null : () => _parse(budget),
+              child: _parsing ? spinnerLabel('Parsing item...') : const Text('Parse into item'),
+            ),
+          ),
+          if (_parseError.isNotEmpty) error(_parseError),
+          if (draft != null)
+            Container(
+              key: const ValueKey('ai-draft'),
+              margin: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.all(12),
+              decoration: box(p.borderStrong),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Review draft item before saving', style: TextStyle(fontWeight: FontWeight.w600, color: p.text)),
+                const SizedBox(height: 8),
+                Text('Name: ${draft['name']} (${draft['type']})', style: TextStyle(color: p.text)),
+                const SizedBox(height: 4),
+                Text(
+                  'Amount: ${formatCurrency((draft['amount'] as num?)?.toInt() ?? 0)} on day ${draft['day'] ?? draft['dayOfMonth']}',
+                  style: TextStyle(color: p.text),
+                ),
+                const SizedBox(height: 6),
+                // Align: a Wrap in a start-aligned Column shrinks to its buttons.
+                Align(alignment: Alignment.centerRight, child: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+                  TextButton(onPressed: () => setState(() => _draft = null), child: const Text('Discard')),
+                  FilledButton(
+                    key: const ValueKey('ai-save-draft'),
+                    onPressed: _saving ? null : () => _confirmDraft(budget),
+                    child: Text(_saving ? 'Saving...' : 'Confirm and save item'),
+                  ),
+                ])),
+              ]),
+            ),
+        ]),
+      ),
+      AcctSection(
+        title: 'Timeline analysis & suggestions',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Analyzes the deterministic engine output and provides actionable suggestions if your safety floor is breached.',
+              style: muted),
+          const SizedBox(height: 10),
+          FilledButton(
+            key: const ValueKey('ai-explain'),
+            onPressed: _explaining || budget.simulation == null ? null : () => _explain(budget),
+            child: _explaining ? spinnerLabel('Analyzing timeline...') : const Text('Analyze timeline'),
+          ),
+          if (_explainError.isNotEmpty) error(_explainError),
+          if (explanation != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.all(12),
+              decoration: box(p.border),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${explanation['summary'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w600, color: p.text)),
+                for (final s in suggestions)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('•  $s', style: TextStyle(color: p.text)),
+                  ),
+              ]),
+            ),
+        ]),
+      ),
+    ]);
   }
 }
