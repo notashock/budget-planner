@@ -289,9 +289,14 @@ class _PlanScreenState extends State<PlanScreen> {
     ];
     if (accounts.isEmpty) return const SizedBox.shrink();
 
-    // Never the opening balance in place of today's: unknown shows no amount.
-    int? todayOf(Account a) =>
-        budget.accountSimulations[a.id]?.todaysBalance ?? budget.simulation?.accountBalances[a.id] ?? a.currentBalance;
+    // web's liveBalance(): this month, the account's own balance; other months,
+    // the simulation's. Never the opening balance in place of today's.
+    final now = DateTime.now();
+    final month = budget.monthInfo;
+    final isThisMonth = month == null || (month.year == now.year && month.month == now.month);
+    int? todayOf(Account a) => isThisMonth && a.currentBalance != null
+        ? a.currentBalance
+        : budget.accountSimulations[a.id]?.todaysBalance ?? budget.simulation?.accountBalances[a.id] ?? a.currentBalance;
     // web's "All" pill is the sum of the account pills.
     final all = accounts.fold<int>(0, (sum, x) => sum + (todayOf(x.$1) ?? 0));
 
