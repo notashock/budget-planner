@@ -82,7 +82,7 @@ void main() {
     await tapKey(tester, 'ob-finish');
 
     final tpl = fb.requests.singleWhere((r) => r.url.path == '/api/salary-templates');
-    expect(jsonDecode(tpl.body), allOf(containsPair('amount', 8000000), containsPair('receivingAccountId', 'acc-new')));
+    expect(jsonDecode(tpl.body), allOf(containsPair('amount', 8000000), containsPair('receivingAccountId', 'acc-new'), containsPair('markCredited', true)));
     expect(find.text('You’re all set'), findsOneWidget);
   });
 

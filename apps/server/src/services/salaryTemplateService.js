@@ -129,7 +129,20 @@ export const SalaryTemplateService = {
     // Provision rolling 2-period horizon
     // The current cycle: a last salary further back would otherwise give only a finished month
     const today = getTodayIso();
-    await this.ensureRollingPeriods(userId, effDate > today ? effDate : today);
+    const { p1Month } = (await this.ensureRollingPeriods(userId, effDate > today ? effDate : today)) || {};
+
+    // First-run setup logs the last salary as already paid: record it for the cycle it opens
+    if (payload.markCredited && p1Month && !p1Month.isSalaryCredited && effDate <= today
+        && effDate >= (p1Month.incomeCreditDate || p1Month.startDate)) {
+      if (!receiving?.openingBalanceDate || effDate >= receiving.openingBalanceDate) {
+        const { MonthTransitions } = await import('../domain/monthTransitions.js');
+        await MonthTransitions.creditSalary(userId, p1Month.year, p1Month.month, { amount: Math.round(numAmount), date: effDate, advance: false });
+      } else {
+        // Paid before the balance was taken, so that balance already holds it
+        await db.update(s.months).set({ isSalaryCredited: true, salaryCreditedDate: effDate, updatedAt: new Date() })
+          .where(eq(s.months.id, p1Month.id));
+      }
+    }
 
     return serialize(created);
   },

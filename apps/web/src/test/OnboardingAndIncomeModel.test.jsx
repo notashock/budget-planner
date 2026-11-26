@@ -118,7 +118,8 @@ describe('OnboardingModal & Dual Income Flow', () => {
         expectedCreditDay: expect.any(Number),
         receivingAccountId: 'acc-salary',
         periodType: 'salary_cycle',
-        effectiveDate: expect.any(String)
+        effectiveDate: expect.any(String),
+        markCredited: true
       });
     });
     fireEvent.click(await screen.findByRole('button', { name: /Start Planning/i }));
