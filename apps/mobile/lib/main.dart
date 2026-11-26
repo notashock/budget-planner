@@ -27,6 +27,8 @@ void main() async {
   // Draw behind the status and navigation bars (upgrade plan 3.2); SafeArea
   // and the bottom bar keep content clear of them.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // Portrait only (the manifest and Info.plist say the same)
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   AppTypography.useBundledFonts();
 
   final themeProvider = ThemeProvider();

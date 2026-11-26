@@ -65,7 +65,7 @@ void main() {
 
       // Unselected chips (the bug). The selected one ("Food") is checked by
       // colour below: its pixels measure differently on CI's Linux renderer.
-      for (final label in ['100', '500', '1k', 'Travel', 'Health', 'Credit / Refund']) {
+      for (final label in ['100', '500', '1k', 'Expense Debit']) {
         // Blank labels measure ~0; 50 leaves room for softer anti-aliasing on CI's Linux fonts.
         expect(spread(label), greaterThan(50), reason: '"$label" is not visible');
       }

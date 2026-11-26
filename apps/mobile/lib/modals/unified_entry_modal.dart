@@ -22,8 +22,11 @@ import '../theme/app_palette.dart';
 import 'held_lent_modal.dart';
 import '../widgets/floor_breach_notice.dart';
 import '../widgets/app_date_picker.dart';
-import '../widgets/account_selector.dart';
 import '../widgets/entry_summary_chips.dart';
+import '../widgets/web_icons.dart';
+import '../theme/app_typography.dart';
+import '../screens/onboarding_screen.dart' show SetupGroup, SetupRow, SetupSegmented;
+import '../screens/accounts_screen.dart' show showAddAccountDialog;
 
 enum EntryType { transaction, income, item, goal, transfer }
 
@@ -36,6 +39,24 @@ String resolveEntryName(String typed, String category, String typeTitle) {
   return c.isNotEmpty ? c : typeTitle;
 }
 
+/// What "Change type" carries into the sheet that replaces an entry.
+class EntryCarry {
+  const EntryCarry({
+    required this.amountText,
+    required this.date,
+    required this.note,
+    required this.accountType,
+    this.accountId,
+    required this.category,
+  });
+  final String amountText;
+  final DateTime date;
+  final String note;
+  final String accountType;
+  final String? accountId;
+  final String category;
+}
+
 class UnifiedEntryModal extends StatefulWidget {
   final EntryType initialType;
 
@@ -46,11 +67,19 @@ class UnifiedEntryModal extends StatefulWidget {
   /// Editing: the purchase goal to change.
   final Goal? initialGoal;
 
+  /// Change type: the values carried over from the entry being replaced.
+  final EntryCarry? carry;
+
+  /// Change type: the entry deleted once this new one saves.
+  final Transaction? replaces;
+
   const UnifiedEntryModal({
     super.key,
     this.initialType = EntryType.transaction,
     this.initialTransaction,
     this.initialGoal,
+    this.carry,
+    this.replaces,
   });
 
   @override
@@ -85,6 +114,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   bool _submitting = false;
 
+  // Editing: the plan's paid switch, the inline delete / change-type menus,
+  // and the values the "Changing: …" line compares against
+  bool _isPaid = false;
+  bool _confirmDelete = false;
+  bool _showConvert = false;
+  bool _deleting = false;
+  Map<String, String>? _editSnapshot;
+
   // Move tab: 'account' (between my accounts), 'card' (pay a card bill), 'person' (held / lent)
   String _moveTarget = 'account';
 
@@ -105,6 +142,14 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   /// Quick amounts (major units). Tapping one sets the amount.
   static const List<int> quickAmounts = [100, 500, 1000, 2000];
+
+  /// Web's QUICK_INCREMENTS per tab.
+  static const Map<EntryType, List<int>> quickIncrements = {
+    EntryType.transaction: [100, 500, 1000, 2000],
+    EntryType.item: [100, 500, 1000, 2000],
+    EntryType.income: [500, 1000, 5000, 10000],
+    EntryType.transfer: [500, 1000, 2000, 5000],
+  };
   String _selectedCategory = 'Food';
   bool _isCustomCategory = false;
 
@@ -164,6 +209,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     if (widget.initialTransaction != null) _prefillFromTransaction(budget, widget.initialTransaction!);
     if (widget.initialGoal != null) _prefillFromGoal(widget.initialGoal!);
+    if (widget.carry != null) _prefillFromCarry(widget.carry!);
+    if (_isEditing) _editSnapshot = _editValues(budget);
 
     // Remembered: the account used last time for this kind of entry
     EntryMemory.load().then((memory) {
@@ -338,11 +385,35 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       // field `type == 'recurring'`, so a recurring bill reopened as one-time.
       _itemType = t.recurrence != null ? 'recurring' : 'one-time';
       if (_itemType == 'recurring') _dayCtrl.text = '${parsed?.day ?? 1}';
+      _isPaid = !t.isPlanned;
     }
     final accType = _accountTypeOf(budget, t.accountId);
     if (t.accountId != null) {
       _accountType = accType ?? 'bank';
       _selectedAccountId = t.accountId;
+    }
+  }
+
+  void _prefillFromCarry(EntryCarry c) {
+    _amountCtrl.text = c.amountText;
+    _nameCtrl.text = c.note;
+    _selectedDate = c.date;
+    if (c.accountId != null && c.accountType != 'credit_card') {
+      _accountType = c.accountType;
+      _selectedAccountId = c.accountId;
+      _sourceAccountType = c.accountType;
+      _sourceAccountId = c.accountId;
+    }
+    if (_activeType == EntryType.income) {
+      if (_incomeSources.contains(c.category)) _incSource = c.category;
+    } else if (c.category.isNotEmpty) {
+      if (_quickCategories.contains(c.category)) {
+        _selectedCategory = c.category;
+      } else {
+        _isCustomCategory = true;
+        _customCategoryCtrl.text = c.category;
+      }
+      _categoryTouched = true;
     }
   }
 
@@ -358,6 +429,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   // closes. Only a refusal comes back, as a snackbar.
   Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload, {required String label}) async {
     if (_isEditing) return budget.updateTransaction(_editId, payload);
+    // Replacing an entry: the original goes only once this one is saved
+    if (widget.replaces != null) {
+      await budget.addTransaction(payload);
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     unawaited(budget.addTransaction(payload).then((result) {
       if (result == WriteResult.queued) {
@@ -447,16 +523,10 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     final budget = context.budgetView();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final month = budget.monthInfo;
-    final salaryAmt = month?.incomeAmount ?? 0;
-    final salaryBank = budget.accountById(month?.salaryAccountId);
-    final salaryBankName = month?.salaryAccountId == null
-        ? 'Unassigned'
-        : (salaryBank == null || salaryBank.name.isEmpty ? 'Assigned Bank' : salaryBank.name);
-    final salaryDayLabel = month?.incomeCreditDate ?? 'Day ${month?.incomeCreditDay ?? 1}';
-
     final isRecurring = _activeType == EntryType.item && _itemType == 'recurring';
+    final noAccounts = budget.bankAccountModels.isEmpty && budget.walletModels.isEmpty;
 
-    // Ask before throwing away a half-filled entry (back button, close icon)
+    // Ask before throwing away a half-filled entry (back button, Cancel)
     // canPop stays false and the check happens when the pop is attempted: typing
     // doesn't rebuild the sheet, so a build-time "is it dirty" would be stale.
     return PopScope(
@@ -493,89 +563,54 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Expanded: a long title ("Edit purchase goal") must not push the close button off
-                  Expanded(
-                    child: Text(
-                      _isEditing
-                          ? 'Edit ${_titleForType(_activeType).toLowerCase()}'
-                          : (widget.initialType == EntryType.goal ? 'New purchase goal' : 'New entry'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.darkText : AppColors.lightText,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    // maybePop goes through the discard guard
-                    onPressed: () => Navigator.maybePop(context),
-                  ),
-                ],
-              ),
+              // Web's sheet top bar: Cancel | title | primary action
+              _buildTopBar(budget, noAccounts),
               const SizedBox(height: 12),
 
-              // Segmented tabs: four equal segments, no horizontal scrolling
-              if (widget.initialType != EntryType.goal && !_isEditing)
+              if (_isEditing && _activeType != EntryType.goal)
+                _buildEditBadge()
+              else if (widget.initialType != EntryType.goal && !_isEditing)
                 Row(
                   children: [
-                    _buildTab(EntryType.transaction, 'Spend', isDark),
+                    _buildTab(EntryType.transaction, 'Spending', WebIcons.zap, isDark),
                     const SizedBox(width: 4),
-                    _buildTab(EntryType.income, 'Income', isDark),
+                    _buildTab(EntryType.income, 'Income', WebIcons.trendingUp, isDark),
                     const SizedBox(width: 4),
-                    _buildTab(EntryType.item, 'Plan', isDark),
+                    _buildTab(EntryType.item, 'Plan', WebIcons.plus, isDark),
                     const SizedBox(width: 4),
-                    _buildTab(EntryType.transfer, 'Move', isDark),
+                    _buildTab(EntryType.transfer, 'Move', WebIcons.arrowRightLeft, isDark),
                   ],
                 ),
-
-              // Move: where the money goes
-              if (_activeType == EntryType.transfer) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('My accounts'),
-                      selected: _moveTarget == 'account',
-                      onSelected: (_) => setState(() => _moveTarget = 'account'),
-                    ),
-                    if (budget.simulatedCards.isNotEmpty)
-                      ChoiceChip(
-                        label: const Text('Pay a card'),
-                        selected: _moveTarget == 'card',
-                        onSelected: (_) => setState(() {
-                          _moveTarget = 'card';
-                          _cardId ??= budget.simulatedCards.first.account.id;
-                        }),
-                      ),
-                    ChoiceChip(
-                      label: const Text('A person'),
-                      selected: _moveTarget == 'person',
-                      onSelected: (_) => setState(() => _moveTarget = 'person'),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
 
               if (_sessionCount > 0)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     '$_sessionCount added · ${formatCurrency(_sessionTotal)}',
                     key: const ValueKey('entry-session'),
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.goodInk),
                   ),
                 ),
+
+              // Move: where the money goes
+              if (_activeType == EntryType.transfer && !_isEditing) ...[
+                const SizedBox(height: 12),
+                SetupSegmented(
+                  value: _moveTarget,
+                  options: [
+                    ('account', 'My accounts', null),
+                    if (budget.simulatedCards.isNotEmpty) ('card', 'Pay a card', null),
+                    ('person', 'A person', null),
+                  ],
+                  onChanged: (v) => setState(() {
+                    _moveTarget = v;
+                    if (v == 'card') _cardId ??= budget.simulatedCards.first.account.id;
+                  }),
+                ),
+              ],
+              const SizedBox(height: 16),
 
               if (_isPersonMove)
                 HeldLentForm(
@@ -590,303 +625,56 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                 ),
 
               if (!_isPersonMove) ...[
-              // Scheduled Monthly Salary Info Card for Income Mode (matching web)
-              if (_activeType == EntryType.income && salaryAmt > 0) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Flexible: the label shrinks on narrow phones instead of overflowing
-                          Flexible(
-                            child: Text(
-                              'SCHEDULED MONTHLY SALARY',
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '+${formatCurrency(salaryAmt)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'monospace',
-                              color: context.palette.goodInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              'Deposit Target: $salaryBankName',
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'Day: $salaryDayLabel',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkText : AppColors.lightText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Type specific options
-              if (_activeType == EntryType.transaction) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('Expense')),
-                        selected: _txType == 'expense',
-                        onSelected: (_) => setState(() {
-                          _txType = 'expense';
-                          _refundTargetId = null;
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('Credit / Refund')),
-                        selected: _txType == 'income',
-                        onSelected: (_) => setState(() => _txType = 'income'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_txType == 'income') ...[
-                  _buildRefundLink(budget),
-                  const SizedBox(height: 12),
-                ],
-              ] else if (_activeType == EntryType.income) ...[
-                // Income Source Pills
-                Text(
-                  'Income Source / Category',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  children: ['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'].map((src) {
-                    final isSel = _incSource == src;
-                    return ChoiceChip(
-                      label: Text(src),
-                      selected: isSel,
-                      onSelected: (_) => setState(() => _incSource = src),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-              ] else if (_activeType == EntryType.item) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('One-Time')),
-                        selected: _itemType == 'one-time',
-                        onSelected: (_) => setState(() => _itemType = 'one-time'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('Recurring (Monthly)')),
-                        selected: _itemType == 'recurring',
-                        onSelected: (_) => setState(() => _itemType = 'recurring'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Variable or Fixed Toggle Switch (Requirement 7)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                  ),
-                  child: SwitchListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      _isFixed ? 'Fixed Expense (Auto-carry forward)' : 'Variable Expense (Flexible)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.darkText : AppColors.lightText,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _isFixed
-                          ? 'Fixed items automatically carry forward to next month on rollover.'
-                          : 'Variable items stay within this cycle.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                      ),
-                    ),
-                    value: _isFixed,
-                    activeTrackColor: context.palette.goodInk,
-                    onChanged: (val) => setState(() => _isFixed = val),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ] else if (_activeType == EntryType.goal) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('High')),
-                        selected: _goalPriority == 0,
-                        onSelected: (_) => setState(() => _goalPriority = 0),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('Medium')),
-                        selected: _goalPriority == 1,
-                        onSelected: (_) => setState(() => _goalPriority = 1),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('Low')),
-                        selected: _goalPriority == 2,
-                        onSelected: (_) => setState(() => _goalPriority = 2),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // Name / Description field
-              TextField(
-                controller: _nameCtrl,
-                onChanged: _onDescriptionChanged,
-                decoration: InputDecoration(
-                  labelText: _activeType == EntryType.goal
-                      ? 'Goal Name (e.g. New Headphones)'
-                      : (_activeType == EntryType.income
-                          ? 'Note / Payer Reference (optional)'
-                          : (_activeType == EntryType.item ? 'Item Name (e.g. Internet Bill)' : 'Description')),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Amount Field
-              TextField(
-                controller: _amountCtrl,
-                focusNode: _amountFocus,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: _activeType == EntryType.income ? 'Income ($moneySymbol) *' : 'Amount ($moneySymbol) *',
-                ),
-              ),
+              // Slot 1: amount label and its modifier (spend / refund, one-time / recurring)
+              _buildAmountLabelRow(),
+              const SizedBox(height: 6),
+              _buildHeroAmount(),
               if (_activeType != EntryType.goal) ...[
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: quickAmounts.map((v) => ActionChip(
-                        label: Text(v >= 1000 ? '${v ~/ 1000}k' : '$v'),
-                        onPressed: () => setState(() => _amountCtrl.text = '$v'),
-                      )).toList(),
+                _buildQuickRow(),
+              ],
+              if (_activeType == EntryType.goal) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    for (final (rank, label) in const [(0, 'High'), (1, 'Medium'), (2, 'Low')]) ...[
+                      if (rank > 0) const SizedBox(width: 6),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Center(child: Text(label)),
+                          selected: _goalPriority == rank,
+                          onSelected: (_) => setState(() => _goalPriority = rank),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              // Date Picker or Recurring Day
-              if (isRecurring) ...[
-                TextField(
-                  controller: _dayCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Day of Month (1-31)'),
-                ),
+              if (_activeType == EntryType.transaction && _txType == 'income') ...[
+                _buildRefundLink(budget),
                 const SizedBox(height: 12),
               ],
-              // Spend, Income and Plan: date and account as one row of chips
-              // (entry-forms plan 5.1). Move has two accounts and Goal a target
-              // date, so they keep their full fields.
-              if (_usesSummaryChips)
-                EntrySummaryChips(
-                  showDate: !isRecurring,
-                  date: _selectedDate,
-                  onDate: (d) => setState(() {
-                    _selectedDate = d;
-                    _dayCtrl.text = '${d.day}';
-                  }),
-                  accountLabel: _activeType == EntryType.income ? 'Deposited to' : 'Paid from',
-                  accountType: _accountType,
-                  accountId: _selectedAccountId,
-                  banks: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  cards: _activeType == EntryType.transaction || _activeType == EntryType.item
-                      ? budget.cardAccountModels
-                      : const [],
-                  accountRequired: _activeType == EntryType.income,
-                  onAccount: (type, id) => setState(() {
-                    _accountType = type;
-                    _selectedAccountId = id;
-                  }),
-                )
-              else if (!isRecurring)
-                AppDatePickerField(
-                  label: _activeType == EntryType.goal
-                      ? 'Target Date'
-                      : (_activeType == EntryType.income ? 'Deposit Date' : 'Date'),
-                  selectedDate: _selectedDate,
-                  onDateSelected: (d) {
-                    setState(() {
-                      _selectedDate = d;
-                      _dayCtrl.text = '${d.day}';
-                    });
-                  },
-                ),
-              const SizedBox(height: 12),
 
+              if (noAccounts && _activeType != EntryType.transfer && _activeType != EntryType.goal)
+                _buildNoAccounts()
+              else if (_activeType != EntryType.transfer)
+                _buildRows(budget, isRecurring),
+
+              if (_activeType == EntryType.income)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    'Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.',
+                    key: const ValueKey('entry-income-note'),
+                    style: TextStyle(fontSize: 12, color: context.palette.textMuted),
+                  ),
+                ),
 
               // Purchase Goal Algorithm Recommendation Badge (Server Authoritative)
               if (_activeType == EntryType.goal) ...[
+                const SizedBox(height: 12),
                 if (_loadingGoalRec)
                   Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
@@ -980,28 +768,13 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                     },
                   ),
                 ],
-                const SizedBox(height: 12),
               ],
 
-              // Account: Spend / Income / Plan use the summary chip above
               if (_activeType == EntryType.transfer) ...[
-                AccountSelector(
-                  label: _moveTarget == 'card' ? 'Pay from' : 'Source Account (From)',
-                  accountType: _sourceAccountType,
-                  selectedAccountId: _sourceAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  isRequired: true,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _sourceAccountType = newType;
-                      _sourceAccountId = newId;
-                    });
-                  },
-                ),
+                _buildMoveRows(budget),
                 const SizedBox(height: 12),
                 if (_moveTarget == 'card') ...[
-                  Text('Card to pay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  Text('Card to pay *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                   const SizedBox(height: AppForm.fieldGap),
                   ...budget.simulatedCards.map((card) {
                     final id = card.account.id;
@@ -1058,74 +831,16 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                       ],
                     );
                   }),
+                  const SizedBox(height: 6),
+                  Text("Paying a card moves money from your account to the card. It isn't counted as spending again.",
+                      style: TextStyle(fontSize: 11.5, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                 ] else
-                AccountSelector(
-                  label: 'Destination Account (To)',
-                  accountType: _destAccountType,
-                  selectedAccountId: _destAccountId,
-                  bankAccounts: budget.bankAccountModels,
-                  wallets: budget.walletModels,
-                  isRequired: true,
-                  onChanged: (newType, newId) {
-                    setState(() {
-                      _destAccountType = newType;
-                      _destAccountId = newId;
-                    });
-                  },
-                ),
+                  _buildMoveTo(budget),
+                const SizedBox(height: 8),
+                Text("Moving money between your own accounts doesn't change your total cash.",
+                    style: TextStyle(fontSize: 11.5, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
               ],
 
-
-              // Selectable Categories matching Web
-              if (_activeType == EntryType.item || _activeType == EntryType.transaction) ...[
-                const SizedBox(height: 14),
-                Text(
-                  _tagSuggested ? 'Category · suggested' : 'Category',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ..._quickCategories.map((cat) {
-                      final isSelected = !_isCustomCategory && _selectedCategory == cat;
-                      return ChoiceChip(
-                        label: Text(cat),
-                        selected: isSelected,
-                        onSelected: (_) => setState(() {
-                          _selectedCategory = cat;
-                          _isCustomCategory = false;
-                          _categoryTouched = true;
-                          _tagSuggested = false;
-                        }),
-                      );
-                    }),
-                    ChoiceChip(
-                      label: const Text('Custom...'),
-                      selected: _isCustomCategory,
-                      onSelected: (_) => setState(() {
-                        _isCustomCategory = true;
-                        _categoryTouched = true;
-                        _tagSuggested = false;
-                      }),
-                    ),
-                  ],
-                ),
-                if (_isCustomCategory) ...[
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _customCategoryCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Custom Category (e.g. Rent, Utilities)',
-                    ),
-                  ),
-                ],
-              ],
               // Smart assists: rebuilt as the amount or description changes
               if (!_isEditing && (_activeType == EntryType.transaction || _activeType == EntryType.income))
                 AnimatedBuilder(
@@ -1138,60 +853,852 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
                   amountController: _amountCtrl,
                   accountId: _activeType == EntryType.transfer ? _sourceAccountId : _selectedAccountId,
                   showWhenSafe: true,
+                  alreadyCounted: _savedSpendIn(_selectedAccountId),
                 ),
-              const SizedBox(height: 20),
 
-              if (_canAddAnother) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    key: const ValueKey('save-add-another'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(AppForm.controlHeight),
-                      shape: RoundedRectangleBorder(borderRadius: AppForm.radius),
-                    ),
-                    onPressed: _submitting ? null : () => _handleSubmit(again: true),
-                    child: const Text('Save & add another'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _activeType == EntryType.income
-                        ? context.palette.goodInk
-                        : (Theme.of(context).colorScheme.primary),
-                    foregroundColor: _activeType == EntryType.income
-                        ? Colors.white
-                        : (Theme.of(context).colorScheme.onPrimary),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: _submitting ? null : () => _handleSubmit(),
-                  child: _submitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(
-                          _isEditing
-                              ? 'Save changes'
-                              : _activeType == EntryType.income
-                              ? 'Log Income Inflow'
-                              : (_activeType == EntryType.transfer
-                                  ? (_moveTarget == 'card' ? 'Pay ${_selectedCard(budget)?.account.name ?? 'card'}' : 'Record transfer')
-                                  : 'Add ${_titleForType(_activeType)}'),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                ),
-              ),
+              if (_isEditing) _buildEditSummary(budget),
+              const SizedBox(height: 12),
+              _buildFooter(noAccounts),
               ],
             ],
           ),
         ),
       ),
     ),
+    );
+  }
+
+  // ---- Web layout pieces ------------------------------------------------
+
+  String _sheetTitle(BudgetProvider budget) {
+    if (_isPersonMove) return 'Held & Lent';
+    final verb = _isEditing ? 'Edit' : 'New';
+    switch (_activeType) {
+      case EntryType.transaction:
+        return '$verb ${_txType == 'income' ? 'refund' : 'spend'}';
+      case EntryType.income:
+        return '$verb income';
+      case EntryType.item:
+        return _isEditing ? 'Edit plan' : (_itemType == 'recurring' ? 'New recurring bill' : 'New plan');
+      case EntryType.goal:
+        return _isEditing ? 'Edit purchase goal' : 'New purchase goal';
+      case EntryType.transfer:
+        return _isEditing ? 'Edit transfer' : (_moveTarget == 'card' ? 'Pay a card' : 'Move money');
+    }
+  }
+
+  String _sheetAction(BudgetProvider budget) {
+    if (_submitting) return _isEditing ? 'Saving…' : 'Adding…';
+    if (_isEditing) return 'Save';
+    if (_activeType == EntryType.transfer && _moveTarget == 'card') {
+      return 'Pay ${_selectedCard(budget)?.account.name ?? 'card'}';
+    }
+    return 'Add';
+  }
+
+  Widget _buildTopBar(BudgetProvider budget, bool noAccounts) {
+    final p = context.palette;
+    final blocked = noAccounts && _activeType != EntryType.transfer && _activeType != EntryType.goal;
+    final isRefund = _activeType == EntryType.transaction && _txType == 'income';
+    return Row(
+      children: [
+        SizedBox(
+          width: 88,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const ValueKey('entry-cancel'),
+              // maybePop goes through the discard guard
+              onPressed: () => Navigator.maybePop(context),
+              child: const Text('Cancel'),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            _sheetTitle(budget),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.inter(fontSize: 16, fontWeight: FontWeight.w700, color: p.text),
+          ),
+        ),
+        SizedBox(
+          width: 88,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _isPersonMove
+                ? const SizedBox.shrink()
+                : TextButton(
+                    key: const ValueKey('entry-primary'),
+                    onPressed: _submitting || blocked ? null : () => _handleSubmit(),
+                    child: Text(
+                      _sheetAction(budget),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700, color: isRefund ? p.goodInk : null),
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditBadge() {
+    final p = context.palette;
+    final t = widget.initialTransaction;
+    final (icon, label) = switch (_activeType) {
+      EntryType.transaction => (WebIcons.zap, _txType == 'income' ? 'Editing Credit / Refund' : 'Editing Settled Expense'),
+      EntryType.income => (WebIcons.trendingUp, t?.origin == TxOrigin.salary ? 'Editing Salary Credit' : 'Editing Income Credit'),
+      EntryType.item => (WebIcons.plus, t?.recurrence != null ? 'Editing Recurring Commitment' : 'Editing Planned Commitment'),
+      _ => (WebIcons.arrowRightLeft, 'Editing Transfer'),
+    };
+    return Container(
+      key: const ValueKey('entry-edit-badge'),
+      constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: p.surfaceSubtle, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          WebIcon(icon, size: 14, color: p.text),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: p.text)),
+          ),
+          Tooltip(
+            message: 'Type is locked during edit to maintain ledger consistency',
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              WebIcon(WebIcons.lock, size: 11, color: p.textMuted),
+              const SizedBox(width: 4),
+              Text('Type Locked', style: AppTypography.inter(fontSize: 11, color: p.textMuted)),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmountLabelRow() {
+    final p = context.palette;
+    final label = switch (_activeType) {
+      EntryType.transaction => 'Amount ($moneySymbol)',
+      EntryType.income => 'Income Amount ($moneySymbol) *',
+      EntryType.item => 'Planned amount ($moneySymbol)',
+      EntryType.transfer => 'Transfer Amount ($moneySymbol) *',
+      EntryType.goal => 'Target amount ($moneySymbol) *',
+    };
+    final isRefund = _txType == 'income';
+    return Row(
+      children: [
+        Expanded(
+          child: Text(label, style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary)),
+        ),
+        if (_activeType == EntryType.transaction)
+          Semantics(
+            button: true,
+            toggled: isRefund,
+            child: InkWell(
+              key: const ValueKey('entry-refund-toggle'),
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => setState(() {
+                _txType = isRefund ? 'expense' : 'income';
+                _refundTargetId = null;
+              }),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Center(
+                  widthFactor: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isRefund ? p.good.withAlpha(28) : p.surfaceSubtle,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: isRefund ? p.good.withAlpha(110) : p.border),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (isRefund) ...[WebIcon(WebIcons.checkCircle, size: 12, color: p.goodInk), const SizedBox(width: 4)],
+                      Text(isRefund ? 'Credit / Refund' : 'Expense Debit',
+                          style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isRefund ? p.goodInk : p.textSecondary)),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (_activeType == EntryType.item)
+          SizedBox(
+            width: 190,
+            child: SetupSegmented(
+              value: _itemType,
+              options: const [('one-time', 'One-Time', null), ('recurring', 'Recurring', null)],
+              onChanged: (v) => setState(() => _itemType = v),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeroAmount() {
+    final p = context.palette;
+    return Row(
+      children: [
+        Text(moneySymbol, style: AppTypography.inter(fontSize: 28, fontWeight: FontWeight.w500, color: p.textMuted)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: TextField(
+            key: const ValueKey('entry-amount'),
+            controller: _amountCtrl,
+            focusNode: _amountFocus,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: AppTypography.inter(fontSize: 32, fontWeight: FontWeight.w700, color: p.text)
+                .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            decoration: InputDecoration.collapsed(
+              hintText: '0.00',
+              hintStyle: AppTypography.inter(fontSize: 32, fontWeight: FontWeight.w700, color: p.textMuted),
+            ),
+          ),
+        ),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _amountCtrl,
+          builder: (_, v, _) => v.text.isEmpty
+              ? const SizedBox.shrink()
+              : TextButton(
+                  key: const ValueKey('entry-amount-clear'),
+                  onPressed: () {
+                    _amountCtrl.clear();
+                    _amountFocus.requestFocus();
+                  },
+                  child: const Text('Clear'),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickRow() {
+    final p = context.palette;
+    final incs = quickIncrements[_activeType] ?? quickAmounts;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: incs
+                .map((v) => ActionChip(
+                      label: Text(v >= 1000 ? '${v ~/ 1000}k' : '$v'),
+                      onPressed: () {
+                        setState(() => _amountCtrl.text = '$v');
+                        _amountFocus.requestFocus();
+                      },
+                    ))
+                .toList(),
+          ),
+        ),
+        if (_activeType == EntryType.item)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Checkbox(
+              key: const ValueKey('entry-variable'),
+              value: !_isFixed,
+              semanticLabel: 'Variable expense',
+              onChanged: (v) => setState(() => _isFixed = !(v ?? false)),
+            ),
+            Text('Variable', style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: p.text)),
+            IconButton(
+              key: const ValueKey('entry-variable-info'),
+              tooltip: 'About Variable vs Fixed expenses',
+              onPressed: _showVariableInfo,
+              icon: Text('ℹ', style: TextStyle(fontSize: 16, color: p.textSecondary)),
+            ),
+          ]),
+      ],
+    );
+  }
+
+  Future<void> _showVariableInfo() => showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          final p = ctx.palette;
+          Widget item(String title, String body) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w700, color: p.text)),
+                  const SizedBox(height: 2),
+                  Text(body, style: AppTypography.inter(fontSize: 12, color: p.textSecondary)),
+                ]),
+              );
+          return AlertDialog(
+            title: Row(children: [
+              const Expanded(child: Text('Expense Rollover Mode')),
+              IconButton(
+                tooltip: 'Close info',
+                onPressed: () => Navigator.pop(ctx),
+                icon: WebIcon(WebIcons.x, size: 14, color: p.textSecondary),
+              ),
+            ]),
+            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              item('Fixed (Default)', 'Automatically carries forward into next month\'s safe-to-spend allowance on rollover.'),
+              item('Variable', 'One-time commitment for this month only; drops automatically upon rollover.'),
+            ]),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it'))],
+          );
+        },
+      );
+
+  Widget _rowInput(TextEditingController ctrl, String hint, {Key? key, ValueChanged<String>? onChanged}) {
+    final p = context.palette;
+    return TextField(
+      key: key,
+      controller: ctrl,
+      onChanged: onChanged,
+      textAlign: TextAlign.end,
+      textCapitalization: TextCapitalization.sentences,
+      style: AppTypography.inter(fontSize: 16, color: p.text),
+      decoration: InputDecoration.collapsed(
+        hintText: hint,
+        hintStyle: AppTypography.inter(fontSize: 16, color: p.textMuted),
+      ).copyWith(
+        constraints: const BoxConstraints(minHeight: 44),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  /// A grouped row's value that opens a picker: the value, then a chevron.
+  Widget _rowValue(String value, VoidCallback onTap, {required Key key, required String semantics, Color? color}) {
+    final p = context.palette;
+    return Semantics(
+      button: true,
+      label: '$semantics: $value. Change',
+      onTap: onTap,
+      excludeSemantics: true,
+      child: InkWell(
+        key: key,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end,
+                  style: AppTypography.inter(fontSize: 16, color: color ?? p.textSecondary)),
+            ),
+            const SizedBox(width: 4),
+            WebIcon(WebIcons.chevronRight, size: 14, color: p.textMuted),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _pickFrom(String title, List<String> options, String current) => showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheet) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(title, style: AppTypography.inter(fontSize: 16, fontWeight: FontWeight.w700, color: sheet.palette.text)),
+            ),
+            for (final o in options)
+              ListTile(
+                key: ValueKey('entry-pick-$o'),
+                title: Text(o),
+                trailing: o == current ? WebIcon(WebIcons.check, size: 16, color: sheet.palette.text) : null,
+                onTap: () => Navigator.pop(sheet, o),
+              ),
+          ]),
+        ),
+      );
+
+  static const _incomeSources = ['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'];
+
+  Widget _buildRows(BudgetProvider budget, bool isRecurring) {
+    final p = context.palette;
+    final isGoal = _activeType == EntryType.goal;
+    final hasCategory = _activeType == EntryType.transaction || _activeType == EntryType.item;
+    final (nameLabel, hint) = switch (_activeType) {
+      EntryType.item => ('Name *', 'Rent, electricity…'),
+      EntryType.income => ('What for', 'Salary payout…'),
+      EntryType.goal => ('Goal name', 'New headphones'),
+      _ => ('What for', 'Grocery, metro…'),
+    };
+    final accountLabel = switch (_activeType) {
+      EntryType.income => 'Into',
+      EntryType.item => 'Pay from',
+      _ => 'Paid from',
+    };
+    final account = budget.accountById(_selectedAccountId);
+    final accountText = account == null
+        ? (_activeType == EntryType.income ? 'Choose account' : 'No account')
+        : (account.name.isEmpty ? 'Account' : account.name);
+    final category = _isCustomCategory ? 'Custom' : _selectedCategory;
+
+    Future<void> pickDate() async {
+      final picked = await _pickEntryDate();
+      if (picked != null) {
+        setState(() {
+          _selectedDate = picked;
+          _dayCtrl.text = '${picked.day}';
+        });
+      }
+    }
+
+    return SetupGroup(children: [
+      SetupRow(
+        label: nameLabel,
+        child: _rowInput(_nameCtrl, hint, key: const ValueKey('entry-name'), onChanged: _onDescriptionChanged),
+      ),
+      if (hasCategory)
+        SetupRow(
+          label: _tagSuggested ? 'Category · suggested' : 'Category',
+          labelWidth: _tagSuggested ? 150 : 104,
+          child: _rowValue(category, () async {
+            final picked = await _pickFrom('Category', [..._quickCategories, 'Custom…'], _isCustomCategory ? 'Custom…' : _selectedCategory);
+            if (picked == null) return;
+            setState(() {
+              _categoryTouched = true;
+              _tagSuggested = false;
+              if (picked == 'Custom…') {
+                _isCustomCategory = true;
+              } else {
+                _isCustomCategory = false;
+                _selectedCategory = picked;
+              }
+            });
+          }, key: const ValueKey('entry-category'), semantics: 'Category'),
+        ),
+      if (hasCategory && _isCustomCategory)
+        SetupRow(label: 'Custom', child: _rowInput(_customCategoryCtrl, 'Rent, Utilities…', key: const ValueKey('entry-custom-category'))),
+      if (_activeType == EntryType.income)
+        SetupRow(
+          label: 'Source',
+          child: _rowValue(_incSource, () async {
+            final picked = await _pickFrom('Source', _incomeSources, _incSource);
+            if (picked != null) setState(() => _incSource = picked);
+          }, key: const ValueKey('entry-source'), semantics: 'Source'),
+        ),
+      if (!isGoal)
+        SetupRow(
+          label: accountLabel,
+          child: _rowValue(
+            accountText,
+            () => EntrySummaryChips(
+              date: _selectedDate,
+              onDate: (_) {},
+              accountLabel: accountLabel,
+              accountType: _accountType,
+              accountId: _selectedAccountId,
+              banks: budget.bankAccountModels,
+              wallets: budget.walletModels,
+              cards: hasCategory ? budget.cardAccountModels : const [],
+              accountRequired: _activeType == EntryType.income,
+              onAccount: (type, id) => setState(() {
+                _accountType = type;
+                _selectedAccountId = id;
+              }),
+            ).pickAccount(context),
+            key: const ValueKey('entry-account-chip'),
+            semantics: accountLabel,
+            color: account == null && _activeType == EntryType.income ? p.warnInk : null,
+          ),
+        ),
+      if (isRecurring)
+        SetupRow(label: 'When', child: _buildDayStepper())
+      else
+        SetupRow(
+          label: isGoal ? 'Target date' : 'When',
+          child: _rowValue(EntrySummaryChips.dateLabel(_selectedDate), pickDate,
+              key: const ValueKey('entry-date-chip'), semantics: isGoal ? 'Target date' : 'When'),
+        ),
+    ]);
+  }
+
+  /// Move form, as on web: Note / From / When grouped rows.
+  Widget _buildMoveRows(BudgetProvider budget) {
+    final label = _moveTarget == 'card' ? 'Pay from' : 'From';
+    final src = budget.accountById(_sourceAccountId);
+    return SetupGroup(children: [
+      SetupRow(label: 'Note', child: _rowInput(_nameCtrl, 'Optional', key: const ValueKey('entry-name'))),
+      SetupRow(
+        label: label,
+        child: _rowValue(
+          src == null ? 'Choose account' : (src.name.isEmpty ? 'Account' : src.name),
+          () => _pickMoveAccount(budget, label, _sourceAccountType, _sourceAccountId, (t, id) {
+            _sourceAccountType = t;
+            _sourceAccountId = id;
+          }),
+          key: const ValueKey('move-from'),
+          semantics: label,
+        ),
+      ),
+      SetupRow(
+        label: 'When',
+        child: _rowValue(EntrySummaryChips.dateLabel(_selectedDate), () async {
+          final picked = await _pickEntryDate();
+          if (picked != null) setState(() => _selectedDate = picked);
+        }, key: const ValueKey('entry-date-chip'), semantics: 'When'),
+      ),
+    ]);
+  }
+
+  /// "To" with web's Invert button, then the destination row.
+  Widget _buildMoveTo(BudgetProvider budget) {
+    final p = context.palette;
+    final dst = budget.accountById(_destAccountId);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Text('To', style: AppTypography.inter(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary)),
+        const Spacer(),
+        TextButton.icon(
+          key: const ValueKey('move-invert'),
+          onPressed: () => setState(() {
+            final t = _sourceAccountType, id = _sourceAccountId;
+            _sourceAccountType = _destAccountType;
+            _sourceAccountId = _destAccountId;
+            _destAccountType = t;
+            _destAccountId = id;
+          }),
+          icon: const Icon(Icons.swap_vert, size: 16),
+          label: const Text('Invert'),
+        ),
+      ]),
+      SetupGroup(children: [
+        SetupRow(
+          label: 'Account',
+          child: _rowValue(
+            dst == null ? 'Choose account' : (dst.name.isEmpty ? 'Account' : dst.name),
+            () => _pickMoveAccount(budget, 'To', _destAccountType, _destAccountId, (t, id) {
+              _destAccountType = t;
+              _destAccountId = id;
+            }),
+            key: const ValueKey('move-to'),
+            semantics: 'To',
+          ),
+        ),
+      ]),
+    ]);
+  }
+
+  Future<void> _pickMoveAccount(BudgetProvider budget, String label, String type, String? id, void Function(String, String?) set) =>
+      EntrySummaryChips(
+        date: _selectedDate,
+        onDate: (_) {},
+        accountLabel: label,
+        accountType: type,
+        accountId: id,
+        banks: budget.bankAccountModels,
+        wallets: budget.walletModels,
+        accountRequired: true,
+        onAccount: (t, i) => setState(() => set(t, i)),
+      ).pickAccount(context);
+
+  /// The saved spend being edited is already out of [accountId]'s balance.
+  int _savedSpendIn(String? accountId) {
+    final t = widget.initialTransaction;
+    if (_activeType != EntryType.transaction || t == null || t.isPlanned || t.accountId != accountId) return 0;
+    return t.amount;
+  }
+
+  DateTime get _today {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  /// Spends, income and moves can't be dated after today; a one-time plan can't be before it.
+  Future<DateTime?> _pickEntryDate() {
+    final logged = _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.transfer;
+    final plan = _activeType == EntryType.item && !_isPaid;
+    return showAppDatePicker(context, _selectedDate,
+        firstDate: plan ? _today : null, lastDate: logged ? _today : null);
+  }
+
+  /// The date the entry had before editing ('' for a new entry).
+  String get _originalDate {
+    final t = widget.initialTransaction;
+    if (t == null) return '';
+    final raw = t.isPlanned ? t.dueDate : t.date;
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  }
+
+  String? _dateRuleError(String dateStr, bool isRecurring) {
+    if (dateStr == _originalDate) return null;
+    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    if ((_activeType == EntryType.transaction || _activeType == EntryType.income) && day.isAfter(_today)) {
+      return "A spend or income can't be dated in the future.";
+    }
+    if (_activeType == EntryType.item && !isRecurring && !_isPaid && day.isBefore(_today)) {
+      return "A planned payment can't be dated in the past.";
+    }
+    return null;
+  }
+
+  Widget _buildDayStepper() {
+    final p = context.palette;
+    final day = (int.tryParse(_dayCtrl.text) ?? 1).clamp(1, 31);
+    void set(int d) => setState(() => _dayCtrl.text = '${d.clamp(1, 31)}');
+    return Semantics(
+      label: 'Day of month (1 - 31)',
+      value: '$day',
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          key: const ValueKey('entry-day-minus'),
+          tooltip: 'Earlier day',
+          onPressed: day > 1 ? () => set(day - 1) : null,
+          icon: const Icon(Icons.remove, size: 18),
+        ),
+        SizedBox(
+          width: 64,
+          child: Text('Day $day', key: const ValueKey('entry-day'), textAlign: TextAlign.center,
+              style: AppTypography.inter(fontSize: 16, fontWeight: FontWeight.w600, color: p.text)),
+        ),
+        IconButton(
+          key: const ValueKey('entry-day-plus'),
+          tooltip: 'Later day',
+          onPressed: day < 31 ? () => set(day + 1) : null,
+          icon: const Icon(Icons.add, size: 18),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildNoAccounts() {
+    final p = context.palette;
+    return Container(
+      key: const ValueKey('entry-no-accounts'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.warn.withAlpha(24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.warn.withAlpha(90)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Bank Account Required', style: AppTypography.inter(fontSize: 14, fontWeight: FontWeight.w700, color: p.warnInk)),
+        const SizedBox(height: 4),
+        Text('You must register a bank account before recording transactions.',
+            style: AppTypography.inter(fontSize: 12, color: p.textSecondary)),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const ValueKey('entry-add-bank'),
+          onPressed: () => showAddAccountDialog(context, isBank: true),
+          child: const Text('+ Add Bank Account'),
+        ),
+      ]),
+    );
+  }
+
+  /// What each field shows, for the "Changing: …" line while editing.
+  Map<String, String> _editValues(BudgetProvider budget) {
+    final amt = toMinorUnits(num.tryParse(_amountCtrl.text) ?? 0);
+    final recurring = _activeType == EntryType.item && _itemType == 'recurring';
+    return {
+      'Amount': formatCurrency(amt),
+      if (_activeType != EntryType.goal) ...{
+        (recurring ? 'Day' : 'Date'): recurring ? _dayCtrl.text : EntrySummaryChips.dateLabel(_selectedDate),
+        'Account': budget.accountById(_selectedAccountId)?.name ?? '',
+      },
+      'Name': _nameCtrl.text.trim(),
+      if (_activeType == EntryType.transaction || _activeType == EntryType.item)
+        'Category': _isCustomCategory ? _customCategoryCtrl.text.trim() : _selectedCategory,
+      if (_activeType == EntryType.income) 'Source': _incSource,
+      if (_activeType == EntryType.transaction) 'Type': _txType == 'income' ? 'Refund' : 'Spend',
+      if (_activeType == EntryType.item) ...{
+        'Repeat': recurring ? 'Monthly' : 'One-time',
+        'Rollover': _isFixed ? 'Fixed' : 'Variable',
+        'Status': _isPaid ? 'Paid' : 'Pending',
+      },
+      if (_activeType == EntryType.goal) 'Priority': const ['High', 'Medium', 'Low'][_goalPriority.clamp(0, 2)],
+    };
+  }
+
+  Widget _buildEditSummary(BudgetProvider budget) {
+    final p = context.palette;
+    final kind = _activeType == EntryType.item
+        ? 'planned bill'
+        : (_activeType == EntryType.income ? 'income' : (_activeType == EntryType.goal ? 'goal' : 'spend'));
+    final canConvert = widget.initialTransaction != null &&
+        (_activeType == EntryType.transaction || _activeType == EntryType.income);
+    return AnimatedBuilder(
+      animation: Listenable.merge([_amountCtrl, _nameCtrl, _customCategoryCtrl, _dayCtrl]),
+      builder: (context, _) {
+        final now = _editValues(budget);
+        final before = _editSnapshot ?? now;
+        final changes = [
+          for (final e in now.entries)
+            if (before.containsKey(e.key) && before[e.key] != e.value) (e.key, before[e.key]!, e.value),
+        ];
+        String dash(String s) => s.isEmpty ? '—' : s;
+        return Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(
+              changes.isEmpty
+                  ? 'No changes yet'
+                  : 'Changing: ${changes.map((c) => '${c.$1} ${dash(c.$2)} → ${dash(c.$3)}').join(' · ')}',
+              key: const ValueKey('entry-edit-summary'),
+              style: AppTypography.inter(fontSize: 12, color: p.textSecondary),
+            ),
+            if (!_confirmDelete)
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                if (canConvert)
+                  TextButton(
+                    key: const ValueKey('entry-change-type'),
+                    onPressed: () => setState(() => _showConvert = !_showConvert),
+                    child: const Text('Change type'),
+                  ),
+                TextButton(
+                  key: const ValueKey('entry-delete'),
+                  onPressed: () => setState(() => _confirmDelete = true),
+                  style: TextButton.styleFrom(foregroundColor: p.badInk),
+                  child: const Text('Delete'),
+                ),
+              ]),
+            if (canConvert && _showConvert && !_confirmDelete)
+              _inlineConfirm(
+                key: const ValueKey('entry-convert-menu'),
+                text: 'Change this $kind to:',
+                hint: 'The $kind is replaced once the new entry is saved.',
+                actions: [
+                  for (final (target, label) in const [
+                    (EntryType.transaction, 'Spend'),
+                    (EntryType.income, 'Income'),
+                    (EntryType.transfer, 'Move'),
+                  ])
+                    if (target != _activeType)
+                      OutlinedButton(onPressed: () => _convertTo(budget, target), child: Text(label)),
+                ],
+              ),
+            if (_confirmDelete)
+              _inlineConfirm(
+                key: const ValueKey('entry-delete-confirm'),
+                text: 'Delete this $kind? This can\'t be undone.',
+                actions: [
+                  OutlinedButton(onPressed: () => setState(() => _confirmDelete = false), child: const Text('Keep')),
+                  FilledButton(
+                    key: const ValueKey('entry-delete-confirm-btn'),
+                    style: FilledButton.styleFrom(backgroundColor: p.badInk),
+                    onPressed: _deleting ? null : () => _deleteEntry(budget),
+                    child: Text(_deleting ? 'Deleting…' : 'Delete'),
+                  ),
+                ],
+              ),
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _inlineConfirm({required Key key, required String text, String? hint, required List<Widget> actions}) {
+    final p = context.palette;
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: p.surfaceSubtle, borderRadius: BorderRadius.circular(10)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(text, style: AppTypography.inter(fontSize: 13, color: p.text)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: actions),
+        if (hint != null) ...[
+          const SizedBox(height: 6),
+          Text(hint, style: AppTypography.inter(fontSize: 11, color: p.textMuted)),
+        ],
+      ]),
+    );
+  }
+
+  Future<void> _deleteEntry(BudgetProvider budget) async {
+    setState(() => _deleting = true);
+    try {
+      if (widget.initialGoal != null) {
+        await budget.deleteGoal(_editId);
+      } else {
+        await budget.deleteTransaction(_editId);
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not delete. Please try again.')));
+      setState(() => _confirmDelete = false);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  /// Change type: reopen the sheet on the new tab with the same values; the
+  /// original is deleted only once the new entry saves (as on web).
+  void _convertTo(BudgetProvider budget, EntryType target) {
+    final original = widget.initialTransaction!;
+    final carry = EntryCarry(
+      amountText: _amountCtrl.text.trim(),
+      date: _selectedDate,
+      note: _nameCtrl.text.trim(),
+      accountType: _accountType,
+      accountId: _selectedAccountId,
+      category: _activeType == EntryType.income
+          ? _incSource
+          : (_isCustomCategory ? _customCategoryCtrl.text.trim() : _selectedCategory),
+    );
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    showModalBottomSheet<void>(
+      context: navigator.context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UnifiedEntryModal(initialType: target, carry: carry, replaces: original),
+    );
+  }
+
+  Widget _buildFooter(bool noAccounts) {
+    final p = context.palette;
+    final isPlan = _activeType == EntryType.item;
+    if (!isPlan && !_canAddAnother) return const SizedBox.shrink();
+    return Row(
+      children: [
+        if (isPlan && !_isEditing)
+          Flexible(
+            child: TextButton(
+              key: const ValueKey('entry-already-paid'),
+              onPressed: () => setState(() => _activeType = EntryType.transaction),
+              child: const Text('Already paid? Log it as spend', overflow: TextOverflow.ellipsis),
+            ),
+          )
+        else if (isPlan)
+          Flexible(
+            child: Semantics(
+              toggled: _isPaid,
+              label: _isPaid ? 'Payment done' : 'Payment pending',
+              child: InkWell(
+                key: const ValueKey('entry-paid-toggle'),
+                onTap: () => setState(() => _isPaid = !_isPaid),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  ExcludeSemantics(
+                    child: Switch(value: _isPaid, onChanged: (v) => setState(() => _isPaid = v)),
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(_isPaid ? 'Payment done' : 'Payment pending',
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: _isPaid ? p.goodInk : p.textSecondary)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        const Spacer(),
+        if (_canAddAnother)
+          Flexible(
+            child: TextButton(
+              key: const ValueKey('save-add-another'),
+              onPressed: _submitting || noAccounts ? null : () => _handleSubmit(again: true),
+              child: const Text('Add & log another', overflow: TextOverflow.ellipsis),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1309,8 +1816,6 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
   bool get _isPersonMove => _activeType == EntryType.transfer && _moveTarget == 'person';
 
-  bool get _usesSummaryChips =>
-      _activeType == EntryType.transaction || _activeType == EntryType.income || _activeType == EntryType.item;
 
   SimulatedCard? _selectedCard(BudgetProvider budget) {
     for (final c in budget.simulatedCards) {
@@ -1319,40 +1824,46 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     return null;
   }
 
-  Widget _buildTab(EntryType type, String title, bool isDark) {
+  Widget _buildTab(EntryType type, String title, WebIconData icon, bool isDark) {
     final isSelected = _activeType == type;
-    return Expanded(child: InkWell(
-      onTap: () {
-        setState(() => _activeType = type);
-        if (type == EntryType.goal) {
-          _fetchGoalRecommendation();
-        }
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (type == EntryType.income ? context.palette.goodInk : (Theme.of(context).colorScheme.primary))
-              : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
+    final fg = isSelected
+        ? (type == EntryType.income ? Colors.white : Theme.of(context).colorScheme.onPrimary)
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    return Expanded(
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        child: InkWell(
+          key: ValueKey('entry-tab-${type.name}'),
+          onTap: () {
+            setState(() => _activeType = type);
+            if (type == EntryType.goal) _fetchGoalRecommendation();
+          },
           borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isSelected
-                ? (type == EntryType.income ? Colors.white : (Theme.of(context).colorScheme.onPrimary))
-                : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: AppForm.controlHeight),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? (type == EntryType.income ? context.palette.goodInk : Theme.of(context).colorScheme.primary)
+                  : (isDark ? AppColors.darkSurfaceSubtle : AppColors.lightSurfaceSubtle),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              WebIcon(icon, size: 13, color: fg),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
+              ),
+            ]),
           ),
         ),
       ),
-    ));
+    );
   }
 
   String _titleForType(EntryType type) {
@@ -1381,6 +1892,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
 
     if (amt <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+      return;
+    }
+    final dateError = _dateRuleError(dateStr, isRecurring);
+    if (dateError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dateError)));
       return;
     }
 
@@ -1457,6 +1973,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           'type': _itemType,
           'category': cat.isNotEmpty ? cat : 'Other',
           'isFixed': _isFixed,
+          if (_isEditing) 'isPaid': _isPaid,
           if (_selectedAccountId != null) ...{
             'accountType': isWallet ? 'wallet' : 'bank',
             if (!isWallet) 'bankAccountId': _selectedAccountId,
@@ -1502,6 +2019,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         });
       }
 
+
+      if (widget.replaces != null) await budget.deleteTransaction(widget.replaces!.id);
 
       // Remember the account (and the category for this description) for next time
       final memory = _memory ?? await EntryMemory.load();

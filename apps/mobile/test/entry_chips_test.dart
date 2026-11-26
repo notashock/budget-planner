@@ -56,15 +56,15 @@ void main() {
     return (fb, budget);
   }
 
-  testWidgets('Spend shows Today and the default account with its balance, as one row', (tester) async {
+  testWidgets('Spend shows the default account and Today as grouped rows, account first (as on web)', (tester) async {
     await openSheet(tester);
-    expect(find.byType(EntrySummaryChips), findsOneWidget);
     final date = find.byKey(const ValueKey('entry-date-chip'));
     final account = find.byKey(const ValueKey('entry-account-chip'));
     expect(find.descendant(of: date, matching: find.text('Today')), findsOneWidget);
     expect(find.descendant(of: account, matching: find.textContaining('Main')), findsOneWidget);
-    expect(find.descendant(of: account, matching: find.textContaining('63,550')), findsOneWidget);
-    expect(tester.getRect(date).top, tester.getRect(account).top, reason: 'one row at 1x');
+    expect(find.text('Paid from'), findsOneWidget);
+    expect(find.text('When'), findsOneWidget);
+    expect(tester.getRect(account).top, lessThan(tester.getRect(date).top));
   });
 
   testWidgets('choosing a wallet from the chip updates it, and the spend is saved to it', (tester) async {
@@ -79,11 +79,9 @@ void main() {
         find.descendant(of: find.byKey(const ValueKey('entry-account-chip')), matching: find.textContaining('UPI')),
         findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).at(1), '120');
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '120');
     await tester.pump();
-    final save = find.widgetWithText(ElevatedButton, 'Save Spend').evaluate().isNotEmpty
-        ? find.widgetWithText(ElevatedButton, 'Save Spend')
-        : find.byType(ElevatedButton).last;
+    final save = find.byKey(const ValueKey('entry-primary'));
     await tester.ensureVisible(save);
     await tester.tap(save);
     await tester.pumpAndSettle();
@@ -103,7 +101,7 @@ void main() {
   testWidgets('screen readers can activate both chips', (tester) async {
     final handle = tester.ensureSemantics();
     await openSheet(tester);
-    for (final label in [RegExp(r'^Date: '), RegExp(r'^Paid from: ')]) {
+    for (final label in [RegExp(r'^When: '), RegExp(r'^Paid from: ')]) {
       final node = tester.getSemantics(find.bySemanticsLabel(label));
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue, reason: '$label');
     }
@@ -113,7 +111,7 @@ void main() {
   testWidgets('a recurring plan has no date chip (it has a day of the month)', (tester) async {
     await openSheet(tester, type: EntryType.item);
     expect(find.byKey(const ValueKey('entry-date-chip')), findsOneWidget);
-    await tester.tap(find.text('Recurring (Monthly)'));
+    await tester.tap(find.text('Recurring'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('entry-date-chip')), findsNothing);
     expect(find.byKey(const ValueKey('entry-account-chip')), findsOneWidget);

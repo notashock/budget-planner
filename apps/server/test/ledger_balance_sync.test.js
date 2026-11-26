@@ -55,7 +55,7 @@ describe('Ledger balance stays in sync', () => {
 
   it('an API spend changes the balance once, not twice', async () => {
     const res = await request(app).post('/api/v1/transactions').set(auth)
-      .send({ name: 'Coffee', amount: 150, date: '2031-05-04', accountId: bankId, status: 'successful', origin: 'spot' });
+      .send({ name: 'Coffee', amount: 150, date: new Date().toISOString().slice(0, 10), accountId: bankId, status: 'successful', origin: 'spot' });
     expect(res.status).toBeLessThan(300);
     expect(await stored(bankId)).toBe(9850);
     await db.delete(s.transactions).where(eq(s.transactions.userId, userId));

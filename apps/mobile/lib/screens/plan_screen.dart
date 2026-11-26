@@ -10,11 +10,12 @@ import '../modals/month_review_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
-import '../widgets/tab_states.dart';
 import '../engine/plan_insights.dart';
 import '../services/outbox.dart' show WriteResult;
 import '../modals/transaction_detail_modal.dart' show canEditTransaction, openEditTransaction;
 import '../widgets/plan_glance.dart';
+import '../widgets/irregular_dashboard.dart';
+import '../engine/income_engine.dart';
 import '../widgets/web_icons.dart';
 
 class PlanScreen extends StatefulWidget {
@@ -56,32 +57,12 @@ class _PlanScreenState extends State<PlanScreen> {
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     final month = budget.monthInfo;
-    if (month == null) {
-      return ScrollableEmpty(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'No Active Budget Month',
-                style: AppTypography.cardTitle(color: text),
-              ),
-              const SizedBox(height: 8),
-              // Months are never created by hand (same as web): they start from
-              // the income setup, and the next one from the month menu's "Start" (as web).
-              Text(
-                'Months start on their own from your income setup. Pick another month from the menu above.',
-                textAlign: TextAlign.center,
-                style: AppTypography.inter(fontSize: 13, color: textMuted),
-              ),
-            ],
-          ),
-        ),
-      );
+    // As web: no salary month, or an irregular-income user, sees runway and cashflow instead
+    if (month == null || budget.userSettings['incomeMode'] == 'irregular') {
+      return _buildIrregular(budget, isDark, border, text, textSecondary,
+          month?.currencySymbol ?? '${budget.userSettings['currencySymbol'] ?? kDefaultCurrencySymbol}');
     }
 
     final currencySymbol = month.currencySymbol;
@@ -260,6 +241,16 @@ class _PlanScreenState extends State<PlanScreen> {
                   },
                 ),
               ),
+              const SizedBox(height: 12),
+              AllowancePaceMeter(
+                unplannedAllowance: activeSimulation.unplannedAllowance,
+                totalUnplannedSpent: activeSimulation.totalUnplannedSpent,
+                daysElapsed: activeSimulation.daysElapsed ?? _unifiedSimulation(budget).daysElapsed ?? 1,
+                daysInMonth: activeSimulation.daysInMonth ??
+                    _unifiedSimulation(budget).daysInMonth ??
+                    (activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30),
+                currencySymbol: currencySymbol,
+              ),
               ],
               const SizedBox(height: 12),
 
@@ -287,6 +278,28 @@ class _PlanScreenState extends State<PlanScreen> {
             ],
           ),
         ),
+    );
+  }
+
+  Widget _buildIrregular(BudgetProvider budget, bool isDark, Color border, Color text, Color textSecondary, String currencySymbol) {
+    final metrics = calculateIrregularMetrics(
+      transactions: budget.transactions,
+      accounts: [...budget.bankAccounts, ...budget.wallets],
+    );
+    return Scaffold(
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(10, 2, 10, MediaQuery.paddingOf(context).bottom + 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _buildAccountFilterBar(budget, isDark, border, text, textSecondary, currencySymbol),
+          const SizedBox(height: 10),
+          RunwayGauge(metrics: metrics, currencySymbol: currencySymbol),
+          const SizedBox(height: 10),
+          IrregularHeroCards(metrics: metrics, currencySymbol: currencySymbol),
+          const SizedBox(height: 10),
+          CashflowAnalysisCard(metrics: metrics, currencySymbol: currencySymbol),
+        ]),
+      ),
     );
   }
 
