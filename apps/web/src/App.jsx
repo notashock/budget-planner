@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './api.js';
-import { simulate, formatCurrency } from '@budget/engine';
+import { simulate, formatCurrency, isFuturePeriod } from '@budget/engine';
 import { MonthMenu } from './components/MonthMenu.jsx';
 import { YouMenu } from './components/YouMenu.jsx';
 import { BottomNav } from './components/BottomNav.jsx';
@@ -137,8 +137,7 @@ export default function App() {
       const isPast = m.endDate
         ? m.endDate < todayIso
         : (m.year < currentYear || (m.year === currentYear && m.month < currentMonthNum));
-      const isFuture = (m.startDate && m.startDate > todayIso) ||
-        (m.year > currentYear || (m.year === currentYear && m.month > currentMonthNum));
+      const isFuture = isFuturePeriod(m, todayIso);
       return !isPast && !isFuture && !m.isClosed;
     }) || null;
   }, [months]);

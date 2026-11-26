@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../modals/month_modals.dart';
+import '../providers/budget_provider.dart' show isFuturePeriod;
 import '../providers/budget_view.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
@@ -23,11 +24,9 @@ MonthPlace monthPlace(Map m, DateTime now) {
   final y = (num.tryParse('${m['year']}') ?? 0).toInt();
   final mo = (num.tryParse('${m['month']}') ?? 0).toInt();
   final end = m['endDate'] as String?;
-  final start = m['startDate'] as String?;
   final before = y < now.year || (y == now.year && mo < now.month);
-  final after = y > now.year || (y == now.year && mo > now.month);
   if (end != null ? end.compareTo(today) < 0 : before) return MonthPlace.past;
-  if ((start != null && start.compareTo(today) > 0) || after || m['isClosed'] == true) return MonthPlace.future;
+  if (isFuturePeriod(m, now) || m['isClosed'] == true) return MonthPlace.future;
   return MonthPlace.active;
 }
 

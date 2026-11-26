@@ -315,6 +315,25 @@ export function calculatePeriodBoundaries({
 }
 
 /**
+ * Whether a month has not started yet. A salary cycle is named after the month
+ * it mostly covers, so one named December can start on 30 Nov: a month named
+ * after a later month than today is future unless 15 days after its start falls
+ * in its named month (a real cycle, not a ghost month left by old data).
+ *
+ * @param {{year:number, month:number, startDate?:string}} m
+ * @param {string} todayIso - 'YYYY-MM-DD'
+ */
+export function isFuturePeriod(m, todayIso) {
+  if (m.startDate && m.startDate > todayIso) return true;
+  const [ty, tm] = todayIso.split('-').map(Number);
+  const namedLater = m.year > ty || (m.year === ty && m.month > tm);
+  if (!namedLater || !m.startDate) return namedLater;
+  const [y, mo, d] = m.startDate.split('-').map(Number);
+  const mid = new Date(Date.UTC(y, mo - 1, d + 15));
+  return !(mid.getUTCFullYear() === m.year && mid.getUTCMonth() + 1 === m.month);
+}
+
+/**
  * Computes the next period boundary given the end date of the previous period.
  *
  * @param {object} params
