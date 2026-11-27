@@ -494,7 +494,8 @@ export const SalaryTemplateService = {
         closedAt: new Date(),
         closingBalances: closingBalancesSnapshot,
         isSalaryCredited: true,
-        salaryCreditedDate: actualDate || getTodayIso(),
+        // A cycle whose own salary is in keeps that date; the next salary belongs to the next cycle
+        salaryCreditedDate: month.salaryCreditedDate || actualDate || getTodayIso(),
         incomeAmount: salaryTx.amount || month.incomeAmount,
         endDate: effectiveEndDate,
         updatedAt: new Date()
@@ -510,7 +511,20 @@ export const SalaryTemplateService = {
       nextStartDate = `${nextYear}-${pad(nextMonthNum)}-01`;
     }
 
-    const { p1Month: nextMonth } = (await this.ensureRollingPeriods(userId, nextStartDate)) || {};
+    let nextMonth;
+    if (template?.periodType === 'salary_cycle' && month.endDate && actualDate) {
+      // The cycle after this one, starting on the salary date. Looked up from the salary
+      // date alone, a salary days before payday would land back in the cycle just closed.
+      let bounds = getNextPeriodBoundaries({
+        periodType: 'salary_cycle', creditDay: template.expectedCreditDay, previousEndDate: month.endDate
+      });
+      bounds = actualDate <= bounds.endDate
+        ? { ...bounds, startDate: actualDate, originalStartDate: actualDate }
+        : calculatePeriodBoundaries({ periodType: 'salary_cycle', creditDay: template.expectedCreditDay, targetDate: actualDate });
+      nextMonth = await this._ensurePeriodMonthAndSalary(userId, template, bounds, actualDate);
+    } else {
+      ({ p1Month: nextMonth } = (await this.ensureRollingPeriods(userId, nextStartDate)) || {});
+    }
 
     let effectiveNextMonth = nextMonth;
     // Fallback safety net: if ensureRollingPeriods failed to provision nextMonth, execute rollover

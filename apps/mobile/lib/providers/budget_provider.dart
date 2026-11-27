@@ -638,13 +638,29 @@ class BudgetProvider with ChangeNotifier {
       await _api.updateMonth(_currentYear, _currentMonth, updates);
   });
 
-  Future<void> creditSalary({num? amount, String? bankAccountId, String? date}) => _write(() async {
-      await _api.creditSalary(_currentYear, _currentMonth, {
+  /// Logs the salary as paid. In a cycle whose salary is already in, the
+  /// server takes it as the next payday's: it starts the next cycle, which
+  /// this then opens.
+  Future<void> creditSalary({num? amount, String? bankAccountId, String? date}) {
+    Map? next;
+    return _write(() async {
+      final res = await _api.creditSalary(_currentYear, _currentMonth, {
         if (amount != null) 'amount': amount,
         if (bankAccountId != null) 'bankAccountId': bankAccountId,
         if (date != null) 'date': date,
+        // Crediting this cycle's own salary keeps it open
+        'advance': false,
       });
-  });
+      next = res['advancedMonth'] is Map ? res['advancedMonth'] as Map : null;
+    }, reload: () async {
+      final y = num.tryParse('${next?['year']}')?.toInt(), m = num.tryParse('${next?['month']}')?.toInt();
+      if (y != null && m != null) {
+        _currentYear = y;
+        _currentMonth = m;
+      }
+      await loadInitialData();
+    });
+  }
 
   // Unified Transactions
   /// A spend, refund or income. Captured on the phone first (ADR 0071): it

@@ -7,6 +7,7 @@ import { loadGoalsForUser } from './simulationService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
+import { validateUserAccount } from '../services/accountValidation.js';
 
 /**
  * Month transitions: crediting the salary and rolling over to the next month.
@@ -27,6 +28,14 @@ export const MonthTransitions = {
     if (!rawMonth) throw new NotFoundError(`Month ${year}-${monthNum} not found`);
     if (rawMonth.isClosed) {
       throw new ValidationError('Cannot credit salary in a closed review period. Review periods are strictly read-only.');
+    }
+
+    // This cycle's salary is already in: a new credit is the next payday's salary
+    if (rawMonth.isSalaryCredited) {
+      const template = await SalaryTemplateService.getActiveTemplate(userId);
+      if (template?.periodType === 'salary_cycle') {
+        return this.creditNextCycleSalary(userId, rawMonth, template, options);
+      }
     }
 
     const month = await attachAccountOpeningsToMonth(rawMonth);
@@ -170,6 +179,76 @@ export const MonthTransitions = {
       transfers: serialize(transfers),
       bankAccounts: serialize(bankAccounts),
       wallets: serialize(wallets)
+    };
+  },
+
+  /**
+   * The next payday's salary on a salary cycle whose own salary is already in:
+   * the cycle ends the day before it, the next cycle starts on it and holds it.
+   * It can arrive up to 10 days early (a payday on a weekend or holiday).
+   */
+  async creditNextCycleSalary(userId, month, template, options = {}) {
+    if (!month.endDate) throw new ValidationError('This cycle has no end date, so the next payday is unknown');
+    const now = new Date();
+    const iso = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    const addDays = (dateIso, n) => {
+      const [y, m, d] = dateIso.split('-').map(Number);
+      return iso(new Date(Date.UTC(y, m - 1, d + n)));
+    };
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const date = options.date || todayStr;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new ValidationError('Salary date must be YYYY-MM-DD');
+
+    const payday = addDays(month.endDate, 1);
+    const earliest = addDays(payday, -10);
+    const lastCredit = month.salaryCreditedDate || month.incomeCreditDate || month.startDate;
+    if (date < earliest || (lastCredit && date <= lastCredit)) {
+      throw new ValidationError(`This cycle's salary is already logged. The next salary can be logged from ${earliest} (payday ${payday}).`);
+    }
+    // shortcut: server clock, one day of slack for users ahead of it; use the user's timezone (PR #74 localNow) once merged.
+    if (date > addDays(todayStr, 1)) throw new ValidationError('A salary cannot be logged before it arrives');
+
+    const amount = Math.round(Number(options.amount || template.amount || month.incomeAmount || 0));
+    if (!(amount > 0)) throw new ValidationError('A positive salary amount is required');
+
+    const accountId = options.bankAccountId || options.accountId || template.receivingAccountId || month.salaryAccountId;
+    if (!accountId) throw new ValidationError('Choose the account the salary was paid into');
+    const account = await validateUserAccount({ userId, accountId });
+    if (!account) throw new ValidationError('Choose one of your own accounts for the salary');
+    if (account.type === 'credit_card') throw new ValidationError('Salary cannot be paid into a credit card');
+
+    // Close this cycle the day before and open the next one on the salary date
+    const advance = await SalaryTemplateService.onSalaryCredited(
+      userId, { monthId: month.id, amount: month.incomeAmount }, date, { advance: true }
+    );
+    const next = advance?.nextMonth;
+    if (!next?.id) throw new ValidationError('Could not start the next salary cycle');
+
+    const [transaction] = await db.insert(s.transactions).values({
+      userId,
+      monthId: next.id,
+      amount,
+      date,
+      name: 'Monthly Salary',
+      origin: 'salary',
+      status: 'successful',
+      note: 'Monthly Salary',
+      category: 'Salary',
+      accountId,
+      isIncome: true
+    }).returning();
+
+    const [credited] = await db.update(s.months)
+      .set({ isSalaryCredited: true, salaryCreditedDate: date, incomeAmount: amount, salaryAccountId: accountId, updatedAt: new Date() })
+      .where(eq(s.months.id, next.id))
+      .returning();
+
+    const closed = await db.query.months.findFirst({ where: eq(s.months.id, month.id) });
+    return {
+      success: true,
+      month: serialize(await attachAccountOpeningsToMonth(closed)),
+      advancedMonth: serialize(await attachAccountOpeningsToMonth(credited)),
+      transaction: serialize(transaction)
     };
   },
 

@@ -18,6 +18,7 @@ import '../widgets/plan_glance.dart';
 import '../widgets/irregular_dashboard.dart';
 import '../engine/income_engine.dart';
 import '../widgets/web_icons.dart';
+import '../widgets/salary_due_card.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -119,6 +120,8 @@ class _PlanScreenState extends State<PlanScreen> {
               // 1. Account Filter Pill Track (Horizontal Scroll)
               _buildAccountFilterBar(budget, isDark, border, text, textSecondary, currencySymbol),
               const SizedBox(height: 10),
+              // Near payday, until the salary is logged
+              const SalaryDueCard(),
 
               // 2. Isolated Account Notification Banner (if filtered)
               if (isFilteringAccount) ...[
