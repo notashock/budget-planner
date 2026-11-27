@@ -233,6 +233,16 @@ class _PlanScreenState extends State<PlanScreen> {
                 headerTrailing: _DetailsButton(onTap: openReview),
                 periodStart: periodStart,
                 periodEnd: periodEnd,
+                events: isFilteringAccount
+                    ? eventsForAccount(
+                        _unifiedSimulation(budget),
+                        selectedAccount!.id,
+                        isBank: selectedAccount.kind == AccountKind.bank,
+                        isPrimary: selectedAccount.isPrimary,
+                        isSoleBank: budget.bankAccountModels.length == 1,
+                        salaryBankId: month.salaryAccountId,
+                      )
+                    : null,
                 accountNames: {for (final a in [...budget.bankAccountModels, ...budget.walletModels]) a.id: a.name},
                 accountName: isFilteringAccount ? selectedAccount!.name : null,
                 accountIsWallet: selectedAccount?.kind == AccountKind.wallet,

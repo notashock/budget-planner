@@ -21,6 +21,9 @@ class TimelineListWidget extends StatefulWidget {
   /// The month's first and last dates (yyyy-mm-dd). While today falls between
   /// them the timeline lists only today's entries; other months list every day.
   final String? periodStart, periodEnd;
+
+  /// The events to list, when not the simulation's own (an account's view).
+  final List<TimelineEvent>? events;
   final String currencySymbol;
 
   /// Account id → name, for the account line under each entry.
@@ -42,6 +45,7 @@ class TimelineListWidget extends StatefulWidget {
     this.headerTrailing,
     this.periodStart,
     this.periodEnd,
+    this.events,
     this.currencySymbol = kDefaultCurrencySymbol,
     this.accountNames = const {},
     this.accountName,
@@ -104,7 +108,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     final start = widget.periodStart, end = widget.periodEnd;
     final todayOnly = start != null && end != null && start.compareTo(today) <= 0 && today.compareTo(end) <= 0;
     final rows = [
-      for (final e in widget.simulation.allEvents)
+      for (final e in widget.events ?? widget.simulation.allEvents)
         if (!todayOnly || e.date == today) _Row(e, today, widget.currentDay, widget.safetyFloor),
     ];
 
@@ -151,7 +155,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
           if (shown.isEmpty)
             _empty(p, WebIcons.checkCircle, null, 'No events match the selected filter.', reset: true)
           else
-            _list(p, shown, today),
+            _list(p, shown, today, todayOnly: todayOnly),
         ],
       ],
     );
@@ -313,7 +317,7 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     );
   }
 
-  Widget _list(AppPalette p, List<_Row> rows, String today) {
+  Widget _list(AppPalette p, List<_Row> rows, String today, {bool todayOnly = false}) {
     final groups = <String, ({int net, int count})>{};
     for (final r in rows) {
       final g = groups[r.e.date] ?? (net: 0, count: 0);
@@ -323,7 +327,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     final children = <Widget>[];
     for (final (i, r) in rows.indexed) {
       final prev = i == 0 ? null : rows[i - 1];
-      if (cd != null && widget.selectedDay == null && r.e.day >= cd && (prev == null || prev.e.day < cd)) {
+      // Only today listed: the day header already says Today, so no divider
+      if (!todayOnly && cd != null && widget.selectedDay == null && r.e.day >= cd && (prev == null || prev.e.day < cd)) {
         children.add(_todayDivider(p, today, first: i == 0));
       }
       if (prev == null || prev.e.date != r.e.date) {

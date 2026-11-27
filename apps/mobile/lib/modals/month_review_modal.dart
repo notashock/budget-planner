@@ -240,7 +240,7 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
         card(
           key: const ValueKey('review-categories'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            header('Spending by category', '${tags.length} categories'),
+            header('Spending by category', '${tags.length} ${tags.length == 1 ? 'category' : 'categories'}'),
             if (tags.isEmpty)
               Text('No categorized spending recorded this month.', style: note())
             else

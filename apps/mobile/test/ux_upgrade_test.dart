@@ -101,6 +101,31 @@ void main() {
     }
   });
 
+  test("an account's timeline takes the all-accounts events that touch it, with its own balance", () {
+    final sim = SimulationResult.fromJson({
+      'days': const [],
+      'allEvents': [
+        {'id': 'spend', 'date': '2026-11-28', 'amount': -12000, 'itemType': 'actual', 'bankAccountId': 'hdfc',
+          'balanceAfter': 500000, 'accountBalances': {'hdfc': 130000, 'upi': 370000}},
+        {'id': 'upi-spend', 'date': '2026-11-28', 'amount': -500, 'itemType': 'actual', 'walletId': 'upi', 'balanceAfter': 499500},
+        {'id': 'move', 'date': '2026-11-28', 'amount': -100000, 'itemType': 'transfer', 'transferAmount': 100000,
+          'sourceBankAccountId': 'hdfc', 'destinationWalletId': 'upi', 'sourceAccountBalanceAfter': 30000,
+          'destinationAccountBalanceAfter': 470000, 'balanceAfter': 499500},
+        {'id': 'salary', 'date': '2026-11-26', 'amount': 8000000, 'itemType': 'salary', 'isSalary': true, 'balanceAfter': 9000000},
+        {'id': 'swipe', 'date': '2026-11-27', 'amount': -2000, 'itemType': 'actual', 'isCardSpend': true, 'balanceAfter': 0},
+      ],
+    });
+    final hdfc = eventsForAccount(sim, 'hdfc', isBank: true, isPrimary: true);
+    expect([for (final e in hdfc) e.id], ['spend', 'move', 'salary']);
+    expect(hdfc.first.runningBalance, 130000, reason: "the account's own balance, not the total");
+    expect(hdfc[1].amount, -100000, reason: 'a transfer out of the account');
+
+    final upi = eventsForAccount(sim, 'upi', isBank: false);
+    expect([for (final e in upi) e.id], ['upi-spend', 'move']);
+    expect(upi[1].amount, 100000, reason: 'a transfer in');
+    expect(upi[1].runningBalance, 470000);
+  });
+
   testWidgets('switching month counts as loading until the new month arrives', (tester) async {
     final fb = FixtureBudget();
     final budget = (await tester.runAsync(fb.load))!;
