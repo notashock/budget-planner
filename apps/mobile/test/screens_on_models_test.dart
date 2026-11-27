@@ -230,7 +230,12 @@ void main() {
   group('Plan', () {
     testWidgets('Timeline like web: title, filter tabs with counts, day headers; Income shows only money in',
         (tester) async {
-      final budget = (await tester.runAsync(FixtureBudget().load))!;
+      // Dated in the past, so the timeline lists every day (the current month lists only today).
+      final budget = (await tester.runAsync(() => FixtureBudget().load(edit: (f) {
+            final month = (f['month_detail'] as Map)['month'] as Map;
+            month['startDate'] = '2000-01-01';
+            month['endDate'] = '2000-01-31';
+          })))!;
       await pump(tester, budget, const PlanScreen(), wide: true);
 
       expect(find.text('Timeline'), findsOneWidget);
@@ -246,7 +251,7 @@ void main() {
       expect(find.textContaining(RegExp(r'^\+.\d')), findsWidgets);
     });
 
-    testWidgets('web order: hero, cash split, Due soon, then Details hides the chart and tiles', (tester) async {
+    testWidgets('web order: hero, cash split, Due soon, then Details opens the review with the chart and tiles', (tester) async {
       final fb = FixtureBudget();
       final budget = (await tester.runAsync(fb.load))!;
       await pump(tester, budget, const PlanScreen(), wide: true);
@@ -259,10 +264,19 @@ void main() {
       expect(hero.top, lessThan(tester.getRect(find.text("After today's bills")).top));
       expect(tester.getRect(find.text("After today's bills")).top, lessThan(tester.getRect(find.text('Due soon')).top));
 
+      // Details sits at the right of the Timeline heading and opens the month review,
+      // which now holds the chart and the month figures.
+      final details = tester.getRect(find.byKey(const Key('plan-details-toggle')));
+      final timeline = tester.getRect(find.text('Timeline'));
+      expect(details.left, greaterThan(timeline.right));
+      expect(details.top, lessThan(timeline.bottom));
       await tester.tap(find.byKey(const Key('plan-details-toggle')));
-      await tester.pump();
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('Month Review'), findsOneWidget);
       expect(find.text('CASHFLOW TRAJECTORY'), findsOneWidget);
-      expect(find.text('Hide details'), findsOneWidget);
+      expect(find.text('Total expenses'), findsOneWidget);
     });
 
     testWidgets("an account view uses that account's simulation and says so", (tester) async {

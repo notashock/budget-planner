@@ -189,3 +189,59 @@ AllowancePace? getAllowancePace({
     expectedRatio: (elapsed / totalDays).clamp(0, 1).toDouble(),
   );
 }
+
+/// A spend the engine counts in its expense total: money out that isn't a
+/// transfer, held/lent money or a card bill payment (simulator.js grossSimExpenses).
+bool isSpendEvent(TimelineEvent e) {
+  final t = e.raw['itemType'];
+  return e.amount < 0 && t != 'transfer' && t != 'pass-through' && t != 'card-bill';
+}
+
+/// One account's timeline (web PlanScreen's activeEvents): the server's
+/// per-account simulations carry balances only, no events, so take the
+/// all-accounts events that touch [accountId] and show that account's balance
+/// after each. A transfer reads as money out of its source, in to its destination.
+/// Salary and entries with no account land on the salary bank, else the
+/// primary or only bank. A card swipe moves no bank cash and never falls back.
+List<TimelineEvent> eventsForAccount(
+  SimulationResult sim,
+  String accountId, {
+  required bool isBank,
+  bool isPrimary = false,
+  bool isSoleBank = false,
+  String? salaryBankId,
+}) {
+  String? id(Object? v) => v == null || '$v'.isEmpty ? null : '$v';
+  final isSalaryBank = salaryBankId != null && salaryBankId == accountId;
+  final fallbackBank = isBank && (isPrimary || isSalaryBank || isSoleBank);
+  final out = <TimelineEvent>[];
+  for (final e in sim.allEvents) {
+    final r = e.raw;
+    final src = id(r['sourceBankAccountId']) ?? id(r['sourceWalletId']) ?? id(r['sourceAccountId']);
+    final dst = id(r['destinationBankAccountId']) ?? id(r['destinationWalletId']) ?? id(r['destinationAccountId']);
+    final own = [id(r['accountId']), id(r['bankAccountId']), id(r['walletId'])];
+    final isSalary = r['isSalary'] == true || r['itemType'] == 'salary';
+    final unassigned = id(r['bankAccountId']) == null && id(r['walletId']) == null && src == null;
+    final keep = own.contains(accountId) ||
+        src == accountId ||
+        dst == accountId ||
+        (isSalary && isBank && (isSalaryBank || (salaryBankId == null && (isPrimary || isSoleBank)))) ||
+        (unassigned && fallbackBank && r['isCardSpend'] != true);
+    if (!keep) continue;
+
+    final isTransfer = r['itemType'] == 'transfer';
+    final balances = r['accountBalances'];
+    final num? perAccount = balances is Map ? balances[accountId] as num? : null;
+    final balance = perAccount ??
+        (isTransfer
+            ? (src == accountId ? r['sourceAccountBalanceAfter'] : r['destinationAccountBalanceAfter']) as num?
+            : r['accountBalanceAfter'] as num?);
+    final transferAmount = ((r['transferAmount'] as num?) ?? e.amount).abs();
+    out.add(TimelineEvent.fromJson({
+      ...r,
+      if (isTransfer) 'amount': src == accountId ? -transferAmount : transferAmount,
+      'balanceAfter': balance ?? e.runningBalance,
+    }));
+  }
+  return out;
+}

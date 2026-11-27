@@ -2,19 +2,20 @@ import { and, eq, ne, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { LedgerService } from './ledgerService.js';
+import { localNow } from '../utils/clock.js';
 
 export function pad(n) {
   return String(n).padStart(2, '0');
 }
 
 export function getTodayIso() {
-  const d = new Date();
+  const d = localNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function isHistoricalPastMonth(month, asOfDate = null) {
   if (!month) return false;
-  const now = asOfDate ? new Date(asOfDate) : new Date();
+  const now = asOfDate ? new Date(asOfDate) : localNow();
   const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   if (month.endDate) {

@@ -9,6 +9,7 @@ import '../modals/person_edit_sheets.dart';
 import 'acct_inset.dart';
 import 'confirm_dialog.dart';
 import 'min_tap.dart';
+import 'tab_states.dart';
 
 /// Held & Lent: money you hold for others and money others owe you (ADR 0069).
 /// Neither is income or spending; money you hold is kept out of Safe-to-Spend.
@@ -178,7 +179,7 @@ class _HeldLentSectionState extends State<HeldLentSection> {
         ),
       const SizedBox(height: 6),
       if (list == null)
-        Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('Loading…', style: muted))
+        const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: SkeletonLines(lines: [1, 0.8]))
       else if (list.isEmpty)
         Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('No entries yet.', style: muted))
       else

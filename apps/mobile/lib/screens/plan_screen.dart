@@ -27,12 +27,7 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  int? _selectedDay;
   String _selectedAccountId = 'all';
-  // shortcut: not remembered across launches (web keeps it in localStorage); persist if users ask.
-  bool _detailsOpen = false;
-
-  void _toggleDetails() => setState(() => _detailsOpen = !_detailsOpen);
 
   Future<void> _payUpcoming(BuildContext context, BudgetProvider budget, TimelineEvent e, String today, String? scopeAccountId) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -106,6 +101,63 @@ class _PlanScreenState extends State<PlanScreen> {
     final isFutureMonth = monthYear > now.year || (monthYear == now.year && monthNum > now.month);
     final upcomingToday = isCurrentMonth ? realToday : (isFutureMonth ? iso(monthYear, monthNum, 1) : null);
 
+    // The month's span: a salary cycle's own dates, else the calendar month.
+    final periodStart = month.raw['startDate'] as String? ?? iso(monthYear, monthNum, 1);
+    final periodEnd = month.raw['endDate'] as String? ?? iso(monthYear, monthNum, DateTime(monthYear, monthNum + 1, 0).day);
+
+    // The month in full (web's Details), shown at the top of the month review.
+    void openReview() => showMonthReviewModal(
+          context,
+          month: month,
+          simulation: activeSimulation,
+          safetyFloor: activeSafetyFloor,
+          currencySymbol: currencySymbol,
+          accountId: isFilteringAccount ? selectedAccount!.id : null,
+          planDetails: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              DetailedKpiGrid(
+                incomeAmount: activeSimulation.totalIncome,
+                incomeCreditDay: month.incomeCreditDay,
+                isSalaryCredited: month.isSalaryCredited,
+                salaryCreditedDate: salaryCreditedDate,
+                // The engine's total already holds paid and planned spending (web's simulation.totalExpenses).
+                totalExpenses: activeSimulation.totalPlannedExpenses,
+                expenseOccurrencesCount: activeSimulation.allEvents.where(isSpendEvent).length,
+                todayBalance: activeSimulation.todaysBalance,
+                endingBalance: activeSimulation.closingBalance,
+                lowestBalance: activeSimulation.lowestBalance,
+                lowestDate: activeSimulation.lowestDate ??
+                    (activeSimulation.days.isNotEmpty
+                        ? activeSimulation.days.firstWhere((d) => d.day == activeSimulation.lowestBalanceDay, orElse: () => activeSimulation.days.first).date
+                        : ''),
+                safetyFloor: activeSafetyFloor,
+                currencySymbol: currencySymbol,
+              ),
+              const SizedBox(height: 12),
+              // 4. Cashflow Trajectory Chart (Curved Spline). Own layer, so
+              // scrolling the page doesn't repaint it (upgrade plan 2.9).
+              RepaintBoundary(
+                child: StepLineChartWidget(
+                  simulation: activeSimulation,
+                  safetyFloor: activeSafetyFloor,
+                  daysInMonth: activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30,
+                  currentDay: currentDay,
+                  salaryCreditDay: salaryCreditDay,
+                  currencySymbol: currencySymbol,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AllowancePaceMeter(
+                unplannedAllowance: activeSimulation.unplannedAllowance,
+                totalUnplannedSpent: activeSimulation.totalUnplannedSpent,
+                daysElapsed: activeSimulation.daysElapsed ?? _unifiedSimulation(budget).daysElapsed ?? 1,
+                daysInMonth: activeSimulation.daysInMonth ??
+                    _unifiedSimulation(budget).daysInMonth ??
+                    (activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30),
+                currencySymbol: currencySymbol,
+              ),
+          ]),
+        );
+
     return Scaffold(
       body: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -144,8 +196,8 @@ class _PlanScreenState extends State<PlanScreen> {
                 balances: [for (final d in activeSimulation.days) d.closingBalance],
                 currentDay: currentDay,
                 currencySymbol: currencySymbol,
-                detailsOpen: _detailsOpen,
-                onToggleDetails: _toggleDetails,
+                detailsOpen: false,
+                onToggleDetails: openReview,
               ),
               const SizedBox(height: 12),
               CashAllocationBar(
@@ -170,102 +222,27 @@ class _PlanScreenState extends State<PlanScreen> {
                   onPay: (e) => _payUpcoming(context, budget, e, realToday, selectedAccount?.id),
                 ),
               ],
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Semantics(
-                  button: true,
-                  expanded: _detailsOpen,
-                  excludeSemantics: true,
-                  label: _detailsOpen ? 'Hide details' : 'Details',
-                  onTap: _toggleDetails,
-                  child: InkWell(
-                    key: const Key('plan-details-toggle'),
-                    onTap: _toggleDetails,
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 48),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(_detailsOpen ? 'Hide details' : 'Details',
-                              style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: textSecondary)),
-                          const SizedBox(width: 4),
-                          AnimatedRotation(
-                            turns: _detailsOpen ? 0.25 : 0,
-                            duration: const Duration(milliseconds: 150),
-                            child: Text('›',
-                                style: AppTypography.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textSecondary)),
-                          ),
-                        ]),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_detailsOpen) ...[
-              const SizedBox(height: 10),
-              DetailedKpiGrid(
-                incomeAmount: activeSimulation.totalIncome,
-                incomeCreditDay: month.incomeCreditDay,
-                isSalaryCredited: month.isSalaryCredited,
-                salaryCreditedDate: salaryCreditedDate,
-                totalExpenses: activeSimulation.totalPlannedExpenses + activeSimulation.totalActualExpenses,
-                expenseOccurrencesCount: activeSimulation.allEvents.where((e) => e.amount < 0).length,
-                todayBalance: activeSimulation.todaysBalance,
-                endingBalance: activeSimulation.closingBalance,
-                lowestBalance: activeSimulation.lowestBalance,
-                lowestDate: activeSimulation.days.isNotEmpty
-                    ? activeSimulation.days.firstWhere((d) => d.day == activeSimulation.lowestBalanceDay, orElse: () => activeSimulation.days.first).date
-                    : '',
-                safetyFloor: activeSafetyFloor,
-                currencySymbol: currencySymbol,
-              ),
-              const SizedBox(height: 12),
-              // 4. Cashflow Trajectory Chart (Curved Spline). Own layer, so
-              // scrolling the page doesn't repaint it (upgrade plan 2.9).
-              RepaintBoundary(
-                child: StepLineChartWidget(
-                  simulation: activeSimulation,
-                  safetyFloor: activeSafetyFloor,
-                  daysInMonth: activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30,
-                  currentDay: currentDay,
-                  salaryCreditDay: salaryCreditDay,
-                  selectedDay: _selectedDay,
-                  onSelectDay: (day) => setState(() => _selectedDay = day),
-                  currencySymbol: currencySymbol,
-                  onOpenReview: () {
-                    showMonthReviewModal(
-                      context,
-                      month: month,
-                      simulation: activeSimulation,
-                      safetyFloor: activeSafetyFloor,
-                      currencySymbol: currencySymbol,
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              AllowancePaceMeter(
-                unplannedAllowance: activeSimulation.unplannedAllowance,
-                totalUnplannedSpent: activeSimulation.totalUnplannedSpent,
-                daysElapsed: activeSimulation.daysElapsed ?? _unifiedSimulation(budget).daysElapsed ?? 1,
-                daysInMonth: activeSimulation.daysInMonth ??
-                    _unifiedSimulation(budget).daysInMonth ??
-                    (activeSimulation.days.isNotEmpty ? activeSimulation.days.length : 30),
-                currencySymbol: currencySymbol,
-              ),
-              ],
               const SizedBox(height: 12),
 
               // 6. Interactive Timeline Card
               TimelineListWidget(
                 simulation: activeSimulation,
                 safetyFloor: activeSafetyFloor,
-                selectedDay: _selectedDay,
                 currentDay: currentDay,
-                onSelectDay: (day) => setState(() => _selectedDay = day),
                 currencySymbol: currencySymbol,
+                headerTrailing: _DetailsButton(onTap: openReview),
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                events: isFilteringAccount
+                    ? eventsForAccount(
+                        _unifiedSimulation(budget),
+                        selectedAccount!.id,
+                        isBank: selectedAccount.kind == AccountKind.bank,
+                        isPrimary: selectedAccount.isPrimary,
+                        isSoleBank: budget.bankAccountModels.length == 1,
+                        salaryBankId: month.salaryAccountId,
+                      )
+                    : null,
                 accountNames: {for (final a in [...budget.bankAccountModels, ...budget.walletModels]) a.id: a.name},
                 accountName: isFilteringAccount ? selectedAccount!.name : null,
                 accountIsWallet: selectedAccount?.kind == AccountKind.wallet,
@@ -381,10 +358,7 @@ class _PlanScreenState extends State<PlanScreen> {
         shape: StadiumBorder(side: BorderSide(color: isSelected ? p.text : (hasBreach ? p.bad : p.border))),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => setState(() {
-            _selectedAccountId = id;
-            _selectedDay = null; // reset day filter when switching account
-          }),
+          onTap: () => setState(() => _selectedAccountId = id),
           child: Stack(children: [
             Container(
               constraints: const BoxConstraints(minHeight: 34),
@@ -510,5 +484,38 @@ class _PlanScreenState extends State<PlanScreen> {
       if (a.id == selectedAccountId) return a;
     }
     return null;
+  }
+}
+
+/// "Details ›" at the right of the Timeline heading: opens the month review.
+class _DetailsButton extends StatelessWidget {
+  const _DetailsButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.palette.textSecondary;
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: 'Details',
+      onTap: onTap,
+      child: InkWell(
+        key: const Key('plan-details-toggle'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('Details', style: AppTypography.inter(fontSize: 13, fontWeight: FontWeight.w600, color: muted)),
+              const SizedBox(width: 4),
+              Text('›', style: AppTypography.inter(fontSize: 15, fontWeight: FontWeight.w600, color: muted)),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }

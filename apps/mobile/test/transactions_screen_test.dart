@@ -153,9 +153,12 @@ void main() {
     await tester.pump();
 
     final rent = budget.transactionLists.planned.single;
+    final now = DateTime.now();
+    // The real date: on the fixture's due date the header reads "Today".
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     expect(find.text('Rent'), findsOneWidget);
     expect(find.text('₹25,000.00'), findsOneWidget);
-    final header = rent.schedule == TxSchedule.overdue ? 'OVERDUE' : dayLabel(rent.plannedDate!, '1900-01-01').toUpperCase();
+    final header = rent.schedule == TxSchedule.overdue ? 'OVERDUE' : dayLabel(rent.plannedDate!, today).toUpperCase();
     expect(find.text(header), findsOneWidget);
     expect(find.byKey(ValueKey('mark-paid-${rent.id}')), findsOneWidget);
   });

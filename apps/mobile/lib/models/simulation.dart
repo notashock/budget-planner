@@ -216,6 +216,9 @@ class SimulationResult {
   final int? daysElapsed;
   final int? daysInMonth;
 
+  /// The engine's date of [lowestBalance] (held money excluded), when it sent one.
+  final String? lowestDate;
+
   SimulationResult({
     required this.openingBalance,
     required this.closingBalance,
@@ -238,6 +241,7 @@ class SimulationResult {
     this.totalUnplannedSpent = 0,
     this.daysElapsed,
     this.daysInMonth,
+    this.lowestDate,
   });
 
   factory SimulationResult.fromJson(Map<String, dynamic> json) {
@@ -291,6 +295,7 @@ class SimulationResult {
       totalUnplannedSpent: (num.tryParse('${json['totalUnplannedSpent'] ?? 0}') ?? 0).round(),
       daysElapsed: json['daysElapsed'] is num ? (json['daysElapsed'] as num).toInt() : null,
       daysInMonth: json['daysInMonth'] is num ? (json['daysInMonth'] as num).toInt() : null,
+      lowestDate: json['lowestDate'] is String && (json['lowestDate'] as String).isNotEmpty ? json['lowestDate'] as String : null,
     );
   }
 }

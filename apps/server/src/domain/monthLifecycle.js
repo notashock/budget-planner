@@ -12,6 +12,7 @@ import { serialize } from '../utils/serializer.js';
 import { loadAccountTypeMap, attachAccountTypes } from '../utils/accountTypes.js';
 import { pad, getTodayIso, isHistoricalPastMonth, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 import { MonthTransitions } from './monthTransitions.js';
+import { localNow } from '../utils/clock.js';
 
 // Re-exported for existing importers
 export { isHistoricalPastMonth, attachAccountOpeningsToMonth } from './monthHelpers.js';
@@ -25,7 +26,7 @@ export const MonthLifecycle = {
    */
   async reconcileAndPruneMonths(userId) {
     const todayIso = getTodayIso();
-    const now = new Date();
+    const now = localNow();
     const currentYear = now.getFullYear();
     const currentMonthNum = now.getMonth() + 1;
 
@@ -169,7 +170,7 @@ export const MonthLifecycle = {
     const rawTransactions = attachAccountTypes(untypedTransactions, accountTypes);
     const transfers = attachAccountTypes(rawTransfers, accountTypes);
 
-    const now = new Date();
+    const now = localNow();
     const dueWindowDays = userSettings?.dueWindowDays || 3;
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
@@ -505,7 +506,7 @@ export const MonthLifecycle = {
     if (typeof updates.isSalaryCredited === 'boolean') {
       update.isSalaryCredited = updates.isSalaryCredited;
       if (updates.isSalaryCredited && !update.salaryCreditedDate) {
-        const now = new Date();
+        const now = localNow();
         update.salaryCreditedDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       } else if (!updates.isSalaryCredited) {
         update.salaryCreditedDate = null;
@@ -557,7 +558,7 @@ export const MonthLifecycle = {
     const bankAccounts = allAccounts.filter(a => a.type === 'bank');
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
-    const now = new Date();
+    const now = localNow();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : null;
 
@@ -636,7 +637,7 @@ export const MonthLifecycle = {
    * Deletes a month and all cascaded children.
    */
   async deleteMonth(userId, year, monthNum, force = false) {
-    const now = new Date();
+    const now = localNow();
     const isCurrentMonth = year === now.getFullYear() && monthNum === (now.getMonth() + 1);
     if (isCurrentMonth && !force) {
       throw new ValidationError('Deleting the current active month requires explicit confirmation (?force=true)');
@@ -712,7 +713,7 @@ export const MonthLifecycle = {
     const bankAccounts = allAccounts.filter(a => a.type === 'bank');
     const wallets = allAccounts.filter(a => a.type === 'wallet');
 
-    const now = new Date();
+    const now = localNow();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = (typeof clientDay === 'number' && clientDay >= 1) ? Math.floor(clientDay) : (isCurrentMonth ? now.getDate() : 0);
 
