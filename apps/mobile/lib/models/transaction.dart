@@ -70,6 +70,12 @@ class Transaction {
   final String? refundTargetTransactionId;
   final String? recurrence;
 
+  /// A monthly plan's day of the month.
+  final int? recurrenceDay;
+
+  /// Fixed: an unpaid one carries into the next cycle. Variable: it drops.
+  final bool isFixed;
+
   /// The server JSON this was read from. Widgets not yet migrated to the model
   /// (detail and mark-paid sheets) still take the map.
   final Map<String, dynamic> raw;
@@ -94,6 +100,8 @@ class Transaction {
     this.personFundId,
     this.refundTargetTransactionId,
     this.recurrence,
+    this.recurrenceDay,
+    this.isFixed = true,
     this.raw = const {},
   });
 
@@ -160,6 +168,8 @@ class Transaction {
       personFundId: r.optString('personFundId'),
       refundTargetTransactionId: r.optString('refundTargetTransactionId'),
       recurrence: r.optString('recurrence'),
+      recurrenceDay: r.optInt('recurrenceDay'),
+      isFixed: r.json['isFixed'] is bool ? r.json['isFixed'] as bool : true,
       raw: r.json,
     );
   }

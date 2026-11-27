@@ -12,6 +12,7 @@ import { isValidUuid } from '../middleware/auth.js';
 import { GoalExecution } from './goalExecution.js';
 import { ReportsExecution } from './reportsExecution.js';
 import { PersonFundService } from './personFundService.js';
+import { newRecurringPlan } from './recurringPlans.js';
 import { localNow } from '../utils/clock.js';
 
 /** Held & Lent rows always belong to a person; route them through PersonFundService. */
@@ -243,6 +244,13 @@ export const BudgetExecution = {
 
     assertEntryDate({ status: resolvedStatus, date: date || plannedDate });
     let txDate = date || plannedDate;
+    // A monthly plan keeps its day; undated, it starts on that day's next date after today
+    const now0 = localNow();
+    const recurring = resolvedOrigin === 'planned' || resolvedOrigin === 'goal'
+      ? newRecurringPlan(payload, { todayIso: `${now0.getFullYear()}-${pad(now0.getMonth() + 1)}-${pad(now0.getDate())}`, month })
+      : null;
+    const heldForLaterCycle = Boolean(recurring && resolvedStatus === 'planned' && !txDate && recurring.held);
+    if (recurring && resolvedStatus === 'planned' && !txDate) txDate = recurring.date;
     if (!txDate) {
       if (resolvedStatus === 'planned') {
         // Automatic algorithm recommendation for undated planned transaction
@@ -340,9 +348,10 @@ export const BudgetExecution = {
 
     const [transaction] = await db.insert(s.transactions).values({
       userId,
-      monthId: month.id,
+      // held: its month does not exist yet; the cycle holding its date takes it when it starts
+      monthId: heldForLaterCycle ? null : month.id,
       name: txName,
-      status: resolvedStatus,
+      status: heldForLaterCycle ? 'scheduled' : resolvedStatus,
       origin: resolvedOrigin,
       date: txDate,
       amount: numAmount,
@@ -351,7 +360,10 @@ export const BudgetExecution = {
       category: validCategory,
       note: txNote,
       goalId: payload.goalId || null,
-      recurrence: payload.recurrence || null,
+      recurrence: recurring?.recurrence || null,
+      recurrenceDay: recurring?.recurrenceDay || null,
+      seriesId: recurring?.seriesId || null,
+      isFixed: typeof payload.isFixed === 'boolean' ? payload.isFixed : true,
       plannedItemId: null,
       refundTargetTransactionId: verifiedRefundTargetId,
       accountId: resolvedAccountId,
@@ -701,6 +713,9 @@ export const BudgetExecution = {
       if (payload.destinationAccountId !== undefined) updates.destinationAccountId = payload.destinationAccountId;
       if (payload.isIncome !== undefined) updates.isIncome = Boolean(payload.isIncome);
       if (payload.recurrence !== undefined) updates.recurrence = payload.recurrence;
+      if (payload.type === 'recurring' || payload.type === 'one-time') updates.recurrence = payload.type === 'recurring' ? 'monthly' : null;
+      if (payload.dayOfMonth) updates.recurrenceDay = Math.min(31, Math.max(1, Number(payload.dayOfMonth) || 1));
+      if (typeof payload.isFixed === 'boolean') updates.isFixed = payload.isFixed;
       if (payload.isPaid !== undefined) {
         updates.status = payload.isPaid ? 'successful' : 'planned';
       }

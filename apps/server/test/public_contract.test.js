@@ -71,9 +71,9 @@ describe('Public API contract', () => {
     expect(sorted(bodies.monthTx.find((t) => t.name === 'Rent'))).toEqual([
       '_id', 'account', 'accountId', 'accountType', 'amount', 'bankAccountId', 'category', 'date', 'day',
       'dayOfMonth', 'derivedStatus', 'destinationAccount', 'destinationAccountId', 'goalId', 'id',
-      'isIncome', 'legacyItemId', 'monthId', 'name', 'note', 'origin', 'originalDay', 'personFundId',
-      'plannedAmount', 'plannedDate', 'plannedItemId', 'recurrence', 'refundTargetTransactionId',
-      'status', 'tag', 'transferId'
+      'isFixed', 'isIncome', 'legacyItemId', 'monthId', 'name', 'note', 'origin', 'originalDay', 'personFundId',
+      'plannedAmount', 'plannedDate', 'plannedItemId', 'recurrence', 'recurrenceDay', 'refundTargetTransactionId',
+      'seriesId', 'status', 'tag', 'transferId'
     ]);
     expect(sorted(bodies.detail)).toEqual([
       'accountSimulations', 'bankAccounts', 'creditCards', 'items', 'month', 'simulation',
