@@ -6,6 +6,7 @@ import '../services/outbox.dart';
 import '../services/storage_service.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
+import '../models/salary_window.dart';
 import '../models/goal.dart';
 import '../models/month_detail.dart';
 import '../models/person_fund.dart';
@@ -645,13 +646,20 @@ class BudgetProvider with ChangeNotifier {
   /// Logs the salary as paid. In a cycle whose salary is already in, the
   /// server takes it as the next payday's: it starts the next cycle, which
   /// this then opens.
-  Future<void> creditSalary({num? amount, String? bankAccountId, String? date}) {
+  /// The next salary's window; null before the first salary is credited.
+  Future<SalaryWindow?> getSalaryWindow() async {
+    final data = await _api.getSalaryWindow();
+    return data == null ? null : SalaryWindow.fromJson(data);
+  }
+
+  Future<void> creditSalary({num? amount, String? bankAccountId, String? date, bool late = false, int? year, int? month}) {
     Map? next;
     return _write(() async {
-      final res = await _api.creditSalary(_currentYear, _currentMonth, {
+      final res = await _api.creditSalary(year ?? _currentYear, month ?? _currentMonth, {
         if (amount != null) 'amount': amount,
         if (bankAccountId != null) 'bankAccountId': bankAccountId,
         if (date != null) 'date': date,
+        if (late) 'late': true,
         // Crediting this cycle's own salary keeps it open
         'advance': false,
       });

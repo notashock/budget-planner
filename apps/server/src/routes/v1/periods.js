@@ -3,6 +3,8 @@ import { requireAuth } from '../../middleware/auth.js';
 import { monthHandlers } from '../months.js';
 import { transactionHandlers } from '../transactions.js';
 import { goalHandlers } from '../goals.js';
+import { route } from '../routeHelpers.js';
+import { getSalaryWindow } from '../../domain/salaryWindow.js';
 
 // Budget periods (months). Handlers are shared with the legacy /api/months routes.
 export const v1PeriodsRouter = express.Router();
@@ -12,6 +14,8 @@ v1PeriodsRouter.get('/', monthHandlers.list);
 v1PeriodsRouter.post('/', monthHandlers.create);
 v1PeriodsRouter.post('/rollover', monthHandlers.rollover);
 
+// The next salary's window (payday ± 5 days after the last salary), for the entry sheet
+v1PeriodsRouter.get('/salary-window', route(async (req, res) => res.success(await getSalaryWindow(req.userId))));
 v1PeriodsRouter.get('/:year/:month', monthHandlers.detail);
 v1PeriodsRouter.get('/:year/:month/summary', monthHandlers.summary);
 v1PeriodsRouter.get('/:year/:month/timeline', monthHandlers.timeline);

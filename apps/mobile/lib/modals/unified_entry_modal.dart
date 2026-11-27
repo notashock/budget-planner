@@ -5,6 +5,7 @@ import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../models/account.dart';
+import '../models/salary_window.dart';
 import '../models/goal.dart';
 import '../models/month_detail.dart';
 import '../models/person_fund.dart';
@@ -103,7 +104,11 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   String _txType = 'expense'; // 'expense' | 'income'
   String _itemType = 'one-time'; // 'one-time' | 'recurring'
   bool _isFixed = false; // "Variable or not" toggle for planned expenses
-  String _incSource = 'Salary'; // 'Salary' | 'Freelance' | 'Bonus' | 'Investment' | 'Other'
+  // Salary becomes the source once its window is known to be open (see _applySalaryWindow)
+  String _incSource = 'Other'; // 'Salary' | 'Freelance' | 'Bonus' | 'Investment' | 'Other'
+  bool _sourceTouched = false;
+  // When the next salary can be logged; null until loaded, or before any salary was credited
+  SalaryWindow? _salaryWindow;
   int _goalPriority = 1; // 0 = High, 1 = Med, 2 = Low
 
   // Account State (Explicit Bank & Wallet Selection)
@@ -189,6 +194,9 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       // Only for the held/lent hint, which is a nicety: no people means no hint.
       budget.getPersonFundsTyped().then((res) {
         if (mounted) setState(() => _personFunds = res.funds);
+      }).catchError((Object _) {});
+      budget.getSalaryWindow().then((w) {
+        if (mounted && w != null) setState(() => _applySalaryWindow(w));
       }).catchError((Object _) {});
     }
     final banks = budget.bankAccountModels;
@@ -445,6 +453,30 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   // A new spend, refund or income does not wait for the server (upgrade plan
   // 2.8, ADR 0071): it shows as "Saving…" in the sync strip and the sheet
   // closes. Only a refusal comes back, as a snackbar.
+  /// Salary is the default source only while it can be logged, prefilled with the
+  /// expected amount and the salary account.
+  void _applySalaryWindow(SalaryWindow w) {
+    _salaryWindow = w;
+    if (_isEditing || _sourceTouched || !w.canLog) return;
+    _incSource = 'Salary';
+    _prefillSalary(w);
+  }
+
+  void _prefillSalary(SalaryWindow w) {
+    if (_amountCtrl.text.trim().isEmpty && w.amount > 0) {
+      final v = toMajorUnits(w.amount);
+      _amountCtrl.text = v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
+    }
+    final budget = _budgetRef;
+    if (w.accountId != null && budget.bankAccountModels.any((b) => b.id == w.accountId)) {
+      _accountType = 'bank';
+      _selectedAccountId = w.accountId;
+    }
+  }
+
+  /// Income logged as Salary credits the salary (and can start the next cycle).
+  bool get _isSalaryCredit => _activeType == EntryType.income && _incSource == 'Salary' && !_isEditing;
+
   Future<void> _saveTx(BudgetProvider budget, Map<String, dynamic> payload, {required String label}) async {
     if (_isEditing) return budget.updateTransaction(_editId, payload);
     // Replacing an entry: the original goes only once this one is saved
@@ -683,11 +715,15 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               if (_activeType == EntryType.income)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(
-                    'Note: Your primary monthly salary is managed in Salary schedule. Use this form to record ad-hoc earnings, bonuses, or side income.',
-                    key: const ValueKey('entry-income-note'),
-                    style: TextStyle(fontSize: 12, color: context.palette.textMuted),
-                  ),
+                  child: _isSalaryCredit
+                      ? _buildSalaryNote(budget)
+                      : Text(
+                          _salaryWindow == null || _isEditing
+                              ? 'Ad-hoc earnings, bonuses or side income. Your monthly salary is logged with Source: Salary.'
+                              : 'Ad-hoc earnings, bonuses or side income. ${_salaryWindow!.message}.',
+                          key: const ValueKey('entry-income-note'),
+                          style: TextStyle(fontSize: 12, color: context.palette.textMuted),
+                        ),
                 ),
 
               // Purchase Goal Algorithm Recommendation Badge (Server Authoritative)
@@ -1213,7 +1249,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     );
   }
 
-  Future<String?> _pickFrom(String title, List<String> options, String current) => showModalBottomSheet<String>(
+  Future<String?> _pickFrom(String title, List<String> options, String current, {Map<String, String> disabled = const {}}) => showModalBottomSheet<String>(
         context: context,
         showDragHandle: true,
         builder: (sheet) => SafeArea(
@@ -1226,6 +1262,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               ListTile(
                 key: ValueKey('entry-pick-$o'),
                 title: Text(o),
+                enabled: !disabled.containsKey(o),
+                subtitle: disabled[o] == null ? null : Text(disabled[o]!),
                 trailing: o == current ? WebIcon(WebIcons.check, size: 16, color: sheet.palette.text) : null,
                 onTap: () => Navigator.pop(sheet, o),
               ),
@@ -1234,6 +1272,35 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       );
 
   static const _incomeSources = ['Salary', 'Freelance', 'Bonus', 'Investment', 'Other'];
+
+  /// Under Salary: the window, and what the new cycle gets from this one's plans.
+  Widget _buildSalaryNote(BudgetProvider budget) {
+    final p = context.palette;
+    final w = _salaryWindow;
+    TextStyle small([Color? c]) => TextStyle(fontSize: 12, color: c ?? p.textMuted, height: 1.4);
+    final startsCycle = w != null && budget.monthInfo?.isSalaryCredited == true;
+    final c = startsCycle ? carryPreview(budget.transactionModels) : null;
+    Widget line(String key, String label, List<String> names) => names.isEmpty
+        ? const SizedBox.shrink()
+        : Padding(padding: const EdgeInsets.only(top: 4), child: Text('$label: ${names.join(', ')}', key: ValueKey(key), style: small()));
+    return Column(key: const ValueKey('entry-salary-note'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (w != null) Text(w.message, key: const ValueKey('entry-salary-window'), style: small(w.isLate ? p.warnInk : null)),
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          startsCycle
+              ? 'Logging it ends this cycle the day before and starts the next one on its date.'
+              : 'Logging it credits this cycle’s salary.',
+          style: small(),
+        ),
+      ),
+      if (c != null) ...[
+        line('carry-moved', 'Moves in, still owed (Fixed)', c.moved),
+        line('carry-dropped', 'Dropped (Variable, unpaid)', c.dropped),
+        line('carry-repeated', 'Repeats on the same date', c.repeated),
+      ],
+    ]);
+  }
 
   Widget _buildRows(BudgetProvider budget, bool isRecurring) {
     final p = context.palette;
@@ -1296,8 +1363,16 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
         SetupRow(
           label: 'Source',
           child: _rowValue(_incSource, () async {
-            final picked = await _pickFrom('Source', _incomeSources, _incSource);
-            if (picked != null) setState(() => _incSource = picked);
+            final w = _salaryWindow;
+            final picked = await _pickFrom('Source', _incomeSources, _incSource,
+                disabled: w != null && !w.canLog && !_isEditing ? {'Salary': w.message} : const {});
+            if (picked != null) {
+              setState(() {
+                _incSource = picked;
+                _sourceTouched = true;
+                if (picked == 'Salary' && w != null) _prefillSalary(w);
+              });
+            }
           }, key: const ValueKey('entry-source'), semantics: 'Source'),
         ),
       if (!isGoal)
@@ -1767,7 +1842,7 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
     }
 
     // Salary already in the plan
-    if (_activeType == EntryType.income && !_dismissedAssists.contains('salary')) {
+    if (_activeType == EntryType.income && !_isSalaryCredit && !_dismissedAssists.contains('salary')) {
       final salary = detectDuplicateSalary(description: description, amount: amount, month: month);
       if (salary != null) {
         return banner(
@@ -1931,6 +2006,29 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
           return;
         }
 
+        if (_isSalaryCredit) {
+          final w = _salaryWindow;
+          if (w != null && !w.allows(dateStr)) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(w.canLog
+                ? 'The salary date must be between ${formatDisplayDate(w.opensOn, includeWeekday: false)} and today.'
+                : w.message)));
+            setState(() => _submitting = false);
+            return;
+          }
+          await budget.creditSalary(
+            amount: amt,
+            bankAccountId: _selectedAccountId,
+            date: dateStr,
+            late: w?.isLate ?? false,
+            year: w?.year,
+            month: w?.month,
+          );
+          if (!mounted) return;
+          final messenger = ScaffoldMessenger.of(context);
+          Navigator.pop(context);
+          messenger.showSnackBar(const SnackBar(content: Text('Salary logged')));
+          return;
+        }
         final incNote = _nameCtrl.text.trim();
         await _saveTx(budget, label: incNote.isNotEmpty ? incNote : '$_incSource income', {
           'amount': amt,

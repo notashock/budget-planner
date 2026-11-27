@@ -313,6 +313,12 @@ class ApiService {
     return Map<String, dynamic>.from(data);
   }
 
+  /// The next salary's window, or null before any salary has been credited.
+  Future<Map<String, dynamic>?> getSalaryWindow() async {
+    final data = await _request('GET', '$_v1/periods/salary-window');
+    return data is Map ? Map<String, dynamic>.from(data) : null;
+  }
+
   Future<Map<String, dynamic>> creditSalary(int year, int month, [Map<String, dynamic> data = const {}]) async {
     final res = await _request('POST', '$_v1/periods/$year/$month/credit-salary', body: data);
     return Map<String, dynamic>.from(res);
