@@ -102,24 +102,26 @@ void main() {
     expect(sheet.initialType, EntryType.transaction);
   });
 
-  testWidgets('the large title hands over to the compact bar on scroll', (tester) async {
+  testWidgets('the title sits on the left of the header row, beside its buttons, and stays put on scroll', (tester) async {
     final budget = await loaded(tester);
     await pumpAt(
         tester,
         ScreenHeader(
           title: 'Goals',
+          actions: [IconButton(key: const ValueKey('header-action'), onPressed: () {}, icon: const Icon(Icons.add))],
           child: ListView(children: [for (var i = 0; i < 60; i++) ListTile(title: Text('row $i'))]),
         ),
         budget,
         width: 393);
-    double largeOpacity() => tester
-        .widget<Opacity>(find.ancestor(of: find.text('Goals').last, matching: find.byType(Opacity)).first)
-        .opacity;
-    expect(find.text('Goals'), findsNWidgets(2), reason: 'large title shown, compact one hidden');
-    expect(largeOpacity(), 1.0);
+    final title = tester.getRect(find.text('Goals'));
+    final action = tester.getRect(find.byKey(const ValueKey('header-action')));
+    expect(find.text('Goals'), findsOneWidget);
+    expect(title.left, lessThan(40), reason: 'title at the left edge');
+    expect(title.right, lessThanOrEqualTo(action.left), reason: 'title left of the buttons');
+    expect((title.center.dy - action.center.dy).abs(), lessThan(4), reason: 'one row');
     await tester.drag(find.text('row 3'), const Offset(0, -400));
     await tester.pumpAndSettle();
-    expect(find.text('Goals'), findsOneWidget, reason: 'only the compact title once scrolled');
+    expect(tester.getRect(find.text('Goals')).top, title.top, reason: 'pinned');
   });
 
   testWidgets('months are never created by hand (same as web)', (tester) async {

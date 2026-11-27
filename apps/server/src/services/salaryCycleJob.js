@@ -5,13 +5,14 @@ import * as s from '../db/schema.js';
 import { SalaryTemplateService } from './salaryTemplateService.js';
 import { isHistoricalPastMonth } from '../domain/monthLifecycle.js';
 import { salaryTxCondition } from '../domain/monthHelpers.js';
+import { localNow } from '../utils/clock.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
 }
 
 function getTodayIso() {
-  const d = new Date();
+  const d = localNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 

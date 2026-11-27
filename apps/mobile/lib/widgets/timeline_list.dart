@@ -14,6 +14,13 @@ class TimelineListWidget extends StatefulWidget {
   final int? selectedDay;
   final int? currentDay;
   final ValueChanged<int?>? onSelectDay;
+
+  /// Sits at the right of the "Timeline" heading (the Plan tab's Details button).
+  final Widget? headerTrailing;
+
+  /// The month's first and last dates (yyyy-mm-dd). While today falls between
+  /// them the timeline lists only today's entries; other months list every day.
+  final String? periodStart, periodEnd;
   final String currencySymbol;
 
   /// Account id → name, for the account line under each entry.
@@ -32,6 +39,9 @@ class TimelineListWidget extends StatefulWidget {
     this.selectedDay,
     this.currentDay,
     this.onSelectDay,
+    this.headerTrailing,
+    this.periodStart,
+    this.periodEnd,
     this.currencySymbol = kDefaultCurrencySymbol,
     this.accountNames = const {},
     this.accountName,
@@ -89,8 +99,13 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
     final now = DateTime.now();
     String two(int n) => n.toString().padLeft(2, '0');
     final today = '${now.year}-${two(now.month)}-${two(now.day)}';
+    // The month holding today lists only today's entries; past and future months list every day.
+    // The simulation's days are sparse (only days with entries), so use the month's own dates.
+    final start = widget.periodStart, end = widget.periodEnd;
+    final todayOnly = start != null && end != null && start.compareTo(today) <= 0 && today.compareTo(end) <= 0;
     final rows = [
-      for (final e in widget.simulation.allEvents) _Row(e, today, widget.currentDay, widget.safetyFloor),
+      for (final e in widget.simulation.allEvents)
+        if (!todayOnly || e.date == today) _Row(e, today, widget.currentDay, widget.safetyFloor),
     ];
 
     final counts = {
@@ -121,10 +136,14 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
         _header(p),
         const SizedBox(height: 10),
         if (rows.isEmpty)
-          _empty(p, WebIcons.calendar, 'No Timeline Events',
-              widget.accountName != null
-                  ? 'No timeline events recorded for ${widget.accountName} this month.'
-                  : 'No timeline events generated for this month.',
+          _empty(p, WebIcons.calendar, todayOnly ? 'Nothing today' : 'No Timeline Events',
+              todayOnly
+                  ? (widget.accountName != null
+                      ? 'No entries for ${widget.accountName} today.'
+                      : 'No entries today. Details has the whole month.')
+                  : widget.accountName != null
+                      ? 'No timeline events recorded for ${widget.accountName} this month.'
+                      : 'No timeline events generated for this month.',
               dayReset: widget.accountName != null && widget.selectedDay != null)
         else ...[
           _filters(p, counts),
@@ -139,7 +158,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
   }
 
   Widget _header(AppPalette p) {
-    return Wrap(
+    final trailing = widget.headerTrailing;
+    final heading = Wrap(
       spacing: 12,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -175,6 +195,8 @@ class _TimelineListWidgetState extends State<TimelineListWidget> {
           ]),
       ],
     );
+    if (trailing == null) return heading;
+    return Row(children: [Expanded(child: heading), trailing]);
   }
 
   /// web's segmented bar: a 36 px track, 28 px tabs; each tab takes taps over 48 dp.

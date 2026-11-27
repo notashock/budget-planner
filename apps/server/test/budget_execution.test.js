@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { db, runMigrations } from '../src/db/index.js';
@@ -242,5 +242,31 @@ describe('BudgetExecution & Goal Evaluation Seam Suite', () => {
     expect(res.body.status).toBe('success');
     expect(res.body.data.tagBreakdown).toBeDefined();
     expect(res.body.data.netCashflow).toBeDefined();
+  });
+
+  it('month-end review counts only paid spending, and lists only categories spent in', async () => {
+    const review = () => request(app)
+      .get('/api/months/2026/11/month-end-review')
+      .set('Authorization', `Bearer ${authToken}`)
+      .then((r) => r.body.data);
+    const before = await review();
+
+    // A bill planned for later in the month is not spending yet
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T06:00:00Z'), shouldAdvanceTime: true });
+    try {
+      const planned = await request(app)
+        .post('/api/months/2026/11/transactions')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ amount: 9900, category: 'Travel', note: 'Train ticket', status: 'planned', date: '2026-11-25', plannedDate: '2026-11-25', accountId: bankId });
+      expect(planned.status).toBe(201);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const after = await review();
+    expect(after.totalUnplannedActual).toBe(before.totalUnplannedActual);
+    expect(after.totalMatchedActual).toBe(before.totalMatchedActual);
+    expect(after.tagBreakdown.Travel).toBeUndefined();
+    expect(Object.values(after.tagBreakdown).every((c) => c.count > 0)).toBe(true);
   });
 });

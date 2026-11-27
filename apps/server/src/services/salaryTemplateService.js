@@ -12,6 +12,7 @@ import { validateUserAccount } from './accountValidation.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { isHistoricalPastMonth } from '../domain/monthLifecycle.js';
+import { localNow } from '../utils/clock.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -31,7 +32,7 @@ export function periodMonthKey(bounds, periodType) {
 }
 
 function getTodayIso() {
-  const now = new Date();
+  const now = localNow();
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 

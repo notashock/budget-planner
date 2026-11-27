@@ -7,6 +7,7 @@ import { loadGoalsForUser } from './simulationService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
+import { localNow } from '../utils/clock.js';
 
 /**
  * Month transitions: crediting the salary and rolling over to the next month.
@@ -31,7 +32,7 @@ export const MonthTransitions = {
 
     const month = await attachAccountOpeningsToMonth(rawMonth);
 
-    const now = new Date();
+    const now = localNow();
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
     const allAccounts = await db.query.accounts.findMany({

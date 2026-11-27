@@ -189,3 +189,10 @@ AllowancePace? getAllowancePace({
     expectedRatio: (elapsed / totalDays).clamp(0, 1).toDouble(),
   );
 }
+
+/// A spend the engine counts in its expense total: money out that isn't a
+/// transfer, held/lent money or a card bill payment (simulator.js grossSimExpenses).
+bool isSpendEvent(TimelineEvent e) {
+  final t = e.raw['itemType'];
+  return e.amount < 0 && t != 'transfer' && t != 'pass-through' && t != 'card-bill';
+}

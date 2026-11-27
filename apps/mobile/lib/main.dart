@@ -114,7 +114,7 @@ class _BudgetMobileAppState extends State<BudgetMobileApp>
           ),
         ),
         home: authProvider.isLoading
-            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            ? const Scaffold(body: SafeArea(child: TabSkeleton()))
             : (authProvider.isAuthenticated
                   ? const AppShell()
                   : const AuthScreen()),

@@ -77,6 +77,8 @@ async function request(url, options = {}) {
       'Content-Type': 'application/json',
       // Required by the server's CSRF guard for cookie-authenticated writes
       'X-Requested-With': 'fetch',
+      // The server works out "today" in the user's timezone (minutes east of UTC)
+      'X-Timezone-Offset': String(-new Date().getTimezoneOffset()),
       ...options.headers
     };
 

@@ -12,6 +12,7 @@ import { isValidUuid } from '../middleware/auth.js';
 import { GoalExecution } from './goalExecution.js';
 import { ReportsExecution } from './reportsExecution.js';
 import { PersonFundService } from './personFundService.js';
+import { localNow } from '../utils/clock.js';
 
 /** Held & Lent rows always belong to a person; route them through PersonFundService. */
 function recordPassThrough(userId, payload) {
@@ -84,7 +85,7 @@ export const BudgetExecution = {
     });
     const dueWindowDays = userSettings?.dueWindowDays ?? 3;
 
-    const now = new Date();
+    const now = localNow();
     const defaultToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const todayStr = query.today && typeof query.today === 'string' ? query.today : defaultToday;
 
@@ -199,7 +200,7 @@ export const BudgetExecution = {
 
       let txDate = date || plannedDate;
       if (!txDate) {
-        const now = new Date();
+        const now = localNow();
         txDate = `${year}-${pad(monthNum)}-${pad(Math.min(28, now.getDate()))}`;
       }
 
@@ -255,7 +256,7 @@ export const BudgetExecution = {
         }
       }
       if (!txDate) {
-        const now = new Date();
+        const now = localNow();
         txDate = `${year}-${pad(monthNum)}-${pad(Math.min(28, now.getDate()))}`;
       }
     }
@@ -923,7 +924,7 @@ export const BudgetExecution = {
         db.query.transactions.findMany({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)) })
       ]);
 
-      const now = new Date();
+      const now = localNow();
       const currentYear = now.getFullYear();
       const currentMonthNum = now.getMonth() + 1;
       const isPastMonth = Number(month.year) < currentYear || (Number(month.year) === currentYear && Number(month.month) < currentMonthNum);
@@ -986,7 +987,7 @@ export const BudgetExecution = {
         db.query.transactions.findMany({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)) })
       ]);
 
-      const now = new Date();
+      const now = localNow();
       const currentYear = now.getFullYear();
       const currentMonthNum = now.getMonth() + 1;
       const isPastMonth = Number(month.year) < currentYear || (Number(month.year) === currentYear && Number(month.month) < currentMonthNum);
@@ -1161,7 +1162,7 @@ export const BudgetExecution = {
     });
     const dueWindowDays = userSettings?.dueWindowDays ?? 3;
 
-    const now = new Date();
+    const now = localNow();
     const defaultToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const todayStr = query.today && typeof query.today === 'string' ? query.today : defaultToday;
 
@@ -1240,7 +1241,7 @@ export const BudgetExecution = {
       resolvedStatus = 'planned';
     }
 
-    const now = new Date();
+    const now = localNow();
     const defaultToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     if (resolvedOrigin !== 'transfer') assertEntryDate({ status: resolvedStatus, date: date || plannedDate });
     const txDate = date || plannedDate || defaultToday;
