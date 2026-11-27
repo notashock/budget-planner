@@ -115,6 +115,7 @@ class _HeldLentFormState extends State<HeldLentForm> {
       setState(() {
         _funds = res.funds;
         _syncFund();
+        _applySettleAccount();
       });
     }).catchError((Object _) {
       // Without the list, a Return or Got back would wrongly say no one owes you.
@@ -215,148 +216,258 @@ class _HeldLentFormState extends State<HeldLentForm> {
   @override
   Widget build(BuildContext context) {
     final budget = context.budgetView();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final p = context.palette;
     final selected = _selected;
+
+    // A return or repayment goes back through the account the money sits in (web's settleAccount)
+    final settleId = !_current.startsNew && selected != null ? selected.raw['settleAccountId']?.toString() : null;
+    String? nameOf(String? id) {
+      for (final a in [...budget.bankAccountModels, ...budget.walletModels]) {
+        if (a.id == id) return a.name;
+      }
+      return null;
+    }
+    final heldIn = nameOf(settleId);
+    final picked = nameOf(_accountId) ?? 'this account';
+    final mismatch = heldIn != null && settleId != _accountId;
+    final noAccounts = budget.bankAccountModels.isEmpty && budget.walletModels.isEmpty;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: heldLentActions.map((a) => ChoiceChip(
-                      label: Text(a.label),
-                      selected: _action == a.key,
-                      onSelected: (_) => setState(() {
+        // Web's .hl-actions: four equal segments in one track
+        Semantics(
+          label: 'What happened',
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: p.surfaceSubtle,
+              border: Border.all(color: p.border),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            // One height for all four, like web's grid track
+            child: IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              for (final a in heldLentActions)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    inMutuallyExclusiveGroup: true,
+                    selected: _action == a.key,
+                    child: GestureDetector(
+                      key: ValueKey('hl-action-${a.key}'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() {
                         _action = a.key;
                         _syncFund();
+                        _applySettleAccount();
                       }),
-                    )).toList(),
-              ),
-              const SizedBox(height: 8),
-              Text("${_current.hint} It won't count as income or spending.", style: TextStyle(fontSize: 12, color: muted)),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
-                key: ValueKey('person-$_action-${_matching.length}'),
-                initialValue: _fundId,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: _current.direction == 'held' ? 'Whose money' : 'Who',
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        decoration: _action == a.key
+                            ? BoxDecoration(
+                                color: p.surface,
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(color: p.borderStrong),
+                              )
+                            : null,
+                        child: Text(a.label,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _action == a.key ? p.text : p.textSecondary,
+                            )),
+                      ),
+                    ),
+                  ),
                 ),
-                items: [
-                  ..._matching.map((f) {
-                    final out = f.outstanding;
-                    final suffix = out > 0 ? ' (${formatCurrency(out)} ${f.direction == FundDirection.held ? 'held' : 'owed'})' : '';
-                    return DropdownMenuItem(value: f.id, child: Text('${f.personName}$suffix'));
-                  }),
-                  if (_current.startsNew) const DropdownMenuItem(value: _newPerson, child: Text('+ New person')),
-                ],
-                onChanged: (v) => setState(() => _fundId = v),
-              ),
-              if (_fundId == _newPerson) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _nameCtrl,
-                  maxLength: 80,
-                  decoration: const InputDecoration(labelText: 'Name', counterText: ''),
-                ),
-              ],
-              const SizedBox(height: 12),
+            ])),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text("${_current.hint} It won't count as income or spending.",
+            style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.45)),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<String>(
+          borderRadius: BorderRadius.circular(8), // web .app-dropdown-menu
+          key: ValueKey('person-$_action-${_matching.length}'),
+          initialValue: _fundId,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: _current.direction == 'held' ? 'Whose money' : 'Who'),
+          items: [
+            ..._matching.map((f) {
+              final out = f.outstanding;
+              final suffix = out > 0 ? ' (${formatCurrency(out)} ${f.direction == FundDirection.held ? 'held' : 'owed'})' : '';
+              return DropdownMenuItem(value: f.id, child: Text('${f.personName}$suffix'));
+            }),
+            if (_current.startsNew) const DropdownMenuItem(value: _newPerson, child: Text('+ New person')),
+            if (!_current.startsNew && _matching.isEmpty) const DropdownMenuItem<String>(value: null, child: Text('No one yet')),
+          ],
+          onChanged: (v) => setState(() {
+            _fundId = v;
+            _applySettleAccount();
+          }),
+        ),
+        if (_fundId == _newPerson) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            label: 'Person name',
+            child: TextField(
+              key: const ValueKey('hl-person-name'),
+              controller: _nameCtrl,
+              maxLength: 80,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'Name', counterText: ''),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        // Web's .hl-row: amount and date side by side
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               TextField(
+                key: const ValueKey('hl-amount'),
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: 'Amount ($moneySymbol) *'),
+                decoration: InputDecoration(labelText: 'Amount ($moneySymbol)', hintText: '0'),
               ),
               if (!_current.startsNew && selected != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () => setState(() => _amountCtrl.text = (selected.outstanding / 100).toString()),
-                    child: Text('All ${formatCurrency(selected.outstanding)}'),
-                  ),
+                TextButton(
+                  onPressed: () => setState(() => _amountCtrl.text = (selected.outstanding / 100).toString()),
+                  child: Text('All ${formatCurrency(selected.outstanding)}'),
                 ),
-              const SizedBox(height: 12),
-              AppDatePickerField(
-                label: 'Date',
-                selectedDate: _date,
-                onDateSelected: (d) => setState(() => _date = d),
-              ),
-              const SizedBox(height: 12),
-              AccountSelector(
-                label: _current.flow == 'in' ? 'Into account' : 'From account',
-                accountType: _accountType,
-                selectedAccountId: _accountId,
-                bankAccounts: budget.bankAccountModels,
-                wallets: budget.walletModels,
-                isRequired: true,
-                onChanged: (t, id) => setState(() {
-                  _accountType = t;
-                  _accountId = id;
-                }),
-              ),
-              if (_current.startsNew) ...[
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                    child: Text(
-                      _expectedDate == null
-                          ? (_current.key == 'lend' ? "They'll pay back by: no date" : 'Give back by: no date')
-                          : '${_current.key == 'lend' ? "They'll pay back by" : 'Give back by'} ${_ymd(_expectedDate!)}',
-                      key: const ValueKey('expected-date'),
-                      style: TextStyle(fontSize: 13, color: muted),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _expectedDate ?? now.add(const Duration(days: 7)),
-                        firstDate: DateTime(now.year, now.month, now.day),
-                        lastDate: DateTime(now.year + 5),
-                      );
-                      if (picked != null && mounted) setState(() => _expectedDate = picked);
-                    },
-                    child: Text(_expectedDate == null ? 'Add date' : 'Change'),
-                  ),
-                  if (_expectedDate != null)
-                    IconButton(
-                      tooltip: 'Remove date',
-                      icon: const Icon(Icons.close, size: 16),
-                      onPressed: () => setState(() => _expectedDate = null),
-                    ),
-                ]),
-              ],
-              const SizedBox(height: 12),
-              TextField(
-                controller: _noteCtrl,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-              ),
-              // Lending spends your own money; returning held money doesn't (it was never yours)
-              if (_current.key == 'lend')
-                FloorBreachNotice(amountController: _amountCtrl, accountId: _accountId),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: context.palette.badInk, fontSize: 13)),
-              ],
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: _submitting || _accountId == null ? null : _submit,
-                  child: Text(_submitting ? 'Saving…' : _current.label),
-                ),
-              ),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _DateBox(
+              key: const ValueKey('hl-date'),
+              label: 'Date',
+              value: _date,
+              onChanged: (d) => setState(() => _date = d ?? _date),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        if (noAccounts)
+          Text('Add a bank account or wallet first.', style: TextStyle(fontSize: 12, color: p.textMuted))
+        else
+          AccountSelector(
+            label: _current.flow == 'in' ? 'Into account' : 'From account',
+            accountType: _accountType,
+            selectedAccountId: _accountId,
+            bankAccounts: budget.bankAccountModels,
+            wallets: budget.walletModels,
+            isRequired: true,
+            onChanged: (t, id) => setState(() {
+              _accountType = t;
+              _accountId = id;
+            }),
+          ),
+        if (mismatch && selected != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              _current.key == 'return'
+                  ? "${selected.personName}'s money went into $heldIn. Returning it from $picked lowers $picked."
+                  : 'The money lent to ${selected.personName} left $heldIn. This puts it into $picked.',
+              key: const ValueKey('hl-account-mismatch'),
+              style: TextStyle(fontSize: 12, color: p.warnInk, height: 1.45),
+            ),
+          ),
+        if (_current.startsNew) ...[
+          const SizedBox(height: 12),
+          _DateBox(
+            key: const ValueKey('expected-date'),
+            label: "${_current.key == 'lend' ? "They'll pay back by" : 'Give back by'} (optional)",
+            value: _expectedDate,
+            empty: 'No date',
+            notBefore: DateTime.now(),
+            onChanged: (d) => setState(() => _expectedDate = d),
+          ),
+        ],
+        const SizedBox(height: 12),
+        TextField(
+          controller: _noteCtrl,
+          maxLength: 200,
+          decoration: const InputDecoration(labelText: 'Note (optional)', counterText: ''),
+        ),
+        // Lending spends your own money; returning held money doesn't (it was never yours)
+        if (_current.key == 'lend') FloorBreachNotice(amountController: _amountCtrl, accountId: _accountId),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!, style: TextStyle(color: p.badInk, fontSize: 13)),
+        ],
+        const SizedBox(height: 18),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: _submitting || _accountId == null || noAccounts ? null : _submit,
+          child: Text(_submitting ? 'Saving…' : _current.label),
+        ),
       ],
+    );
+  }
+
+  /// Return / Got back: move to the account the person's money sits in.
+  void _applySettleAccount() {
+    if (_current.startsNew) return;
+    final id = _selected?.raw['settleAccountId']?.toString();
+    if (id == null) return;
+    final budget = Provider.of<BudgetProvider>(context, listen: false);
+    if (budget.bankAccountModels.any((b) => b.id == id)) {
+      _accountType = 'bank';
+      _accountId = id;
+    } else if (budget.walletModels.any((w) => w.id == id)) {
+      _accountType = 'wallet';
+      _accountId = id;
+    }
+  }
+}
+
+/// A compact date field (web's DatePicker compact): label, the date or [empty],
+/// a clear button when [empty] is set, and the app's calendar on tap.
+class _DateBox extends StatelessWidget {
+  const _DateBox({super.key, required this.label, required this.value, required this.onChanged, this.empty, this.notBefore});
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+  final String? empty;
+  final DateTime? notBefore;
+
+  String _ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final floor = notBefore;
+        final start = v ?? (floor == null ? DateTime.now() : floor.add(const Duration(days: 7)));
+        final picked = await showAppDatePicker(context, start);
+        if (picked == null) return;
+        if (floor != null && picked.isBefore(DateTime(floor.year, floor.month, floor.day))) return;
+        onChanged(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: v != null && empty != null
+              ? IconButton(tooltip: 'Remove date', icon: const Icon(Icons.close, size: 16), onPressed: () => onChanged(null))
+              : const Icon(Icons.calendar_today_outlined, size: 16),
+        ),
+        child: Text(v == null ? empty ?? '' : formatDisplayDate(_ymd(v), includeWeekday: false),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }
