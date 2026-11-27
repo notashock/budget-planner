@@ -248,7 +248,13 @@ export const MonthTransitions = {
       success: true,
       month: serialize(await attachAccountOpeningsToMonth(closed)),
       advancedMonth: serialize(await attachAccountOpeningsToMonth(credited)),
-      transaction: serialize(transaction)
+      transaction: serialize(transaction),
+      // What the new cycle got from this one's plans
+      carried: {
+        moved: serialize(advance.carried?.moved || []),
+        dropped: serialize(advance.carried?.dropped || []),
+        repeated: serialize(advance.carried?.repeated || [])
+      }
     };
   },
 

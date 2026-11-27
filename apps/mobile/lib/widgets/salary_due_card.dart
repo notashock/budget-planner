@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../engine/engine.dart';
 import '../models/month_detail.dart';
+import '../models/transaction.dart';
 import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
 import '../theme/app_palette.dart';
@@ -31,6 +32,19 @@ String _addDays(String iso, int n) {
   final payday = _addDays(end, 1);
   if (t.compareTo(_addDays(payday, -5)) < 0) return null;
   return (payday: payday, nextCycle: true, earliest: _addDays(payday, -10));
+}
+
+/// What the next cycle gets from this one's plans (the server's carry rules):
+/// unpaid Fixed plans move in, unpaid Variable ones drop, monthly ones repeat.
+({List<String> moved, List<String> dropped, List<String> repeated}) carryPreview(List<Transaction> txs) {
+  final moved = <String>[], dropped = <String>[], repeated = <String>{};
+  for (final t in txs) {
+    if (t.origin == TxOrigin.salary) continue;
+    final name = t.name.isEmpty ? t.category : t.name;
+    if (t.isPlanned) (t.isFixed ? moved : dropped).add(name);
+    if (t.recurrence != null) repeated.add(name);
+  }
+  return (moved: moved, dropped: dropped, repeated: repeated.toList());
 }
 
 /// Plan's "Salary due" prompt: shows near payday until the salary is logged.
@@ -221,6 +235,25 @@ class _LogSalarySheetState extends State<LogSalarySheet> {
                   style: AppTypography.inter(fontSize: 12, color: p.textSecondary, height: 1.4),
                 ),
               ],
+              if (due.nextCycle) ...() {
+                final c = carryPreview(budget.transactionModels);
+                Widget line(String key, String label, List<String> names) => names.isEmpty
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text('$label: ${names.join(', ')}',
+                            key: ValueKey(key), style: AppTypography.inter(fontSize: 12, color: p.textSecondary, height: 1.4)),
+                      );
+                return [
+                  if (c.moved.isNotEmpty || c.dropped.isNotEmpty || c.repeated.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text('Your plans in the new cycle', style: label()),
+                  ],
+                  line('carry-moved', 'Moves in, still owed (Fixed)', c.moved),
+                  line('carry-dropped', 'Dropped (Variable, unpaid)', c.dropped),
+                  line('carry-repeated', 'Repeats on the same date', c.repeated),
+                ];
+              }(),
               if (_error != null) ...[
                 const SizedBox(height: 10),
                 Text(_error!, style: AppTypography.inter(fontSize: 12, color: p.badInk)),

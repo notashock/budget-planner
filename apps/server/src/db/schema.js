@@ -192,6 +192,11 @@ export const transactions = pgTable(
     note: text('note').default('').notNull(),
     isIncome: boolean('is_income').default(false).notNull(),
     recurrence: text('recurrence'), // 'monthly', etc. (for template compatibility)
+    // A recurring plan: the day of the month it falls on, the series its occurrences share,
+    // and Fixed (an unpaid one carries into the next cycle) or Variable (it drops)
+    recurrenceDay: integer('recurrence_day'),
+    seriesId: uuid('series_id'),
+    isFixed: boolean('is_fixed').default(true).notNull(),
     accountId: uuid('account_id').references(() => accounts.id, {
       onDelete: 'set null'
     }),

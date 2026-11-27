@@ -401,7 +401,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
       // Transactions store `recurrence`; the old check read the legacy item
       // field `type == 'recurring'`, so a recurring bill reopened as one-time.
       _itemType = t.recurrence != null ? 'recurring' : 'one-time';
-      if (_itemType == 'recurring') _dayCtrl.text = '${parsed?.day ?? 1}';
+      if (_itemType == 'recurring') _dayCtrl.text = '${t.recurrenceDay ?? parsed?.day ?? 1}';
+      _isFixed = t.isFixed;
       _isPaid = !t.isPlanned;
     }
     final accType = _accountTypeOf(budget, t.accountId);
@@ -1158,8 +1159,8 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
               ),
             ]),
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              item('Fixed (Default)', 'Automatically carries forward into next month\'s safe-to-spend allowance on rollover.'),
-              item('Variable', 'One-time commitment for this month only; drops automatically upon rollover.'),
+              item('Fixed', 'Still unpaid when the next cycle starts? It moves there and shows as overdue. A monthly one repeats at the same amount.'),
+              item('Variable', 'Still unpaid when the next cycle starts? It is dropped. A monthly one still repeats, using the last amount as an estimate.'),
             ]),
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it'))],
           );

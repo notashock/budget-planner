@@ -245,6 +245,19 @@ export async function syncPersonFundsSchema() {
  * Credit cards (ADR 0070): card columns on accounts, the card_statements table,
  * and 'credit_card' in the account type check. Idempotent, so it is safe on every boot.
  */
+/**
+ * Recurring plans: their day of the month, series and Fixed/Variable mode.
+ * "scheduled" rows (no month yet) are first occurrences held for a later cycle.
+ */
+export async function syncRecurringPlanSchema() {
+  await pool.query(`
+    ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "recurrence_day" integer;
+    ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "series_id" uuid;
+    ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "is_fixed" boolean DEFAULT true NOT NULL;
+    CREATE INDEX IF NOT EXISTS "idx_transactions_series" ON "transactions" ("user_id", "series_id");
+  `);
+}
+
 export async function syncCreditCardSchema() {
   try {
     await pool.query(`
@@ -426,6 +439,7 @@ export async function runMigrations() {
     await syncPersonFundsSchema();
     await syncCreditCardSchema();
     await syncIdempotencySchema();
+    await syncRecurringPlanSchema();
     await syncPlannedItemsToTransactions();
     await syncDatabaseNormalFormsAndConstraints();
     await migrateLedgerAndMaterializedBalances();
@@ -541,6 +555,16 @@ export async function ensureDatabaseInitialized() {
         if (!ikRes.rows[0]?.has_idempotency_keys) {
           console.log('[DevOps Auto-Init] Adding idempotency_keys table...');
           await syncIdempotencySchema();
+        }
+        const rpRes = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'transactions' AND column_name = 'series_id'
+          ) AS has_series_column;
+        `);
+        if (!rpRes.rows[0]?.has_series_column) {
+          console.log('[DevOps Auto-Init] Adding recurring plan columns...');
+          await syncRecurringPlanSchema();
         }
         await ensureBalanceTrigger();
         await ensureOpeningCarryTrigger(pool);

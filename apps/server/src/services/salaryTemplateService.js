@@ -12,6 +12,7 @@ import { validateUserAccount } from './accountValidation.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { isHistoricalPastMonth } from '../domain/monthLifecycle.js';
+import { carryPlansIntoCycle } from '../domain/recurringPlans.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -543,6 +544,7 @@ export const SalaryTemplateService = {
       }
     }
 
+    let carried = null;
     // Propagate closing balances into next month's opening balances automatically
     if (effectiveNextMonth && effectiveNextMonth.id) {
       for (const [accId, snap] of Object.entries(closingBalancesSnapshot)) {
@@ -565,10 +567,8 @@ export const SalaryTemplateService = {
         }
       }
 
-      // Carry forward any unsettled planned commitments from the closed cycle into the newly opened cycle
-      await db.update(s.transactions)
-        .set({ monthId: effectiveNextMonth.id, updatedAt: new Date() })
-        .where(and(eq(s.transactions.monthId, month.id), eq(s.transactions.status, 'planned')));
+      // Plans: unpaid Fixed ones move in, unpaid Variable ones drop, monthly ones repeat
+      carried = await carryPlansIntoCycle(userId, month, effectiveNextMonth);
 
       // Carry forward any deferred goals from the closed cycle into the newly opened cycle
       await db.update(s.goals)
@@ -580,7 +580,8 @@ export const SalaryTemplateService = {
       closedMonthId: month.id,
       closingBalances: closingBalancesSnapshot,
       nextMonthId: effectiveNextMonth?.id || null,
-      nextMonth: effectiveNextMonth || null
+      nextMonth: effectiveNextMonth || null,
+      carried
     };
   }
 };

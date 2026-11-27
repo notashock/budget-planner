@@ -1,5 +1,6 @@
 // Plan's "Salary due" prompt: a salary-cycle user paid on the 30th logs the next salary.
 import 'package:budget_mobile/models/month_detail.dart';
+import 'package:budget_mobile/models/transaction.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:budget_mobile/widgets/salary_due_card.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,17 @@ const _cycle = {
   'startDate': '2026-10-30', 'endDate': '2026-11-29', 'incomeCreditDate': '2026-10-30',
   'salaryCreditedDate': '2026-10-30', 'isSalaryCredited': true,
 };
+
+Map<String, dynamic> _tx(String name, {String status = 'planned', bool isFixed = true, String? recurrence}) => {
+      '_id': name, 'name': name, 'status': status, 'origin': 'planned', 'amount': 100000,
+      'date': '2026-11-20', 'isFixed': isFixed, if (recurrence != null) 'recurrence': recurrence,
+    };
+final _plans = [
+  _tx('Rent', recurrence: 'monthly'),
+  _tx('Insurance'),
+  _tx('Dinner', isFixed: false),
+  _tx('Gym', status: 'successful', isFixed: false, recurrence: 'monthly'),
+];
 
 class FakeBudget extends BudgetProvider {
   FakeBudget(this.month, {this.periodType = 'salary_cycle'});
@@ -29,6 +41,9 @@ class FakeBudget extends BudgetProvider {
   List<dynamic> get bankAccounts => [
         {'_id': 'b1', 'name': 'HDFC', 'isPrimary': true, 'openingBalance': 0},
       ];
+
+  @override
+  List<dynamic> get transactions => _plans;
 
   @override
   Future<void> creditSalary({num? amount, String? bankAccountId, String? date}) async {
@@ -67,6 +82,13 @@ void main() {
     });
   });
 
+  test('carryPreview: unpaid Fixed moves, unpaid Variable drops, monthly plans repeat', () {
+    final c = carryPreview(_plans.map(Transaction.fromJson).toList());
+    expect(c.moved, ['Rent', 'Insurance']);
+    expect(c.dropped, ['Dinner']);
+    expect(c.repeated, ['Rent', 'Gym']);
+  });
+
   testWidgets('hidden mid-cycle', (tester) async {
     await pump(tester, FakeBudget(_cycle), DateTime(2026, 11, 10));
     expect(find.byKey(const ValueKey('salary-due-card')), findsNothing);
@@ -82,6 +104,9 @@ void main() {
     expect(find.text('Log salary'), findsWidgets);
     expect(find.text('HDFC'), findsOneWidget);
     expect(find.byKey(const ValueKey('log-salary-cycle-note')), findsOneWidget);
+    expect(find.text('Moves in, still owed (Fixed): Rent, Insurance'), findsOneWidget);
+    expect(find.text('Dropped (Variable, unpaid): Dinner'), findsOneWidget);
+    expect(find.text('Repeats on the same date: Rent, Gym'), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('log-salary-amount')), '82000');
     await tester.tap(find.byKey(const ValueKey('log-salary-confirm')));
     await tester.pumpAndSettle();
