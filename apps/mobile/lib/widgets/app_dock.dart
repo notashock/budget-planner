@@ -6,6 +6,7 @@ import '../modals/unified_entry_modal.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
 import 'min_tap.dart';
+import 'web_icons.dart';
 import 'you_sheet.dart';
 
 /// The floating, blurred dock (Apple-style plan §2.1): the Today bar that
@@ -17,11 +18,12 @@ class AppDock extends StatelessWidget {
   final int index;
   final ValueChanged<int> onTab;
 
+  // Web's NAV_TABS icons (AppSidebar.jsx)
   static const tabs = [
-    (Icons.timeline_outlined, Icons.timeline, 'Plan'),
-    (Icons.receipt_long_outlined, Icons.receipt_long, 'Transactions'),
-    (Icons.auto_awesome_outlined, Icons.auto_awesome, 'Goals'),
-    (Icons.account_balance_outlined, Icons.account_balance, 'Accounts'),
+    (WebIcons.layoutDashboard, 'Plan'),
+    (WebIcons.listOrdered, 'Transactions'),
+    (WebIcons.target, 'Goals'),
+    (WebIcons.wallet, 'Accounts'),
   ];
 
   static Future<void> _openEntry(BuildContext context) => showModalBottomSheet(
@@ -119,14 +121,14 @@ class AppDock extends StatelessWidget {
 class _Tab extends StatelessWidget {
   const _Tab({required this.tab, required this.selected, required this.onTap});
 
-  final (IconData, IconData, String) tab;
+  final (WebIconData, String) tab;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = selected ? Theme.of(context).colorScheme.primary : context.palette.textSecondary;
-    final (icon, activeIcon, label) = tab;
+    final (icon, label) = tab;
     return Semantics(
       selected: selected,
       button: true,
@@ -139,7 +141,7 @@ class _Tab extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 52),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(selected ? activeIcon : icon, size: 22, color: color),
+            WebIcon(icon, size: 22, color: color, strokeWidth: selected ? 2.4 : 2),
             const SizedBox(height: 2),
             Text(label,
                 maxLines: 1,
