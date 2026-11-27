@@ -5,6 +5,7 @@ import { backfillUnassignedTransactions } from '../services/accountMigration.js'
 import { LedgerService } from './ledgerService.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
+import { localNow } from '../utils/clock.js';
 
 const ACCOUNT_TYPES = ['bank', 'wallet', 'cash', 'credit_card'];
 const BANK_SUBTYPES = ['checking', 'savings', 'salary', 'cash', 'other'];
@@ -61,7 +62,7 @@ async function findOwnedAccount(userId, accountId, expectedType, notFoundMessage
 }
 
 function todayIso() {
-  const d = new Date();
+  const d = localNow();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

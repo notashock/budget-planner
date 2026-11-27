@@ -1,0 +1,140 @@
+import 'package:budget_mobile/engine/plan_insights.dart';
+import 'package:budget_mobile/models/simulation.dart';
+import 'package:budget_mobile/widgets/timeline_list.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/fake_font_http.dart';
+import 'helpers/fixture_budget.dart';
+
+/// Timeline shows only today in the current month; month switches show the skeleton.
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  useFakeFontHttp();
+
+  String iso(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Three days around [mid], one spend on each.
+  SimulationResult simAround(DateTime mid) {
+    final dates = [for (final shift in [-1, 0, 1]) mid.add(Duration(days: shift))];
+    final names = ['Yesterday spend', 'Today spend', 'Tomorrow spend'];
+    return SimulationResult.fromJson({
+      'days': [
+        for (final (i, d) in dates.indexed)
+          {'day': i + 1, 'date': iso(d), 'openingBalance': 100000, 'closingBalance': 99000},
+      ],
+      'allEvents': [
+        for (final (i, d) in dates.indexed)
+          {
+            'id': 'e$i',
+            'date': iso(d),
+            'day': i + 1,
+            'name': names[i],
+            'amount': -1000,
+            'runningBalance': 99000,
+            'status': 'successful',
+            'isPaid': true,
+            'itemType': 'actual',
+          },
+      ],
+    });
+  }
+
+  Future<void> pumpTimeline(WidgetTester tester, SimulationResult sim, {String? account, bool thisMonth = true}) async {
+    // A month around today, or one two months back; the days list is sparse like the server's.
+    final mid = thisMonth ? DateTime.now() : DateTime.now().subtract(const Duration(days: 60));
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: TimelineListWidget(
+            simulation: sim,
+            safetyFloor: 0,
+            accountName: account,
+            periodStart: iso(mid.subtract(const Duration(days: 10))),
+            periodEnd: iso(mid.add(const Duration(days: 10))),
+          ),
+        ),
+      ),
+    ));
+  }
+
+  testWidgets("the current month's timeline lists only today's entries", (tester) async {
+    await pumpTimeline(tester, simAround(DateTime.now()));
+    expect(find.text('Today spend'), findsOneWidget);
+    expect(find.text('Yesterday spend'), findsNothing);
+    expect(find.text('Tomorrow spend'), findsNothing);
+  });
+
+  testWidgets("an account's timeline lists only that day too", (tester) async {
+    await pumpTimeline(tester, simAround(DateTime.now()), account: 'HDFC');
+    expect(find.text('Today spend'), findsOneWidget);
+    expect(find.text('Yesterday spend'), findsNothing);
+  });
+
+  testWidgets('a month without today lists every day', (tester) async {
+    await pumpTimeline(tester, simAround(DateTime.now().subtract(const Duration(days: 60))), thisMonth: false);
+    for (final name in ['Yesterday spend', 'Today spend', 'Tomorrow spend']) {
+      expect(find.text(name), findsOneWidget, reason: name);
+    }
+  });
+
+  testWidgets('nothing today says so', (tester) async {
+    final sim = simAround(DateTime.now());
+    await pumpTimeline(
+        tester,
+        // Sparse like the server's: a day with no entries has no row
+        SimulationResult.fromJson({'days': const [], 'allEvents': [for (final e in sim.allEvents) if (e.date != iso(DateTime.now())) e.raw]}));
+    expect(find.text('Yesterday spend'), findsNothing);
+    expect(find.text('Nothing today'), findsOneWidget);
+  });
+
+  test('a transfer, held/lent money or a card bill is not a spend', () {
+    TimelineEvent e(String itemType, int amount) =>
+        TimelineEvent.fromJson({'id': itemType, 'date': '2026-11-01', 'amount': amount, 'itemType': itemType});
+    expect(isSpendEvent(e('actual', -500)), isTrue);
+    expect(isSpendEvent(e('actual', 500)), isFalse);
+    for (final t in ['transfer', 'pass-through', 'card-bill']) {
+      expect(isSpendEvent(e(t, -500)), isFalse, reason: t);
+    }
+  });
+
+  test("an account's timeline takes the all-accounts events that touch it, with its own balance", () {
+    final sim = SimulationResult.fromJson({
+      'days': const [],
+      'allEvents': [
+        {'id': 'spend', 'date': '2026-11-28', 'amount': -12000, 'itemType': 'actual', 'bankAccountId': 'hdfc',
+          'balanceAfter': 500000, 'accountBalances': {'hdfc': 130000, 'upi': 370000}},
+        {'id': 'upi-spend', 'date': '2026-11-28', 'amount': -500, 'itemType': 'actual', 'walletId': 'upi', 'balanceAfter': 499500},
+        {'id': 'move', 'date': '2026-11-28', 'amount': -100000, 'itemType': 'transfer', 'transferAmount': 100000,
+          'sourceBankAccountId': 'hdfc', 'destinationWalletId': 'upi', 'sourceAccountBalanceAfter': 30000,
+          'destinationAccountBalanceAfter': 470000, 'balanceAfter': 499500},
+        {'id': 'salary', 'date': '2026-11-26', 'amount': 8000000, 'itemType': 'salary', 'isSalary': true, 'balanceAfter': 9000000},
+        {'id': 'swipe', 'date': '2026-11-27', 'amount': -2000, 'itemType': 'actual', 'isCardSpend': true, 'balanceAfter': 0},
+      ],
+    });
+    final hdfc = eventsForAccount(sim, 'hdfc', isBank: true, isPrimary: true);
+    expect([for (final e in hdfc) e.id], ['spend', 'move', 'salary']);
+    expect(hdfc.first.runningBalance, 130000, reason: "the account's own balance, not the total");
+    expect(hdfc[1].amount, -100000, reason: 'a transfer out of the account');
+
+    final upi = eventsForAccount(sim, 'upi', isBank: false);
+    expect([for (final e in upi) e.id], ['upi-spend', 'move']);
+    expect(upi[1].amount, 100000, reason: 'a transfer in');
+    expect(upi[1].runningBalance, 470000);
+  });
+
+  testWidgets('switching month counts as loading until the new month arrives', (tester) async {
+    final fb = FixtureBudget();
+    final budget = (await tester.runAsync(fb.load))!;
+    expect(budget.isSwitchingMonth, isFalse);
+    final info = budget.monthInfo!;
+    await tester.runAsync(() async {
+      final next = budget.switchMonth(info.year + 1, info.month);
+      expect(budget.isSwitchingMonth, isTrue);
+      await next;
+    });
+  });
+}

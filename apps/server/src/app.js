@@ -9,6 +9,7 @@ import { responseEnvelope } from './middleware/envelope.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { csrfGuard } from './middleware/csrf.js';
 import { legacyDeprecationNotice } from './middleware/deprecation.js';
+import { clockContext } from './utils/clock.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { monthsRouter } from './routes/months.js';
@@ -52,6 +53,8 @@ export function createApp(options = {}) {
   }));
 
   app.use(express.json());
+  // "Today" is the user's date: the apps send their UTC offset
+  app.use(clockContext);
 
   // Defensive Security Firewall (Sanitizes inputs, enforces security headers, blocks attacks)
   app.use(defenseFirewall);

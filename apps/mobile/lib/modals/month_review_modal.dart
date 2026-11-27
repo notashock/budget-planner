@@ -6,6 +6,7 @@ import '../models/simulation.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import '../widgets/tab_states.dart';
 import '../widgets/web_icons.dart';
 
 /// Web's MonthEndReviewModal: safety cushion hero, unplanned vs committed,
@@ -17,6 +18,8 @@ void showMonthReviewModal(
   required SimulationResult simulation,
   required int safetyFloor,
   String currencySymbol = kDefaultCurrencySymbol,
+  String? accountId,
+  Widget? planDetails,
 }) {
   showModalBottomSheet(
     context: context,
@@ -33,6 +36,8 @@ void showMonthReviewModal(
         simulation: simulation,
         currencySymbol: currencySymbol,
         scrollController: scroll,
+        accountId: accountId,
+        planDetails: planDetails,
       ),
     ),
   );
@@ -45,12 +50,20 @@ class MonthReviewSheet extends StatefulWidget {
     required this.simulation,
     this.currencySymbol = kDefaultCurrencySymbol,
     this.scrollController,
+    this.accountId,
+    this.planDetails,
   });
 
   final MonthInfo month;
   final SimulationResult simulation;
   final String currencySymbol;
   final ScrollController? scrollController;
+
+  /// The account the Plan tab is filtered to: the review then covers only it, like [simulation].
+  final String? accountId;
+
+  /// The Plan tab's month figures, chart and pace meter, shown above the review.
+  final Widget? planDetails;
 
   @override
   State<MonthReviewSheet> createState() => _MonthReviewSheetState();
@@ -64,7 +77,7 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
   void initState() {
     super.initState();
     final budget = context.read<BudgetProvider>();
-    budget.api.getMonthEndReview(widget.month.year, widget.month.month).then((r) {
+    budget.api.getMonthEndReview(widget.month.year, widget.month.month, accountId: widget.accountId).then((r) {
       if (mounted) setState(() => _review = r);
     }).catchError((Object e) {
       if (mounted) setState(() => _error = 'Failed to load review');
@@ -83,7 +96,11 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
     // Recurring commitments, as web reads them from the month's items
     final recurring = [
       for (final raw in budget.transactions)
-        if (raw is Map && raw['recurrence'] != null && raw['status'] != 'cancelled') raw,
+        if (raw is Map &&
+            raw['recurrence'] != null &&
+            raw['status'] != 'cancelled' &&
+            (widget.accountId == null || raw['accountId'] == widget.accountId))
+          raw,
     ];
     final fixed = recurring.where((i) => i['isFixed'] == true).toList();
     int amountOf(Map i) => _int(i['plannedAmount'] ?? i['amount']).abs();
@@ -136,7 +153,7 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
     if (_error != null) {
       body.add(Padding(padding: const EdgeInsets.all(16), child: Text(_error!, style: AppTypography.inter(fontSize: 13, color: p.badInk))));
     } else if (review == null) {
-      body.add(const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator(strokeWidth: 2))));
+      body.add(const SkeletonLines(key: ValueKey('review-loading'), lines: [1, 1, 0.6, 1, 0.8, 0.5], lineHeight: 44));
     } else {
       final tags = (review['tagBreakdown'] is Map ? Map<String, dynamic>.from(review['tagBreakdown'] as Map) : <String, dynamic>{})
           .entries
@@ -223,7 +240,7 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
         card(
           key: const ValueKey('review-categories'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            header('Spending by category', '${tags.length} categories'),
+            header('Spending by category', '${tags.length} ${tags.length == 1 ? 'category' : 'categories'}'),
             if (tags.isEmpty)
               Text('No categorized spending recorded this month.', style: note())
             else
@@ -315,6 +332,7 @@ class _MonthReviewSheetState extends State<MonthReviewSheet> {
           ),
         ]),
         const SizedBox(height: 12),
+        if (widget.planDetails != null) ...[widget.planDetails!, const SizedBox(height: 12)],
         ...body,
       ],
     );

@@ -4,6 +4,7 @@ import '../providers/budget_provider.dart';
 import '../providers/budget_view.dart';
 import '../theme/app_palette.dart';
 import '../widgets/acct_inset.dart';
+import '../widgets/tab_states.dart';
 
 /// Web's AssistantScreen: off by default; when on, text becomes a draft item
 /// you review before saving, and the month's timeline can be explained.
@@ -189,6 +190,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
               child: _parsing ? spinnerLabel('Parsing item...') : const Text('Parse into item'),
             ),
           ),
+          if (_parsing) const Padding(padding: EdgeInsets.only(top: 14), child: SkeletonLines(lines: [0.45, 1], lineHeight: 18)),
           if (_parseError.isNotEmpty) error(_parseError),
           if (draft != null)
             Container(
@@ -230,6 +232,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
             onPressed: _explaining || budget.simulation == null ? null : () => _explain(budget),
             child: _explaining ? spinnerLabel('Analyzing timeline...') : const Text('Analyze timeline'),
           ),
+          if (_explaining) const Padding(padding: EdgeInsets.only(top: 14), child: SkeletonLines(lines: [0.6, 0.9, 0.75])),
           if (_explainError.isNotEmpty) error(_explainError),
           if (explanation != null)
             Container(

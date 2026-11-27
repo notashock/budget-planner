@@ -7,6 +7,7 @@ import { serialize } from '../utils/serializer.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { isValidUuid } from '../middleware/auth.js';
 import { LedgerService } from './ledgerService.js';
+import { localNow } from '../utils/clock.js';
 
 /**
  * Held & Lent money (ADR 0069).
@@ -27,7 +28,7 @@ function pad(n) {
 }
 
 function todayIso() {
-  const d = new Date();
+  const d = localNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 

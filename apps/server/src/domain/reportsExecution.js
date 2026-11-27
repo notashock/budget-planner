@@ -53,12 +53,8 @@ export const ReportsExecution = {
       })
     ]);
 
-    const tagBreakdown = {
-      Food: { count: 0, total: 0 },
-      Travel: { count: 0, total: 0 },
-      Health: { count: 0, total: 0 },
-      Other: { count: 0, total: 0 }
-    };
+    // Only categories that were actually spent in
+    const tagBreakdown = {};
 
     let totalUnplannedActual = 0;
     let totalMatchedActual = 0;
@@ -79,6 +75,8 @@ export const ReportsExecution = {
         if (tx.status === 'successful') passThrough[passThroughKey[tx.origin]] += Math.abs(tx.amount);
         return;
       }
+      // Only money that actually moved: a planned bill not yet paid, or a cancelled one, is no spending
+      if (tx.status !== 'successful') return;
       // Transfers move money between your own accounts (including card bill payments)
       if (tx.origin === 'transfer') return;
       if (!tx.isIncome && cardNames.has(tx.accountId) && tx.status === 'successful') {

@@ -198,6 +198,10 @@ class BudgetProvider with ChangeNotifier {
 
   /// The selected month's header, typed; null when no month is loaded.
   MonthInfo? get monthInfo => _monthInfo;
+
+  /// A different month is loading while the last one's figures are still held.
+  bool get isSwitchingMonth =>
+      isLoading && _monthInfo != null && (_monthInfo!.year != _currentYear || _monthInfo!.month != _currentMonth);
   List<Account> get bankAccountModels =>
       _typedList('banks', bankAccounts, (a) => Account.fromJson(a, fallbackKind: AccountKind.bank));
   List<Account> get walletModels =>

@@ -111,6 +111,8 @@ class ApiService {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      // The server works out "today" in the user's timezone (minutes east of UTC)
+      'X-Timezone-Offset': '${DateTime.now().timeZoneOffset.inMinutes}',
     };
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';

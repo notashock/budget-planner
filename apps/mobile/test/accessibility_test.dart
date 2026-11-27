@@ -88,15 +88,12 @@ void main() {
 
   // The rows that reflow at 200 % must still look like rows at 1x (found on
   // the phone: a Wrap stretched "Month Review" to full width on its own line).
-  testWidgets('Plan at 1x: reflowing rows keep their one-line layout', (tester) async {
+  testWidgets('Plan at 1x: Details stays on the Timeline heading line', (tester) async {
     await pump(tester, const PlanScreen());
-    await tester.tap(find.byKey(const Key('plan-details-toggle')));
-    await tester.pump();
-    final review = tester.getRect(find.text('Month Review'));
-    final title = tester.getRect(find.text('CASHFLOW TRAJECTORY'));
-    expect(review.top, lessThan(title.bottom), reason: 'Month Review stays on the title line');
-    expect(tester.getRect(find.ancestor(of: find.text('Month Review'), matching: find.byType(InkWell)).first).width,
-        lessThan(200));
+    final details = tester.getRect(find.byKey(const Key('plan-details-toggle')));
+    final title = tester.getRect(find.text('Timeline'));
+    expect(details.top, lessThan(title.bottom), reason: 'Details stays on the heading line');
+    expect(details.width, lessThan(200));
   });
 
   double contrast(Color a, Color b) {

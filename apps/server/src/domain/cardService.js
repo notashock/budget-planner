@@ -7,6 +7,7 @@ import { isValidUuid } from '../middleware/auth.js';
 import { LedgerService } from './ledgerService.js';
 import { TransferService } from './transferService.js';
 import { resolveCoveringMonth } from './personFundService.js';
+import { localNow } from '../utils/clock.js';
 
 /**
  * Credit cards (ADR 0070).
@@ -27,7 +28,7 @@ function pad(n) {
 }
 
 export function todayIso() {
-  const d = new Date();
+  const d = localNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 

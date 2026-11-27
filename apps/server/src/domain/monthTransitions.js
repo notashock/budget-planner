@@ -8,6 +8,7 @@ import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 import { validateUserAccount } from '../services/accountValidation.js';
+import { localNow } from '../utils/clock.js';
 
 /**
  * Month transitions: crediting the salary and rolling over to the next month.
@@ -40,7 +41,7 @@ export const MonthTransitions = {
 
     const month = await attachAccountOpeningsToMonth(rawMonth);
 
-    const now = new Date();
+    const now = localNow();
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
     const allAccounts = await db.query.accounts.findMany({
@@ -189,7 +190,7 @@ export const MonthTransitions = {
    */
   async creditNextCycleSalary(userId, month, template, options = {}) {
     if (!month.endDate) throw new ValidationError('This cycle has no end date, so the next payday is unknown');
-    const now = new Date();
+    const now = localNow();
     const iso = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
     const addDays = (dateIso, n) => {
       const [y, m, d] = dateIso.split('-').map(Number);
@@ -205,8 +206,7 @@ export const MonthTransitions = {
     if (date < earliest || (lastCredit && date <= lastCredit)) {
       throw new ValidationError(`This cycle's salary is already logged. The next salary can be logged from ${earliest} (payday ${payday}).`);
     }
-    // shortcut: server clock, one day of slack for users ahead of it; use the user's timezone (PR #74 localNow) once merged.
-    if (date > addDays(todayStr, 1)) throw new ValidationError('A salary cannot be logged before it arrives');
+    if (date > todayStr) throw new ValidationError('A salary cannot be logged before it arrives');
 
     const amount = Math.round(Number(options.amount || template.amount || month.incomeAmount || 0));
     if (!(amount > 0)) throw new ValidationError('A positive salary amount is required');

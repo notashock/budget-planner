@@ -5,6 +5,7 @@ import { recommendPurchaseDate, evaluateGoalsWithReservation } from '@budget/eng
 import { validateUserAccount } from '../services/accountValidation.js';
 import { serialize } from '../utils/serializer.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
+import { localNow } from '../utils/clock.js';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -50,7 +51,7 @@ export const GoalExecution = {
       })
     ]);
 
-    const now = new Date();
+    const now = localNow();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : 0;
 
@@ -164,7 +165,7 @@ export const GoalExecution = {
         // fallback
       }
       if (!scheduledDate) {
-        const now = new Date();
+        const now = localNow();
         scheduledDate = `${month.year}-${pad(month.month)}-${pad(Math.min(28, now.getDate()))}`;
       }
     }
@@ -368,7 +369,7 @@ export const GoalExecution = {
       db.query.transactions.findMany({ where: and(eq(s.transactions.userId, userId), eq(s.transactions.monthId, month.id)) })
     ]);
 
-    const now = new Date();
+    const now = localNow();
     const isCurrentMonth = Number(year) === now.getFullYear() && Number(monthNum) === (now.getMonth() + 1);
     const currentDay = isCurrentMonth ? now.getDate() : null;
 

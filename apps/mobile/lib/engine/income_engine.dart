@@ -48,7 +48,7 @@ IrregularMetrics calculateIrregularMetrics({
   String? asOfDate,
   int windowMonths = 12,
 }) {
-  final now = DateTime.now().toUtc();
+  final now = DateTime.now(); // the user's date, not UTC's
   final today = asOfDate != null ? DateTime.parse(asOfDate) : DateTime.utc(now.year, now.month, now.day);
   final asOf = asOfDate ?? _iso(today);
   final windowStart = _iso(DateTime.utc(today.year, today.month - windowMonths, today.day));
