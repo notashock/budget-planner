@@ -8,6 +8,7 @@ import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { serialize } from '../utils/serializer.js';
 import { pad, attachAccountOpeningsToMonth, salaryTxCondition } from './monthHelpers.js';
 import { validateUserAccount } from '../services/accountValidation.js';
+import { getSalaryWindow, assertInWindow } from './salaryWindow.js';
 import { localNow } from '../utils/clock.js';
 
 /**
@@ -30,6 +31,11 @@ export const MonthTransitions = {
     if (rawMonth.isClosed) {
       throw new ValidationError('Cannot credit salary in a closed review period. Review periods are strictly read-only.');
     }
+
+    // The next salary goes in its window: payday ± 5 days after the last one (a late one is confirmed).
+    // The first salary, logged at setup, has no window.
+    const win = await getSalaryWindow(userId);
+    if (win) assertInWindow(win, options.date || win.today, Boolean(options.late));
 
     // This cycle's salary is already in: a new credit is the next payday's salary
     if (rawMonth.isSalaryCredited) {
@@ -191,21 +197,13 @@ export const MonthTransitions = {
   async creditNextCycleSalary(userId, month, template, options = {}) {
     if (!month.endDate) throw new ValidationError('This cycle has no end date, so the next payday is unknown');
     const now = localNow();
-    const iso = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-    const addDays = (dateIso, n) => {
-      const [y, m, d] = dateIso.split('-').map(Number);
-      return iso(new Date(Date.UTC(y, m - 1, d + n)));
-    };
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const date = options.date || todayStr;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new ValidationError('Salary date must be YYYY-MM-DD');
 
-    const payday = addDays(month.endDate, 1);
-    const earliest = addDays(payday, -10);
+    // creditSalary has checked the date against the salary window
     const lastCredit = month.salaryCreditedDate || month.incomeCreditDate || month.startDate;
-    if (date < earliest || (lastCredit && date <= lastCredit)) {
-      throw new ValidationError(`This cycle's salary is already logged. The next salary can be logged from ${earliest} (payday ${payday}).`);
-    }
+    if (lastCredit && date <= lastCredit) throw new ValidationError("This cycle's salary is already logged on a later date");
     if (date > todayStr) throw new ValidationError('A salary cannot be logged before it arrives');
 
     const amount = Math.round(Number(options.amount || template.amount || month.incomeAmount || 0));

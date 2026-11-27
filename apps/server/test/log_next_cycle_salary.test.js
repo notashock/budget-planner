@@ -34,7 +34,7 @@ describe('logging the next payday salary on a salary cycle', () => {
   it('refuses a date mid-cycle or in the future', async () => {
     const early = await request(app).post('/api/v1/periods/2026/11/credit-salary').set(auth).send({ date: '2026-11-15' });
     expect(early.status).toBe(400);
-    expect(early.body.error?.message || early.body.message).toMatch(/already logged/i);
+    expect(early.body.error?.message || early.body.message).toMatch(/between 25 Nov 2026 and today/);
     const future = await request(app).post('/api/v1/periods/2026/11/credit-salary').set(auth).send({ date: '2026-12-05' });
     expect(future.status).toBe(400);
   });
