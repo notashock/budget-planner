@@ -37,6 +37,9 @@ describe('Credit cards API', () => {
   const start = addDays(today, -45);
   const billDate = addDays(today, -5);
   const statementDay = Number(billDate.split('-')[2]);
+  // The bill must fall due after today: a bill due today or overdue is projected as paid today,
+  // which these tests don't expect. A fixed day 28 broke them from the 28th to month end.
+  const dueDay = Math.min(28, Number(addDays(today, 3).split('-')[2]));
 
   const sim = async () => {
     const res = await request(app).get(`/api/v1/periods/${year}/${month}`).set(auth);
@@ -92,7 +95,7 @@ describe('Credit cards API', () => {
       .set(auth)
       .send({
         name: 'Visa', type: 'credit_card', creditLimit: 5000000,
-        statementDay, dueDay: 28, payFromAccountId: bankId, currentOutstanding: 0, openingBalanceDate: start
+        statementDay, dueDay, payFromAccountId: bankId, currentOutstanding: 0, openingBalanceDate: start
       });
     expect(res.status).toBe(201);
     cardId = res.body.data.id;
@@ -119,7 +122,7 @@ describe('Credit cards API', () => {
     expect(latest.cycleEnd).toBe(billDate);
     expect(latest.status).toBe('draft');
     expect(latest.computedAmount).toBe(200000);
-    expect(latest.dueDate).toBe(dueDateFor(billDate, 28));
+    expect(latest.dueDate).toBe(dueDateFor(billDate, dueDay));
     expect(card.statements.slice(1).every((st) => st.status === 'carried')).toBe(true);
     expect(card.openBill.remaining).toBe(200000);
     statementId = latest.id;
