@@ -53,7 +53,7 @@ class FakeBudget extends BudgetProvider {
   }
 }
 
-Future<FakeBudget> open(WidgetTester tester, Map<String, dynamic> window) async {
+Future<FakeBudget> open(WidgetTester tester, Map<String, dynamic> window, {EntryType type = EntryType.income}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = const Size(1080, 2600);
   tester.view.devicePixelRatio = 3;
@@ -69,7 +69,7 @@ Future<FakeBudget> open(WidgetTester tester, Map<String, dynamic> window) async 
               onPressed: () => showModalBottomSheet(
                 context: ctx,
                 isScrollControlled: true,
-                builder: (_) => const UnifiedEntryModal(initialType: EntryType.income),
+                builder: (_) => UnifiedEntryModal(initialType: type),
               ),
               child: const Text('open'),
             ),
@@ -111,18 +111,28 @@ void main() {
   });
 
   // The sheet dates the entry today, so these windows are built around the real today.
-  testWidgets('inside the window: Salary is chosen and prefilled, and logs the salary', (tester) async {
+  testWidgets('inside the window: Salary is chosen (amount left empty), and logs the salary', (tester) async {
     final budget = await open(tester, {..._window('open'), 'lastCreditedDate': _day(-29), 'opensOn': _day(-3), 'closesOn': _day(7), 'today': _day(0)});
     expect(find.text('Salary'), findsOneWidget);
     expect(find.byKey(const ValueKey('entry-salary-window')), findsOneWidget);
     expect(find.text('Moves in, still owed (Fixed): Rent'), findsOneWidget);
     expect(find.text('Dropped (Variable, unpaid): Dinner'), findsOneWidget);
     expect(find.byKey(const ValueKey('entry-income-note')), findsNothing);
+    // No autofill: the user types the amount
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('entry-amount'))).controller!.text, isEmpty);
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '80000');
+    await tester.pump();
 
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(budget.credited, {'amount': 8000000, 'bank': 'b1', 'date': _day(0), 'late': false, 'year': 2026, 'month': 11});
     expect(find.text('Salary logged'), findsOneWidget);
+  });
+
+  testWidgets('Add spend inside the salary window opens with an empty amount', (tester) async {
+    await open(tester, {..._window('open'), 'lastCreditedDate': _day(-29), 'opensOn': _day(-3), 'closesOn': _day(7), 'today': _day(0)},
+        type: EntryType.transaction);
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('entry-amount'))).controller!.text, isEmpty);
   });
 
   testWidgets('before the window: Salary shows but is disabled, with when it opens', (tester) async {
@@ -141,6 +151,8 @@ void main() {
   testWidgets('after the window: still loggable, sent as late', (tester) async {
     final budget = await open(tester, {..._window('late'), 'lastCreditedDate': _day(-40), 'opensOn': _day(-15), 'closesOn': _day(-5), 'today': _day(0)});
     expect(find.textContaining('Logging it now marks it late'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('entry-amount')), '80000');
+    await tester.pump();
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(budget.credited?['late'], isTrue);

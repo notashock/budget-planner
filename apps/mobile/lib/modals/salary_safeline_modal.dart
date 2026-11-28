@@ -5,6 +5,7 @@ import '../providers/budget_view.dart';
 import '../engine/engine.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_typography.dart';
+import '../models/salary_window.dart';
 import '../widgets/web_icons.dart';
 
 /// web's SalarySafelineModal ("Salary schedule"): the salary account, amount,
@@ -54,7 +55,14 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
         m?.incomeCreditDate ??
         '${m?.year ?? now.year}-${_pad(m?.month ?? now.month)}-${_pad((m?.incomeCreditDay ?? 1).clamp(1, 31))}';
     _isSalaryCredited = m?.isSalaryCredited ?? false;
+    // The payday window (last salary + about a month, ± 5 days) decides the lock;
+    // the old calendar rule only applies before the first salary is credited.
+    budget.getSalaryWindow().then((w) {
+      if (mounted && w != null) setState(() => _window = w);
+    }).catchError((Object _) {});
   }
+
+  SalaryWindow? _window;
 
   @override
   void dispose() {
@@ -115,7 +123,9 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
     final m = budget.monthInfo;
     if (m == null) return const SizedBox.shrink();
     final status = getSalaryWindowStatus(m.raw, widget.currentDate);
-    final locked = status.isLocked;
+    final window = _window;
+    final locked = window != null ? !window.canLog : status.isLocked;
+    final lockReason = window != null ? '${window.message}.' : status.reason;
     final banks = budget.bankAccountModels;
     final sym = m.currencySymbol;
 
@@ -187,7 +197,7 @@ class _SalarySafelineModalState extends State<SalarySafelineModal> {
               ),
               const SizedBox(height: 16),
               if (locked)
-                notice(WebIcons.lock, 'Salary logging locked:', '${status.reason} Your safety floor can still be changed.',
+                notice(WebIcons.lock, 'Salary logging locked:', '$lockReason Your safety floor can still be changed.',
                     key: const ValueKey('salary-lock-banner')),
               if (status.isMidMonthSetup && !locked)
                 notice(
