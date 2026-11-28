@@ -453,20 +453,17 @@ class _UnifiedEntryModalState extends State<UnifiedEntryModal> {
   // A new spend, refund or income does not wait for the server (upgrade plan
   // 2.8, ADR 0071): it shows as "Saving…" in the sync strip and the sheet
   // closes. Only a refusal comes back, as a snackbar.
-  /// Salary is the default source only while it can be logged, prefilled with the
-  /// expected amount and the salary account.
+  /// Salary is the default income source while it can be logged. Nothing is
+  /// typed in for the user: the amount stays empty (the user asked for no autofill).
   void _applySalaryWindow(SalaryWindow w) {
     _salaryWindow = w;
     if (_isEditing || _sourceTouched || !w.canLog) return;
     _incSource = 'Salary';
-    _prefillSalary(w);
+    if (_activeType == EntryType.income) _prefillSalary(w);
   }
 
+  /// Salary picked: the salary account, never an amount.
   void _prefillSalary(SalaryWindow w) {
-    if (_amountCtrl.text.trim().isEmpty && w.amount > 0) {
-      final v = toMajorUnits(w.amount);
-      _amountCtrl.text = v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
-    }
     final budget = _budgetRef;
     if (w.accountId != null && budget.bankAccountModels.any((b) => b.id == w.accountId)) {
       _accountType = 'bank';

@@ -1,5 +1,6 @@
 // The salary schedule sheet laid out and locked as web's SalarySafelineModal.
 import 'package:budget_mobile/models/month_detail.dart';
+import 'package:budget_mobile/models/salary_window.dart';
 import 'package:budget_mobile/modals/salary_safeline_modal.dart';
 import 'package:budget_mobile/providers/budget_provider.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeBudget extends BudgetProvider {
   Map<String, dynamic>? saved;
+
+  /// The server's payday window; null = no salary credited yet (old calendar rule).
+  SalaryWindow? window;
+
+  @override
+  Future<SalaryWindow?> getSalaryWindow() async => window;
 
   @override
   MonthInfo? get monthInfo => MonthInfo.fromJson(const {
@@ -33,12 +40,12 @@ class FakeBudget extends BudgetProvider {
   }
 }
 
-Future<FakeBudget> pump(WidgetTester tester, DateTime today) async {
+Future<FakeBudget> pump(WidgetTester tester, DateTime today, {SalaryWindow? window}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = const Size(1080, 2600);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
-  final budget = FakeBudget();
+  final budget = FakeBudget()..window = window;
   await tester.pumpWidget(ChangeNotifierProvider<BudgetProvider>.value(
     value: budget,
     child: MaterialApp(home: Scaffold(body: SalarySafelineModal(currentDate: today))),
@@ -47,7 +54,26 @@ Future<FakeBudget> pump(WidgetTester tester, DateTime today) async {
   return budget;
 }
 
+SalaryWindow _window(String state, String today) => SalaryWindow.fromJson({
+      'lastCreditedDate': '2026-10-30', 'expectedDate': '2026-11-30', 'opensOn': '2026-11-25', 'closesOn': '2026-12-05',
+      'state': state, 'today': today, 'amount': 8000000, 'accountId': 'b1',
+    });
+
 void main() {
+  testWidgets("the payday window decides the lock: open on 28 Nov though the cycle's calendar window closed", (tester) async {
+    await pump(tester, DateTime(2026, 11, 28), window: _window('open', '2026-11-28'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('salary-lock-banner')), findsNothing);
+    expect(find.text('Save salary schedule'), findsOneWidget);
+  });
+
+  testWidgets('before the payday window: locked, saying when it opens', (tester) async {
+    await pump(tester, DateTime(2026, 11, 20), window: _window('before', '2026-11-20'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('salary-lock-banner')), findsOneWidget);
+    expect(find.textContaining('Next salary can be logged from 25 Nov.'), findsOneWidget);
+  });
+
   testWidgets('inside the window: web labels, Cancel, and the whole schedule saves', (tester) async {
     final budget = await pump(tester, DateTime(2026, 11, 3));
     expect(find.text('Salary schedule'), findsOneWidget);
